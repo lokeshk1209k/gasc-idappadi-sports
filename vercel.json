@@ -2,16 +2,9 @@
   "version": 2,
   "buildCommand": "cd student-client && npm install && npm run build",
   "outputDirectory": "student-client/dist",
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30,
-      "memory": 512
-    }
-  },
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/index.js" },
-    { "src": "/uploads/(.*)", "dest": "/api/index.js" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/uploads/:path*", "destination": "/api" },
+    { "source": "/((?!assets|images|favicon|_next).*)", "destination": "/index.html" }
   ]
 }
