@@ -110,7 +110,7 @@ async function loadPublicSports() {
       <div class="col-md-6 col-lg-4">
         <div class="glass-card h-100">
           <div style="height: 190px; overflow: hidden; position: relative;">
-            <img src="${s.image}" alt="${s.name}" class="w-100 h-100 object-fit-cover" onerror="this.src='https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=600&q=80'">
+            <img src="${window.getSportImage(s.name, s.image)}" alt="${s.name}" class="w-100 h-100 object-fit-cover" onerror="this.src=window.getSportImage('${s.name}')">
             <span class="position-absolute top-0 end-0 m-3 badge bg-dark bg-opacity-75 backdrop-blur">${s.indoorOutdoor}</span>
           </div>
           <div class="p-4 d-flex flex-column">

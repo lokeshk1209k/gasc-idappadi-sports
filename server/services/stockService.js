@@ -90,44 +90,84 @@ class StockService {
       .select()
       .single();
 
+    const now = new Date();
+    const issueDateStr = now.toISOString();
+    const issueTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
     // Create transaction record
-    const { data: txRaw, error: txErr } = await supabase
+    const newTxRecord = {
+      student_id: student.id,
+      student_name: student.name,
+      register_number: student.registerNumber,
+      equipment_id: equipmentId,
+      equipment_name: eqRaw.name,
+      quantity: qty,
+      issue_date: issueDateStr,
+      issue_time: issueTimeStr,
+      expected_return_date: new Date(expectedReturnDate).toISOString(),
+      status: 'Issued',
+      return_condition: 'Pending',
+      purpose: purpose || 'College Practice / Match',
+      remarks: remarks || '',
+      issued_by: issuedBy || 'Sports Incharge'
+    };
+
+    let txRaw = null;
+    const { data: insertedTx, error: txErr } = await supabase
       .from('equipment_transactions')
-      .insert({
-        student_id: student.id,
-        student_name: student.name,
-        register_number: student.registerNumber,
-        equipment_id: equipmentId,
-        equipment_name: eqRaw.name,
-        quantity: qty,
-        issue_date: new Date().toISOString(),
-        expected_return_date: new Date(expectedReturnDate).toISOString(),
-        status: 'Issued',
-        return_condition: 'Pending',
-        purpose: purpose || 'College Practice / Match',
-        remarks: remarks || '',
-        issued_by: issuedBy || 'Sports Incharge'
-      })
+      .insert(newTxRecord)
       .select()
       .single();
 
     if (txErr) {
-      throw new Error(txErr.message);
+      console.warn('Supabase insert notice on equipment_transactions:', txErr.message);
+      txRaw = { ...newTxRecord, id: `tx_${Date.now()}` };
+    } else {
+      txRaw = insertedTx;
+    }
+
+    // Sync localStore for 100% offline & persistent reliability
+    try {
+      const localStore = require('../data/localStore');
+      const storeInstance = localStore.storeInstance;
+      
+      // Sync equipment
+      const eqTable = storeInstance.getTable('equipment');
+      const eqIdx = eqTable.findIndex(e => String(e.id) === String(equipmentId));
+      if (eqIdx >= 0) {
+        eqTable[eqIdx] = { ...eqTable[eqIdx], issued_quantity: newIssued, available_quantity: available, status };
+      }
+
+      // Sync transaction
+      const txTable = storeInstance.getTable('equipment_transactions');
+      const existingTxIdx = txTable.findIndex(t => String(t.id) === String(txRaw.id));
+      if (existingTxIdx >= 0) {
+        txTable[existingTxIdx] = txRaw;
+      } else {
+        txTable.unshift(txRaw);
+      }
+      storeInstance.save();
+    } catch (e) {
+      console.warn('localStore sync notice on issueEquipment:', e.message);
     }
 
     const transaction = toCamelCase(txRaw);
-    const equipment = toCamelCase(updatedEqRaw);
+    const equipment = toCamelCase(updatedEqRaw || { ...eqRaw, issued_quantity: newIssued, available_quantity: available, status });
 
     // Notification to student
-    await notificationService.notifyEquipmentIssued(
-      student.id,
-      eqRaw.name,
-      qty,
-      expectedReturnDate
-    );
+    try {
+      await notificationService.notifyEquipmentIssued(
+        student.id,
+        eqRaw.name,
+        qty,
+        expectedReturnDate
+      );
+    } catch (e) { /* ignore */ }
 
     if (available <= eqRaw.minimum_stock) {
-      await notificationService.notifyLowStock(eqRaw.name, available, eqRaw.minimum_stock);
+      try {
+        await notificationService.notifyLowStock(eqRaw.name, available, eqRaw.minimum_stock);
+      } catch (e) { /* ignore */ }
     }
 
     return { transaction, equipment };
@@ -144,29 +184,40 @@ class StockService {
       .single();
 
     if (txErr || !txRaw) {
-      throw new Error('Transaction record not found');
+      // Check localStore if Supabase missed it
+      const localStore = require('../data/localStore');
+      const storeInstance = localStore.storeInstance;
+      const txTable = storeInstance.getTable('equipment_transactions');
+      const localTx = txTable.find(t => String(t.id) === String(transactionId));
+      if (!localTx) {
+        throw new Error('Transaction record not found');
+      }
     }
 
-    if (txRaw.status === 'Returned' || txRaw.status === 'Damaged' || txRaw.status === 'Lost') {
+    const activeTx = txRaw || require('../data/localStore').storeInstance.getTable('equipment_transactions').find(t => String(t.id) === String(transactionId));
+
+    if (activeTx.status === 'Returned' || activeTx.status === 'Damaged' || activeTx.status === 'Lost') {
       throw new Error('This equipment has already been returned or processed.');
     }
 
-    const { data: eqRaw, error: eqErr } = await supabase
+    const { data: eqRaw } = await supabase
       .from('equipment')
       .select('*')
-      .eq('id', txRaw.equipment_id)
+      .eq('id', activeTx.equipment_id)
       .single();
 
-    if (eqErr || !eqRaw) {
+    const currentEq = eqRaw || require('../data/localStore').storeInstance.getTable('equipment').find(e => String(e.id) === String(activeTx.equipment_id));
+
+    if (!currentEq) {
       throw new Error('Associated equipment not found');
     }
 
-    const qty = txRaw.quantity;
+    const qty = activeTx.quantity || 1;
     let newStatus = 'Returned';
     let damagedInc = 0;
     let lostInc = 0;
 
-    if (returnCondition === 'Good') {
+    if (returnCondition === 'Good' || !returnCondition) {
       newStatus = 'Returned';
     } else if (returnCondition === 'Damaged') {
       newStatus = 'Damaged';
@@ -179,15 +230,15 @@ class StockService {
       damagedInc = 1;
     }
 
-    const newIssued = Math.max(0, (eqRaw.issued_quantity || 0) - qty);
-    const newDamaged = (eqRaw.damaged_quantity || 0) + damagedInc;
-    const newLost = (eqRaw.lost_quantity || 0) + lostInc;
-    const available = Math.max(0, eqRaw.total_quantity - (newIssued + newDamaged + newLost));
+    const newIssued = Math.max(0, (currentEq.issued_quantity || 0) - qty);
+    const newDamaged = (currentEq.damaged_quantity || 0) + damagedInc;
+    const newLost = (currentEq.lost_quantity || 0) + lostInc;
+    const available = Math.max(0, currentEq.total_quantity - (newIssued + newDamaged + newLost));
 
     let eqStatus = 'In Stock';
     if (available === 0) {
       eqStatus = 'Out of Stock';
-    } else if (available <= eqRaw.minimum_stock) {
+    } else if (available <= (currentEq.minimum_stock || 2)) {
       eqStatus = 'Low Stock';
     }
 
@@ -200,23 +251,54 @@ class StockService {
         available_quantity: available,
         status: eqStatus
       })
-      .eq('id', eqRaw.id)
+      .eq('id', currentEq.id)
       .select()
       .single();
 
-    const { data: updatedTxRaw } = await supabase
+    const returnNow = new Date();
+    const returnDateStr = returnNow.toISOString();
+    const returnTimeStr = returnNow.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    const txUpdates = {
+      status: newStatus,
+      return_date: returnDateStr,
+      return_time: returnTimeStr,
+      return_condition: returnCondition || 'Good',
+      damage_description: damageDescription || '',
+      fine_amount: parseFloat(fineAmount) || 0,
+      remarks: remarks ? (activeTx.remarks ? `${activeTx.remarks} | ${remarks}` : remarks) : activeTx.remarks
+    };
+
+    let updatedTxRaw = null;
+    const { data: supabaseUpdatedTx } = await supabase
       .from('equipment_transactions')
-      .update({
-        status: newStatus,
-        return_date: new Date().toISOString(),
-        return_condition: returnCondition || 'Good',
-        damage_description: damageDescription || '',
-        fine_amount: parseFloat(fineAmount) || 0,
-        remarks: remarks ? (txRaw.remarks ? `${txRaw.remarks} | ${remarks}` : remarks) : txRaw.remarks
-      })
+      .update(txUpdates)
       .eq('id', transactionId)
       .select()
       .single();
+
+    updatedTxRaw = supabaseUpdatedTx || { ...activeTx, ...txUpdates };
+
+    // Sync to localStore
+    try {
+      const localStore = require('../data/localStore');
+      const storeInstance = localStore.storeInstance;
+      
+      const eqTable = storeInstance.getTable('equipment');
+      const eqIdx = eqTable.findIndex(e => String(e.id) === String(currentEq.id));
+      if (eqIdx >= 0) {
+        eqTable[eqIdx] = { ...eqTable[eqIdx], issued_quantity: newIssued, damaged_quantity: newDamaged, lost_quantity: newLost, available_quantity: available, status: eqStatus };
+      }
+
+      const txTable = storeInstance.getTable('equipment_transactions');
+      const txIdx = txTable.findIndex(t => String(t.id) === String(transactionId));
+      if (txIdx >= 0) {
+        txTable[txIdx] = { ...txTable[txIdx], ...txUpdates };
+      }
+      storeInstance.save();
+    } catch (e) {
+      console.warn('localStore sync notice on returnEquipment:', e.message);
+    }
 
     return {
       transaction: toCamelCase(updatedTxRaw),

@@ -95,9 +95,25 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border: 1px solid var(--dark-glass-border);
-  color: #fff;
+  color: #ffffff !important;
   border-radius: var(--radius-md);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), var(--dark-glass-shadow);
+}
+
+.glass-card-dark h1,
+.glass-card-dark h2,
+.glass-card-dark h3,
+.glass-card-dark h4,
+.glass-card-dark h5,
+.glass-card-dark h6 {
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+.glass-card-dark .text-white-50,
+.glass-card-dark .small,
+.glass-card-dark .text-secondary {
+  color: rgba(241, 245, 249, 0.92) !important;
 }
 
 .glass-header {
@@ -315,36 +331,36 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
    GLASS BADGES & CHIPS
    ========================================================================== */
 .badge-glass-success {
-  background: rgba(5, 196, 107, 0.16);
-  color: #009452;
-  border: 1px solid rgba(5, 196, 107, 0.35);
+  background: rgba(5, 196, 107, 0.18);
+  color: #000000 !important;
+  border: 1px solid rgba(5, 196, 107, 0.45);
   font-weight: 700;
   border-radius: var(--radius-full);
   padding: 0.35rem 0.85rem;
 }
 
 .badge-glass-primary {
-  background: rgba(0, 206, 201, 0.16);
-  color: #008f8d;
-  border: 1px solid rgba(0, 206, 201, 0.4);
+  background: rgba(0, 206, 201, 0.18);
+  color: #000000 !important;
+  border: 1px solid rgba(0, 206, 201, 0.45);
   font-weight: 700;
   border-radius: var(--radius-full);
   padding: 0.35rem 0.85rem;
 }
 
 .badge-glass-warning {
-  background: rgba(255, 159, 67, 0.16);
-  color: #d35400;
-  border: 1px solid rgba(255, 159, 67, 0.4);
+  background: rgba(255, 159, 67, 0.22);
+  color: #000000 !important;
+  border: 1px solid rgba(255, 159, 67, 0.5);
   font-weight: 700;
   border-radius: var(--radius-full);
   padding: 0.35rem 0.85rem;
 }
 
 .badge-glass-danger {
-  background: rgba(255, 82, 82, 0.16);
-  color: #c0392b;
-  border: 1px solid rgba(255, 82, 82, 0.4);
+  background: rgba(255, 82, 82, 0.18);
+  color: #000000 !important;
+  border: 1px solid rgba(255, 82, 82, 0.45);
   font-weight: 700;
   border-radius: var(--radius-full);
   padding: 0.35rem 0.85rem;
@@ -632,29 +648,201 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   border-radius: var(--radius-md);
 }
 
-/* Print Stylesheet for Reports */
+/* ==========================================================================
+   PRINT STYLESHEET — Official Reports
+   ========================================================================== */
+
+/* ── BASE: Always applied when printing ── */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm 15mm 12mm;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   body {
     background: #fff !important;
     color: #000 !important;
+    font-size: 11pt !important;
+    font-family: 'Times New Roman', Times, serif !important;
   }
-  .portal-sidebar, .portal-topbar, .no-print, .btn, #toast-container {
+
+  /* Hide all portal chrome */
+  .portal-sidebar,
+  .portal-topbar,
+  .mobile-bottom-nav,
+  .mob-more-drawer,
+  .mob-overlay,
+  #toast-container,
+  .no-print {
     display: none !important;
+    visibility: hidden !important;
   }
+
   .portal-content {
     margin-left: 0 !important;
+    padding: 0 !important;
   }
-  .glass-card, .table-glass-container {
+
+  .portal-main-view {
+    padding: 0 !important;
+  }
+
+  /* Clean glass cards for print */
+  .glass-card,
+  .table-glass-container {
     box-shadow: none !important;
-    border: 1px solid #000 !important;
+    border: 1px solid #ccc !important;
     background: #fff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
+
   .table-glass thead th {
-    background: #eee !important;
+    background: #e8e8e8 !important;
     color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
   }
+
+  .table-glass tbody td,
+  .table-glass tbody tr {
+    border-bottom: 1px solid #ddd !important;
+    break-inside: avoid;
+  }
+
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 9pt !important;
+  }
+
+  th, td {
+    padding: 4pt 6pt !important;
+    border: 1px solid #bbb !important;
+  }
+
   .print-only {
     display: block !important;
+  }
+
+  .btn {
+    display: none !important;
+  }
+
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}
+
+/* ── TOURNAMENT REGISTRATION REPORT PRINT MODE ──
+   When body has class 'print-trr-only',
+   show ONLY the #trr-printable-area content */
+@media print {
+  body.print-trr-only .admin-view-section,
+  body.print-trr-only .glass-card:not(#trr-printable-area),
+  body.print-trr-only #tournament-reg-report-panel > .glass-card,
+  body.print-trr-only #report-output-container,
+  body.print-trr-only .no-print {
+    display: none !important;
+  }
+
+  body.print-trr-only #tournament-reg-report-panel {
+    display: block !important;
+  }
+
+  body.print-trr-only #trr-output-area {
+    display: block !important;
+  }
+
+  body.print-trr-only #trr-printable-area {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body.print-trr-only #trr-printable-area * {
+    visibility: visible !important;
+  }
+
+  /* Hide action buttons inside the printable area */
+  body.print-trr-only .no-print,
+  body.print-trr-only .btn {
+    display: none !important;
+  }
+
+  /* Department groups — avoid page break inside */
+  body.print-trr-only .department-report-group {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Signature block */
+  body.print-trr-only .trr-signature-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-top: 30pt;
+  }
+}
+
+/* ── MASTER REPORT PRINT MODE ──
+   When body has class 'print-master-only',
+   show ONLY the #report-printable-area content */
+@media print {
+  body.print-master-only .portal-sidebar,
+  body.print-master-only .portal-topbar,
+  body.print-master-only .no-print {
+    display: none !important;
+  }
+
+  body.print-master-only #view-reports {
+    display: block !important;
+  }
+
+  body.print-master-only #report-printable-area {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body.print-master-only #report-printable-area * {
+    visibility: visible !important;
+  }
+
+  /* Hide everything else in reports section */
+  body.print-master-only #report-output-container > *:not(#report-printable-area) {
+    display: none !important;
+  }
+
+  body.print-master-only .btn,
+  body.print-master-only .glass-card.no-print {
+    display: none !important;
+  }
+
+  body.print-master-only table {
+    font-size: 9pt !important;
+  }
+
+  body.print-master-only .report-signature-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-top: 30pt;
   }
 }
 
@@ -727,3 +915,381 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   .glass-card { border-radius: 14px !important; }
   .table-responsive { font-size: 0.78rem; }
 }
+
+/* ==========================================================================
+   REGISTRATION ANALYTICS & TEAM FORMATION MODULE ENHANCEMENTS
+   ========================================================================== */
+
+/* Summary KPI Cards */
+.analytics-kpi-card {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 8px 24px rgba(7, 21, 36, 0.08);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.analytics-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(7, 21, 36, 0.14);
+  border-color: rgba(0, 210, 211, 0.4);
+}
+
+.analytics-kpi-card .kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.analytics-kpi-card .kpi-val {
+  font-size: 1.85rem;
+  font-weight: 800;
+  font-family: var(--font-family-primary);
+  line-height: 1.1;
+}
+
+/* Matrix Table Styling */
+.matrix-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.matrix-table thead th {
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.75rem 0.6rem;
+  border: none;
+  text-align: center;
+}
+
+.matrix-table thead th:first-child {
+  text-align: left;
+  border-top-left-radius: 12px;
+}
+
+.matrix-table thead th:last-child {
+  border-top-right-radius: 12px;
+  background: #1e293b;
+}
+
+.matrix-table tbody tr:hover td {
+  background-color: rgba(241, 245, 249, 0.7);
+}
+
+.matrix-badge-cell {
+  cursor: pointer;
+  display: inline-block;
+  min-width: 38px;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.matrix-badge-cell.has-data {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0284c7;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.matrix-badge-cell.has-data:hover {
+  background: #0284c7;
+  color: #ffffff;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+}
+
+.matrix-badge-cell.zero-data {
+  color: #94a3b8;
+  font-weight: 500;
+  background: rgba(241, 245, 249, 0.6);
+  border: 1px dashed rgba(203, 213, 225, 0.8);
+  cursor: default;
+}
+
+/* Player Selection Checkbox List */
+.player-select-item {
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.player-select-item:hover {
+  border-color: #38bdf8;
+  background: #f8fafc;
+}
+
+.player-select-item.selected {
+  border-color: #0284c7;
+  background: rgba(2, 132, 199, 0.05);
+}
+
+.player-select-item.already-assigned {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  opacity: 0.7;
+}
+
+/* Live counter pulse */
+.counter-pill-active {
+  animation: pulseCounter 2s infinite;
+}
+
+@keyframes pulseCounter {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+/* Printable Official Team Sheet */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-team-sheet, #printable-team-sheet * {
+    visibility: visible;
+  }
+  #printable-team-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20mm;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Printable Tournament Registration Report */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
+  }
+  body.print-trr-only {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  body.print-trr-only * {
+    visibility: hidden !important;
+  }
+  body.print-trr-only #trr-printable-area,
+  body.print-trr-only #trr-printable-area * {
+    visibility: visible !important;
+  }
+  body.print-trr-only #trr-printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  body.print-trr-only .no-print {
+    display: none !important;
+  }
+  body.print-trr-only table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 11px !important;
+  }
+  body.print-trr-only table th,
+  body.print-trr-only table td {
+    border: 1px solid #333333 !important;
+    padding: 4px 6px !important;
+    color: #000000 !important;
+  }
+  body.print-trr-only table thead {
+    display: table-header-group;
+    background-color: #f0f0f0 !important;
+  }
+  body.print-trr-only .department-report-group {
+    page-break-inside: auto;
+    margin-bottom: 20px !important;
+  }
+  body.print-trr-only .department-report-group > div:first-child {
+    background-color: #f2f2f2 !important;
+    border: 1px solid #666666 !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    page-break-after: avoid;
+  }
+  body.print-trr-only #trr-signature-block {
+    page-break-inside: avoid;
+    margin-top: 30px !important;
+  }
+}
+
+/* ==========================================================================
+   📱 100% MOBILE RESPONSIVE UI SYSTEM (PHONES, TABLETS & SMALL SCREENS)
+   ========================================================================== */
+
+/* Prevent iOS Automatic Zoom & Ensure Minimum Touch Target Sizes */
+@media (max-width: 991.98px) {
+  html, body {
+    overflow-x: hidden !important;
+    width: 100%;
+  }
+
+  /* Form inputs & touch targets for mobile */
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea,
+  .form-control,
+  .form-select {
+    font-size: 16px !important; /* Prevents iOS auto-zoom on input focus */
+    min-height: 44px;
+  }
+
+  /* Mobile Navbar adjustments */
+  .navbar-brand {
+    font-size: 1.1rem !important;
+    max-width: 75%;
+  }
+  .navbar-brand img {
+    height: 38px !important;
+  }
+
+  /* Mobile Padding & Margins */
+  .container, .container-fluid {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Mobile Hero Headers */
+  .bg-sports-hero {
+    padding: 2.5rem 1rem !important;
+    text-align: center;
+  }
+  .bg-sports-hero h1 {
+    font-size: 1.8rem !important;
+    line-height: 1.3 !important;
+  }
+  .bg-sports-hero p {
+    font-size: 0.95rem !important;
+  }
+
+  /* Mobile Glass Cards & Stat Blocks */
+  .glass-card, .glass-card-dark {
+    border-radius: 16px !important;
+    padding: 1.25rem 1rem !important;
+    margin-bottom: 1rem;
+  }
+
+  /* Responsive Mobile Tables with smooth touch swipe */
+  .table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+  }
+  .table-responsive table {
+    min-width: 600px; /* Ensures table headers don't squish */
+  }
+
+  /* Mobile Modals */
+  .modal-dialog {
+    margin: 0.5rem !important;
+    max-width: calc(100% - 1rem) !important;
+  }
+  .modal-content {
+    border-radius: 20px !important;
+    max-height: 92vh;
+    overflow-y: auto;
+  }
+
+  /* Mobile Flex Button Stacks */
+  .d-flex.gap-2.flex-mobile-column,
+  .mobile-stack-btn {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+  .mobile-stack-btn .btn {
+    width: 100% !important;
+  }
+
+  /* Mobile Student Dashboard Cards */
+  .student-dash-stat {
+    padding: 1rem !important;
+  }
+  .student-dash-stat h3 {
+    font-size: 1.5rem !important;
+  }
+
+  /* Mobile Tab Navigation */
+  .nav-pills, .nav-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .nav-pills .nav-link, .nav-tabs .nav-link {
+    white-space: nowrap;
+    padding: 0.5rem 0.85rem !important;
+    font-size: 0.85rem !important;
+  }
+}
+
+@media (max-width: 575.98px) {
+  /* Extra Small Devices (Smartphones) */
+  h1 { font-size: 1.6rem !important; }
+  h2 { font-size: 1.4rem !important; }
+  h3 { font-size: 1.2rem !important; }
+  h4 { font-size: 1.1rem !important; }
+  h5, h6 { font-size: 0.95rem !important; }
+
+  /* Login / Register Card Mobile Optimizations */
+  .login-card-container, .auth-card {
+    padding: 1.25rem 1rem !important;
+    width: 100% !important;
+  }
+
+  /* Action Buttons Full Width on Small Mobile */
+  .btn-mobile-full {
+    width: 100% !important;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Toast Alerts Mobile Fix */
+  .toast-container {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    width: auto !important;
+  }
+}
+
+
+

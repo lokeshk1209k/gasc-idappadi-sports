@@ -1,5 +1,66 @@
 const { supabase, toCamelCase, toSnakeCase } = require('../utils/supabaseHelper');
 
+function normalizeSportName(name) {
+  if (!name) return '';
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/[^a-z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+const BACKEND_SPORT_IMAGES = {
+  badminton: '/images/sports/badminton.png',
+  kabaddi: '/images/sports/kabaddi.png',
+  boxing: '/images/sports/boxing.png',
+  cricket: '/images/sports/cricket.png',
+  football: '/images/sports/football.png',
+  volleyball: '/images/sports/volleyball.png',
+  basketball: '/images/sports/basketball.png',
+  chess: '/images/sports/chess.png',
+  running: '/images/sports/running.png',
+  athletics: '/images/sports/running.png',
+  carrom: '/images/sports/carrom.png',
+  table_tennis: '/images/sports/table_tennis.png',
+  hockey: '/images/sports/hockey.png',
+  kho_kho: '/images/sports/kho_kho.png',
+  tennis: '/images/sports/tennis.png',
+  handball: '/images/sports/handball.png',
+  throwball: '/images/sports/throwball.png',
+  relay: '/images/sports/relay.png',
+  long_jump: '/images/sports/long_jump.png',
+  high_jump: '/images/sports/high_jump.png',
+  triple_jump: '/images/sports/triple_jump.png',
+  shot_put: '/images/sports/shot_put.png',
+  discus_throw: '/images/sports/discus_throw.png',
+  javelin_throw: '/images/sports/javelin_throw.png',
+  marathon: '/images/sports/marathon.png'
+};
+
+function getBackendSportImage(name, explicitImage) {
+  if (explicitImage && explicitImage.includes('/uploads/') && !explicitImage.includes('tournament.png')) {
+    return explicitImage;
+  }
+  const slug = normalizeSportName(name);
+  if (BACKEND_SPORT_IMAGES[slug]) {
+    return BACKEND_SPORT_IMAGES[slug];
+  }
+  if (slug.includes('badminton')) return BACKEND_SPORT_IMAGES.badminton;
+  if (slug.includes('kabaddi')) return BACKEND_SPORT_IMAGES.kabaddi;
+  if (slug.includes('boxing')) return BACKEND_SPORT_IMAGES.boxing;
+  if (slug.includes('cricket')) return BACKEND_SPORT_IMAGES.cricket;
+  if (slug.includes('football')) return BACKEND_SPORT_IMAGES.football;
+  if (slug.includes('volleyball')) return BACKEND_SPORT_IMAGES.volleyball;
+  if (slug.includes('basketball')) return BACKEND_SPORT_IMAGES.basketball;
+  if (slug.includes('chess')) return BACKEND_SPORT_IMAGES.chess;
+  if (slug.includes('running') || slug.includes('athletics')) return BACKEND_SPORT_IMAGES.running;
+
+  if (slug) return `/images/sports/${slug}.png`;
+  return '/images/sports/running.png';
+}
+
 // @desc    Get all sports
 // @route   GET /api/sports
 // @access  Public
@@ -21,7 +82,18 @@ exports.getAllSports = async (req, res) => {
       return res.status(500).json({ success: false, message: error.message });
     }
 
-    const sports = (sportsRaw || []).map(toCamelCase);
+    const excluded = ['decathlon', 'hammer throw', 'heptathlon', 'pole vault', 'race walking'];
+
+    const sports = (sportsRaw || [])
+      .filter(s => {
+        const n = (s.name || '').toLowerCase();
+        return !excluded.some(ex => n.includes(ex));
+      })
+      .map(s => {
+        const item = toCamelCase(s);
+        item.image = getBackendSportImage(item.name, item.image);
+        return item;
+      });
 
     // Fetch counts in parallel
     const enriched = await Promise.all(sports.map(async (sport) => {

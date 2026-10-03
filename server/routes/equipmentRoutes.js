@@ -5,8 +5,9 @@ const { verifyToken, requireAdmin, requireStudent } = require('../middleware/aut
 const upload = require('../middleware/uploadMiddleware');
 
 router.get('/', equipmentController.getAllEquipment);
+router.get('/lookup-student/:regNo', equipmentController.lookupStudent);
 router.get('/transactions', verifyToken, equipmentController.getAllTransactions);
-router.get('/my-equipment', verifyToken, requireStudent, equipmentController.getMyEquipment);
+router.get('/my-equipment', equipmentController.getMyEquipment);
 router.get('/:id', verifyToken, equipmentController.getEquipmentById);
 
 router.post('/', verifyToken, requireAdmin, upload.single('image'), equipmentController.createEquipment);

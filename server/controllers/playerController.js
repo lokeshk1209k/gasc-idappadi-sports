@@ -55,23 +55,49 @@ exports.getAllPlayers = async (req, res) => {
 
     const players = (usersRaw || []).map(toCamelCase);
 
-    // Fetch player profiles for these users
+    // Fetch player profiles and registered sports for these users
     if (players.length > 0) {
       const userIds = players.map(p => p.id);
-      const { data: profilesRaw } = await supabase
-        .from('player_profiles')
-        .select('*')
-        .in('user_id', userIds);
+      const regNos = players.map(p => p.registerNumber).filter(Boolean);
+
+      const [profilesRes, sportsRes, compRegsRes] = await Promise.all([
+        supabase.from('player_profiles').select('*').in('user_id', userIds),
+        supabase.from('sports').select('id, name'),
+        supabase.from('competition_registrations').select('*').in('register_number', regNos)
+      ]);
+
+      const sportMap = {};
+      (sportsRes.data || []).forEach(s => { sportMap[s.id] = s; });
+
+      const compSportMap = {};
+      (compRegsRes.data || []).forEach(cr => {
+        if (!compSportMap[cr.register_number]) {
+          compSportMap[cr.register_number] = cr.sport_name || cr.sport;
+        }
+      });
 
       const profileMap = {};
-      if (profilesRaw) {
-        profilesRaw.forEach(p => {
-          profileMap[p.user_id] = toCamelCase(p);
+      if (profilesRes.data) {
+        profilesRes.data.forEach(p => {
+          const prof = toCamelCase(p);
+          if (prof.primarySport && typeof prof.primarySport === 'string' && sportMap[prof.primarySport]) {
+            prof.primarySport = toCamelCase(sportMap[prof.primarySport]);
+          }
+          profileMap[p.user_id] = prof;
         });
       }
 
       players.forEach(p => {
         p.profile = profileMap[p.id] || null;
+        if (!p.profile && compSportMap[p.registerNumber]) {
+          p.profile = {
+            primarySport: { name: compSportMap[p.registerNumber] },
+            position: 'Player'
+          };
+        } else if (p.profile && (!p.profile.primarySport || typeof p.profile.primarySport === 'string')) {
+          const fallbackSport = compSportMap[p.registerNumber] || 'Cricket';
+          p.profile.primarySport = { name: fallbackSport };
+        }
       });
     }
 

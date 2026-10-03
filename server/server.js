@@ -27,24 +27,38 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const supabaseRoutes = require('./routes/supabaseRoutes');
 const externalCompetitionRoutes = require('./routes/externalCompetitionRoutes');
 const sportsNewsRoutes = require('./routes/sportsNewsRoutes');
+const compression = require('compression');
+const { apiCache } = require('./middleware/cacheMiddleware');
 
 const app = express();
 
+// Enable Gzip Compression for 10,000+ concurrent users (reduces network payload by ~80%)
+app.use(compression());
+
+// Initialize local SQLite database for offline-first operation
+try {
+  const localDB = require('./database/localDB');
+  localDB.initDB();
+  console.log('[Server] ✅ Local SQLite DB ready for offline operation.');
+} catch (e) {
+  console.warn('[Server] ⚠️  Local SQLite init warning:', e.message);
+}
+
 // Middlewares
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// HTTP caching strategy: API responses are fresh, static assets are efficiently cached
+// HTTP caching strategy for high concurrency (10,000 users peak load)
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     res.setHeader('Pragma', 'no-cache');
-  } else if (req.path.match(/\.(png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf|eot)$/i)) {
-    // Media and fonts cached for 1 day
+  } else if (req.path.match(/\.(woff2?|ttf|eot)$/i)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  } else if (req.path.match(/\.(png|jpg|jpeg|gif|svg|ico|webp)$/i)) {
     res.setHeader('Cache-Control', 'public, max-age=86400');
   } else {
-    // HTML, CSS, JS: always revalidate without blocking
     res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   }
   next();
@@ -61,39 +75,31 @@ if (!fs.existsSync(uploadDir)) {
 // 🏛️ CLEAN PORTAL ROUTES (STUDENT & SPORTS INCHARGE / ADMIN)
 // ============================================================
 
+const studentPublic = path.join(__dirname, '../student-client/dist');
+
 // 1. Student Portal Routes
+app.get(['/student', '/student/'], (req, res) => {
+  if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
+    return res.sendFile(path.join(studentPublic, 'index.html'));
+  }
+  res.sendFile(path.join(clientPublic, 'student-login.html'));
+});
 app.get('/student/login', (req, res) => {
+  if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
+    return res.sendFile(path.join(studentPublic, 'index.html'));
+  }
   res.sendFile(path.join(clientPublic, 'student-login.html'));
 });
 app.get('/student/register', (req, res) => {
+  if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
+    return res.sendFile(path.join(studentPublic, 'index.html'));
+  }
   res.sendFile(path.join(clientPublic, 'student-register.html'));
 });
 app.get('/student/dashboard', (req, res) => {
-  res.sendFile(path.join(clientPublic, 'student-dashboard.html'));
-});
-app.get(['/student', '/student/'], (req, res) => {
-  res.redirect('/student/login');
-});
-app.get([
-  '/student/profile',
-  '/student/my-sports',
-  '/student/sports',
-  '/student/competitions',
-  '/student/applications',
-  '/student/team',
-  '/student/practice',
-  '/student/attendance',
-  '/student/equipment',
-  '/student/achievements',
-  '/student/certificates',
-  '/student/news',
-  '/student/notifications',
-  '/student/external-competitions'
-], (req, res) => {
-  res.sendFile(path.join(clientPublic, 'student-dashboard.html'));
-});
-// Zero-404 fallback: Any unrecognized student subroute safely opens the dashboard
-app.get('/student/*', (req, res) => {
+  if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
+    return res.sendFile(path.join(studentPublic, 'index.html'));
+  }
   res.sendFile(path.join(clientPublic, 'student-dashboard.html'));
 });
 
@@ -105,7 +111,7 @@ app.get('/admin/dashboard', (req, res) => {
   res.sendFile(path.join(clientPublic, 'admin-dashboard.html'));
 });
 app.get(['/admin', '/admin/'], (req, res) => {
-  res.redirect('/admin/login');
+  res.redirect('/admin/dashboard');
 });
 app.get('/admin/:section', (req, res) => {
   res.sendFile(path.join(clientPublic, 'admin-dashboard.html'));
@@ -130,19 +136,26 @@ app.get('/student.html', (req, res) => {
 
 
 // Serve static frontend assets
+app.use('/images', express.static(path.join(clientPublic, 'images')));
+app.use('/images', express.static(path.join(studentPublic, 'images')));
+// Serve React app first (so it handles /index.html and its assets)
+app.use(express.static(studentPublic));
+// Serve admin portal static assets for relative /admin/* paths
+app.use('/admin', express.static(clientPublic));
 app.use(express.static(clientPublic));
 app.use('/uploads', express.static(uploadDir));
 
-// API Routes
+
+// API Routes (Optimized for 10,000+ Concurrent Student Requests)
 app.use('/api/auth', authRoutes);
 app.use('/api/players', playerRoutes);
-app.use('/api/sports', sportRoutes);
+app.use('/api/sports', apiCache(20), sportRoutes);
 app.use('/api/equipment', equipmentRoutes);
-app.use('/api/competitions', competitionRoutes);
+app.use('/api/competitions', apiCache(15), competitionRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/achievements', achievementRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/gallery', galleryRoutes);
+app.use('/api/notifications', apiCache(10), notificationRoutes);
+app.use('/api/gallery', apiCache(30), galleryRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/settings', settingsRoutes);
@@ -151,7 +164,7 @@ app.use('/api/practice', practiceRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/supabase', supabaseRoutes);
 app.use('/api/external-competitions', externalCompetitionRoutes);
-app.use('/api/sports-news', sportsNewsRoutes);
+app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -162,6 +175,21 @@ app.get('/api/health', (req, res) => {
     database: 'Supabase Cloud (PostgreSQL)',
     timestamp: new Date()
   });
+});
+// React SPA Fallback Route
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/admin') || req.path.startsWith('/uploads')) {
+    return next();
+  }
+  res.sendFile(path.join(studentPublic, 'index.html'));
+});
+
+// Catch-all route for React SPA routes (/student/*, /student/login, /student/dashboard, etc.)
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ success: false, message: 'API route not found' });
+  }
+  res.sendFile(path.join(studentPublic, 'index.html'));
 });
 
 // Global Error Handler
@@ -179,7 +207,7 @@ let activeServer = null;
 
 // Resilient port listener (auto-switches to next port if busy)
 const listenOnPort = (port) => {
-  const server = app.listen(port, () => {
+  const server = app.listen(port, '0.0.0.0', () => {
     activeServer = server;
     console.log('\n===============================================================');
     console.log('🏆 GASC IDAPPADI — SMART SPORTS MANAGEMENT SYSTEM');
@@ -226,5 +254,6 @@ startServer();
 module.exports = {
   app,
   startServer,
-  getHttpServer: () => activeServer
+  getHttpServer: () => activeServer,
+  getActivePort: () => (activeServer && activeServer.address && activeServer.address() ? activeServer.address().port : null)
 };

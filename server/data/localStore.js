@@ -9,104 +9,40 @@ function getInitialData() {
   const studentHashed = bcrypt.hashSync('student123', 10);
 
   const sports = [
-    {
-      id: 'sp_cricket_01',
-      name: 'Cricket',
-      description: 'Men & Women collegiate cricket with standard turf and matting wickets.',
-      category: 'Team Sport',
-      indoor_outdoor: 'Outdoor',
-      player_count: 11,
-      equipment_required: ['Cricket Bats', 'Leather Balls', 'Wickets & Bails', 'Batting Pads', 'Helmets'],
-      coach: 'Dr. R. Anitha / Coach R. Selvan',
-      icon: 'bi-trophy',
-      image: 'https://images.unsplash.com/photo-1531415074868-036b107e775a?w=600&q=80',
-      status: 'Active',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'sp_volleyball_02',
-      name: 'Volleyball',
-      description: 'Standard clay and synthetic court volleyball coaching and university competitions.',
-      category: 'Team Sport',
-      indoor_outdoor: 'Outdoor',
-      player_count: 6,
-      equipment_required: ['Volleyballs', 'Heavy-Duty Net', 'Antennae', 'Knee Guards'],
-      coach: 'Dr. R. Anitha',
-      icon: 'bi-circle',
-      image: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=600&q=80',
-      status: 'Active',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'sp_football_03',
-      name: 'Football',
-      description: 'Standard 11-a-side football field, tactical drills, and inter-collegiate tournaments.',
-      category: 'Team Sport',
-      indoor_outdoor: 'Outdoor',
-      player_count: 11,
-      equipment_required: ['Footballs', 'Goal Nets', 'Agility Cones', 'Shin Guards', 'Corner Flags'],
-      coach: 'Coach S. Murugan',
-      icon: 'bi-dribbble',
-      image: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&q=80',
-      status: 'Active',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'sp_kabaddi_04',
-      name: 'Kabaddi',
-      description: 'Traditional mat Kabaddi team, state zonal champions and university finalists.',
-      category: 'Team Sport',
-      indoor_outdoor: 'Both',
-      player_count: 7,
-      equipment_required: ['Kabaddi Mat', 'Knee & Ankle Supports', 'Grip Powders'],
-      coach: 'Dr. R. Anitha',
-      icon: 'bi-shield-shaded',
-      image: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=600&q=80',
-      status: 'Active',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'sp_badminton_05',
-      name: 'Badminton',
-      description: 'Indoor wooden court badminton training for singles and doubles.',
-      category: 'Individual Sport',
-      indoor_outdoor: 'Indoor',
-      player_count: 2,
-      equipment_required: ['Carbon Graphite Rackets', 'Feather Shuttles', 'Nets', 'Court Shoes'],
-      coach: 'Dr. R. Anitha',
-      icon: 'bi-lightning-charge',
-      image: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=600&q=80',
-      status: 'Active',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'sp_athletics_06',
-      name: 'Athletics & Track',
-      description: '400m track running, sprints, relays, long jump, shot put, and javelin.',
-      category: 'Athletics & Track',
-      indoor_outdoor: 'Outdoor',
-      player_count: 1,
-      equipment_required: ['Starting Blocks', 'Relay Batons', 'Shot Put', 'Javelin', 'Measuring Tapes'],
-      coach: 'Dr. R. Anitha',
-      icon: 'bi-stopwatch',
-      image: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=600&q=80',
-      status: 'Active',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 'sp_chess_07',
-      name: 'Chess',
-      description: 'Strategic mind sports club, FIDE rated tournament coaching.',
-      category: 'Indoor Games',
-      indoor_outdoor: 'Indoor',
-      player_count: 1,
-      equipment_required: ['Tournament Chess Boards', 'DGT Digital Clocks', 'Notation Sheets'],
-      coach: 'Prof. T. Ramanathan',
-      icon: 'bi-suit-spade',
-      image: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?w=600&q=80',
-      status: 'Active',
-      created_at: new Date().toISOString()
-    }
+    // --- 🏠 INDOOR GAMES (Only Chess, Carrom, Table Tennis) ---
+    { id: 'sp_chess', name: 'Chess', category: 'Indoor Games', indoor_outdoor: 'Indoor', icon: 'bi-suit-spade', image: '/images/sports/chess.png', description: 'Strategic mind sports club, FIDE rated tournament coaching.', status: 'Active' },
+    { id: 'sp_carrom', name: 'Carrom', category: 'Indoor Games', indoor_outdoor: 'Indoor', icon: 'bi-grid-3x3', image: '/images/sports/carrom.png', description: 'Standard board carrom tournament for singles and doubles.', status: 'Active' },
+    { id: 'sp_table_tennis', name: 'Table Tennis', category: 'Indoor Games', indoor_outdoor: 'Indoor', icon: 'bi-circle', image: '/images/sports/table_tennis.png', description: 'Fast-paced indoor table tennis coaching and competitions.', status: 'Active' },
+
+    // --- 🌳 OUTDOOR GAMES ---
+    { id: 'sp_badminton', name: 'Badminton', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-lightning-charge', image: '/images/sports/badminton.png', description: 'Collegiate badminton court training with tournament shuttle & net standards.', status: 'Active' },
+    { id: 'sp_basketball', name: 'Basketball', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-dribbble', image: '/images/sports/basketball.png', description: 'Standard regulation basketball court training and tournaments.', status: 'Active' },
+    { id: 'sp_volleyball', name: 'Volleyball', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-circle', image: '/images/sports/volleyball.png', description: 'Outdoor court volleyball matches, spiking drills, and coaching.', status: 'Active' },
+    { id: 'sp_boxing', name: 'Boxing', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-shield', image: '/images/sports/boxing.png', description: 'Amateur boxing training, ring sparring, and weight-category championships.', status: 'Active' },
+    { id: 'sp_cricket', name: 'Cricket', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-trophy', image: '/images/sports/cricket.png', description: 'Men & Women collegiate cricket with standard turf and matting wickets.', status: 'Active' },
+    { id: 'sp_football', name: 'Football', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-dribbble', image: '/images/sports/football.png', description: 'Standard 11-a-side football field, tactical drills, and inter-collegiate tournaments.', status: 'Active' },
+    { id: 'sp_kabaddi', name: 'Kabaddi', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-shield-shaded', image: '/images/sports/kabaddi.png', description: 'Traditional mat and mud Kabaddi team, state zonal champions.', status: 'Active' },
+    { id: 'sp_hockey', name: 'Hockey', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-trophy', image: '/images/sports/hockey.png', description: 'Field hockey training, team strategy, and zonal collegiate meets.', status: 'Active' },
+    { id: 'sp_kho_kho', name: 'Kho Kho', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-people', image: '/images/sports/kho_kho.png', description: 'Traditional Indian tag sport requiring high agility and speed.', status: 'Active' },
+    { id: 'sp_tennis', name: 'Tennis', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-circle', image: '/images/sports/tennis.png', description: 'Lawn Tennis court training for singles and doubles.', status: 'Active' },
+    { id: 'sp_handball', name: 'Handball', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-dribbble', image: '/images/sports/handball.png', description: 'High-speed team handball matches on regulation outdoor courts.', status: 'Active' },
+    { id: 'sp_throwball', name: 'Throwball', category: 'Outdoor Games', indoor_outdoor: 'Outdoor', icon: 'bi-circle', image: '/images/sports/throwball.png', description: 'Popular women and men non-contact net throwball sport.', status: 'Active' },
+
+    // --- 🏃 ATHLETICS ---
+    // Track Events
+    { id: 'sp_running', name: 'Running', category: 'Athletics', subcategory: 'Track Events', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/running.png', description: 'Sprint and distance track running (100m, 200m, 400m, 800m, 1500m).', status: 'Active' },
+    { id: 'sp_relay', name: 'Relay', category: 'Athletics', subcategory: 'Track Events', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/relay.png', description: 'Team relay track races (4x100m, 4x400m) with baton passes.', status: 'Active' },
+    // Field Events — Jumps
+    { id: 'sp_long_jump', name: 'Long Jump', category: 'Athletics', subcategory: 'Field Events — Jumps', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/long_jump.png', description: 'Horizontal jump event combining speed and explosive power.', status: 'Active' },
+    { id: 'sp_high_jump', name: 'High Jump', category: 'Athletics', subcategory: 'Field Events — Jumps', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/high_jump.png', description: 'Vertical jump event over an adjustable horizontal bar.', status: 'Active' },
+    { id: 'sp_triple_jump', name: 'Triple Jump', category: 'Athletics', subcategory: 'Field Events — Jumps', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/triple_jump.png', description: 'Hop, step, and jump track and field event.', status: 'Active' },
+    // Field Events — Throws
+    { id: 'sp_shot_put', name: 'Shot Put', category: 'Athletics', subcategory: 'Field Events — Throws', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/shot_put.png', description: 'Heavy spherical metal ball throwing event.', status: 'Active' },
+    { id: 'sp_discus_throw', name: 'Discus Throw', category: 'Athletics', subcategory: 'Field Events — Throws', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/discus_throw.png', description: 'Heavy disc throwing event for maximum distance.', status: 'Active' },
+    { id: 'sp_javelin_throw', name: 'Javelin Throw', category: 'Athletics', subcategory: 'Field Events — Throws', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/javelin_throw.png', description: 'Spear-like javelin throwing event.', status: 'Active' },
+    // Road / Distance Events
+    { id: 'sp_marathon', name: 'Marathon', category: 'Athletics', subcategory: 'Road / Distance Events', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/marathon.png', description: '42.195 km long-distance endurance road running race.', status: 'Active' },
+    { id: 'sp_half_marathon', name: 'Half Marathon', category: 'Athletics', subcategory: 'Road / Distance Events', indoor_outdoor: 'Outdoor', icon: 'bi-stopwatch', image: '/images/sports/half_marathon.png', description: '21.097 km road running endurance race.', status: 'Active' }
   ];
 
   const users = [
@@ -541,6 +477,28 @@ function getInitialData() {
     }
   ];
 
+  const sport_rules = [
+    { id: 'rule_cricket', sport_id: 'sp_cricket', sport_name: 'Cricket', competition_type: 'TEAM', required_players: 11, substitutes: 4 },
+    { id: 'rule_football', sport_id: 'sp_football', sport_name: 'Football', competition_type: 'TEAM', required_players: 11, substitutes: 5 },
+    { id: 'rule_kabaddi', sport_id: 'sp_kabaddi', sport_name: 'Kabaddi', competition_type: 'TEAM', required_players: 7, substitutes: 3 },
+    { id: 'rule_volleyball', sport_id: 'sp_volleyball', sport_name: 'Volleyball', competition_type: 'TEAM', required_players: 6, substitutes: 4 },
+    { id: 'rule_basketball', sport_id: 'sp_basketball', sport_name: 'Basketball', competition_type: 'TEAM', required_players: 5, substitutes: 5 },
+    { id: 'rule_handball', sport_id: 'sp_handball', sport_name: 'Handball', competition_type: 'TEAM', required_players: 7, substitutes: 5 },
+    { id: 'rule_kho_kho', sport_id: 'sp_kho_kho', sport_name: 'Kho Kho', competition_type: 'TEAM', required_players: 9, substitutes: 3 },
+    { id: 'rule_throwball', sport_id: 'sp_throwball', sport_name: 'Throwball', competition_type: 'TEAM', required_players: 7, substitutes: 5 },
+    { id: 'rule_hockey', sport_id: 'sp_hockey', sport_name: 'Hockey', competition_type: 'TEAM', required_players: 11, substitutes: 5 },
+    { id: 'rule_badminton', sport_id: 'sp_badminton', sport_name: 'Badminton', competition_type: 'INDIVIDUAL', required_players: 1, substitutes: 0 },
+    { id: 'rule_chess', sport_id: 'sp_chess', sport_name: 'Chess', competition_type: 'INDIVIDUAL', required_players: 1, substitutes: 0 },
+    { id: 'rule_carrom', sport_id: 'sp_carrom', sport_name: 'Carrom', competition_type: 'INDIVIDUAL', required_players: 1, substitutes: 0 },
+    { id: 'rule_table_tennis', sport_id: 'sp_table_tennis', sport_name: 'Table Tennis', competition_type: 'INDIVIDUAL', required_players: 1, substitutes: 0 },
+    { id: 'rule_tennis', sport_id: 'sp_tennis', sport_name: 'Tennis', competition_type: 'INDIVIDUAL', required_players: 1, substitutes: 0 },
+    { id: 'rule_running', sport_id: 'sp_running', sport_name: 'Running', competition_type: 'INDIVIDUAL', required_players: 1, substitutes: 0 },
+    { id: 'rule_relay', sport_id: 'sp_relay', sport_name: 'Relay', competition_type: 'TEAM', required_players: 4, substitutes: 2 },
+    { id: 'rule_long_jump', sport_id: 'sp_long_jump', sport_name: 'Long Jump', competition_type: 'INDIVIDUAL', required_players: 1, substitutes: 0 },
+    { id: 'rule_high_jump', sport_id: 'sp_high_jump', sport_name: 'High Jump', competition_type: 'INDIVIDUAL', required_players: 1, substitutes: 0 },
+    { id: 'rule_shot_put', sport_id: 'sp_shot_put', sport_name: 'Shot Put', competition_type: 'INDIVIDUAL', required_players: 1, substitutes: 0 }
+  ];
+
   return {
     users,
     sports,
@@ -551,6 +509,8 @@ function getInitialData() {
     competitions,
     competition_registrations: [],
     teams,
+    team_members: [],
+    sport_rules,
     achievements,
     notifications,
     admin_settings,
@@ -706,14 +666,18 @@ class LocalQueryBuilder {
   }
 
   or(condStr) {
-    // Example: "name.ilike.%arun%,register_number.ilike.%arun%"
+    // Example: "name.ilike.%arun%,email.ilike.user@domain.com"
     const parts = (condStr || '').split(',');
     this.filters.push(row => {
       for (const part of parts) {
-        const [field, op, val] = part.split('.');
-        if (field && op && val) {
+        const tokens = part.split('.');
+        if (tokens.length >= 3) {
+          const field = tokens[0];
+          const op = tokens[1];
+          const val = tokens.slice(2).join('.');
+          const isWildcard = val.includes('%');
           const cleanPattern = val.replace(/%/g, '.*');
-          const reg = new RegExp(cleanPattern, 'i');
+          const reg = new RegExp(isWildcard ? cleanPattern : `^${cleanPattern}$`, 'i');
           if (reg.test(String(row[field] || ''))) return true;
         }
       }
@@ -871,16 +835,53 @@ class LocalQueryBuilder {
 
       if (sel.includes('users(') || sel.includes('users.')) {
         const userId = row.user_id || row.student_id;
-        const userObj = storeInstance.getTable('users').find(u => u.id === userId);
+        let userObj = storeInstance.getTable('users').find(u => 
+          String(u.id) === String(userId) ||
+          (row.register_number && u.register_number && u.register_number.toUpperCase() === String(row.register_number).toUpperCase())
+        );
+
+        if (!userObj && (row.register_number || userId)) {
+          const ros = storeInstance.getTable('college_student_roster').find(r => 
+            (row.register_number && r.register_number.toUpperCase() === String(row.register_number).toUpperCase()) ||
+            String(r.id) === String(userId)
+          );
+          if (ros) {
+            userObj = {
+              id: ros.id,
+              name: ros.name,
+              register_number: ros.register_number,
+              department: ros.department,
+              year: ros.year,
+              gender: ros.gender || 'Male',
+              mobile: ros.mobile || '+91 98421 54321',
+              email: ros.email || `${ros.register_number.toLowerCase()}@gascidappadi.edu.in`
+            };
+          }
+        }
+
+        if (!userObj && (row.student_name || row.register_number)) {
+          userObj = {
+            id: userId || `usr_${Date.now()}`,
+            name: row.student_name || 'Student Athlete',
+            register_number: row.register_number || '23UGCS101',
+            department: row.department || 'Computer Science',
+            year: row.year || 'II Year',
+            gender: row.gender || 'Male',
+            mobile: row.mobile || '+91 98421 54321',
+            email: row.email || 'student@gascidappadi.edu.in'
+          };
+        }
+
         row.users = userObj ? {
           id: userObj.id,
           name: userObj.name,
           register_number: userObj.register_number,
           department: userObj.department,
           year: userObj.year,
+          gender: userObj.gender,
           mobile: userObj.mobile,
           email: userObj.email,
-          profile_photo: userObj.profile_photo
+          profile_photo: userObj.profile_photo || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80'
         } : null;
       }
 
@@ -892,14 +893,60 @@ class LocalQueryBuilder {
 
       if (sel.includes('competitions(') || sel.includes('competitions.')) {
         const compId = row.competition_id;
-        const compObj = storeInstance.getTable('competitions').find(c => c.id === compId);
-        row.competitions = compObj ? { id: compObj.id, name: compObj.name, sport_name: compObj.sport_name, date: compObj.date, venue: compObj.venue } : null;
+        let compObj = storeInstance.getTable('competitions').find(c => 
+          String(c.id) === String(compId) ||
+          String(c.id) === `comp_${compId}` ||
+          String(c.id).replace('comp_', '') === String(compId).replace('comp_', '')
+        );
+
+        if (!compObj && typeof compId === 'string') {
+          const cleanSlug = compId.replace('spark_', '').replace('comp_', '').toLowerCase();
+          compObj = storeInstance.getTable('competitions').find(c => 
+            (c.sport_name && c.sport_name.toLowerCase().includes(cleanSlug)) ||
+            (c.name && c.name.toLowerCase().includes(cleanSlug))
+          );
+        }
+
+        row.competitions = compObj ? {
+          id: compObj.id,
+          name: compObj.name,
+          tournament_name: compObj.tournament_name || 'SPARK 2026',
+          sport_id: compObj.sport_id,
+          sport_name: compObj.sport_name || compObj.name,
+          type: compObj.type || 'Inter-College',
+          level: compObj.level || 'College',
+          date: compObj.date,
+          venue: compObj.venue
+        } : (row.sport_name ? {
+          id: compId,
+          name: row.competition_name || `${row.sport_name} Competition`,
+          tournament_name: row.tournament_name || 'SPARK 2026',
+          sport_name: row.sport_name,
+          date: row.registration_date,
+          venue: 'GASC Sports Ground'
+        } : null);
       }
 
       if (sel.includes('teams(') || sel.includes('teams.')) {
         const teamId = row.team_id;
         const teamObj = storeInstance.getTable('teams').find(t => t.id === teamId);
         row.teams = teamObj ? { id: teamObj.id, name: teamObj.name } : null;
+      }
+
+      if (sel.includes('team_members(') || sel.includes('team_members.')) {
+        const teamId = row.id;
+        const members = storeInstance.getTable('team_members').filter(tm => tm.team_id === teamId);
+        row.team_members = members.map(m => {
+          const u = storeInstance.getTable('users').find(usr => usr.id === m.student_id);
+          return {
+            id: m.id,
+            team_id: m.team_id,
+            student_id: m.student_id,
+            role: m.role || 'Player',
+            created_at: m.created_at,
+            user: u ? { id: u.id, name: u.name, register_number: u.register_number, department: u.department, gender: u.gender } : null
+          };
+        });
       }
 
       return row;

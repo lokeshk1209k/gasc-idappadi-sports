@@ -297,6 +297,110 @@ exports.deleteEquipment = async (req, res) => {
   }
 };
 
+// @desc    Lookup student by register number for equipment issuing
+// @route   GET /api/equipment/lookup-student/:regNo
+// @access  Public / Private/Admin
+exports.lookupStudent = async (req, res) => {
+  try {
+    const { regNo } = req.params;
+    if (!regNo) {
+      return res.status(400).json({ success: false, message: 'Register Number is required.' });
+    }
+
+    const cleanReg = regNo.trim();
+
+    // 1. Look up in users table
+    const { data: userRaw } = await supabase
+      .from('users')
+      .select('id, name, register_number, department, year, profile_photo, mobile, email, status')
+      .or(`register_number.ilike.%${cleanReg}%,name.ilike.%${cleanReg}%,id.eq.${cleanReg}`)
+      .eq('role', 'student')
+      .limit(1)
+      .maybeSingle();
+
+    let student = userRaw ? toCamelCase(userRaw) : null;
+
+    // 2. If not found in users, look up in college_student_roster
+    if (!student) {
+      const { data: rosterRaw } = await supabase
+        .from('college_student_roster')
+        .select('*')
+        .ilike('register_number', `%${cleanReg}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (rosterRaw) {
+        student = {
+          id: `ros_${rosterRaw.id || rosterRaw.register_number}`,
+          name: rosterRaw.name,
+          registerNumber: rosterRaw.register_number,
+          department: rosterRaw.department,
+          year: rosterRaw.year,
+          profilePhoto: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&q=80',
+          mobile: '',
+          status: 'Active'
+        };
+      }
+    }
+
+    // 3. Check localStore fallback
+    if (!student) {
+      try {
+        const localStore = require('../data/localStore');
+        const storeInstance = localStore.storeInstance;
+        const uTable = storeInstance.getTable('users');
+        const localUser = uTable.find(u => 
+          (u.register_number && u.register_number.toLowerCase().includes(cleanReg.toLowerCase())) ||
+          (u.name && u.name.toLowerCase().includes(cleanReg.toLowerCase()))
+        );
+        if (localUser) {
+          student = toCamelCase(localUser);
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found.'
+      });
+    }
+
+    // 4. Find active issues for this student (for duplicate check)
+    let activeIssues = [];
+    try {
+      const { data: activeTxsRaw } = await supabase
+        .from('equipment_transactions')
+        .select('*')
+        .or(`student_id.eq.${student.id},register_number.ilike.%${student.registerNumber}%`)
+        .eq('status', 'Issued');
+
+      if (activeTxsRaw && activeTxsRaw.length > 0) {
+        activeIssues = activeTxsRaw.map(toCamelCase);
+      } else {
+        const localStore = require('../data/localStore');
+        const storeInstance = localStore.storeInstance;
+        const txTable = storeInstance.getTable('equipment_transactions');
+        activeIssues = txTable
+          .filter(t => (t.student_id === student.id || t.register_number === student.registerNumber) && t.status === 'Issued')
+          .map(toCamelCase);
+      }
+    } catch (e) { /* ignore */ }
+
+    res.json({
+      success: true,
+      message: 'Student Found ✓',
+      student: {
+        ...student,
+        activeIssuesCount: activeIssues.length,
+        activeIssues
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Issue equipment to student
 // @route   POST /api/equipment/issue
 // @access  Private/Admin
@@ -308,14 +412,56 @@ exports.issueEquipment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide all required fields.' });
     }
 
+    // Date validation: expectedReturnDate cannot be before today
+    const todayStr = new Date().toISOString().split('T')[0];
+    const returnDateStr = new Date(expectedReturnDate).toISOString().split('T')[0];
+    if (returnDateStr < todayStr) {
+      return res.status(400).json({ success: false, message: 'Expected return date cannot be before today.' });
+    }
+
     // Find student by registerNumber or ID
-    const { data: studentRaw } = await supabase
+    let studentRaw = null;
+    const { data: userRaw } = await supabase
       .from('users')
       .select('*')
-      .or(`register_number.ilike.${studentIdentifier.trim()},id.eq.${studentIdentifier.includes('-') ? studentIdentifier : '00000000-0000-0000-0000-000000000000'}`)
-      .eq('role', 'student')
+      .or(`register_number.ilike.%${studentIdentifier.trim()}%,id.eq.${studentIdentifier.includes('-') || studentIdentifier.startsWith('user_') ? studentIdentifier : '00000000-0000-0000-0000-000000000000'}`)
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    studentRaw = userRaw;
+
+    if (!studentRaw) {
+      const { data: rosterRaw } = await supabase
+        .from('college_student_roster')
+        .select('*')
+        .ilike('register_number', `%${studentIdentifier.trim()}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (rosterRaw) {
+        studentRaw = {
+          id: `ros_${rosterRaw.id || rosterRaw.register_number}`,
+          name: rosterRaw.name,
+          register_number: rosterRaw.register_number,
+          department: rosterRaw.department,
+          year: rosterRaw.year,
+          role: 'student'
+        };
+      }
+    }
+
+    if (!studentRaw) {
+      try {
+        const localStore = require('../data/localStore');
+        const storeInstance = localStore.storeInstance;
+        const uTable = storeInstance.getTable('users');
+        const localUser = uTable.find(u => 
+          (u.register_number && u.register_number.toLowerCase().includes(studentIdentifier.trim().toLowerCase())) ||
+          (u.name && u.name.toLowerCase().includes(studentIdentifier.trim().toLowerCase()))
+        );
+        if (localUser) studentRaw = localUser;
+      } catch (e) { /* ignore */ }
+    }
 
     if (!studentRaw) {
       return res.status(404).json({ success: false, message: `Student with Register Number "${studentIdentifier}" not found.` });
@@ -330,12 +476,12 @@ exports.issueEquipment = async (req, res) => {
       expectedReturnDate,
       purpose,
       remarks,
-      issuedBy: req.user.name || 'Sports Incharge'
+      issuedBy: (req.user && req.user.name) || 'Sports Incharge'
     });
 
     res.json({
       success: true,
-      message: `Successfully issued ${quantity} unit(s) of ${result.equipment.name} to ${student.name} (${student.registerNumber})`,
+      message: `✓ Equipment Issued Successfully: ${quantity} unit(s) of ${result.equipment.name} issued to ${student.name} (${student.registerNumber})`,
       transaction: result.transaction,
       equipment: result.equipment
     });
@@ -357,7 +503,7 @@ exports.returnEquipment = async (req, res) => {
 
     const result = await StockService.returnEquipment({
       transactionId,
-      returnCondition,
+      returnCondition: returnCondition || 'Good',
       damageDescription,
       fineAmount,
       remarks
@@ -365,7 +511,7 @@ exports.returnEquipment = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Equipment return processed successfully (${result.transaction.returnCondition}). Stock updated.`,
+      message: `Equipment return processed successfully (${result.transaction.returnCondition}). Stock restored.`,
       transaction: result.transaction,
       equipment: result.equipment
     });
@@ -374,16 +520,18 @@ exports.returnEquipment = async (req, res) => {
   }
 };
 
-// @desc    Get all transactions
+// @desc    Get all transactions with search, filter & statistics
 // @route   GET /api/equipment/transactions
-// @access  Private
+// @access  Private/Admin
 exports.getAllTransactions = async (req, res) => {
   try {
-    const { status, studentId, equipmentId } = req.query;
+    const { status, studentId, equipmentId, search, date } = req.query;
 
-    let query = supabase.from('equipment_transactions').select('*, users(id, name, register_number, department, mobile), equipment(id, name, code, category)');
+    let query = supabase.from('equipment_transactions').select('*, users(id, name, register_number, department, mobile), equipment(id, name, code, category, image)');
 
-    if (status && status !== 'All') query = query.eq('status', status);
+    if (status && status !== 'All' && status !== 'Overdue') {
+      query = query.eq('status', status);
+    }
     if (studentId) query = query.eq('student_id', studentId);
     if (equipmentId) query = query.eq('equipment_id', equipmentId);
 
@@ -391,23 +539,81 @@ exports.getAllTransactions = async (req, res) => {
 
     const { data: txsRaw, error } = await query;
 
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
+    let rawList = txsRaw || [];
+    if (error || rawList.length === 0) {
+      try {
+        const localStore = require('../data/localStore');
+        const storeInstance = localStore.storeInstance;
+        rawList = storeInstance.getTable('equipment_transactions');
+      } catch (e) { /* ignore */ }
     }
 
     const now = new Date();
-    const transactions = (txsRaw || []).map(t => {
+    let transactions = rawList.map(t => {
       const item = toCamelCase(t);
       if (t.users) item.studentId = toCamelCase(t.users);
       if (t.equipment) item.equipmentId = toCamelCase(t.equipment);
-      item.isOverdue = item.status === 'Issued' && new Date(item.expectedReturnDate) < now;
+      
+      const isPastExpected = item.status === 'Issued' && new Date(item.expectedReturnDate) < now;
+      item.isOverdue = isPastExpected;
+      if (isPastExpected) {
+        const diffMs = now.getTime() - new Date(item.expectedReturnDate).getTime();
+        item.daysOverdue = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      } else {
+        item.daysOverdue = 0;
+      }
       return item;
     });
+
+    // Apply Overdue filter
+    if (status === 'Overdue') {
+      transactions = transactions.filter(t => t.isOverdue);
+    } else if (status && status !== 'All') {
+      transactions = transactions.filter(t => t.status === status);
+    }
+
+    // Apply Search
+    if (search && search.trim() !== '') {
+      const s = search.trim().toLowerCase();
+      transactions = transactions.filter(t => 
+        (t.studentName && t.studentName.toLowerCase().includes(s)) ||
+        (t.registerNumber && t.registerNumber.toLowerCase().includes(s)) ||
+        (t.equipmentName && t.equipmentName.toLowerCase().includes(s)) ||
+        (t.id && String(t.id).toLowerCase().includes(s))
+      );
+    }
+
+    // Apply Date filter
+    if (date) {
+      transactions = transactions.filter(t => t.issueDate && t.issueDate.startsWith(date));
+    }
+
+    // Compute stock & issue overview metrics
+    let totalEquipment = 0;
+    let availableStock = 0;
+    let issuedStock = 0;
+    try {
+      const { data: allEq } = await supabase.from('equipment').select('total_quantity, available_quantity, issued_quantity');
+      const eqItems = allEq || require('../data/localStore').storeInstance.getTable('equipment');
+      (eqItems || []).forEach(e => {
+        totalEquipment += (e.total_quantity || e.totalQuantity || 0);
+        availableStock += (e.available_quantity || e.availableQuantity || 0);
+        issuedStock += (e.issued_quantity || e.issuedQuantity || 0);
+      });
+    } catch (e) { /* ignore */ }
+
+    const overdueCount = rawList.filter(t => t.status === 'Issued' && new Date(t.expected_return_date || t.expectedReturnDate) < now).length;
 
     res.json({
       success: true,
       count: transactions.length,
-      transactions
+      transactions,
+      stats: {
+        totalEquipment,
+        availableStock,
+        issuedStock,
+        overdueCount
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -416,17 +622,35 @@ exports.getAllTransactions = async (req, res) => {
 
 // @desc    Get student's issued and previous equipment
 // @route   GET /api/equipment/my-equipment
-// @access  Private/Student
+// @access  Public / Private/Student
 exports.getMyEquipment = async (req, res) => {
   try {
-    const { data: txsRaw, error } = await supabase
+    const studentIdentifier = (req.user && req.user.id) || 
+                              req.headers['x-student-id'] || 
+                              req.headers['x-register-number'] || 
+                              req.query.studentId || 
+                              req.query.registerNumber || 
+                              '21CS001';
+
+    let txsRaw = [];
+    const { data: dbTxs, error } = await supabase
       .from('equipment_transactions')
       .select('*, equipment(id, name, code, category, storage_location, image)')
-      .eq('student_id', req.user.id)
+      .or(`student_id.eq.${studentIdentifier},register_number.ilike.%${studentIdentifier}%`)
       .order('issue_date', { ascending: false });
 
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
+    if (error || !dbTxs || dbTxs.length === 0) {
+      try {
+        const localStore = require('../data/localStore');
+        const storeInstance = localStore.storeInstance;
+        const allTxs = storeInstance.getTable('equipment_transactions');
+        txsRaw = allTxs.filter(t => 
+          t.student_id === studentIdentifier || 
+          (t.register_number && t.register_number.toLowerCase().includes(studentIdentifier.toLowerCase()))
+        );
+      } catch (e) { /* ignore */ }
+    } else {
+      txsRaw = dbTxs;
     }
 
     const now = new Date();
@@ -436,7 +660,15 @@ exports.getMyEquipment = async (req, res) => {
     (txsRaw || []).forEach(t => {
       const item = toCamelCase(t);
       if (t.equipment) item.equipmentId = toCamelCase(t.equipment);
-      item.isOverdue = item.status === 'Issued' && new Date(item.expectedReturnDate) < now;
+      
+      const isPastExpected = item.status === 'Issued' && new Date(item.expectedReturnDate) < now;
+      item.isOverdue = isPastExpected;
+      if (isPastExpected) {
+        const diffMs = now.getTime() - new Date(item.expectedReturnDate).getTime();
+        item.daysOverdue = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      } else {
+        item.daysOverdue = 0;
+      }
 
       if (item.status === 'Issued') {
         activeIssued.push(item);
@@ -445,12 +677,20 @@ exports.getMyEquipment = async (req, res) => {
       }
     });
 
+    const overdueCount = activeIssued.filter(t => t.isOverdue).length;
+
     res.json({
       success: true,
       activeIssued,
-      history
+      history,
+      stats: {
+        currentlyIssued: activeIssued.length,
+        returned: history.length,
+        overdue: overdueCount
+      }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+

@@ -14,9 +14,14 @@ router.post('/reset-password', authController.resetPasswordWithOtp);
 router.post('/login', authController.login);
 router.post('/student-login', authController.studentLogin);
 router.post('/admin-login', authController.adminLogin);
+router.post('/admin-register', authController.adminRegister);
+router.post('/offline-login', authController.offlineAdminLogin);
+router.get('/sync-status', authController.getSyncStatus);
 router.get('/me', verifyToken, authController.getMe);
 router.put('/profile', verifyToken, upload.single('profilePhoto'), authController.updateProfile);
 router.put('/change-password', verifyToken, authController.changePassword);
+router.all('/session-token', authController.getSessionToken);
 
 module.exports = router;
+
 

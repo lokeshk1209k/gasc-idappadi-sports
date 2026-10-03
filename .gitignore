@@ -24,3 +24,4 @@ create_tables.sql
 supabase_schema.sql
 gasc_sports_local.db
 hs_err_pid*.log
+student-client/temp_images/

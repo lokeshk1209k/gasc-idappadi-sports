@@ -2,10 +2,11 @@
   "name": "gasc-idappadi-sports-management",
   "version": "1.0.0",
   "description": "Smart Sports Management System for Government Arts and Science College, Idappadi",
-  "main": "server/server.js",
+  "main": "electron/main.js",
   "scripts": {
     "start": "node server/server.js",
     "dev": "node server/server.js",
+    "build": "cd student-client && npm install && npm run build",
     "seed": "node server/utils/seedSupabase.js",
     "desktop:admin": "electron electron/main.js",
     "build:admin-exe": "node electron/pack.js",
@@ -28,12 +29,15 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.115.0",
     "bcryptjs": "^2.4.3",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^10.0.0",
+    "sql.js": "^1.14.2",
+    "uuid": "^14.0.2",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -46,19 +50,41 @@
     "productName": "GASC Sports Admin",
     "copyright": "Copyright © 2026 Government Arts and Science College, Idappadi",
     "directories": {
-      "output": "dist/admin-exe"
+      "output": "dist/admin-exe",
+      "buildResources": "build-resources"
     },
     "extraMetadata": {
       "main": "electron/main.js"
     },
+    "asar": false,
     "files": [
       "electron/**/*",
-      "client/public/**/*"
+      "client/public/**/*",
+      "server/**/*",
+      "node_modules/**/*",
+      "package.json",
+      ".env"
+    ],
+    "extraResources": [
+      {
+        "from": ".env",
+        "to": ".env"
+      }
     ],
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "client/public/images/college-logo.png"
     },
@@ -67,7 +93,14 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "GASC Sports Admin"
+      "shortcutName": "GASC Sports Admin",
+      "installerIcon": "client/public/images/college-logo.png",
+      "uninstallerIcon": "client/public/images/college-logo.png",
+      "installerHeaderIcon": "client/public/images/college-logo.png",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "GASC-Sports-Admin-Portable.exe"
     }
   }
 }

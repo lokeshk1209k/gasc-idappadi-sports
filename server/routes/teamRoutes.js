@@ -5,7 +5,13 @@ const { verifyToken, requireAdmin, requireStudent } = require('../middleware/aut
 const upload = require('../middleware/uploadMiddleware');
 
 router.get('/', teamController.getAllTeams);
+router.get('/rules', teamController.getSportRules);
+router.get('/formed', teamController.getFormedTeams);
+router.get('/eligible-players', verifyToken, requireAdmin, teamController.getEligiblePlayers);
+router.post('/form-team', verifyToken, requireAdmin, teamController.formTeam);
+router.get('/student-status', verifyToken, teamController.getStudentTeamStatus);
 router.get('/my-teams', verifyToken, requireStudent, teamController.getMyTeams);
+router.get('/:id/pdf-data', teamController.getTeamPdfData);
 router.get('/:id', teamController.getTeamById);
 
 router.post('/', verifyToken, requireAdmin, upload.single('logo'), teamController.createTeam);

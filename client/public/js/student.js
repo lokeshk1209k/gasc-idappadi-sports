@@ -451,53 +451,174 @@ async function loadStudentTeam() {
   }
 }
 
-// 7. Equipment
+// 7. Equipment (Sections 11, 12, 13, 22, 24)
+let studentEquipmentCache = { activeIssued: [], history: [], stats: {} };
+
 async function loadStudentEquipment() {
-  const activeTable = document.getElementById('student-active-equipment-table');
+  const cardsContainer = document.getElementById('student-active-equipment-cards');
   const historyTable = document.getElementById('student-history-equipment-table');
 
   try {
     const res = await apiRequest('/equipment/my-equipment');
-    const { activeIssued, history } = res;
+    studentEquipmentCache = res || { activeIssued: [], history: [], stats: {} };
+    const { activeIssued = [], history = [], stats = {} } = studentEquipmentCache;
 
-    // Active Issued
-    if (!activeIssued || activeIssued.length === 0) {
-      activeTable.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No sports gear currently issued to you.</td></tr>`;
-    } else {
-      activeTable.innerHTML = activeIssued.map((t, idx) => `
-        <tr class="${t.isOverdue ? 'table-danger' : ''}">
-          <td>${idx + 1}</td>
-          <td><strong>${t.equipmentName}</strong></td>
-          <td>${t.quantity}</td>
-          <td>${formatDate(t.issueDate)}</td>
-          <td>
-            <span class="${t.isOverdue ? 'badge bg-danger pulse-low-stock' : 'fw-bold'}">
-              ${formatDate(t.expectedReturnDate)} ${t.isOverdue ? '(OVERDUE)' : ''}
-            </span>
-          </td>
-          <td><span class="badge badge-glass-primary">${t.status}</span></td>
-        </tr>
-      `).join('');
+    // Section 12: Update Dashboard Stats Cards
+    const elActive = document.getElementById('student-stat-currently-issued');
+    const elRet = document.getElementById('student-stat-returned');
+    const elOverdue = document.getElementById('student-stat-overdue');
+    const elOverdueSub = document.getElementById('student-stat-overdue-sub');
+    const elBadge = document.getElementById('student-active-count-badge');
+
+    if (elActive) elActive.innerText = stats.currentlyIssued || activeIssued.length;
+    if (elRet) elRet.innerText = stats.returned || history.length;
+    if (elOverdue) elOverdue.innerText = stats.overdue || 0;
+    if (elOverdueSub) elOverdueSub.innerText = (stats.overdue || 0) > 0 ? `${stats.overdue} item(s) overdue!` : 'All items on schedule';
+    if (elBadge) elBadge.innerText = `${activeIssued.length} Item(s)`;
+
+    // Section 22: Student Overdue Return Reminder Banner
+    const overdueBanner = document.getElementById('student-eq-overdue-banner');
+    const overdueMsg = document.getElementById('student-eq-overdue-msg');
+    const overdueItems = activeIssued.filter(t => t.isOverdue);
+    if (overdueBanner && overdueMsg) {
+      if (overdueItems.length > 0) {
+        overdueBanner.classList.remove('d-none');
+        const eqNames = overdueItems.map(o => o.equipmentName).join(', ');
+        overdueMsg.innerText = `Your return date for ${eqNames} has passed. Please return the equipment to the Sports Office / Sports Mam immediately.`;
+      } else {
+        overdueBanner.classList.add('d-none');
+      }
     }
 
-    // Previous History
-    if (!history || history.length === 0) {
-      historyTable.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-muted">No previous return history.</td></tr>`;
-    } else {
-      historyTable.innerHTML = history.map((t, idx) => `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>${t.equipmentName}</td>
-          <td>${t.quantity}</td>
-          <td>${formatDate(t.issueDate)}</td>
-          <td>${formatDate(t.returnDate)}</td>
-          <td><span class="badge badge-glass-success">${t.returnCondition || 'Good'}</span></td>
-        </tr>
-      `).join('');
+    // Section 11: Render Currently Issued Cards
+    if (cardsContainer) {
+      if (activeIssued.length === 0) {
+        cardsContainer.innerHTML = `
+          <div class="col-12">
+            <div class="glass-card p-5 text-center text-muted">
+              <i class="bi bi-box-seam display-4 d-block mb-3 text-primary opacity-50"></i>
+              <h5 class="fw-bold text-dark mb-1">No Sports Gear Currently Issued</h5>
+              <p class="small text-secondary mb-0">When sports equipment is issued to you by the Sports Incharge, it will appear here automatically.</p>
+            </div>
+          </div>
+        `;
+      } else {
+        cardsContainer.innerHTML = activeIssued.map(t => {
+          const emojiBadge = window.getEquipmentEmojiBadge ? window.getEquipmentEmojiBadge(t.equipmentName, t.category, t.sportName, 52, 28) : '📦';
+          return `
+            <div class="col-md-6 col-lg-4">
+              <div class="glass-card p-3 h-100 border ${t.isOverdue ? 'border-danger border-opacity-50' : 'border-primary border-opacity-20'} shadow-sm position-relative">
+                ${t.isOverdue ? `
+                  <div class="position-absolute top-0 end-0 m-2">
+                    <span class="badge bg-danger pulse-low-stock">⚠️ OVERDUE (${t.daysOverdue}d)</span>
+                  </div>
+                ` : ''}
+                <div class="d-flex align-items-center gap-3 mb-3">
+                  ${emojiBadge}
+                  <div>
+                    <h5 class="fw-bold text-dark mb-0">${t.equipmentName}</h5>
+                    <small class="text-secondary">Quantity: <strong class="text-dark">${t.quantity} unit(s)</strong></small>
+                  </div>
+                </div>
+
+                <div class="p-2.5 rounded-3 bg-dark bg-opacity-10 border border-secondary border-opacity-20 small mb-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Issued:</span>
+                    <span class="fw-semibold text-dark">${formatDate(t.issueDate)} &bull; ${t.issueTime || 'IST'}</span>
+                  </div>
+                  <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Expected Return:</span>
+                    <span class="fw-bold ${t.isOverdue ? 'text-danger' : 'text-primary'}">${formatDate(t.expectedReturnDate)}</span>
+                  </div>
+                  <div class="d-flex justify-content-between">
+                    <span class="text-muted">Issued By:</span>
+                    <span class="text-dark">${t.issuedBy || 'Sports Incharge'}</span>
+                  </div>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between pt-1">
+                  <span class="badge ${t.isOverdue ? 'badge-glass-danger' : 'badge-glass-primary'}">
+                    &bull; ${t.isOverdue ? 'OVERDUE' : t.status}
+                  </span>
+                  <button class="btn btn-sm btn-outline-primary" onclick="openStudentEquipmentModal('${t.id || t._id}')">
+                    <i class="bi bi-eye me-1"></i> View Details
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // Section 24: Previous History Table
+    if (historyTable) {
+      if (history.length === 0) {
+        historyTable.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">No previous return history found.</td></tr>`;
+      } else {
+        historyTable.innerHTML = history.map((t, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                ${window.getEquipmentEmojiBadge ? window.getEquipmentEmojiBadge(t.equipmentName, t.category, t.sportName, 28, 15) : '📦'}
+                <strong>${t.equipmentName}</strong>
+              </div>
+            </td>
+            <td>${t.quantity}</td>
+            <td>${formatDate(t.issueDate)} <small class="text-muted">${t.issueTime || ''}</small></td>
+            <td>${formatDate(t.returnDate)} <small class="text-muted">${t.returnTime || ''}</small></td>
+            <td><span class="badge badge-glass-success">${t.returnCondition || 'Good'}</span></td>
+            <td><span class="badge badge-glass-success">✓ RETURNED</span></td>
+          </tr>
+        `).join('');
+      }
     }
   } catch (err) {
-    if (activeTable) activeTable.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Failed to load equipment.</td></tr>`;
+    if (cardsContainer) cardsContainer.innerHTML = `<div class="col-12"><div class="alert alert-danger">Failed to load equipment.</div></div>`;
   }
+}
+
+// Section 13: Student View Equipment Modal
+function openStudentEquipmentModal(txId) {
+  const all = [...(studentEquipmentCache.activeIssued || []), ...(studentEquipmentCache.history || [])];
+  const tx = all.find(t => (t.id || t._id) === txId);
+  if (!tx) return;
+
+  const badgeEl = document.getElementById('stud-modal-eq-badge');
+  const imgEl = document.getElementById('stud-modal-eq-img');
+  const nameEl = document.getElementById('stud-modal-eq-name');
+  const statusEl = document.getElementById('stud-modal-eq-status');
+  const qtyEl = document.getElementById('stud-modal-eq-qty');
+  const issueDateEl = document.getElementById('stud-modal-eq-issue-date');
+  const issueTimeEl = document.getElementById('stud-modal-eq-issue-time');
+  const expDateEl = document.getElementById('stud-modal-eq-expected-date');
+  const retDateEl = document.getElementById('stud-modal-eq-return-date');
+  const retTimeEl = document.getElementById('stud-modal-eq-return-time');
+  const issuedByEl = document.getElementById('stud-modal-eq-issued-by');
+  const remarksEl = document.getElementById('stud-modal-eq-remarks');
+
+  if (badgeEl) {
+    badgeEl.innerHTML = window.getEquipmentEmojiBadge ? window.getEquipmentEmojiBadge(tx.equipmentName, tx.category, tx.sportName, 72, 40) : '📦';
+  } else if (imgEl) {
+    imgEl.src = window.getSportImage(tx.equipmentName, tx.equipmentId?.image);
+  }
+  if (nameEl) nameEl.innerText = tx.equipmentName;
+  if (statusEl) {
+    statusEl.innerText = tx.status === 'Issued' && tx.isOverdue ? 'OVERDUE' : tx.status;
+    statusEl.className = `badge ${tx.isOverdue ? 'badge-glass-danger' : (tx.status === 'Returned' ? 'badge-glass-success' : 'badge-glass-primary')}`;
+  }
+  if (qtyEl) qtyEl.innerText = `${tx.quantity} Unit(s)`;
+  if (issueDateEl) issueDateEl.innerText = formatDate(tx.issueDate);
+  if (issueTimeEl) issueTimeEl.innerText = tx.issueTime || 'IST';
+  if (expDateEl) expDateEl.innerText = formatDate(tx.expectedReturnDate);
+  if (retDateEl) retDateEl.innerText = tx.returnDate ? formatDate(tx.returnDate) : 'Not Returned Yet';
+  if (retTimeEl) retTimeEl.innerText = tx.returnTime || '-';
+  if (issuedByEl) issuedByEl.innerText = tx.issuedBy || 'Sports Incharge';
+  if (remarksEl) remarksEl.innerText = tx.remarks || tx.purpose || 'College Practice';
+
+  const modal = new bootstrap.Modal(document.getElementById('studentViewEquipmentModal'));
+  modal.show();
 }
 
 // 10. Achievements

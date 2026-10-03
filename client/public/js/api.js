@@ -4,7 +4,7 @@
 
 const API_BASE = (typeof window !== 'undefined' && window.GASC_CONFIG && window.GASC_CONFIG.API_BASE_URL) 
   ? window.GASC_CONFIG.API_BASE_URL 
-  : (typeof window !== 'undefined' && window.location.protocol === 'file:' ? 'http://10.102.54.21:5000/api' : '/api');
+  : (typeof window !== 'undefined' && window.location.protocol === 'file:' ? 'http://localhost:5000/api' : '/api');
 
 // Toast Notification System
 function showToast(message, type = 'info', title = '') {

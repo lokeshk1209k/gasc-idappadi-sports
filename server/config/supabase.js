@@ -1,39 +1,73 @@
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
-require('dotenv').config(); // Fallback
+const dotenv = require('dotenv');
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '';
+// Load environment variables dynamically from all standard locations
+[
+  path.resolve(__dirname, '../../.env'),
+  path.resolve(__dirname, '../.env'),
+  path.resolve(__dirname, '../../../.env'),
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), 'resources/app/.env')
+].forEach(envPath => {
+  dotenv.config({ path: envPath });
+});
+
+const getSupabaseUrl = () => (process.env.SUPABASE_URL || '').trim();
+const getSupabaseKey = () => (
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_KEY ||
+  ''
+).trim();
 
 let supabase = null;
 
-if (supabaseUrl && supabaseKey && supabaseUrl.startsWith('http')) {
-  try {
-    supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false
-      }
-    });
-    console.log('⚡ Supabase Client initialized successfully!');
-  } catch (error) {
-    console.error('⚠️ Supabase Initialization Error:', error.message);
+function initSupabaseClient() {
+  const url = getSupabaseUrl();
+  const key = getSupabaseKey();
+
+  if (url && key && url.startsWith('http')) {
+    try {
+      supabase = createClient(url, key, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false
+        },
+        realtime: {
+          transport: (typeof WebSocket !== 'undefined' ? WebSocket : class DummyWS {})
+        }
+      });
+      console.log('⚡ Supabase Client initialized successfully!');
+      return supabase;
+    } catch (error) {
+      console.error('⚠️ Supabase Initialization Error:', error.message);
+      return null;
+    }
+  } else {
+    console.log('ℹ️ Supabase credentials not set in .env.');
+    return null;
   }
-} else {
-  console.log('ℹ️ Supabase credentials not set in .env. (Set SUPABASE_URL and SUPABASE_ANON_KEY to enable Supabase syncing)');
 }
 
-/**
- * Helper to check if Supabase connection is active
- */
+// Initial attempt
+initSupabaseClient();
+
 const isSupabaseConfigured = () => {
-  return !!(supabaseUrl && supabaseKey && supabaseUrl.startsWith('http') && supabase);
+  const url = getSupabaseUrl();
+  const key = getSupabaseKey();
+  if (!supabase && url && key && url.startsWith('http')) {
+    initSupabaseClient();
+  }
+  return !!(url && key && url.startsWith('http') && supabase);
 };
 
 module.exports = {
-  supabase,
+  get supabase() {
+    if (!supabase) initSupabaseClient();
+    return supabase;
+  },
   isSupabaseConfigured,
-  supabaseUrl,
-  supabaseKey
+  get supabaseUrl() { return getSupabaseUrl(); },
+  get supabaseKey() { return getSupabaseKey(); }
 };
