@@ -12,6 +12,13 @@ let SQL = null;
 let saveTimer = null;
 
 function getDbPath() {
+  const appData = process.env.APPDATA || '';
+  if (appData) {
+    const appDataDb = path.join(appData, "gasc-idappadi-sports-management", "gasc_sports_local.db");
+    if (fs.existsSync(appDataDb)) {
+      return appDataDb;
+    }
+  }
   try {
     const electron = require("electron");
     const app = electron.app || (electron.remote && electron.remote.app);
