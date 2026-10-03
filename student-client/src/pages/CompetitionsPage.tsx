@@ -215,9 +215,12 @@ const CompetitionsPage = () => {
   // ── 2. Fetch Tournaments and Group Sports ──────────────────────────────────
   const fetchTournaments = async () => {
     try {
-      const res = await fetch('/api/competitions');
+      let res = await fetch('/api/competitions');
+      if (!res.ok) {
+        res = await fetch('/competitions.json');
+      }
       const data = await res.json();
-      const rawList = data.competitions || data.data;
+      const rawList = data.competitions || data.data || (Array.isArray(data) ? data : []);
 
       if (data.success && Array.isArray(rawList) && rawList.length > 0) {
         // Group competitions by tournament_name

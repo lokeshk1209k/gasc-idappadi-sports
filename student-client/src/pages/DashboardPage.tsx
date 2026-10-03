@@ -34,10 +34,13 @@ const DashboardPage = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        const res = await fetch('/api/competitions');
+        let res = await fetch('/api/competitions');
+        if (!res.ok) {
+          res = await fetch('/competitions.json');
+        }
         const data = await res.json();
-        const list = data.competitions || data.data;
-        if (data.success && Array.isArray(list)) {
+        const list = data.competitions || data.data || (Array.isArray(data) ? data : []);
+        if (Array.isArray(list) && list.length > 0) {
           setEvents(list.slice(0, 4));
         }
       } catch { /* use fallback */ }

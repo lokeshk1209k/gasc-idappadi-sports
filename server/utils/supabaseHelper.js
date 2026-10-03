@@ -1,7 +1,7 @@
 const { supabase: rawSupabase, isSupabaseConfigured } = require('../config/supabase');
 const localStore = require('../data/localStore');
 
-let cloudAvailable = false; // Fast local first (offline/local fallback) — will switch to true if Supabase responds
+let cloudAvailable = null; // null = untested, true = working, false = unreachable → try Supabase first
 let hasLoggedCloudStatus = false;
 
 class ResilientQuery {

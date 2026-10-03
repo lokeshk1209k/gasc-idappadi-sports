@@ -5,6 +5,7 @@ const rootDir = path.join(__dirname, '..');
 const srcDir = path.join(rootDir, 'client/public');
 const studentDistDir = path.join(rootDir, 'student-client/dist');
 const rootDistDir = path.join(rootDir, 'dist');
+const localDbFile = path.join(rootDir, 'server/data/local_db.json');
 
 [studentDistDir, rootDistDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
@@ -46,6 +47,31 @@ console.log('[prepare-dist] 2. Merging client/public assets to root dist and stu
   });
 
   fs.copyFileSync(path.join(srcDir, 'index.html'), path.join(targetDir, 'public-portal.html'));
+
+  // Export current tournaments from local_db.json so student portal on static hosts (like Vercel)
+  // displays all tournaments created by the admin (like FLASH, SPARK, etc.)
+  if (fs.existsSync(localDbFile)) {
+    try {
+      const db = JSON.parse(fs.readFileSync(localDbFile, 'utf8'));
+      const competitionsPayload = JSON.stringify({
+        success: true,
+        count: (db.competitions || []).length,
+        competitions: db.competitions || []
+      }, null, 2);
+
+      fs.writeFileSync(path.join(targetDir, 'competitions.json'), competitionsPayload, 'utf8');
+
+      // Also create an api/competitions static route if static fallback is queried
+      const apiDir = path.join(targetDir, 'api');
+      if (!fs.existsSync(apiDir)) fs.mkdirSync(apiDir, { recursive: true });
+      fs.writeFileSync(path.join(apiDir, 'competitions'), competitionsPayload, 'utf8');
+      fs.writeFileSync(path.join(apiDir, 'competitions.json'), competitionsPayload, 'utf8');
+
+      console.log(`[prepare-dist] 🏆 Exported ${(db.competitions || []).length} tournaments to competitions.json`);
+    } catch (e) {
+      console.warn('[prepare-dist] Could not export competitions payload:', e.message);
+    }
+  }
 });
 
-console.log('[prepare-dist] ✅ Both dist and student-client/dist are ready for Vercel deployment!');
+console.log('[prepare-dist] ✅ Both dist and student-client/dist are ready for deployment!');
