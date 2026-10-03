@@ -1,7 +1,7 @@
 const { supabase: rawSupabase, isSupabaseConfigured } = require('../config/supabase');
 const localStore = require('../data/localStore');
 
-let cloudAvailable = false; // By default assume local first if DNS failed
+let cloudAvailable = null; // null = untested, true = working, false = unreachable → try Supabase first
 let hasLoggedCloudStatus = false;
 
 class ResilientQuery {
@@ -121,7 +121,7 @@ class ResilientQuery {
   }
 
   async execute() {
-    // If Supabase is not configured or cloud is known to be unavailable, execute local immediately
+    // If Supabase is not configured or cloud is confirmed unreachable, use local immediately
     if (!isSupabaseConfigured() || !rawSupabase || cloudAvailable === false) {
       return this.executeLocal();
     }
@@ -145,6 +145,9 @@ class ResilientQuery {
           }
           return this.executeLocal();
         }
+      } else {
+        // Supabase responded successfully → mark as available
+        cloudAvailable = true;
       }
       return res;
     } catch (err) {
