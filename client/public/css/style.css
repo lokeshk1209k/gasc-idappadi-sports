@@ -1146,6 +1146,205 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 }
 
 /* ==========================================================================
+   📱 MOBILE PORTAL NAVIGATION SYSTEM
+   ========================================================================== */
+
+/* Mobile Bottom Navigation Bar */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1050;
+  background: rgba(7, 18, 30, 0.97);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(0, 210, 211, 0.25);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  justify-content: space-around;
+  align-items: stretch;
+}
+
+.mob-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 2px;
+  padding: 6px 4px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  min-height: 54px;
+  border-radius: 0;
+}
+
+.mob-nav-item i {
+  font-size: 1.35rem;
+  line-height: 1;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.mob-nav-item.active {
+  color: #00d2d3;
+}
+
+.mob-nav-item.active i {
+  filter: drop-shadow(0 0 6px rgba(0, 210, 211, 0.7));
+}
+
+.mob-nav-item:hover {
+  color: #e2e8f0;
+}
+
+/* Mobile More Drawer */
+.mob-more-drawer {
+  display: none;
+  position: fixed;
+  bottom: 70px;
+  left: 0;
+  right: 0;
+  z-index: 1049;
+  background: rgba(9, 20, 34, 0.97);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-top: 1px solid rgba(0, 210, 211, 0.2);
+  border-radius: 24px 24px 0 0;
+  padding: 1rem 0.75rem 0.5rem;
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.6);
+}
+
+.mob-more-drawer.open {
+  transform: translateY(0);
+}
+
+.mob-drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.mob-drawer-item i {
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+  color: #00d2d3;
+}
+
+.mob-drawer-item:hover,
+.mob-drawer-item.active {
+  background: rgba(0, 210, 211, 0.1);
+  color: #fff;
+}
+
+/* Mobile Sidebar Overlay */
+.mob-sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1039;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.mob-sidebar-overlay.show {
+  opacity: 1;
+}
+
+/* Sport Card Image Fix */
+.sport-card-img {
+  width: 100%;
+  height: 190px;
+  object-fit: cover;
+  display: block;
+  background: linear-gradient(135deg, #071524 0%, #0f4c81 100%);
+}
+
+/* Image loading state */
+.sport-img-placeholder {
+  width: 100%;
+  height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #071524 0%, #0f4c81 100%);
+  color: rgba(255,255,255,0.5);
+  font-size: 3rem;
+}
+
+@media (max-width: 991.98px) {
+  /* Show mobile bottom nav on phones/tablets */
+  .mobile-bottom-nav {
+    display: flex !important;
+  }
+
+  /* Show mobile more drawer container */
+  .mob-more-drawer {
+    display: block;
+  }
+
+  /* Show sidebar overlay */
+  .mob-sidebar-overlay {
+    display: block;
+  }
+
+  /* Hide desktop sidebar on mobile */
+  .portal-sidebar {
+    transform: translateX(-100%);
+    z-index: 1045;
+  }
+
+  /* Sidebar open state (toggled by JS) */
+  .portal-sidebar.mob-open {
+    transform: translateX(0);
+  }
+
+  /* Portal content takes full width */
+  .portal-content {
+    margin-left: 0 !important;
+  }
+
+  /* Add bottom padding so content not behind nav bar */
+  .portal-main-view {
+    padding-bottom: 80px !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* Topbar adjustments */
+  .portal-topbar {
+    padding: 0 1rem !important;
+  }
+}
+
+/* ==========================================================================
    📱 100% MOBILE RESPONSIVE UI SYSTEM (PHONES, TABLETS & SMALL SCREENS)
    ========================================================================== */
 
@@ -1258,6 +1457,14 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
     white-space: nowrap;
     padding: 0.5rem 0.85rem !important;
     font-size: 0.85rem !important;
+  }
+
+  /* iOS Mobile Fix: background-attachment:fixed is broken on iOS Safari */
+  body,
+  .portal-wrapper,
+  .bg-sports-hero,
+  .bg-sports-gradient {
+    background-attachment: scroll !important;
   }
 }
 

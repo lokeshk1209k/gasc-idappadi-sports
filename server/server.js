@@ -35,18 +35,13 @@ const app = express();
 // Enable Gzip Compression for 10,000+ concurrent users (reduces network payload by ~80%)
 app.use(compression());
 
-// Initialize local SQLite database for offline-first operation (skip on Vercel)
-const IS_VERCEL_SERVER = !!(process.env.VERCEL || process.env.VERCEL_ENV || process.env.NOW_REGION);
-if (!IS_VERCEL_SERVER) {
-  try {
-    const localDB = require('./database/localDB');
-    localDB.initDB();
-    console.log('[Server] ✅ Local SQLite DB ready for offline operation.');
-  } catch (e) {
-    console.warn('[Server] ⚠️  Local SQLite init warning:', e.message);
-  }
-} else {
-  console.log('[Server] ☁️  Vercel detected — using Supabase (skipping local SQLite).');
+// Initialize local SQLite database for offline-first operation
+try {
+  const localDB = require('./database/localDB');
+  localDB.initDB();
+  console.log('[Server] ✅ Local SQLite DB ready for offline operation.');
+} catch (e) {
+  console.warn('[Server] ⚠️  Local SQLite init warning:', e.message);
 }
 
 // Middlewares
@@ -69,11 +64,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// Ensure upload directory exists (local only — Vercel has read-only filesystem)
+// Ensure upload directory exists
 const clientPublic = path.join(__dirname, '../client/public');
 const uploadDir = path.join(clientPublic, 'uploads');
-if (!IS_VERCEL_SERVER && !fs.existsSync(uploadDir)) {
-  try { fs.mkdirSync(uploadDir, { recursive: true }); } catch(e) {}
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 // ============================================================

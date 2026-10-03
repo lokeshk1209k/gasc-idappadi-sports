@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "start",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "label": "🚀 Start GASC Sports Server",
+      "detail": "node server/server.js"
+    },
+    {
+      "type": "shell",
+      "command": "node server/utils/seedData.js",
+      "problemMatcher": [],
+      "label": "🌱 Reset & Seed Sample Sports Data",
+      "detail": "Populates demo sports, equipment, students, and competitions"
+    },
+    {
+      "type": "shell",
+      "command": "node server/utils/supabaseSync.js",
+      "problemMatcher": [],
+      "label": "⚡ Sync MongoDB Data to Supabase",
+      "detail": "Syncs all collegiate database tables with Cloud Supabase"
+    },
+    {
+      "type": "shell",
+      "command": "python generate_record_pdf.py",
+      "problemMatcher": [],
+      "label": "📄 Generate Project Record PDF Report",
+      "detail": "Builds GASC_Idappadi_Sports_Project_Report.pdf"
+    }
+  ]
+}

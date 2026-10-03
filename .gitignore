@@ -6,6 +6,8 @@ android-student-app/
 electron/
 # dist/ - only ignore electron build output, not student-client/dist
 electron/dist/
+dist/admin-portable/
+dist/admin-exe/
 .DS_Store
 Thumbs.db
 replay_pid*.log
@@ -27,3 +29,5 @@ gasc_sports_local.db
 hs_err_pid*.log
 student-client/temp_images/
 # student-client/public/images/ - images needed for Vercel, don't ignore
+*.bin
+vk_swiftshader_icd.json

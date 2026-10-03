@@ -1,10 +1,7 @@
 const { supabase: rawSupabase, isSupabaseConfigured } = require('../config/supabase');
 const localStore = require('../data/localStore');
 
-// In Vercel / cloud production: always use Supabase (sql.js won't work in serverless).
-// For local Admin EXE: defaults to false so it uses the fast local SQLite.
-const IS_VERCEL = !!(process.env.VERCEL || process.env.VERCEL_ENV || process.env.NOW_REGION);
-let cloudAvailable = IS_VERCEL ? true : false; // true = Supabase, false = local SQLite
+let cloudAvailable = false; // Fast local first (offline/local fallback) — will switch to true if Supabase responds
 let hasLoggedCloudStatus = false;
 
 class ResilientQuery {

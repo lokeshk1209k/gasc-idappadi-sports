@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "🏆 Run GASC Sports Server (F5)",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/server/server.js",
+      "restart": true,
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}

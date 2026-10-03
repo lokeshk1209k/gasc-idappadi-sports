@@ -187,6 +187,11 @@ exports.createCompetition = async (req, res) => {
       console.warn('localStore sync notice on createCompetition:', e.message);
     }
 
+    // Invalidate API caches so student portal sees newly created competition instantly
+    try {
+      invalidateCache('/api/competitions');
+    } catch (e) {}
+
     // Send broadcast notification
     await NotificationService.send({
       title: `🏆 New Competition: ${competition.name}`,
@@ -250,6 +255,9 @@ exports.updateCompetition = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Competition not found or update failed.' });
     }
 
+    // Invalidate API caches so student portal sees updates immediately
+    try { invalidateCache('/api/competitions'); } catch (e) {}
+
     res.json({
       success: true,
       message: 'Competition updated successfully!',
@@ -284,6 +292,9 @@ exports.deleteCompetition = async (req, res) => {
     const remaining = table.filter(c => String(c.id) !== String(id) && String(c._id) !== String(id));
     localStore.storeInstance.db['competitions'] = remaining;
     localStore.storeInstance.save();
+
+    // Invalidate cache immediately
+    try { invalidateCache('/api/competitions'); } catch (e) {}
 
     res.json({
       success: true,
@@ -330,6 +341,9 @@ exports.deleteTournament = async (req, res) => {
 
     // Delete in Supabase
     await supabase.from('competitions').delete().ilike('tournament_name', `%${tournamentName}%`);
+
+    // Invalidate cache immediately
+    try { invalidateCache('/api/competitions'); } catch (e) {}
 
     res.json({
       success: true,
@@ -650,11 +664,22 @@ exports.getAllRegistrations = async (req, res) => {
 // @access  Private/Student
 exports.getMyRegistrations = async (req, res) => {
   try {
-    const { data: regsRaw, error } = await supabase
+    const studentId = req.user ? req.user.id : null;
+    const registerNo = (req.user && (req.user.registerNumber || req.user.register_number)) || req.headers['x-register-number'] || '';
+
+    let query = supabase
       .from('competition_registrations')
-      .select('*, competitions(*, sports(name, icon))')
-      .eq('student_id', req.user.id)
-      .order('registration_date', { ascending: false });
+      .select('*, competitions(*, sports(name, icon))');
+
+    if (registerNo && studentId) {
+      query = query.or(`student_id.eq.${studentId},register_number.ilike.%${registerNo}%`);
+    } else if (studentId) {
+      query = query.eq('student_id', studentId);
+    } else if (registerNo) {
+      query = query.ilike('register_number', `%${registerNo}%`);
+    }
+
+    const { data: regsRaw, error } = await query.order('registration_date', { ascending: false });
 
     if (error) {
       return res.status(500).json({ success: false, message: error.message });

@@ -80,10 +80,14 @@ function switchStudentView(viewId, updateHistory = true) {
   const targetSec = document.getElementById(`view-${viewId}`);
   if (targetSec) targetSec.classList.remove('d-none');
 
-  // Close mobile sidebar if open
-  const sidebar = document.querySelector('.portal-sidebar');
-  if (sidebar && sidebar.classList.contains('show')) {
-    sidebar.classList.remove('show');
+  // Close mobile sidebar if open (uses mob-open class on mobile)
+  if (window.innerWidth < 992) {
+    const sidebar = document.querySelector('.portal-sidebar');
+    if (sidebar && sidebar.classList.contains('mob-open')) {
+      sidebar.classList.remove('mob-open');
+      const overlay = document.getElementById('mobSidebarOverlay');
+      if (overlay) overlay.classList.remove('show');
+    }
   }
 
   // Update browser URL on website without page refresh (deep linking support)

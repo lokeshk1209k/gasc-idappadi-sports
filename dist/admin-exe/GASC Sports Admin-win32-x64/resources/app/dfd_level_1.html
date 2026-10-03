@@ -1,0 +1,85 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; padding: 20px; background: white; font-family: 'Times New Roman', Times, serif; }
+  .container { width: 920px; margin: 0 auto; text-align: center; border: 1px solid #ccc; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+  h2 { margin-bottom: 20px; letter-spacing: 1px; font-size: 22px; }
+  .caption { margin-top: 20px; font-weight: bold; font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>LEVEL -1</h2>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 500" width="880" height="500" style="font-family: Arial, sans-serif;">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#000000"/>
+      </marker>
+    </defs>
+
+    <!-- External Entity 1: Student -->
+    <rect x="30" y="120" width="130" height="60" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+    <text x="95" y="155" text-anchor="middle" font-size="15" font-weight="bold" fill="#000000">Student</text>
+
+    <!-- External Entity 2: Admin -->
+    <rect x="30" y="300" width="130" height="60" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+    <text x="95" y="335" text-anchor="middle" font-size="15" font-weight="bold" fill="#000000">Admin</text>
+
+    <!-- Process 1.0: Registration Process -->
+    <ellipse cx="270" cy="150" rx="75" ry="50" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+    <line x1="200" y1="122" x2="340" y2="122" stroke="#000000" stroke-width="1.5"/>
+    <text x="270" y="113" text-anchor="middle" font-size="13" font-weight="bold">1.0</text>
+    <text x="270" y="145" text-anchor="middle" font-size="13" font-weight="bold">Registration</text>
+    <text x="270" y="165" text-anchor="middle" font-size="13" font-weight="bold">process</text>
+
+    <!-- Process 2.0: Login Process -->
+    <ellipse cx="470" cy="230" rx="75" ry="50" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+    <line x1="400" y1="202" x2="540" y2="202" stroke="#000000" stroke-width="1.5"/>
+    <text x="470" y="193" text-anchor="middle" font-size="13" font-weight="bold">2.0</text>
+    <text x="470" y="225" text-anchor="middle" font-size="13" font-weight="bold">Login</text>
+    <text x="470" y="245" text-anchor="middle" font-size="13" font-weight="bold">process</text>
+
+    <!-- Process 3.0: Sent Tournament Request -->
+    <ellipse cx="720" cy="90" rx="95" ry="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+    <line x1="630" y1="68" x2="810" y2="68" stroke="#000000" stroke-width="1.5"/>
+    <text x="720" y="60" text-anchor="middle" font-size="13" font-weight="bold">3.0</text>
+    <text x="720" y="88" text-anchor="middle" font-size="13" font-weight="bold">Sent Tournament</text>
+    <text x="720" y="106" text-anchor="middle" font-size="13" font-weight="bold">Request</text>
+
+    <!-- Process 4.0: Sent Equipment Request -->
+    <ellipse cx="720" cy="230" rx="95" ry="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+    <line x1="630" y1="208" x2="810" y2="208" stroke="#000000" stroke-width="1.5"/>
+    <text x="720" y="200" text-anchor="middle" font-size="13" font-weight="bold">4.0</text>
+    <text x="720" y="228" text-anchor="middle" font-size="13" font-weight="bold">Sent Equipment</text>
+    <text x="720" y="246" text-anchor="middle" font-size="13" font-weight="bold">Request</text>
+
+    <!-- Process 5.0: Sent Coaching Request -->
+    <ellipse cx="720" cy="370" rx="95" ry="45" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+    <line x1="630" y1="348" x2="810" y2="348" stroke="#000000" stroke-width="1.5"/>
+    <text x="720" y="340" text-anchor="middle" font-size="13" font-weight="bold">5.0</text>
+    <text x="720" y="368" text-anchor="middle" font-size="13" font-weight="bold">Sent Attendance</text>
+    <text x="720" y="386" text-anchor="middle" font-size="13" font-weight="bold">Request</text>
+
+    <!-- Data Store (Open ended with double bar on left) -->
+    <g>
+      <rect x="230" y="410" width="220" height="60" fill="#ffffff" stroke="#000000" stroke-width="2"/>
+      <line x1="450" y1="410" x2="450" y2="470" stroke="#ffffff" stroke-width="4"/>
+      <line x1="260" y1="410" x2="260" y2="470" stroke="#000000" stroke-width="2"/>
+      <text x="355" y="445" text-anchor="middle" font-size="16" font-weight="bold">Data store</text>
+    </g>
+
+    <!-- Connectors -->
+    <line x1="160" y1="150" x2="190" y2="150" stroke="#000000" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="160" y1="330" x2="400" y2="260" stroke="#000000" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="345" y1="165" x2="400" y2="205" stroke="#000000" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="270" y1="200" x2="270" y2="408" stroke="#000000" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="540" y1="205" x2="640" y2="120" stroke="#000000" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="545" y1="230" x2="623" y2="230" stroke="#000000" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="535" y1="255" x2="640" y2="340" stroke="#000000" stroke-width="2" marker-end="url(#arrow)"/>
+  </svg>
+  <div class="caption">Figure 7.2 level -1</div>
+</div>
+</body>
+</html>

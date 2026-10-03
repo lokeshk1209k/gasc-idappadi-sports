@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sports Incharge Portal — GASC Idappadi</title>
+  
+  <script>
+    // Immediate Auto-redirect if Incharge is already logged in (Zero Flicker)
+    (function() {
+      try {
+        const token = localStorage.getItem('gasc_token');
+        const userStr = localStorage.getItem('gasc_user');
+        if (token && userStr) {
+          const user = JSON.parse(userStr);
+          if (user && user.role === 'admin') {
+            const isPackaged = window.location.protocol === 'file:' || (window.GASC_CONFIG && window.GASC_CONFIG.IS_PACKAGED_APP && !window.location.protocol.startsWith('http'));
+            window.location.replace(isPackaged ? 'admin-dashboard.html' : '/admin/dashboard');
+          }
+        }
+      } catch(e) {}
+    })();
+  </script>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="icon" type="image/png" href="images/college-logo.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/config.js?v=20260927_equipment_v6"></script>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: radial-gradient(circle at 50% 20%, rgba(7, 21, 36, 0.70) 0%, rgba(9, 26, 42, 0.88) 100%),
+                  url('images/sports-equipment-bg.jpg') center/cover no-repeat fixed;
+      position: relative;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    .admin-login-card {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 500px;
+      padding: 1.5rem;
+    }
+    .admin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(255, 193, 7, 0.15);
+      color: #ffc107;
+      border: 1px solid rgba(255, 193, 7, 0.35);
+      padding: 0.4rem 1rem;
+      border-radius: 50px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-bottom: 0.85rem;
+    }
+    .nav-auth-tab {
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 50px;
+      padding: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      margin-bottom: 1.5rem;
+    }
+    .nav-auth-tab button {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.65);
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 0.55rem 1rem;
+      border-radius: 50px;
+      transition: all 0.25s ease;
+    }
+    .nav-auth-tab button.active {
+      background: #ffc107;
+      color: #0b1320;
+      box-shadow: 0 4px 15px rgba(255, 193, 7, 0.35);
+    }
+    .form-control-custom {
+      background: rgba(255, 255, 255, 0.08) !important;
+      border: 1px solid rgba(255, 255, 255, 0.18) !important;
+      color: #ffffff !important;
+      border-radius: 10px;
+    }
+    .form-control-custom:focus {
+      border-color: #ffc107 !important;
+      box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25) !important;
+    }
+    .form-control-custom::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="admin-login-card">
+    <div class="glass-card-dark p-4 p-sm-5 text-center shadow-lg" style="border-radius: 26px; background: rgba(8, 20, 34, 0.88); backdrop-filter: blur(30px); border: 1px solid rgba(0, 210, 211, 0.3) !important; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);">
+      
+      <!-- College Official Seal & Incharge Badge -->
+      <div class="mb-2">
+        <img src="images/college-logo.png" alt="GASC Idappadi Seal" class="mb-2" style="width: 75px; height: 75px; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));" onerror="this.src='images/college-logo.png'">
+        <div>
+          <span class="admin-badge">
+            <i class="bi bi-shield-lock-fill"></i> Sports Incharge / Admin Portal
+          </span>
+        </div>
+      </div>
+
+      <!-- College & Incharge Details -->
+      <div class="mb-3">
+        <h4 class="fw-extrabold text-white mb-1" style="letter-spacing: -0.5px;">GASC IDAPPADI</h4>
+        <div class="text-warning small fw-semibold">அரசு கலை மற்றும் அறிவியல் கல்லூரி, எடப்பாடி</div>
+        <div class="text-white-50 small mt-1">Department of Physical Education & Sports</div>
+      </div>
+
+      <!-- Auth Mode Switcher Tabs -->
+      <div class="nav-auth-tab">
+        <button type="button" id="tab-btn-login" class="active" onclick="switchAuthTab('login')">
+          <i class="bi bi-box-arrow-in-right me-1"></i> Incharge Login
+        </button>
+        <button type="button" id="tab-btn-register" onclick="switchAuthTab('register')">
+          <i class="bi bi-person-plus-fill me-1"></i> Register Incharge
+        </button>
+      </div>
+
+      <!-- Alert Message Box -->
+      <div id="admin-alert" class="alert d-none text-start p-2.5 px-3 mb-3 small rounded-3" role="alert"></div>
+
+      <!-- ================= 1. LOGIN FORM ================= -->
+      <div id="auth-panel-login">
+
+        <form id="admin-login-form" class="text-start" onsubmit="handleAdminLogin(event)">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-white-50" for="admin-username">
+              <i class="bi bi-person-circle text-warning me-1"></i> Email / Admin Username
+            </label>
+            <input type="text" id="admin-username" class="form-control form-control-custom py-2" placeholder="e.g. admin or incharge@gascidappadi.edu.in" required autocomplete="username">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-white-50" for="admin-password">
+              <i class="bi bi-lock-fill text-warning me-1"></i> Password
+            </label>
+            <div class="input-group">
+              <input type="password" id="admin-password" class="form-control form-control-custom py-2" placeholder="••••••••" required autocomplete="current-password">
+              <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePasswordVisibility('admin-password', 'admin-pwd-icon')" style="border-color: rgba(255,255,255,0.18);">
+                <i class="bi bi-eye text-white-50" id="admin-pwd-icon"></i>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="btn-admin-submit" class="btn btn-warning w-100 py-2.5 fs-6 fw-bold shadow mt-2 text-dark" style="border-radius: 12px;">
+            <span id="admin-btn-text"><i class="bi bi-box-arrow-in-right me-1"></i> Secure Incharge Login</span>
+            <span id="admin-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+          </button>
+        </form>
+
+        <div class="mt-3 text-center">
+          <small class="text-white-50">
+            New Sports Incharge faculty? 
+            <a href="javascript:void(0)" onclick="switchAuthTab('register')" class="text-warning text-decoration-none fw-bold">Register Account &rarr;</a>
+          </small>
+        </div>
+      </div>
+
+      <!-- ================= 2. REGISTER FORM ================= -->
+      <div id="auth-panel-register" class="d-none">
+        <form id="admin-register-form" class="text-start" onsubmit="handleAdminRegister(event)">
+          <div class="mb-2.5">
+            <label class="form-label small fw-bold text-white-50" for="reg-incharge-name">
+              <i class="bi bi-person-fill text-warning me-1"></i> Incharge Full Name
+            </label>
+            <input type="text" id="reg-incharge-name" class="form-control form-control-custom py-2" placeholder="e.g. Dr. R. ANITHA" required>
+          </div>
+
+          <div class="mb-2.5">
+            <label class="form-label small fw-bold text-white-50" for="reg-incharge-email">
+              <i class="bi bi-envelope-at-fill text-warning me-1"></i> Official Email Address
+            </label>
+            <input type="email" id="reg-incharge-email" class="form-control form-control-custom py-2" placeholder="e.g. sportsgascidappadi@gmail.com" required>
+          </div>
+
+          <div class="mb-2.5">
+            <label class="form-label small fw-bold text-white-50" for="reg-incharge-dept">
+              <i class="bi bi-building text-warning me-1"></i> Department / Role
+            </label>
+            <input type="text" id="reg-incharge-dept" class="form-control form-control-custom py-2" value="Physical Directress & Sports Incharge" placeholder="Department / Designation" required>
+          </div>
+
+          <div class="row g-2 mb-2.5">
+            <div class="col-sm-6">
+              <label class="form-label small fw-bold text-white-50" for="reg-incharge-pwd">
+                <i class="bi bi-lock-fill text-warning me-1"></i> Password
+              </label>
+              <div class="input-group">
+                <input type="password" id="reg-incharge-pwd" class="form-control form-control-custom py-2" placeholder="••••••••" required minlength="4">
+                <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePasswordVisibility('reg-incharge-pwd', 'reg-pwd-icon')" style="border-color: rgba(255,255,255,0.18);">
+                  <i class="bi bi-eye text-white-50" id="reg-pwd-icon"></i>
+                </button>
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label small fw-bold text-white-50" for="reg-incharge-pwd-confirm">
+                <i class="bi bi-shield-check text-warning me-1"></i> Confirm
+              </label>
+              <input type="password" id="reg-incharge-pwd-confirm" class="form-control form-control-custom py-2" placeholder="••••••••" required minlength="4">
+            </div>
+          </div>
+
+          <button type="submit" id="btn-reg-submit" class="btn btn-warning w-100 py-2.5 fs-6 fw-bold shadow mt-2 text-dark" style="border-radius: 12px;">
+            <span id="reg-btn-text"><i class="bi bi-person-check-fill me-1"></i> Register Incharge Account</span>
+            <span id="reg-btn-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+          </button>
+        </form>
+
+        <div class="mt-3 text-center">
+          <small class="text-white-50">
+            Already have an incharge account? 
+            <a href="javascript:void(0)" onclick="switchAuthTab('login')" class="text-warning text-decoration-none fw-bold">&larr; Back to Login</a>
+          </small>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-top border-secondary border-opacity-25 small text-white-50 text-center">
+        <i class="bi bi-shield-fill-check text-warning me-1"></i> GASC Idappadi Sports Management System
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/config.js"></script>
+  <script>
+    function switchAuthTab(mode) {
+      const panelLogin = document.getElementById('auth-panel-login');
+      const panelReg = document.getElementById('auth-panel-register');
+      const tabLogin = document.getElementById('tab-btn-login');
+      const tabReg = document.getElementById('tab-btn-register');
+      const alertBox = document.getElementById('admin-alert');
+      alertBox.className = 'alert d-none';
+
+      if (mode === 'register') {
+        panelLogin.classList.add('d-none');
+        panelReg.classList.remove('d-none');
+        tabLogin.classList.remove('active');
+        tabReg.classList.add('active');
+      } else {
+        panelReg.classList.add('d-none');
+        panelLogin.classList.remove('d-none');
+        tabReg.classList.remove('active');
+        tabLogin.classList.add('active');
+      }
+    }
+
+    function fillDemoAdmin() {
+      document.getElementById('admin-username').value = 'admin';
+      document.getElementById('admin-password').value = 'admin123';
+    }
+
+    function togglePasswordVisibility(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      if (!input) return;
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (icon) icon.classList.replace('bi-eye', 'bi-eye-slash');
+      } else {
+        input.type = 'password';
+        if (icon) icon.classList.replace('bi-eye-slash', 'bi-eye');
+      }
+    }
+
+    function getApiBase() {
+      if (typeof window.GASC_CONFIG !== 'undefined' && window.GASC_CONFIG.getApiUrl) {
+        return window.GASC_CONFIG.API_URL || 'http://localhost:5000/api';
+      }
+      return (window.location.protocol === 'file:' || (typeof window.GASC_CONFIG !== 'undefined' && window.GASC_CONFIG.IS_PACKAGED_APP))
+        ? 'http://localhost:5000/api'
+        : '/api';
+    }
+
+    function getDashboardUrl() {
+      const isPackaged = window.location.protocol === 'file:' || (window.GASC_CONFIG && window.GASC_CONFIG.IS_PACKAGED_APP && !window.location.protocol.startsWith('http'));
+      return isPackaged ? 'admin-dashboard.html' : '/admin/dashboard';
+    }
+
+    // 1. Handle Login
+    async function handleAdminLogin(e) {
+      e.preventDefault();
+      const alertBox = document.getElementById('admin-alert');
+      const btn = document.getElementById('btn-admin-submit');
+      const btnText = document.getElementById('admin-btn-text');
+      const btnSpinner = document.getElementById('admin-btn-spinner');
+
+      const username = document.getElementById('admin-username').value.trim();
+      const password = document.getElementById('admin-password').value;
+
+      alertBox.className = 'alert d-none';
+      btn.disabled = true;
+      btnText.classList.add('d-none');
+      btnSpinner.classList.remove('d-none');
+
+      try {
+        const response = await fetch(`${getApiBase()}/auth/admin-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          localStorage.setItem('gasc_token', data.token);
+          localStorage.setItem('gasc_user', JSON.stringify(data.user));
+          
+          alertBox.className = 'alert alert-success d-block text-start p-2 px-3 small rounded-3';
+          alertBox.innerHTML = `<i class="bi bi-shield-check me-1"></i> Welcome ${data.user ? data.user.name : 'Incharge'}! Loading Dashboard...`;
+          
+          setTimeout(() => {
+            window.location.href = getDashboardUrl();
+          }, 600);
+        } else {
+          alertBox.className = 'alert alert-danger d-block text-start p-2 px-3 small rounded-3';
+          alertBox.innerHTML = `<i class="bi bi-shield-slash me-1"></i> ${data.message || 'Login failed. Invalid credentials.'}`;
+          btn.disabled = false;
+          btnText.classList.remove('d-none');
+          btnSpinner.classList.add('d-none');
+        }
+      } catch (err) {
+        alertBox.className = 'alert alert-danger d-block text-start p-2 px-3 small rounded-3';
+        alertBox.innerHTML = `<i class="bi bi-wifi-off me-1"></i> Server connection failed. Please ensure the backend is running.`;
+        btn.disabled = false;
+        btnText.classList.remove('d-none');
+        btnSpinner.classList.add('d-none');
+      }
+    }
+
+    // 2. Handle Register
+    async function handleAdminRegister(e) {
+      e.preventDefault();
+      const alertBox = document.getElementById('admin-alert');
+      const btn = document.getElementById('btn-reg-submit');
+      const btnText = document.getElementById('reg-btn-text');
+      const btnSpinner = document.getElementById('reg-btn-spinner');
+
+      const name = document.getElementById('reg-incharge-name').value.trim();
+      const email = document.getElementById('reg-incharge-email').value.trim();
+      const department = document.getElementById('reg-incharge-dept').value.trim();
+      const password = document.getElementById('reg-incharge-pwd').value;
+      const confirmPwd = document.getElementById('reg-incharge-pwd-confirm').value;
+
+      if (password !== confirmPwd) {
+        alertBox.className = 'alert alert-warning d-block text-start p-2 px-3 small rounded-3';
+        alertBox.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Passwords do not match!';
+        return;
+      }
+
+      alertBox.className = 'alert d-none';
+      btn.disabled = true;
+      btnText.classList.add('d-none');
+      btnSpinner.classList.remove('d-none');
+
+      try {
+        const response = await fetch(`${getApiBase()}/auth/admin-register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, department, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          localStorage.setItem('gasc_token', data.token);
+          localStorage.setItem('gasc_user', JSON.stringify(data.user));
+          
+          alertBox.className = 'alert alert-success d-block text-start p-2 px-3 small rounded-3';
+          alertBox.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> ${data.message} Opening Dashboard...`;
+          
+          setTimeout(() => {
+            window.location.href = getDashboardUrl();
+          }, 800);
+        } else {
+          alertBox.className = 'alert alert-danger d-block text-start p-2 px-3 small rounded-3';
+          alertBox.innerHTML = `<i class="bi bi-shield-slash me-1"></i> ${data.message || 'Registration failed.'}`;
+          btn.disabled = false;
+          btnText.classList.remove('d-none');
+          btnSpinner.classList.add('d-none');
+        }
+      } catch (err) {
+        alertBox.className = 'alert alert-danger d-block text-start p-2 px-3 small rounded-3';
+        alertBox.innerHTML = `<i class="bi bi-wifi-off me-1"></i> Server connection failed. Please ensure the backend is running.`;
+        btn.disabled = false;
+        btnText.classList.remove('d-none');
+        btnSpinner.classList.add('d-none');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,2949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal — GASC Idappadi Sports Management</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="icon" type="image/png" href="images/college-logo.png">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- Glassmorphism Stylesheet -->
+  <link rel="stylesheet" href="css/style.css?v=20260909_table">
+  <script src="js/config.js"></script>
+  <script>
+    // Strict Role-Based Portal Guard: Sports Incharge / Admin Only
+    (function() {
+      const token = localStorage.getItem('gasc_token');
+      const userStr = localStorage.getItem('gasc_user');
+      const adminLoginUrl = (window.location.protocol === 'file:' || (window.GASC_CONFIG && window.GASC_CONFIG.IS_PACKAGED_APP && !window.location.protocol.startsWith('http')))
+        ? 'admin-login.html'
+        : '/admin/login';
+
+      if (!token || !userStr) {
+        window.location.replace(adminLoginUrl);
+        return;
+      }
+      try {
+        const user = JSON.parse(userStr);
+        if (user.role !== 'admin') {
+          alert('Access Denied: Sports Incharge / Admin privileges required.');
+          window.location.replace(adminLoginUrl);
+        }
+      } catch (e) {
+        window.location.replace(adminLoginUrl);
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <div class="portal-wrapper">
+    <!-- Admin Sidebar -->
+    <aside class="portal-sidebar">
+      <div class="portal-sidebar-brand">
+        <img src="images/college-logo.png" alt="GASC Idappadi Official Seal" class="college-logo-sidebar" onerror="this.src='images/college-logo.png'">
+        <div>
+          <div class="fw-bold text-white lh-1">GASC IDAPPADI</div>
+          <small class="text-white-50" style="font-size: 0.7rem;">Sports Incharge</small>
+        </div>
+      </div>
+
+      <nav class="mt-2 flex-grow-1">
+        <a class="sidebar-nav-item admin-nav-item active" data-view="dashboard">
+          <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="players">
+          <i class="bi bi-people-fill"></i> <span>Players</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="roster">
+          <i class="bi bi-file-earmark-spreadsheet-fill text-success"></i> <span>College Roster (Excel)</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="sports">
+          <i class="bi bi-trophy-fill"></i> <span>Sports</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="equipment-mgmt">
+          <i class="bi bi-box-seam-fill text-warning"></i> <span>Equipment Management</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="competitions">
+          <i class="bi bi-flag-fill"></i> <span>Competitions</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="applications">
+          <i class="bi bi-file-earmark-check-fill"></i> <span>Applications</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="teams">
+          <i class="bi bi-shield-shaded"></i> <span>Team Management</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="achievements">
+          <i class="bi bi-award-fill"></i> <span>Achievements</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="notifications">
+          <i class="bi bi-bell-fill"></i> <span>Broadcasts</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="gallery">
+          <i class="bi bi-images"></i> <span>Sports Gallery</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="analytics">
+          <i class="bi bi-graph-up-arrow"></i> <span>Analytics</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="reports">
+          <i class="bi bi-printer-fill"></i> <span>Official Reports</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="settings">
+          <i class="bi bi-gear-fill"></i> <span>Settings</span>
+        </a>
+      </nav>
+
+      <div class="p-3 border-top border-white border-opacity-10 mt-auto">
+        <a href="/index.html" class="sidebar-nav-item text-white-50 m-0 mb-2">
+          <i class="bi bi-house-door"></i> <span>Public Home</span>
+        </a>
+        <button onclick="logout()" class="btn btn-outline-danger w-100 btn-sm">
+          <i class="bi bi-box-arrow-right me-1"></i> Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Portal Content -->
+    <div class="portal-content">
+      <!-- Topbar -->
+      <header class="portal-topbar">
+        <button class="btn btn-glass d-lg-none" onclick="document.querySelector('.portal-sidebar').classList.toggle('show')">
+          <i class="bi bi-list fs-5"></i>
+        </button>
+        <div>
+          <span class="badge" style="background: rgba(0, 210, 211, 0.18); color: #00d2d3; border: 1px solid rgba(0, 210, 211, 0.4); font-weight: 700; border-radius: 50px; padding: 0.45rem 1.1rem; letter-spacing: 0.3px;">
+            <i class="bi bi-mortarboard-fill me-1"></i> Government Arts and Science College, Idappadi
+          </span>
+        </div>
+        <div class="d-flex align-items-center gap-3 ms-auto">
+          <div class="text-end">
+            <div class="fw-bold text-white lh-1" id="admin-display-name">Dr. R. ANITHA</div>
+            <small class="text-warning fw-semibold" id="admin-display-role">Sports Incharge</small>
+          </div>
+          <img id="admin-header-avatar" src="images/default-avatar.png" class="rounded-circle shadow-sm border border-2 border-warning" width="44" height="44" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+        </div>
+      </header>
+
+      <!-- Main Views -->
+      <main class="portal-main-view">
+
+        <!-- VIEW 1: EXECUTIVE DASHBOARD -->
+        <section id="view-dashboard" class="admin-view-section">
+          <!-- Top KPI Ribbon -->
+          <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-people-fill"></i></div>
+                <div>
+                  <div class="stat-value text-primary" id="kpi-total-players">0</div>
+                  <div class="stat-label">Total Players</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-trophy-fill"></i></div>
+                <div>
+                  <div class="stat-value text-success" id="kpi-active-sports">0</div>
+                  <div class="stat-label">Active Sports</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-box-seam-fill"></i></div>
+                <div>
+                  <div class="stat-value text-info" id="kpi-total-equipment">0</div>
+                  <div class="stat-label">Total Equipment</div>
+                  <small class="text-muted"><span id="kpi-issued-equipment">0</span> Issued</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div>
+                  <div class="stat-value text-danger" id="kpi-low-stock">0</div>
+                  <div class="stat-label">Low Stock Items</div>
+                  <small class="text-danger fw-bold">Action Required</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Secondary Metric Strip -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="glass-card p-3 d-flex align-items-center justify-content-between">
+                <div>
+                  <span class="text-secondary small fw-bold text-uppercase">Pending Applications</span>
+                  <div class="fs-4 fw-bold text-warning" id="kpi-pending-apps">0</div>
+                </div>
+                <button class="btn btn-sm btn-outline-warning" onclick="switchAdminView('applications')">Review &rarr;</button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="glass-card p-3 d-flex align-items-center justify-content-between">
+                <div>
+                  <span class="text-secondary small fw-bold text-uppercase">Upcoming Competitions</span>
+                  <div class="fs-4 fw-bold text-success" id="kpi-upcoming-comps">0</div>
+                </div>
+                <button class="btn btn-sm btn-outline-success" onclick="switchAdminView('competitions')">View &rarr;</button>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="glass-card p-3 d-flex align-items-center justify-content-between">
+                <div>
+                  <span class="text-secondary small fw-bold text-uppercase">Total Medals / Awards</span>
+                  <div class="fs-4 fw-bold text-primary" id="kpi-total-achievements">0</div>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" onclick="switchAdminView('achievements')">Wall of Fame &rarr;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 21: OVERDUE EQUIPMENT ACTION WIDGET -->
+          <div id="dashboard-overdue-alert" class="glass-card p-3 mb-4 border border-danger border-opacity-30 d-none" style="background: rgba(255, 82, 82, 0.08);">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-2 rounded-circle bg-danger bg-opacity-10 text-danger fs-3">
+                  <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <div>
+                  <h6 class="fw-bold text-danger mb-0">⚠️ Overdue Equipment Alert</h6>
+                  <div class="small text-secondary">
+                    <strong id="dashboard-overdue-count" class="text-danger">0</strong> equipment item(s) are overdue past expected return date. Please collect return.
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-outline-danger btn-sm px-3 fw-bold" onclick="switchAdminView('equipment-mgmt'); switchEqTab('active', 'Overdue');">
+                <i class="bi bi-eye me-1"></i> View Overdue Equipment &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- AI Insights Section -->
+          <div class="glass-card p-4 mb-4">
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+              <h5 class="fw-bold text-dark mb-0">
+                <i class="bi bi-cpu text-primary me-2"></i> Real Database AI Sports Insights & Recommendations
+              </h5>
+              <span class="badge badge-glass-primary">Powered by Supabase Cloud (PostgreSQL)</span>
+            </div>
+            <div id="admin-ai-insights-list">
+              <div class="text-center py-3"><div class="spinner-border text-primary spinner-border-sm"></div> Generating real-time insights...</div>
+            </div>
+          </div>
+
+          <!-- Feeds Section -->
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="glass-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h6 class="fw-bold text-dark mb-0"><i class="bi bi-person-plus text-primary me-2"></i> Recent Tournament Registrations</h6>
+                  <button class="btn btn-sm btn-link text-decoration-none" onclick="switchAdminView('applications')">Manage &rarr;</button>
+                </div>
+                <div id="admin-recent-reg-feed">
+                  <div class="text-center py-3 text-muted">Loading registrations...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="glass-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h6 class="fw-bold text-dark mb-0"><i class="bi bi-arrow-left-right text-success me-2"></i> Recent Equipment Log</h6>
+                  <button class="btn btn-sm btn-link text-decoration-none" onclick="switchAdminView('issue-return')">Transactions &rarr;</button>
+                </div>
+                <div id="admin-recent-tx-feed">
+                  <div class="text-center py-3 text-muted">Loading transactions...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 2: PLAYERS MANAGEMENT -->
+        <section id="view-players" class="admin-view-section d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">Student Player Directory</h4>
+              <small class="text-secondary">Search, filter, view profiles, and manage athlete status</small>
+            </div>
+          </div>
+
+          <!-- Filter Toolbar -->
+          <div class="glass-card p-3 mb-4">
+            <div class="row g-2">
+              <div class="col-md-4">
+                <input type="text" id="player-search-input" class="form-control form-control-glass form-control-sm" placeholder="Search by name, reg no..." oninput="loadAdminPlayers()">
+              </div>
+              <div class="col-md-3">
+                <select id="player-filter-dept" class="form-select form-select-glass form-select-sm" onchange="loadAdminPlayers()">
+                  <option value="All">All Departments</option>
+                  <optgroup label="UG Courses">
+                    <option value="Tamil">Tamil</option>
+                    <option value="English">English</option>
+                    <option value="Maths">Maths</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Botany">Botany</option>
+                    <option value="BBA">BBA</option>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="B.Com">B.Com</option>
+                  </optgroup>
+                  <optgroup label="PG Courses">
+                    <option value="M.Com">M.Com</option>
+                    <option value="MA Tamil">MA Tamil</option>
+                    <option value="MA English">MA English</option>
+                    <option value="MA Maths">MA Maths</option>
+                    <option value="BMA">BMA</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select id="player-filter-year" class="form-select form-select-glass form-select-sm" onchange="loadAdminPlayers()">
+                  <option value="All">All Years</option>
+                  <optgroup label="UG">
+                    <option value="I Year">I Year</option>
+                    <option value="II Year">II Year</option>
+                    <option value="III Year">III Year</option>
+                  </optgroup>
+                  <optgroup label="PG">
+                    <option value="I PG">I PG</option>
+                    <option value="II PG">II PG</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select id="player-filter-status" class="form-select form-select-glass form-select-sm" onchange="loadAdminPlayers()">
+                  <option value="All">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="table-glass-container">
+            <table class="table table-glass">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Student Athlete</th>
+                  <th>Department & Year</th>
+                  <th>Sport</th>
+                  <th>Position</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-players-table">
+                <!-- Loaded via admin.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VIEW 2.5: COLLEGE ROSTER (EXCEL & MANUAL ADD) -->
+        <section id="view-roster" class="admin-view-section d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">
+                <i class="bi bi-file-earmark-spreadsheet-fill text-success me-2"></i>College Student Master Roster
+              </h4>
+              <small class="text-secondary">Official student directory. Only students verified in this roll list are permitted to register on the sports portal.</small>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-success btn-sm shadow-sm" onclick="downloadRosterTemplate()">
+                <i class="bi bi-file-earmark-arrow-down-fill me-1"></i> Download Excel Template
+              </button>
+              <button class="btn btn-sports-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#manualAddStudentModal">
+                <i class="bi bi-person-plus-fill me-1"></i> Add Student Manually
+              </button>
+            </div>
+          </div>
+
+          <!-- Roster KPI Statistics -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-people-fill"></i></div>
+                <div>
+                  <div class="stat-value text-success" id="roster-stat-total">0</div>
+                  <div class="stat-label">Total Bonafide Students</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-person-check-fill"></i></div>
+                <div>
+                  <div class="stat-value text-primary" id="roster-stat-registered">0</div>
+                  <div class="stat-label">Registered on Portal</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-hourglass-split"></i></div>
+                <div>
+                  <div class="stat-value text-warning" id="roster-stat-pending">0</div>
+                  <div class="stat-label">Pending Account Signups</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Excel Upload Card -->
+          <div class="glass-card p-4 mb-4 border border-success border-opacity-25 shadow-sm">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
+              <div>
+                <h6 class="fw-bold text-dark mb-1">
+                  <i class="bi bi-cloud-arrow-up-fill text-success me-2 fs-5"></i> Bulk Upload College Students (Excel / CSV)
+                </h6>
+                <small class="text-secondary">Upload your department / college master student spreadsheet (.xlsx, .xls, .csv). Rows will automatically populate below.</small>
+              </div>
+              <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+                Auto-Parsing Enabled
+              </span>
+            </div>
+
+            <form id="roster-excel-form" onsubmit="handleRosterExcelUpload(event)">
+              <div class="row g-3 align-items-end">
+                <div class="col-lg-7">
+                  <label class="form-label small fw-bold text-dark">
+                    Select Excel Spreadsheet (.xlsx, .xls, .csv)
+                  </label>
+                  <input type="file" id="roster-excel-file-input" class="form-control form-control-glass" accept=".xlsx, .xls, .csv" required>
+                </div>
+                <div class="col-lg-5 d-flex gap-2">
+                  <button type="submit" id="btn-roster-upload-submit" class="btn btn-success flex-grow-1">
+                    <i class="bi bi-upload me-1"></i> Upload & Import to Roster
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('roster-excel-file-input').value = ''">
+                    <i class="bi bi-x-circle"></i> Clear
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <div class="mt-3 pt-2 border-top">
+              <small class="text-muted d-block mb-1"><strong>Supported Spreadsheet Columns:</strong></small>
+              <div class="d-flex flex-wrap gap-1">
+                <span class="badge badge-glass-primary">Register Number / Reg No</span>
+                <span class="badge badge-glass-primary">Student Name / Name</span>
+                <span class="badge badge-glass-primary">Department / Course</span>
+                <span class="badge badge-glass-primary">Year (I Year / II Year / III Year)</span>
+                <span class="badge badge-glass-primary">Section (A / B)</span>
+                <span class="badge badge-glass-primary">Gender (Male / Female)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Roster Search & Filters -->
+          <div class="glass-card p-3 mb-4">
+            <div class="row g-2">
+              <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-white bg-opacity-50 border-end-0"><i class="bi bi-search"></i></span>
+                  <input type="text" id="roster-search-input" class="form-control form-control-glass border-start-0" placeholder="Search by Reg No, Student Name..." oninput="loadAdminRoster()">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <select id="roster-filter-dept" class="form-select form-select-glass form-select-sm" onchange="loadAdminRoster()">
+                  <option value="All">All Departments</option>
+                  <optgroup label="UG Courses">
+                    <option value="Tamil">Tamil</option>
+                    <option value="English">English</option>
+                    <option value="Maths">Maths</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Botany">Botany</option>
+                    <option value="BBA">BBA</option>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="B.Com">B.Com</option>
+                  </optgroup>
+                  <optgroup label="PG Courses">
+                    <option value="M.Com">M.Com</option>
+                    <option value="MA Tamil">MA Tamil</option>
+                    <option value="MA English">MA English</option>
+                    <option value="MA Maths">MA Maths</option>
+                    <option value="BMA">BMA</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select id="roster-filter-year" class="form-select form-select-glass form-select-sm" onchange="loadAdminRoster()">
+                  <option value="All">All Years</option>
+                  <optgroup label="UG">
+                    <option value="I Year">I Year</option>
+                    <option value="II Year">II Year</option>
+                    <option value="III Year">III Year</option>
+                  </optgroup>
+                  <optgroup label="PG">
+                    <option value="I PG">I PG</option>
+                    <option value="II PG">II PG</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select id="roster-filter-status" class="form-select form-select-glass form-select-sm" onchange="loadAdminRoster()">
+                  <option value="All">All Portal Statuses</option>
+                  <option value="registered">Registered on Portal</option>
+                  <option value="unregistered">Not Registered Yet</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Roster Table -->
+          <div class="table-responsive table-glass-container">
+            <table class="table table-glass align-middle">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">#</th>
+                  <th>Register Number</th>
+                  <th>Student Name</th>
+                  <th>Department</th>
+                  <th>Year & Section</th>
+                  <th>Gender</th>
+                  <th>Portal Account</th>
+                  <th class="text-center" style="min-width: 170px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-roster-table">
+                <!-- Loaded via admin.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VIEW 3: SPORTS MANAGEMENT -->
+        <section id="view-sports" class="admin-view-section d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">Sports Disciplines Management</h4>
+              <small class="text-secondary">Add and configure college sports categories and squad sizes</small>
+            </div>
+            <button class="btn btn-sports-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSportModal">
+              <i class="bi bi-plus-circle me-1"></i> Add New Sport
+            </button>
+          </div>
+          <div class="table-glass-container">
+            <table class="table table-glass">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Sport Name</th>
+                  <th>Category</th>
+                  <th>Court Type</th>
+                  <th>Squad Size</th>
+                  <th>Athletes</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-sports-table">
+                <!-- Loaded via admin.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VIEW 4: SPORTS EQUIPMENT ISSUE & RETURN MANAGEMENT (COMPLETE WORKFLOW) -->
+        <section id="view-equipment-mgmt" class="admin-view-section d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-warning bg-opacity-25 text-dark border border-warning border-opacity-50 px-2.5 py-1 fw-bold" style="color: #000000 !important;">
+                  <i class="bi bi-box-seam-fill text-warning me-1"></i> SPORTS INVENTORY SYSTEM
+                </span>
+                <span class="badge badge-glass-success">Live Stock Sync Active</span>
+              </div>
+              <h3 class="fw-bold text-dark mb-0">Sports Equipment Issue & Return</h3>
+              <small class="text-secondary">Issue gear to verified college athletes, track active issues, manage returns, and audit inventory</small>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sports-accent shadow-sm" onclick="switchEqTab('issue')">
+                <i class="bi bi-plus-circle me-1"></i> Issue Equipment
+              </button>
+              <button class="btn btn-sports-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addEquipmentModal">
+                <i class="bi bi-box-seam me-1"></i> Add New Equipment
+              </button>
+            </div>
+          </div>
+
+          <!-- Section 21: OVERDUE ADMIN ALERT BANNER -->
+          <div id="eq-overdue-banner" class="alert alert-danger d-none border border-danger shadow-sm d-flex align-items-center justify-content-between p-3 rounded-4 mb-4" style="background: rgba(255, 82, 82, 0.1);">
+            <div class="d-flex align-items-center gap-3">
+              <div class="fs-2 text-danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
+              <div>
+                <h6 class="fw-bold text-danger mb-0">⚠️ Overdue Equipment Alert</h6>
+                <div class="small text-danger-emphasis">
+                  <strong id="eq-overdue-banner-count">0</strong> equipment item(s) are overdue past their expected return date. Please collect return from student.
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-danger btn-sm px-3 fw-bold" onclick="switchEqTab('active', 'Overdue')">
+              <i class="bi bi-eye me-1"></i> View Overdue Items
+            </button>
+          </div>
+
+          <!-- Section 25: ANIMATED STOCK DASHBOARD KPI CARDS -->
+          <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card border border-primary border-opacity-20">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-boxes"></i></div>
+                <div>
+                  <div class="stat-value text-primary" id="eq-stat-total">0</div>
+                  <div class="stat-label">Total Equipment</div>
+                  <small class="text-muted">Total college units</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card border border-success border-opacity-20">
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle-fill"></i></div>
+                <div>
+                  <div class="stat-value text-success" id="eq-stat-available">0</div>
+                  <div class="stat-label">Available Stock</div>
+                  <small class="text-success fw-bold">Ready to Issue</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card border border-info border-opacity-20">
+                <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-arrow-right-circle-fill"></i></div>
+                <div>
+                  <div class="stat-value text-info" id="eq-stat-issued">0</div>
+                  <div class="stat-label">Currently Issued</div>
+                  <small class="text-muted">With student athletes</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card border border-danger border-opacity-20">
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-clock-history"></i></div>
+                <div>
+                  <div class="stat-value text-danger" id="eq-stat-overdue">0</div>
+                  <div class="stat-label">Overdue Equipment</div>
+                  <small class="text-danger fw-bold" id="eq-stat-overdue-sub">Action required</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: EQUIPMENT MANAGEMENT NAVIGATION TABS -->
+          <div class="glass-card p-2 mb-4">
+            <ul class="nav nav-pills nav-fill gap-2" id="equipment-mgmt-pills">
+              <li class="nav-item">
+                <button class="nav-link active fw-bold" id="pill-eq-issue" onclick="switchEqTab('issue')">
+                  <i class="bi bi-box-arrow-right me-1"></i> Issue Equipment
+                </button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link fw-bold" id="pill-eq-active" onclick="switchEqTab('active')">
+                  <i class="bi bi-arrow-left-right me-1"></i> Active Issues
+                  <span class="badge bg-primary ms-1" id="badge-active-issues-count">0</span>
+                </button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link fw-bold" id="pill-eq-history" onclick="switchEqTab('history')">
+                  <i class="bi bi-journal-text me-1"></i> Equipment History
+                </button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link fw-bold" id="pill-eq-stock" onclick="switchEqTab('stock')">
+                  <i class="bi bi-boxes me-1"></i> Stock Overview
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <!-- SUB-TAB 1: ISSUE EQUIPMENT (Sections 3 - 10) -->
+          <div id="subtab-eq-issue" class="eq-subtab-pane">
+            <div class="row g-4">
+              <!-- Left Column: Student Search & Verification (Section 4) -->
+              <div class="col-lg-5">
+                <div class="glass-card p-4 h-100 border border-primary border-opacity-20">
+                  <h5 class="fw-bold text-dark mb-1">
+                    <i class="bi bi-person-badge-fill text-primary me-2"></i>1. Student Athlete Search
+                  </h5>
+                  <small class="text-secondary d-block mb-3">Enter register number to automatically fetch student credentials</small>
+
+                  <div class="input-group mb-3">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="eq-search-reg-input" class="form-control form-control-glass border-start-0" placeholder="e.g. 21CS001, 23UGCS101..." onkeydown="if(event.key==='Enter'){event.preventDefault(); searchStudentForEquipment();}">
+                    <button class="btn btn-sports-primary px-3" type="button" id="btn-search-student" onclick="searchStudentForEquipment()">
+                      <i class="bi bi-arrow-repeat me-1"></i> Search
+                    </button>
+                  </div>
+
+                  <!-- Searching indicator -->
+                  <div id="eq-student-searching" class="text-center py-4 d-none">
+                    <div class="spinner-border text-primary spinner-border-sm me-2"></div>
+                    <span class="text-secondary fw-semibold">Searching student database...</span>
+                  </div>
+
+                  <!-- Student Found Card -->
+                  <div id="eq-student-card" class="d-none">
+                    <div class="p-3 rounded-4 bg-success bg-opacity-10 border border-success border-opacity-30 mb-3">
+                      <div class="d-flex align-items-center gap-3">
+                        <img id="eq-student-photo" src="images/default-avatar.png" alt="Student Photo" class="rounded-circle border border-2 border-success shadow-sm" width="64" height="64" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+                        <div>
+                          <span class="badge bg-success text-white mb-1"><i class="bi bi-check-circle me-1"></i> Student Found ✓</span>
+                          <h5 class="fw-bold text-dark mb-0" id="eq-student-name">-</h5>
+                          <div class="fw-semibold text-primary font-monospace" id="eq-student-reg">-</div>
+                          <small class="text-secondary" id="eq-student-dept-year">-</small>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Duplicate active issue warning (Section 29) -->
+                    <div id="eq-student-active-alert" class="alert alert-warning border border-warning d-none py-2 px-3 small rounded-3 mb-0">
+                      <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                      <strong id="eq-student-active-warning-text"></strong>
+                    </div>
+                  </div>
+
+                  <!-- Student Not Found Notice -->
+                  <div id="eq-student-notfound" class="alert alert-danger border border-danger d-none p-3 rounded-3 mb-0">
+                    <div class="d-flex align-items-center gap-2">
+                      <i class="bi bi-x-circle-fill fs-5"></i>
+                      <div>
+                        <strong>Student not found.</strong>
+                        <div class="small">The register number was not found in the roster or registered student database. Equipment issue is not permitted.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Initial prompt placeholder -->
+                  <div id="eq-student-prompt" class="text-center py-5 text-muted">
+                    <i class="bi bi-person-lines-fill display-5 d-block mb-2 text-primary opacity-50"></i>
+                    <h6 class="fw-bold text-dark mb-1">Verify Athlete Register Number</h6>
+                    <small>Enter a register number (e.g. <code>21CS001</code>) and click Search to pull student records.</small>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column: Equipment Selection & Details (Section 5, 6, 7, 8) -->
+              <div class="col-lg-7">
+                <div class="glass-card p-4 h-100 border border-primary border-opacity-20">
+                  <h5 class="fw-bold text-dark mb-1">
+                    <i class="bi bi-box-seam-fill text-primary me-2"></i>2. Equipment & Issue Details
+                  </h5>
+                  <small class="text-secondary d-block mb-3">Select available inventory item and define expected return</small>
+
+                  <form id="form-issue-equipment-main" onsubmit="handleProceedIssueModal(event)">
+                    <!-- Equipment Selection (Section 5) -->
+                    <div class="mb-3">
+                      <label class="form-label small fw-bold text-dark">
+                        <i class="bi bi-trophy text-warning me-1"></i> Select Equipment Item *
+                      </label>
+                      <select id="main-issue-equipment-select" class="form-select form-select-glass" required onchange="handleEquipmentSelectionChange()">
+                        <option value="">-- Choose Equipment from Inventory --</option>
+                      </select>
+                      
+                      <!-- Live Stock Stats Pill Box -->
+                      <div id="eq-selected-stock-box" class="mt-2 p-2.5 rounded-3 bg-dark bg-opacity-10 border border-secondary border-opacity-25 d-none">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                          <div class="d-flex align-items-center gap-2">
+                            <div id="eq-selected-badge" class="flex-shrink-0"></div>
+                            <div>
+                              <strong class="d-block text-dark small" id="eq-selected-name">Equipment</strong>
+                              <span class="text-muted" style="font-size:0.75rem;" id="eq-selected-cat">Category</span>
+                            </div>
+                          </div>
+                          <div class="d-flex gap-3 small">
+                            <div>Total: <strong id="eq-selected-total" class="text-dark">0</strong></div>
+                            <div>Available: <strong id="eq-selected-available" class="text-success fs-6">0</strong></div>
+                            <div>Issued: <strong id="eq-selected-issued" class="text-primary">0</strong></div>
+                          </div>
+                        </div>
+                        <div id="eq-unavailable-msg" class="text-danger fw-bold small mt-2 d-none">
+                          <i class="bi bi-exclamation-octagon-fill me-1"></i> Currently unavailable (0 stock in inventory). Cannot issue.
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Quantity & Return Date (Sections 6, 8) -->
+                    <div class="row g-3 mb-3">
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-dark">
+                          <i class="bi bi-123 text-info me-1"></i> Quantity to Issue *
+                        </label>
+                        <input type="number" id="main-issue-quantity" class="form-control form-control-glass" value="1" min="1" max="1" required oninput="validateIssueQuantity()">
+                        <div class="form-text text-muted" id="main-issue-qty-help">Maximum available: 0</div>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-dark">
+                          <i class="bi bi-calendar-event text-danger me-1"></i> Expected Return Date *
+                        </label>
+                        <input type="date" id="main-issue-expected-date" class="form-control form-control-glass" required onchange="validateExpectedReturnDate()">
+                        <div class="form-text text-muted">Cannot be before today's date.</div>
+                      </div>
+                    </div>
+
+                    <!-- Auto Date & Time Server Notice (Section 7) -->
+                    <div class="p-2.5 rounded-3 bg-info bg-opacity-10 border border-info border-opacity-25 mb-3 d-flex align-items-center gap-2">
+                      <i class="bi bi-clock-history text-info fs-5"></i>
+                      <div class="small text-info-emphasis">
+                        <strong>Automatic Server Timestamp:</strong> Issue Date & Time are generated automatically by the server backend upon confirmation.
+                      </div>
+                    </div>
+
+                    <!-- Purpose & Remarks -->
+                    <div class="row g-3 mb-4">
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-dark">Purpose of Issue</label>
+                        <input type="text" id="main-issue-purpose" class="form-control form-control-glass" value="College Practice / Match" placeholder="e.g. Net Practice, Zonal Match">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-dark">Remarks / Notes</label>
+                        <input type="text" id="main-issue-remarks" class="form-control form-control-glass" placeholder="Condition verified by Sports Incharge">
+                      </div>
+                    </div>
+
+                    <!-- Submit / Proceed Button -->
+                    <div class="d-flex justify-content-end gap-2">
+                      <button type="button" class="btn btn-glass" onclick="resetIssueForm()">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Form
+                      </button>
+                      <button type="submit" id="btn-proceed-issue" class="btn btn-sports-accent px-4 fw-bold shadow-sm" disabled>
+                        <i class="bi bi-check-circle me-1"></i> Review & Confirm Issue &rarr;
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 2: ACTIVE ISSUES (Sections 14, 15, 16) -->
+          <div id="subtab-eq-active" class="eq-subtab-pane d-none">
+            <!-- Search & Filter Bar (Section 15) -->
+            <div class="glass-card p-3 mb-4">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-4">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="active-issue-search" class="form-control form-control-glass" placeholder="Search Reg No, Student, Equipment..." oninput="loadActiveIssues()">
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <select id="active-issue-filter" class="form-select form-select-glass form-select-sm" onchange="loadActiveIssues()">
+                    <option value="All">All Active Issues</option>
+                    <option value="Overdue">⚠️ Overdue Only</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <input type="date" id="active-issue-date-filter" class="form-control form-control-glass form-control-sm" onchange="loadActiveIssues()" title="Filter by Issue Date">
+                </div>
+                <div class="col-md-2 text-md-end">
+                  <button class="btn btn-sm btn-glass w-100" onclick="loadActiveIssues()">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Issues Table (Section 14) -->
+            <div class="table-responsive table-glass-container">
+              <table class="table table-glass align-middle">
+                <thead>
+                  <tr>
+                    <th style="width: 45px;">#</th>
+                    <th>Student Athlete</th>
+                    <th>Equipment Item</th>
+                    <th>Qty</th>
+                    <th>Issued Date & Time</th>
+                    <th>Expected Return</th>
+                    <th>Status</th>
+                    <th class="text-center" style="min-width: 170px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-active-issues-table">
+                  <!-- Loaded via admin.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 3: EQUIPMENT HISTORY (Section 23) -->
+          <div id="subtab-eq-history" class="eq-subtab-pane d-none">
+            <!-- Filter Bar -->
+            <div class="glass-card p-3 mb-4">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-5">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" id="history-issue-search" class="form-control form-control-glass" placeholder="Search History by Reg No, Student, Equipment..." oninput="loadEquipmentHistory()">
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <select id="history-issue-filter" class="form-select form-select-glass form-select-sm" onchange="loadEquipmentHistory()">
+                    <option value="All">All History Statuses</option>
+                    <option value="Returned">Returned Items</option>
+                    <option value="Issued">Currently Issued</option>
+                    <option value="Overdue">Overdue</option>
+                    <option value="Damaged">Damaged on Return</option>
+                    <option value="Lost">Lost / Missing</option>
+                  </select>
+                </div>
+                <div class="col-md-3 text-md-end">
+                  <button class="btn btn-sm btn-glass w-100" onclick="loadEquipmentHistory()">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh History
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- History Table (Section 23) -->
+            <div class="table-responsive table-glass-container">
+              <table class="table table-glass align-middle">
+                <thead>
+                  <tr>
+                    <th>Issue ID</th>
+                    <th>Student Athlete</th>
+                    <th>Equipment Borrowed</th>
+                    <th>Qty</th>
+                    <th>Issue Date & Time</th>
+                    <th>Return Date & Time</th>
+                    <th>Issued By</th>
+                    <th>Status / Condition</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-history-table">
+                  <!-- Loaded via admin.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SUB-TAB 4: STOCK OVERVIEW & INVENTORY (Section 25, 26) -->
+          <div id="subtab-eq-stock" class="eq-subtab-pane d-none">
+            <div class="glass-card p-3 mb-4 d-flex align-items-center justify-content-between">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="stock-filter-low" onchange="loadEquipmentStockOverview()">
+                <label class="form-check-label fw-bold text-danger" for="stock-filter-low">
+                  ⚠️ Show Low-Stock Items Only (Available &le; Min Reserve)
+                </label>
+              </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-sports-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addEquipmentModal">
+                  <i class="bi bi-plus-circle me-1"></i> Add Equipment Item
+                </button>
+                <button class="btn btn-sm btn-glass" onclick="loadEquipmentStockOverview()">
+                  <i class="bi bi-arrow-clockwise me-1"></i> Refresh Stock
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive table-glass-container">
+              <table class="table table-glass align-middle">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Equipment Item & Code</th>
+                    <th>Category</th>
+                    <th>Total Stock</th>
+                    <th>Available</th>
+                    <th>Issued</th>
+                    <th>Damaged</th>
+                    <th>Stock Health</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-stock-overview-table">
+                  <!-- Loaded via admin.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 6: COMPETITIONS -->
+        <section id="view-competitions" class="admin-view-section d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0"><i class="bi bi-trophy-fill text-warning me-2"></i>Tournaments & Sports Competitions Management</h4>
+              <small class="text-secondary">Create parent tournaments and manage sports competitions inside each event</small>
+            </div>
+            <button class="btn btn-sports-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#addCompetitionModal">
+              <i class="bi bi-plus-circle me-1"></i> Create Tournament
+            </button>
+          </div>
+          <div id="admin-competitions-list-container">
+            <div class="table-glass-container">
+              <table class="table table-glass">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Tournament Name</th>
+                    <th>Date & Time</th>
+                    <th>Venue</th>
+                    <th>Reg. Deadline</th>
+                    <th>Slots Filled</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-competitions-table">
+                  <!-- Loaded via admin.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 7: APPLICATIONS REVIEW -->
+        <section id="view-applications" class="admin-view-section d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">Competition Registration Applications</h4>
+              <small class="text-secondary">Approve or reject student participation requests with instant notifications</small>
+            </div>
+            <div>
+              <select id="app-filter-status" class="form-select form-select-glass form-select-sm" onchange="loadAdminApplications()">
+                <option value="All">All Applications</option>
+                <option value="Pending" selected>Pending Review</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-glass-container">
+            <table class="table table-glass">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Student Athlete</th>
+                  <th>Competition Applied</th>
+                  <th>Position</th>
+                  <th>Application Date</th>
+                  <th>Status</th>
+                  <th>Decision Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-applications-table">
+                <!-- Loaded via admin.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VIEW 8: TEAMS MANAGEMENT & TEAM FORMATION -->
+        <section id="view-teams" class="admin-view-section d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">
+                <i class="bi bi-shield-shaded text-primary me-2"></i>TEAM MANAGEMENT
+              </h4>
+              <small class="text-secondary">Department-wise & Gender-wise Official Team Formation, Squad Selection, and Player Membership</small>
+            </div>
+            <!-- Navigation Tabs for Team Management -->
+            <div class="btn-group p-1 bg-white bg-opacity-75 rounded-pill shadow-sm" role="group">
+              <button type="button" id="tab-btn-formation" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="switchTeamMgmtTab('formation')">
+                <i class="bi bi-person-plus-fill me-1"></i> Team Formation
+              </button>
+              <button type="button" id="tab-btn-formed-list" class="btn btn-sm btn-light rounded-pill px-3 fw-bold text-dark" onclick="switchTeamMgmtTab('directory')">
+                <i class="bi bi-collection-fill me-1"></i> Existing Formed Teams (<span id="formed-teams-badge-count">0</span>)
+              </button>
+            </div>
+          </div>
+
+          <!-- ================= TAB 1: TEAM FORMATION ================= -->
+          <div id="team-tab-formation-content">
+            <!-- Step 1: Dropdown Filters Toolbar -->
+            <div class="glass-card p-4 mb-4">
+              <div class="d-flex align-items-center mb-3">
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-bold me-2">Step 1</span>
+                <h6 class="fw-bold text-dark mb-0">Select Team Criteria (Tournament, Sport, Gender, Department)</h6>
+              </div>
+              <div class="row g-3">
+                <div class="col-lg-3 col-md-6">
+                  <label class="form-label text-muted small fw-bold mb-1">Tournament *</label>
+                  <select id="team-form-tournament" class="form-select form-select-glass" onchange="onTeamFormationFilterChange()">
+                    <!-- Populated dynamically via admin.js -->
+                  </select>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                  <label class="form-label text-muted small fw-bold mb-1">Sport *</label>
+                  <select id="team-form-sport" class="form-select form-select-glass" onchange="onTeamFormationFilterChange()">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                  <label class="form-label text-muted small fw-bold mb-1">Gender *</label>
+                  <select id="team-form-gender" class="form-select form-select-glass" onchange="onTeamFormationFilterChange()">
+                    <option value="Boys">Boys</option>
+                    <option value="Girls">Girls</option>
+                  </select>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                  <label class="form-label text-muted small fw-bold mb-1">Department *</label>
+                  <select id="team-form-dept" class="form-select form-select-glass" onchange="onTeamFormationFilterChange()">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Duplicate Team Alert (Shown if team already created for Tournament + Sport + Dept + Gender) -->
+            <div id="team-duplicate-banner" class="alert alert-warning border border-warning shadow-sm rounded-4 p-3 mb-4 d-none">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-exclamation-triangle-fill fs-4 text-warning"></i>
+                  <div>
+                    <strong class="text-dark d-block" id="duplicate-team-title">Team already created for this squad.</strong>
+                    <span class="small text-muted" id="duplicate-team-desc">Only 1 official team per department and gender is permitted in this tournament.</span>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="viewExistingTeamFromAlert()">
+                  <i class="bi bi-eye-fill me-1"></i> VIEW EXISTING TEAM
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Stats & Live Counter Bar -->
+            <div class="glass-card p-3 mb-4 bg-light bg-opacity-50">
+              <div class="row g-3 align-items-center">
+                <div class="col-md-3 col-sm-6 text-center border-end">
+                  <div class="text-muted small fw-bold">REGISTERED PLAYERS</div>
+                  <div class="fs-4 fw-bold text-dark" id="stat-registered-players">0</div>
+                </div>
+                <div class="col-md-3 col-sm-6 text-center border-end">
+                  <div class="text-muted small fw-bold">REQUIRED PLAYERS</div>
+                  <div class="fs-4 fw-bold text-primary" id="stat-required-players">11</div>
+                </div>
+                <div class="col-md-3 col-sm-6 text-center border-end">
+                  <div class="text-muted small fw-bold">SUBSTITUTES</div>
+                  <div class="fs-4 fw-bold text-secondary" id="stat-substitutes">4</div>
+                </div>
+                <div class="col-md-3 col-sm-6 text-center">
+                  <div class="text-muted small fw-bold mb-1">LIVE SELECTION COUNTER</div>
+                  <div id="team-live-counter" class="badge bg-secondary fs-6 px-3 py-2 rounded-pill">
+                    0 / 11 Players Selected
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3: Registered Player Checkbox List -->
+            <div class="glass-card p-4 mb-4">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center">
+                  <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-bold me-2">Step 2</span>
+                  <h6 class="fw-bold text-dark mb-0">REGISTERED PLAYERS</h6>
+                </div>
+                <small class="text-muted">Select exact required number of players to enable team formation</small>
+              </div>
+
+              <!-- Container for player checkboxes -->
+              <div id="team-players-checkbox-container" style="max-height: 420px; overflow-y: auto; padding-right: 6px;">
+                <div class="text-center py-5 text-muted">
+                  <i class="bi bi-arrow-up-circle fs-2 text-primary d-block mb-2"></i>
+                  Please select Tournament, Sport, Gender, and Department above to load registered players.
+                </div>
+              </div>
+
+              <!-- Step 4: Validation & CREATE TEAM Button -->
+              <div class="border-top pt-3 mt-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div id="team-validation-status" class="small fw-semibold text-danger">
+                  <i class="bi bi-info-circle me-1"></i> Please select the required number of players.
+                </div>
+                <button id="btn-create-team" class="btn btn-success fw-bold px-4 py-2 rounded-pill shadow-sm" disabled onclick="submitCreateFormedTeam()">
+                  <i class="bi bi-check-circle-fill me-1"></i> CREATE TEAM
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 5: TEAM CREATED SUCCESS VIEW (Section 20 & 21) -->
+            <div id="team-created-success-card" class="glass-card p-4 mb-4 border border-success border-2 d-none">
+              <div class="d-flex align-items-center gap-2 text-success mb-3">
+                <i class="bi bi-check-circle-fill fs-3"></i>
+                <h5 class="fw-bold mb-0">TEAM CREATED SUCCESSFULLY ✓</h5>
+              </div>
+
+              <div class="p-3 bg-white rounded-3 border mb-3">
+                <h4 class="fw-bold text-primary mb-1" id="success-team-name">B.Sc CS - Boys - Cricket Team</h4>
+                <div class="row g-2 text-muted small mt-2">
+                  <div class="col-sm-4"><strong>Tournament:</strong> <span id="success-team-tourn">-</span></div>
+                  <div class="col-sm-4"><strong>Sport:</strong> <span id="success-team-sport">-</span></div>
+                  <div class="col-sm-4"><strong>Department:</strong> <span id="success-team-dept">-</span></div>
+                  <div class="col-sm-4"><strong>Gender:</strong> <span id="success-team-gender">-</span></div>
+                  <div class="col-sm-4"><strong>Team Size:</strong> <span id="success-team-size">11</span> Players</div>
+                  <div class="col-sm-4"><strong>Created Date:</strong> <span id="success-team-date">Today</span></div>
+                </div>
+              </div>
+
+              <h6 class="fw-bold text-dark mb-2">Team Members:</h6>
+              <div class="table-responsive mb-3">
+                <table class="table table-sm table-bordered align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width: 50px;">S.No</th>
+                      <th>Student Name</th>
+                      <th>Register Number</th>
+                      <th>Department</th>
+                      <th>Role</th>
+                    </tr>
+                  </thead>
+                  <tbody id="success-team-members-tbody">
+                    <!-- Populated after team creation -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- PDF Download Button (Section 21) -->
+              <button id="btn-download-created-team-pdf" class="btn btn-outline-primary fw-bold rounded-pill px-4" onclick="downloadCurrentCreatedTeamPdf()">
+                <i class="bi bi-file-earmark-pdf-fill me-1 text-danger"></i> DOWNLOAD TEAM PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- ================= TAB 2: EXISTING FORMED TEAMS DIRECTORY ================= -->
+          <div id="team-tab-directory-content" class="d-none">
+            <div class="glass-card p-3 mb-4">
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white bg-opacity-50 border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" id="formed-teams-search" class="form-control form-control-glass border-start-0" placeholder="Search by team name, department, sport..." oninput="filterFormedTeamsList()">
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <select id="formed-filter-sport" class="form-select form-select-glass form-select-sm" onchange="filterFormedTeamsList()">
+                    <option value="All">All Sports</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <select id="formed-filter-dept" class="form-select form-select-glass form-select-sm" onchange="filterFormedTeamsList()">
+                    <option value="All">All Departments</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="table-glass-container">
+              <table class="table table-glass align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Official Team Name</th>
+                    <th>Sport</th>
+                    <th>Department</th>
+                    <th>Gender</th>
+                    <th class="text-center">Squad Size</th>
+                    <th>Created Date</th>
+                    <th class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="formed-teams-table-tbody">
+                  <tr><td colspan="8" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading college teams...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 11: ACHIEVEMENTS -->
+        <section id="view-achievements" class="admin-view-section d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">Wall of Fame & Achievements</h4>
+              <small class="text-secondary">Award Gold, Silver, Bronze medals and record trophies won by students</small>
+            </div>
+            <button class="btn btn-sports-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAchievementModal">
+              <i class="bi bi-award-fill me-1"></i> Award Medal / Achievement
+            </button>
+          </div>
+          <div class="table-glass-container">
+            <table class="table table-glass">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Achievement Title</th>
+                  <th>Athlete Name</th>
+                  <th>Medal</th>
+                  <th>Position</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-achievements-table">
+                <!-- Loaded via admin.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VIEW 12: NOTIFICATIONS BROADCAST -->
+        <section id="view-notifications" class="admin-view-section d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">Notification Broadcaster</h4>
+              <small class="text-secondary">Send instant alerts to all students or target specific squads</small>
+            </div>
+            <button class="btn btn-sports-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addNotificationModal">
+              <i class="bi bi-megaphone-fill me-1"></i> Broadcast Announcement
+            </button>
+          </div>
+          <div id="admin-notifications-list">
+            <!-- Loaded via admin.js -->
+          </div>
+        </section>
+
+        <!-- VIEW 13: SPORTS GALLERY -->
+        <section id="view-gallery" class="admin-view-section d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">Sports Photo Gallery</h4>
+              <small class="text-secondary">Upload memorable match photos, sports day, and trophy moments</small>
+            </div>
+            <button class="btn btn-sports-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addGalleryModal">
+              <i class="bi bi-upload me-1"></i> Upload Photo
+            </button>
+          </div>
+          <div class="row g-3" id="admin-gallery-grid">
+            <!-- Loaded via admin.js -->
+          </div>
+        </section>
+
+        <!-- VIEW 14: REGISTRATION ANALYTICS -->
+        <section id="view-analytics" class="admin-view-section d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">
+                <i class="bi bi-graph-up-arrow text-primary me-2"></i>REGISTRATION ANALYTICS
+              </h4>
+              <small class="text-secondary">Official Department-wise, Sport-wise, and Gender-wise Real-Time Sports Registration Analytics & Breakdown</small>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-primary btn-sm shadow-sm" onclick="loadRegistrationAnalytics()">
+                <i class="bi bi-arrow-repeat me-1"></i> Refresh Data
+              </button>
+            </div>
+          </div>
+
+          <!-- Section 2: DYNAMIC FILTERS TOOLBAR -->
+          <div class="glass-card p-3 mb-4">
+            <div class="row g-2 align-items-center">
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="form-label text-muted small fw-bold mb-1">Tournament</label>
+                <select id="analytics-filter-tournament" class="form-select form-select-glass form-select-sm" onchange="loadRegistrationAnalytics()">
+                  <option value="All">All Tournaments</option>
+                  <!-- Dynamically populated from actual tournament data -->
+                </select>
+              </div>
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="form-label text-muted small fw-bold mb-1">Sport</label>
+                <select id="analytics-filter-sport" class="form-select form-select-glass form-select-sm" onchange="loadRegistrationAnalytics()">
+                  <option value="All">All Sports</option>
+                  <!-- Dynamically populated from actual sport data -->
+                </select>
+              </div>
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="form-label text-muted small fw-bold mb-1">Gender</label>
+                <select id="analytics-filter-gender" class="form-select form-select-glass form-select-sm" onchange="loadRegistrationAnalytics()">
+                  <option value="All">All (Boys & Girls)</option>
+                  <option value="Boys">Boys</option>
+                  <option value="Girls">Girls</option>
+                </select>
+              </div>
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="form-label text-muted small fw-bold mb-1">Department</label>
+                <select id="analytics-filter-dept" class="form-select form-select-glass form-select-sm" onchange="loadRegistrationAnalytics()">
+                  <option value="All">All Departments</option>
+                  <!-- Dynamically populated -->
+                </select>
+              </div>
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="form-label text-muted small fw-bold mb-1">Registration Status</label>
+                <select id="analytics-filter-status" class="form-select form-select-glass form-select-sm" onchange="loadRegistrationAnalytics()">
+                  <option value="All">All Statuses</option>
+                  <option value="Registered">Registered</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+              <div class="col-lg-2 col-md-4 col-sm-6">
+                <label class="form-label text-muted small fw-bold mb-1">Registration Date</label>
+                <div class="d-flex gap-1">
+                  <input type="date" id="analytics-filter-start" class="form-control form-control-glass form-control-sm" title="From Date" onchange="loadRegistrationAnalytics()">
+                  <button class="btn btn-sm btn-outline-secondary" onclick="resetAnalyticsFilters()" title="Reset Filters">
+                    <i class="bi bi-x-circle"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: SUMMARY CARDS (7 Real-time Cards Calculated from Database) -->
+          <div class="row g-3 mb-4">
+            <!-- 1. Total Registered -->
+            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+              <div class="analytics-kpi-card p-3 h-100 border-start border-4 border-primary">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="kpi-label">TOTAL REGISTERED</div>
+                    <div class="kpi-val text-primary" id="card-reg-total">0</div>
+                  </div>
+                  <div class="stat-icon bg-primary bg-opacity-10 text-primary" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-person-check-fill"></i>
+                  </div>
+                </div>
+                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Active Student Registrations</small>
+              </div>
+            </div>
+
+            <!-- 2. Boys -->
+            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+              <div class="analytics-kpi-card p-3 h-100 border-start border-4 border-info">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="kpi-label">BOYS</div>
+                    <div class="kpi-val text-info" id="card-reg-boys">0</div>
+                  </div>
+                  <div class="stat-icon bg-info bg-opacity-10 text-info" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-gender-male"></i>
+                  </div>
+                </div>
+                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Male Student Athletes</small>
+              </div>
+            </div>
+
+            <!-- 3. Girls -->
+            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+              <div class="analytics-kpi-card p-3 h-100 border-start border-4 border-danger">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="kpi-label">GIRLS</div>
+                    <div class="kpi-val text-danger" id="card-reg-girls">0</div>
+                  </div>
+                  <div class="stat-icon bg-danger bg-opacity-10 text-danger" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-gender-female"></i>
+                  </div>
+                </div>
+                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Female Student Athletes</small>
+              </div>
+            </div>
+
+            <!-- 4. Total Sports -->
+            <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+              <div class="analytics-kpi-card p-3 h-100 border-start border-4 border-warning">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="kpi-label">TOTAL SPORTS</div>
+                    <div class="kpi-val text-warning" id="card-reg-sports">0</div>
+                  </div>
+                  <div class="stat-icon bg-warning bg-opacity-10 text-warning" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-trophy-fill"></i>
+                  </div>
+                </div>
+                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Active Sport Disciplines</small>
+              </div>
+            </div>
+
+            <!-- 5. Total Departments -->
+            <div class="col-xl-4 col-lg-4 col-md-6 col-sm-6">
+              <div class="analytics-kpi-card p-3 h-100 border-start border-4 border-secondary">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="kpi-label">TOTAL DEPARTMENTS</div>
+                    <div class="kpi-val text-dark" id="card-reg-depts">0</div>
+                  </div>
+                  <div class="stat-icon bg-secondary bg-opacity-10 text-dark" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-building"></i>
+                  </div>
+                </div>
+                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Participating Academic Branches</small>
+              </div>
+            </div>
+
+            <!-- 6. Team Sports Registrations -->
+            <div class="col-xl-4 col-lg-4 col-md-6 col-sm-6">
+              <div class="analytics-kpi-card p-3 h-100 border-start border-4 border-success">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="kpi-label">TEAM SPORTS REGISTRATIONS</div>
+                    <div class="kpi-val text-success" id="card-reg-team-sports">0</div>
+                  </div>
+                  <div class="stat-icon bg-success bg-opacity-10 text-success" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-people-fill"></i>
+                  </div>
+                </div>
+                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Cricket, Football, Kabaddi, Volleyball...</small>
+              </div>
+            </div>
+
+            <!-- 7. Individual Sports Registrations -->
+            <div class="col-xl-4 col-lg-4 col-md-6 col-sm-6">
+              <div class="analytics-kpi-card p-3 h-100 border-start border-4 border-info">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="kpi-label">INDIVIDUAL SPORTS REGISTRATIONS</div>
+                    <div class="kpi-val text-info" id="card-reg-indiv-sports">0</div>
+                  </div>
+                  <div class="stat-icon bg-info bg-opacity-10 text-info" style="width: 44px; height: 44px; font-size: 1.25rem;">
+                    <i class="bi bi-person-fill"></i>
+                  </div>
+                </div>
+                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Badminton, Chess, Carrom, Athletics...</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4 & 5: DEPARTMENT-WISE & SPORT-WISE REGISTRATION TABLES -->
+          <div class="row g-4 mb-4">
+            <!-- Section 4: DEPARTMENT-WISE REGISTRATION -->
+            <div class="col-lg-6">
+              <div class="glass-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <h5 class="fw-bold text-dark mb-0">
+                      <i class="bi bi-mortarboard-fill text-primary me-2"></i>DEPARTMENT-WISE REGISTRATION
+                    </h5>
+                    <small class="text-muted">Click any department row to view registered students</small>
+                  </div>
+                  <span class="badge bg-primary bg-opacity-10 text-primary">Department Level</span>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Department</th>
+                        <th class="text-center">Boys</th>
+                        <th class="text-center">Girls</th>
+                        <th class="text-center">Total</th>
+                        <th class="text-end">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="analytics-dept-tbody">
+                      <tr><td colspan="5" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading department analytics...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 5: SPORT-WISE REGISTRATION -->
+            <div class="col-lg-6">
+              <div class="glass-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <h5 class="fw-bold text-dark mb-0">
+                      <i class="bi bi-award-fill text-success me-2"></i>SPORT-WISE REGISTRATION
+                    </h5>
+                    <small class="text-muted">Click any sport row to view registered students</small>
+                  </div>
+                  <span class="badge bg-success bg-opacity-10 text-success">Sport Discipline</span>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Sport</th>
+                        <th class="text-center">Type</th>
+                        <th class="text-center">Boys</th>
+                        <th class="text-center">Girls</th>
+                        <th class="text-center">Total</th>
+                        <th class="text-end">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="analytics-sport-tbody">
+                      <tr><td colspan="6" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading sport analytics...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 6: DEPARTMENT × SPORT MATRIX (VERY IMPORTANT) -->
+          <div class="glass-card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h5 class="fw-bold text-dark mb-0">
+                  <i class="bi bi-grid-3x3-gap-fill text-warning me-2"></i>DEPARTMENT × SPORT MATRIX
+                </h5>
+                <small class="text-muted">Interactive cross-tabulation matrix. Click any number to instantly open registered student list.</small>
+              </div>
+              <span class="badge bg-warning bg-opacity-15 text-dark border border-warning">Click Count to Drill-Down</span>
+            </div>
+
+            <div class="table-responsive">
+              <div id="analytics-matrix-container">
+                <!-- Dynamically rendered via admin.js -->
+                <div class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Generating matrix...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 7: BOYS / GIRLS ANALYTICS -->
+          <div class="row g-4 mb-4">
+            <div class="col-lg-5">
+              <div class="glass-card p-4 h-100">
+                <h5 class="fw-bold text-dark mb-3">
+                  <i class="bi bi-pie-chart-fill text-info me-2"></i>GENDER RATIO OVERVIEW
+                </h5>
+                <div class="p-3 rounded-3 bg-light mb-3">
+                  <div class="d-flex justify-content-between mb-1">
+                    <span class="fw-bold text-primary"><i class="bi bi-gender-male me-1"></i>Boys (<span id="gender-ratio-boys-count">0</span>)</span>
+                    <span class="fw-bold text-danger"><i class="bi bi-gender-female me-1"></i>Girls (<span id="gender-ratio-girls-count">0</span>)</span>
+                  </div>
+                  <div class="progress" style="height: 18px; border-radius: 9px; overflow: hidden;">
+                    <div id="gender-progress-boys" class="progress-bar bg-primary" role="progressbar" style="width: 50%;">50%</div>
+                    <div id="gender-progress-girls" class="progress-bar bg-danger" role="progressbar" style="width: 50%;">50%</div>
+                  </div>
+                </div>
+                <div class="small text-muted">
+                  Sports Mam can view the real-time gender breakdown calculated dynamically across college registrations. No gender assumption is made unless configured.
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-7">
+              <div class="glass-card p-4 h-100">
+                <h5 class="fw-bold text-dark mb-3">
+                  <i class="bi bi-bar-chart-line-fill text-primary me-2"></i>SPORT-WISE GENDER BREAKDOWN
+                </h5>
+                <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                  <table class="table table-sm table-striped align-middle mb-0">
+                    <thead class="table-light sticky-top">
+                      <tr>
+                        <th>Sport Discipline</th>
+                        <th class="text-center text-primary">Boys</th>
+                        <th class="text-center text-danger">Girls</th>
+                        <th class="text-center">Total</th>
+                        <th class="text-center">Gender Ratio</th>
+                      </tr>
+                    </thead>
+                    <tbody id="analytics-gender-sport-list">
+                      <tr><td colspan="5" class="text-center py-3 text-muted">Loading breakdown...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 15: OFFICIAL REPORTS -->
+        <section id="view-reports" class="admin-view-section d-none">
+          <div class="mb-4 no-print">
+            <h4 class="fw-bold text-dark mb-0">Master College Sports Reports</h4>
+            <small class="text-secondary">Generate and print formatted official departmental reports with college headers</small>
+          </div>
+
+          <div class="glass-card p-4 mb-4 no-print">
+            <h6 class="fw-bold text-primary mb-3">Select Report Type to Generate:</h6>
+            <div class="row g-2">
+              <div class="col-md-3">
+                <button class="btn btn-outline-primary w-100 text-start" onclick="generateMasterReport('players')">
+                  <i class="bi bi-people me-1"></i> Player Directory Report
+                </button>
+              </div>
+              <div class="col-md-3">
+                <button class="btn btn-outline-success w-100 text-start" onclick="generateMasterReport('equipment-stock')">
+                  <i class="bi bi-box-seam me-1"></i> Equipment Stock Report
+                </button>
+              </div>
+              <div class="col-md-3">
+                <button class="btn btn-outline-info w-100 text-start" onclick="generateMasterReport('equipment-transactions')">
+                  <i class="bi bi-arrow-left-right me-1"></i> Issue/Return Audit Log
+                </button>
+              </div>
+              <div class="col-md-3">
+                <button class="btn btn-outline-warning w-100 text-start" onclick="generateMasterReport('competitions')">
+                  <i class="bi bi-flag me-1"></i> Tournaments Report
+                </button>
+              </div>
+              <div class="col-md-3 mt-2">
+                <button class="btn btn-outline-danger w-100 text-start" onclick="generateMasterReport('achievements')">
+                  <i class="bi bi-award me-1"></i> Medalists Honours Report
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="report-output-container">
+            <div class="p-5 text-center text-muted">Select any report button above to preview and print.</div>
+          </div>
+        </section>
+
+        <!-- VIEW 16: SETTINGS -->
+        <section id="view-settings" class="admin-view-section d-none">
+          <div class="glass-card p-4 p-md-5">
+            <h4 class="fw-bold text-dark mb-1">Sports Department Settings</h4>
+            <p class="text-secondary small mb-4">Configure official college details, Incharge credentials, and office timings</p>
+
+            <form onsubmit="saveAdminSettings(event)">
+              <div class="row g-3">
+                <!-- Incharge Profile Photo Card -->
+                <div class="col-12 mb-2">
+                  <div class="p-3 p-md-4 rounded-4 bg-white bg-opacity-60 border shadow-sm d-flex flex-column flex-md-row align-items-center gap-4">
+                    <div class="position-relative flex-shrink-0">
+                      <img id="set-preview-photo" src="images/default-avatar.png" class="rounded-circle shadow border border-3 border-warning" width="110" height="110" style="object-fit: cover;" onerror="this.src='images/default-avatar.png'">
+                      <label for="set-photo-file" class="btn btn-sm btn-primary rounded-circle position-absolute bottom-0 end-0 shadow d-flex align-items-center justify-content-center" style="cursor: pointer; width: 34px; height: 34px; border: 2px solid #fff;" title="Upload New Profile Image">
+                        <i class="bi bi-camera-fill fs-6"></i>
+                      </label>
+                      <input type="file" id="set-photo-file" accept="image/jpeg,image/png,image/webp,image/jpg" class="d-none" onchange="previewAdminPhoto(event)">
+                    </div>
+                    <div class="flex-grow-1 text-center text-md-start">
+                      <div class="d-flex flex-wrap align-items-center gap-2 mb-1 justify-content-center justify-content-md-start">
+                        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-person-bounding-box text-primary me-2"></i>Sports Incharge Profile Image</h6>
+                        <span id="set-photo-badge" class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 d-none">
+                          <i class="bi bi-check-circle me-1"></i>New Image Staged
+                        </span>
+                      </div>
+                      <p class="text-secondary small mb-3">
+                        Upload an official photo of the Sports Incharge / Physical Directress (JPG, PNG, WEBP). This photo updates across the admin portal top-bar, college circulars, and sports website.
+                      </p>
+                      <div class="d-flex flex-wrap align-items-center gap-2 justify-content-center justify-content-md-start">
+                        <label for="set-photo-file" class="btn btn-sm btn-sports-primary">
+                          <i class="bi bi-upload me-1"></i> Choose Image File
+                        </label>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="promptPhotoUrl()">
+                          <i class="bi bi-link-45deg me-1"></i> Paste Image URL
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetAdminPhoto()" title="Reset to default avatar">
+                          <i class="bi bi-trash3 me-1"></i> Reset
+                        </button>
+                        <input type="hidden" id="set-photo-url" name="sportsInchargePhoto">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">College Name</label>
+                  <input type="text" id="set-college-name" class="form-control form-control-glass" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Department Name</label>
+                  <input type="text" id="set-dept-name" class="form-control form-control-glass" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Sports Incharge Name</label>
+                  <input type="text" id="set-incharge-name" class="form-control form-control-glass" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Role / Designation</label>
+                  <input type="text" id="set-incharge-role" class="form-control form-control-glass" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Official Email</label>
+                  <input type="email" id="set-email" class="form-control form-control-glass" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Contact Phone Number</label>
+                  <input type="tel" id="set-phone" class="form-control form-control-glass" required>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold">Department Address</label>
+                  <textarea id="set-address" class="form-control form-control-glass" rows="2"></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Office Working Hours</label>
+                  <input type="text" id="set-office-hours" class="form-control form-control-glass">
+                </div>
+                <div class="col-12 mt-4">
+                  <button type="submit" class="btn btn-sports-primary px-4">
+                    <i class="bi bi-save me-1"></i> Save Settings
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ALL ADMIN MODALS -->
+
+  <!-- Modal: Add Sport -->
+  <div class="modal fade" id="addSportModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-2">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">Add New Sport Discipline</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitCreateSport(event)" enctype="multipart/form-data">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Sport Name *</label>
+              <input type="text" name="name" class="form-control form-control-glass" required placeholder="e.g. Handball">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Category</label>
+              <select name="category" class="form-select form-select-glass">
+                <option value="Team Sport">Team Sport</option>
+                <option value="Individual Sport">Individual Sport</option>
+                <option value="Athletics & Track">Athletics & Track</option>
+                <option value="Indoor Games">Indoor Games</option>
+              </select>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small fw-bold">Court / Pitch Type</label>
+                <select name="indoorOutdoor" class="form-select form-select-glass">
+                  <option value="Outdoor">Outdoor</option>
+                  <option value="Indoor">Indoor</option>
+                  <option value="Both">Both</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Players Per Side</label>
+                <input type="number" name="playerCount" class="form-control form-control-glass" value="11" min="1">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Coach / Incharge</label>
+              <input type="text" name="coach" id="add-sport-coach-input" class="form-control form-control-glass" placeholder="Physical Director / Sports Incharge">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Description</label>
+              <textarea name="description" class="form-control form-control-glass" rows="2" placeholder="Brief rules & overview..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sports-primary">Save Sport</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Equipment -->
+  <div class="modal fade" id="addEquipmentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-2">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">Register New Sports Equipment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitCreateEquipment(event)">
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Equipment Name *</label>
+                <input type="text" name="name" class="form-control form-control-glass" required placeholder="e.g. Cricket Bats">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Equipment Code (Unique) *</label>
+                <input type="text" name="code" class="form-control form-control-glass" required placeholder="e.g. EQ-CKT-003" style="text-transform: uppercase;">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Associated Sport Discipline *</label>
+                <select name="sportId" class="form-select form-select-glass populate-sports-select" required></select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Category</label>
+                <select name="category" class="form-select form-select-glass">
+                  <option value="Balls & Shuttles">Balls & Shuttles</option>
+                  <option value="Bats & Rackets">Bats & Rackets</option>
+                  <option value="Protective Gear">Protective Gear</option>
+                  <option value="Nets & Goals">Nets & Goals</option>
+                  <option value="Track & Field Gear">Track & Field Gear</option>
+                  <option value="Training & Cones">Training & Cones</option>
+                  <option value="Board & Accessories">Board & Accessories</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Total Stock Quantity *</label>
+                <input type="number" name="totalQuantity" class="form-control form-control-glass" required min="1" value="10">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Minimum Reserve Level (Alert) *</label>
+                <input type="number" name="minimumStock" class="form-control form-control-glass" required min="1" value="3">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Purchase Price (₹)</label>
+                <input type="number" name="purchasePrice" class="form-control form-control-glass" value="1500">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Supplier</label>
+                <input type="text" name="supplier" class="form-control form-control-glass" value="Salem Sports Goods Co.">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Storage Location in Sports Room</label>
+                <input type="text" name="storageLocation" class="form-control form-control-glass" value="Main Sports Room, Shelf B1">
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sports-primary">Add Equipment</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirm Equipment Issue (Section 9) -->
+  <div class="modal fade" id="confirmEquipmentIssueModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-3 shadow-lg border border-primary border-opacity-30">
+        <div class="modal-header border-0 pb-1">
+          <div class="d-flex align-items-center gap-2">
+            <div class="p-2 rounded-3 bg-primary bg-opacity-10 text-primary">
+              <i class="bi bi-box-arrow-right fs-4"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0">CONFIRM EQUIPMENT ISSUE</h5>
+              <small class="text-secondary">Please verify all details before confirming issuance</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-3">
+          <div class="p-3 rounded-4 bg-dark bg-opacity-10 border border-secondary border-opacity-25 mb-3">
+            <div class="row g-2 small">
+              <div class="col-5 text-muted">Student:</div>
+              <div class="col-7 fw-bold text-dark" id="modal-conf-student-name">-</div>
+
+              <div class="col-5 text-muted">Register Number:</div>
+              <div class="col-7 fw-bold text-primary font-monospace" id="modal-conf-student-reg">-</div>
+
+              <div class="col-5 text-muted">Department & Year:</div>
+              <div class="col-7 text-dark" id="modal-conf-student-dept">-</div>
+
+              <div class="col-12"><hr class="my-1 border-secondary border-opacity-25"></div>
+
+              <div class="col-5 text-muted">Equipment:</div>
+              <div class="col-7 fw-bold text-dark" id="modal-conf-equipment-name">-</div>
+
+              <div class="col-5 text-muted">Quantity:</div>
+              <div class="col-7 fw-bold text-success fs-6" id="modal-conf-quantity">-</div>
+
+              <div class="col-5 text-muted">Issue Date:</div>
+              <div class="col-7 fw-bold text-dark" id="modal-conf-issue-date">-</div>
+
+              <div class="col-5 text-muted">Issue Time:</div>
+              <div class="col-7 text-dark" id="modal-conf-issue-time">Server Realtime (IST)</div>
+
+              <div class="col-5 text-muted">Expected Return:</div>
+              <div class="col-7 fw-bold text-danger" id="modal-conf-return-date">-</div>
+
+              <div class="col-5 text-muted">Issued By:</div>
+              <div class="col-7 fw-bold text-dark">Sports Incharge</div>
+            </div>
+          </div>
+          <div class="alert alert-info py-2 px-3 small border-0 rounded-3 mb-0">
+            <i class="bi bi-info-circle-fill me-1"></i> Available stock will be deducted and this item will automatically appear in the student's portal.
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="btn-final-confirm-issue" class="btn btn-sports-accent px-4 fw-bold" onclick="executeFinalEquipmentIssue()">
+            <i class="bi bi-check2-circle me-1"></i> Confirm Issue
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Equipment Issue Success (Section 32) -->
+  <div class="modal fade" id="issueSuccessModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-4 text-center shadow-lg border border-success border-opacity-30">
+        <div class="my-3">
+          <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-success text-white shadow-lg" style="width: 72px; height: 72px; font-size: 2.5rem;">
+            ✓
+          </div>
+        </div>
+        <h4 class="fw-bold text-dark mb-1">Equipment Issued Successfully</h4>
+        <p class="text-secondary small mb-3" id="issue-success-desc">
+          Volleyball has been issued to Lokesh.
+        </p>
+        <div class="d-flex justify-content-center gap-2 mt-2">
+          <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal" onclick="switchEqTab('active')">
+            <i class="bi bi-arrow-left-right me-1"></i> View Active Issues
+          </button>
+          <button type="button" class="btn btn-sports-accent" data-bs-dismiss="modal" onclick="resetIssueForm()">
+            <i class="bi bi-plus-circle me-1"></i> Issue Another
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Return Equipment Confirmation (Section 16, 17, 18) -->
+  <div class="modal fade" id="returnEquipmentConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-3 shadow-lg border border-warning border-opacity-30">
+        <div class="modal-header border-0 pb-1">
+          <div class="d-flex align-items-center gap-2">
+            <div class="p-2 rounded-3 bg-warning bg-opacity-10 text-warning">
+              <i class="bi bi-arrow-return-left fs-4"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0">RETURN EQUIPMENT?</h5>
+              <small class="text-secondary">Process student return and restore inventory stock</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-3">
+          <div class="p-3 rounded-4 bg-dark bg-opacity-10 border border-secondary border-opacity-25 mb-3">
+            <div class="row g-2 small">
+              <div class="col-5 text-muted">Student:</div>
+              <div class="col-7 fw-bold text-dark" id="modal-return-student-name">-</div>
+
+              <div class="col-5 text-muted">Equipment:</div>
+              <div class="col-7 fw-bold text-dark" id="modal-return-equipment-name">-</div>
+
+              <div class="col-5 text-muted">Quantity:</div>
+              <div class="col-7 fw-bold text-primary" id="modal-return-quantity">-</div>
+
+              <div class="col-5 text-muted">Issued Date:</div>
+              <div class="col-7 text-dark" id="modal-return-issue-date">-</div>
+
+              <div class="col-5 text-muted">Expected Return:</div>
+              <div class="col-7 text-dark" id="modal-return-expected-date">-</div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark">Return Condition *</label>
+            <select id="modal-return-condition" class="form-select form-select-glass">
+              <option value="Good" selected>Good Condition (Restores Available Stock)</option>
+              <option value="Damaged">Damaged (Recorded in Damaged count)</option>
+              <option value="Lost">Lost / Missing (Recorded in Lost count)</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark">Staff Remarks</label>
+            <input type="text" id="modal-return-remarks" class="form-control form-control-glass" placeholder="Verified in good condition by Sports Incharge">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark">Fine Amount (₹, if applicable)</label>
+            <input type="number" id="modal-return-fine" class="form-control form-control-glass" value="0" min="0">
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="btn-final-confirm-return" class="btn btn-sports-accent px-4 fw-bold" onclick="executeFinalEquipmentReturn()">
+            <i class="bi bi-check2-circle me-1"></i> Confirm Return
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: View Equipment Details (Section 13) -->
+  <div class="modal fade" id="viewEquipmentDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-3 shadow-lg">
+        <div class="modal-header border-0 pb-1">
+          <h5 class="modal-title fw-bold text-dark">Equipment Issue Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-3">
+          <div class="text-center mb-3">
+            <div id="detail-eq-badge" class="d-flex justify-content-center mb-2"></div>
+            <h5 class="fw-bold text-dark mt-2 mb-0" id="detail-eq-name">Equipment</h5>
+            <span class="badge badge-glass-primary mt-1" id="detail-eq-status">ISSUED</span>
+          </div>
+          <div class="p-3 rounded-4 bg-dark bg-opacity-10 border border-secondary border-opacity-25">
+            <div class="row g-2 small">
+              <div class="col-5 text-muted">Quantity:</div>
+              <div class="col-7 fw-bold text-dark" id="detail-eq-qty">1</div>
+
+              <div class="col-5 text-muted">Student Name:</div>
+              <div class="col-7 fw-bold text-dark" id="detail-eq-student">-</div>
+
+              <div class="col-5 text-muted">Register Number:</div>
+              <div class="col-7 fw-bold text-primary font-monospace" id="detail-eq-reg">-</div>
+
+              <div class="col-5 text-muted">Department:</div>
+              <div class="col-7 text-dark" id="detail-eq-dept">-</div>
+
+              <div class="col-5 text-muted">Issue Date:</div>
+              <div class="col-7 text-dark" id="detail-eq-issue-date">-</div>
+
+              <div class="col-5 text-muted">Issue Time:</div>
+              <div class="col-7 text-dark" id="detail-eq-issue-time">-</div>
+
+              <div class="col-5 text-muted">Expected Return:</div>
+              <div class="col-7 text-dark" id="detail-eq-expected-date">-</div>
+
+              <div class="col-5 text-muted">Return Date:</div>
+              <div class="col-7 text-dark" id="detail-eq-return-date">-</div>
+
+              <div class="col-5 text-muted">Return Time:</div>
+              <div class="col-7 text-dark" id="detail-eq-return-time">-</div>
+
+              <div class="col-5 text-muted">Issued By:</div>
+              <div class="col-7 fw-bold text-dark" id="detail-eq-issued-by">Sports Incharge</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-glass w-100" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Create Tournament (Step 1) -->
+  <div class="modal fade" id="addCompetitionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-2 shadow-lg">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-trophy-fill text-warning me-2"></i>Create Parent Tournament
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitCreateCompetition(event)">
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-12">
+                <label class="form-label small fw-bold"><i class="bi bi-award-fill text-warning me-1"></i> Tournament Name *</label>
+                <input type="text" name="tournamentName" class="form-control form-control-glass" required placeholder="e.g. SPARK 2026 Annual Sports Fest" value="SPARK 2026 Annual Sports Fest">
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Tournament Description</label>
+                <textarea name="description" class="form-control form-control-glass" rows="2" placeholder="Annual sports tournament conducted by GASC Idappadi for all departments."></textarea>
+              </div>
+
+              <!-- TOURNAMENT COVER IMAGE FIELD -->
+              <div class="col-12">
+                <label class="form-label small fw-bold text-dark">
+                  <i class="bi bi-image-fill text-warning me-1"></i> Tournament Cover Image (Recommended 16:9)
+                </label>
+                <div class="p-3 border border-secondary border-opacity-25 rounded-3 bg-dark bg-opacity-10">
+                  <div class="row align-items-center g-3">
+                    <div class="col-md-7">
+                      <label class="form-label text-muted small mb-1">Select Custom Image File:</label>
+                      <input type="file" id="tournament-cover-file-input" name="bannerImage" class="form-control form-control-glass mb-2" accept="image/*" onchange="previewTournamentCoverImage(this, 'create-tournament-preview')">
+                      <input type="hidden" id="tournament-cover-url" name="coverImageUrl" value="/images/sports/tournament.png">
+                      <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('tournament-cover-file-input').click()">
+                          <i class="bi bi-upload me-1"></i> Upload Image
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTournamentCoverImage('create-tournament-preview', 'tournament-cover-file-input', 'tournament-cover-url')">
+                          <i class="bi bi-trash me-1"></i> Remove Image
+                        </button>
+                      </div>
+                      <div class="form-text small text-muted mt-2">Recommended ratio: 16:9. Default image is the Tournament Legacy Emblem.</div>
+                    </div>
+                    <div class="col-md-5">
+                      <div class="rounded-3 overflow-hidden border border-secondary border-opacity-30 bg-black shadow-sm" style="aspect-ratio: 16/9; position: relative; max-height: 120px;">
+                        <img id="create-tournament-preview" src="/images/sports/tournament.png" alt="Tournament Cover Preview" style="width: 100%; height: 100%; object-fit: cover;">
+                        <span class="badge bg-dark bg-opacity-75 text-white position-absolute bottom-0 start-0 m-1 px-1.5 py-0.5 text-xs">16:9 Preview</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Tournament Start Date *</label>
+                <input type="date" name="date" class="form-control form-control-glass" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Tournament End Date *</label>
+                <input type="date" name="registrationEnd" class="form-control form-control-glass" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Venue *</label>
+                <input type="text" name="venue" class="form-control form-control-glass" required value="GASC Idappadi Main Ground">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Tournament Type</label>
+                <select name="type" class="form-select form-select-glass">
+                  <option value="Inter-Department" selected>Inter-Department</option>
+                  <option value="Inter-College">Inter-College</option>
+                  <option value="University">University</option>
+                  <option value="District">District</option>
+                  <option value="State">State</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Competition Level</label>
+                <select name="level" class="form-select form-select-glass">
+                  <option value="College" selected>College Level</option>
+                  <option value="Department">Department Level</option>
+                  <option value="District">District Level</option>
+                  <option value="Zonal">Zonal Level</option>
+                  <option value="University">University Level</option>
+                  <option value="State">State Level</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Tournament Status</label>
+                <select name="status" class="form-select form-select-glass">
+                  <option value="Registration Open" selected>Registration Open</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Published">Published</option>
+                  <option value="Registration Closed">Registration Closed</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              <!-- SPORT DISCIPLINE & EVENT SECTION -->
+              <div class="col-12 mt-3 pt-3 border-top border-secondary border-opacity-25">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <h6 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-flag-fill text-primary me-1"></i> Sport Discipline *
+                  </h6>
+                  <span class="badge bg-primary bg-opacity-10 text-primary small">First Sport in Tournament</span>
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold"><i class="bi bi-trophy-fill text-warning me-1"></i> Select Sport *</label>
+                    <select name="sportId" id="create-tournament-sport-id" class="form-select form-select-glass populate-sports-select" required onchange="onTournamentSportSelectChange(this)">
+                      <option value="">-- Select Sport Discipline --</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold"><i class="bi bi-pencil-fill text-info me-1"></i> Sport Competition Title *</label>
+                    <input type="text" name="name" id="create-tournament-comp-name" class="form-control form-control-glass" required placeholder="e.g. Badminton Men & Women / Men's Singles">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Event Type</label>
+                    <select name="sportType" class="form-select form-select-glass">
+                      <option value="Individual">Individual Event</option>
+                      <option value="Team" selected>Team Event</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Event Start Time</label>
+                    <input type="text" name="startTime" class="form-control form-control-glass" value="09:00 AM">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold">Max Participants / Slots</label>
+                    <input type="number" name="maxParticipants" class="form-control form-control-glass" value="50">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sports-primary">
+              <i class="bi bi-check-circle me-1"></i> Create Tournament
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Tournament Cover Image -->
+  <div class="modal fade" id="editTournamentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-2 shadow-lg">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-image-fill text-warning me-2"></i>Edit Tournament Cover Image
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitEditTournamentCover(event)">
+          <input type="hidden" id="edit-tournament-name" name="tournamentName">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Tournament Name</label>
+              <input type="text" id="edit-tournament-name-display" class="form-control form-control-glass" readonly>
+            </div>
+            <div class="col-12">
+              <label class="form-label small fw-bold text-dark">
+                <i class="bi bi-image-fill text-warning me-1"></i> Tournament Cover Image (Recommended 16:9)
+              </label>
+              <div class="p-3 border border-secondary border-opacity-25 rounded-3 bg-dark bg-opacity-10">
+                <div class="row align-items-center g-3">
+                  <div class="col-md-7">
+                    <label class="form-label text-muted small mb-1">Upload New Image File:</label>
+                    <input type="file" id="edit-tournament-cover-file-input" name="bannerImage" class="form-control form-control-glass mb-2" accept="image/*" onchange="previewTournamentCoverImage(this, 'edit-tournament-preview')">
+                    <input type="hidden" id="edit-tournament-cover-url" name="coverImageUrl" value="/images/sports/tournament.png">
+                    <div class="d-flex gap-2">
+                      <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('edit-tournament-cover-file-input').click()">
+                        <i class="bi bi-upload me-1"></i> Replace Image
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTournamentCoverImage('edit-tournament-preview', 'edit-tournament-cover-file-input', 'edit-tournament-cover-url')">
+                        <i class="bi bi-trash me-1"></i> Remove Image
+                      </button>
+                    </div>
+                    <div class="form-text small text-muted mt-2">Recommended ratio: 16:9. Will automatically update across Student & Admin Portals.</div>
+                  </div>
+                  <div class="col-md-5">
+                    <div class="rounded-3 overflow-hidden border border-secondary border-opacity-30 bg-black shadow-sm" style="aspect-ratio: 16/9; position: relative; max-height: 140px;">
+                      <img id="edit-tournament-preview" src="/images/sports/tournament.png" alt="Tournament Cover Preview" style="width: 100%; height: 100%; object-fit: cover;">
+                      <span class="badge bg-dark bg-opacity-75 text-white position-absolute bottom-0 start-0 m-1 px-1.5 py-0.5 text-xs">Current Cover</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sports-primary">
+              <i class="bi bi-check-circle me-1"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Sport Competition to Tournament (Step 3) -->
+  <div class="modal fade" id="addSportCompetitionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-2 shadow-lg">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-plus-circle-fill text-primary me-2"></i>Add Sport Competition to Tournament
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitAddSportToTournament(event)">
+          <input type="hidden" id="add-sport-tournament-name" name="tournamentName" value="SPARK 2026 Annual Sports Fest">
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold"><i class="bi bi-trophy-fill text-warning me-1"></i> Select Sport *</label>
+                <select name="sportId" class="form-select form-select-glass populate-sports-select" required></select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold"><i class="bi bi-flag-fill text-primary me-1"></i> Competition Title *</label>
+                <input type="text" name="name" class="form-control form-control-glass" required placeholder="e.g. Men's Cricket">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Event Type</label>
+                <select name="type" class="form-select form-select-glass">
+                  <option value="Individual">Individual Event</option>
+                  <option value="Team" selected>Team Event</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Competition Date *</label>
+                <input type="date" name="date" class="form-control form-control-glass" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Registration Deadline *</label>
+                <input type="date" name="registrationEnd" class="form-control form-control-glass" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Start Time</label>
+                <input type="text" name="startTime" class="form-control form-control-glass" value="09:00 AM">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">End Time</label>
+                <input type="text" name="endTime" class="form-control form-control-glass" value="05:00 PM">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Venue</label>
+                <input type="text" name="venue" class="form-control form-control-glass" value="GASC Idappadi Main Ground">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Max Participants / Slots</label>
+                <input type="number" name="maxParticipants" class="form-control form-control-glass" value="50">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Registration Status</label>
+                <select name="status" class="form-select form-select-glass">
+                  <option value="Registration Open" selected>Registration Open</option>
+                  <option value="Registration Closed">Closed</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Rules & Eligibility Instructions</label>
+                <textarea name="description" class="form-control form-control-glass" rows="2" placeholder="Eligibility details, rules..."></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sports-primary">
+              <i class="bi bi-check-circle me-1"></i> Add Sport Competition
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Team -->
+  <div class="modal fade" id="addTeamModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-2 shadow-lg">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-shield-shaded text-primary me-2"></i>Create New Sports Team
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitCreateTeam(event)">
+          <div class="modal-body">
+            <!-- 1. Captain Name -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-dark">
+                <i class="bi bi-person-badge-fill text-primary me-1"></i> Captain Name *
+              </label>
+              <input type="text" name="captainName" id="team-captain-name" class="form-control form-control-glass" required placeholder="e.g. Arun Kumar S">
+            </div>
+
+            <!-- 2. Which Sport -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-dark">
+                <i class="bi bi-trophy-fill text-warning me-1"></i> Which Sport *
+              </label>
+              <select name="sportId" id="team-sport-select" class="form-select form-select-glass populate-sports-select" required>
+                <option value="">-- Select Sport Discipline --</option>
+              </select>
+            </div>
+
+            <!-- 3. Department & 4. Year -->
+            <div class="row g-2 mb-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-dark">
+                  <i class="bi bi-building text-info me-1"></i> Department *
+                </label>
+                <select name="department" id="team-department" class="form-select form-select-glass" required>
+                  <optgroup label="UG Courses">
+                    <option value="Tamil">Tamil</option>
+                    <option value="English">English</option>
+                    <option value="Maths">Maths</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Botany">Botany</option>
+                    <option value="BBA">BBA</option>
+                    <option value="Computer Science" selected>Computer Science</option>
+                    <option value="B.Com">B.Com</option>
+                  </optgroup>
+                  <optgroup label="PG Courses">
+                    <option value="M.Com">M.Com</option>
+                    <option value="MA Tamil">MA Tamil</option>
+                    <option value="MA English">MA English</option>
+                    <option value="MA Maths">MA Maths</option>
+                    <option value="BMA">BMA</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-dark">
+                  <i class="bi bi-calendar3 text-success me-1"></i> Year *
+                </label>
+                <select name="year" id="team-year" class="form-select form-select-glass" required>
+                  <option value="I Year">I Year</option>
+                  <option value="II Year" selected>II Year</option>
+                  <option value="III Year">III Year</option>
+                  <option value="I PG">I PG</option>
+                  <option value="II PG">II PG</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 5. Phone No (Optional) -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-dark">
+                <i class="bi bi-telephone-fill text-secondary me-1"></i> Phone No (Optional)
+              </label>
+              <input type="tel" name="phone" id="team-phone" class="form-control form-control-glass" placeholder="e.g. 9876543210 (Optional)">
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" id="btn-create-team-submit" class="btn btn-sports-primary">
+              <i class="bi bi-plus-circle me-1"></i> Save & Form Team
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Achievement -->
+  <div class="modal fade" id="addAchievementModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-2">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">Award Medal / Add to Wall of Fame</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitCreateAchievement(event)">
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Student Athlete *</label>
+                <select name="studentIdentifier" class="form-select form-select-glass populate-students-select" required></select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Sport Discipline</label>
+                <select name="sportId" class="form-select form-select-glass populate-sports-select"></select>
+              </div>
+              <div class="col-md-8">
+                <label class="form-label small fw-bold">Achievement Title *</label>
+                <input type="text" name="title" class="form-control form-control-glass" required placeholder="e.g. 🥇 Gold Medal – 200m Sprint">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Medal Won *</label>
+                <select name="medal" class="form-select form-select-glass">
+                  <option value="Gold">🥇 Gold</option>
+                  <option value="Silver">🥈 Silver</option>
+                  <option value="Bronze">🥉 Bronze</option>
+                  <option value="Participation / Trophy">Trophy / Special Mention</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Position / Placement</label>
+                <input type="text" name="position" class="form-control form-control-glass" value="1st Place / Winner">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold">Academic Year</label>
+                <input type="text" name="year" class="form-control form-control-glass" value="2025 - 2026">
+              </div>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Description of Feat</label>
+                <textarea name="description" class="form-control form-control-glass" rows="2" placeholder="Record timing, points scored..."></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sports-primary">Award & Publish</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Broadcast Notification -->
+  <div class="modal fade" id="addNotificationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-2">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">Broadcast Sports Announcement</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitCreateNotification(event)">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Announcement Title *</label>
+              <input type="text" id="notify-title" class="form-control form-control-glass" required placeholder="e.g. Zonal Volleyball Selection Trials Tomorrow">
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small fw-bold">Category</label>
+                <select id="notify-category" class="form-select form-select-glass">
+                  <option value="General">General</option>
+                  <option value="Competition">Competition</option>
+                  <option value="Practice">Practice</option>
+                  <option value="Equipment">Equipment</option>
+                  <option value="Team Selection">Team Selection</option>
+                  <option value="Urgent">Urgent</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Priority</label>
+                <select id="notify-priority" class="form-select form-select-glass">
+                  <option value="Normal">Normal</option>
+                  <option value="High">High</option>
+                  <option value="Urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Target Audience</label>
+              <select id="notify-target" class="form-select form-select-glass">
+                <option value="All Students">All Students</option>
+                <option value="Specific Sport">Specific Sport</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Message Content *</label>
+              <textarea id="notify-message" class="form-control form-control-glass" rows="4" required placeholder="Write message for student athletes..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sports-primary">Broadcast Now</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Upload Gallery -->
+  <div class="modal fade" id="addGalleryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-2">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">Upload to Sports Gallery</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitCreateGallery(event)" enctype="multipart/form-data">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Photo Title *</label>
+              <input type="text" name="title" class="form-control form-control-glass" required placeholder="e.g. Volleyball Championship Final Match">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Category</label>
+              <select name="category" class="form-select form-select-glass">
+                <option value="Tournaments">Tournaments</option>
+                <option value="Annual Sports Day">Annual Sports Day</option>
+                <option value="Practice Sessions">Practice Sessions</option>
+                <option value="Prize Distribution">Prize Distribution</option>
+                <option value="Campus Facilities">Campus Facilities</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Upload Image File *</label>
+              <input type="file" name="image" class="form-control form-control-glass" accept="image/*">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Description</label>
+              <textarea name="description" class="form-control form-control-glass" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sports-primary">Upload</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: View Player Details -->
+  <div class="modal fade" id="playerDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-2">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">Student Athlete Dossier</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+            <img id="modal-player-avatar" src="images/default-avatar.png" class="rounded-circle shadow" width="72" height="72" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+            <div>
+              <h4 class="fw-bold text-dark mb-1" id="modal-player-name">Arun Kumar S</h4>
+              <div class="text-secondary small" id="modal-player-reg">23UGCS101 &bull; Computer Science &bull; II Year</div>
+              <div class="mt-1" id="modal-player-status"></div>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-md-3"><strong>Primary Sport:</strong> <div id="modal-player-sport">-</div></div>
+            <div class="col-md-3"><strong>Role / Position:</strong> <div id="modal-player-position">-</div></div>
+            <div class="col-md-3"><strong>Jersey Number:</strong> <div id="modal-player-jersey">-</div></div>
+            <div class="col-md-3"><strong>Playing Level:</strong> <div id="modal-player-level">-</div></div>
+            <div class="col-md-6"><strong>Phone:</strong> <div id="modal-player-phone">-</div></div>
+            <div class="col-md-6"><strong>Email:</strong> <div id="modal-player-email">-</div></div>
+            <div class="col-md-6"><strong>Medals Won:</strong> <div id="modal-player-medals-count" class="text-warning fw-bold">-</div></div>
+            <div class="col-md-6"><strong>Currently Issued Gear:</strong> <div id="modal-player-active-gear" class="text-primary fw-bold">-</div></div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Manual Add Student to Roster -->
+  <div class="modal fade" id="manualAddStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-2 shadow-lg">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-person-plus-fill text-success me-2"></i>Add Student to College Roster
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form onsubmit="submitManualStudentAdd(event)">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label small fw-bold">College Register Number *</label>
+              <input type="text" name="registerNumber" class="form-control form-control-glass" required placeholder="e.g. 23UGCS107" style="text-transform:uppercase;">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Student Name (with initials) *</label>
+              <input type="text" name="name" class="form-control form-control-glass" required placeholder="e.g. Anand Kumar R">
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small fw-bold">Department *</label>
+                <select name="department" class="form-select form-select-glass" required>
+                  <optgroup label="UG Courses">
+                    <option value="Tamil">Tamil</option>
+                    <option value="English">English</option>
+                    <option value="Maths">Maths</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Botany">Botany</option>
+                    <option value="BBA">BBA</option>
+                    <option value="Computer Science" selected>Computer Science</option>
+                    <option value="B.Com">B.Com</option>
+                  </optgroup>
+                  <optgroup label="PG Courses">
+                    <option value="M.Com">M.Com</option>
+                    <option value="MA Tamil">MA Tamil</option>
+                    <option value="MA English">MA English</option>
+                    <option value="MA Maths">MA Maths</option>
+                    <option value="BMA">BMA</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Year *</label>
+                <select name="year" class="form-select form-select-glass" required>
+                  <option value="I Year">I Year</option>
+                  <option value="II Year" selected>II Year</option>
+                  <option value="III Year">III Year</option>
+                  <option value="I PG">I PG</option>
+                  <option value="II PG">II PG</option>
+                </select>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small fw-bold">Section</label>
+                <input type="text" name="section" class="form-control form-control-glass" value="A">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Gender</label>
+                <select name="gender" class="form-select form-select-glass">
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sports-primary">Add to College Roster</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Student in College Roster -->
+  <div class="modal fade" id="editRosterStudentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-3 shadow-lg border-0" style="border-radius: 20px;">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-pencil-square text-primary me-2"></i>Edit Student in College Roster
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="edit-roster-student-form" onsubmit="submitEditRosterStudent(event)">
+          <input type="hidden" id="edit-roster-id">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-dark">College Register Number *</label>
+              <input type="text" id="edit-roster-regno" class="form-control form-control-glass font-monospace fw-bold" required style="text-transform: uppercase;">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-dark">Student Full Name *</label>
+              <input type="text" id="edit-roster-name" class="form-control form-control-glass" required>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small fw-bold text-dark">Department *</label>
+                <select id="edit-roster-dept" class="form-select form-select-glass" required>
+                  <optgroup label="UG Courses">
+                    <option value="Tamil">Tamil</option>
+                    <option value="English">English</option>
+                    <option value="Maths">Maths</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Botany">Botany</option>
+                    <option value="BBA">BBA</option>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="B.Com">B.Com</option>
+                  </optgroup>
+                  <optgroup label="PG Courses">
+                    <option value="M.Com">M.Com</option>
+                    <option value="MA Tamil">MA Tamil</option>
+                    <option value="MA English">MA English</option>
+                    <option value="MA Maths">MA Maths</option>
+                    <option value="BMA">BMA</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold text-dark">Year *</label>
+                <select id="edit-roster-year" class="form-select form-select-glass" required>
+                  <option value="I Year">I Year</option>
+                  <option value="II Year">II Year</option>
+                  <option value="III Year">III Year</option>
+                  <option value="I PG">I PG</option>
+                  <option value="II PG">II PG</option>
+                </select>
+              </div>
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small fw-bold text-dark">Section</label>
+                <input type="text" id="edit-roster-section" class="form-control form-control-glass" maxlength="5" style="text-transform: uppercase;">
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold text-dark">Gender *</label>
+                <select id="edit-roster-gender" class="form-select form-select-glass" required>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0 pt-0">
+            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" id="btn-save-edit-roster" class="btn btn-primary fw-bold">
+              <i class="bi bi-check2-circle me-1"></i> Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Registered Students Drill-down (Section 4, 5, 6 of prompt) -->
+  <div class="modal fade" id="registeredStudentsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content glass-card p-3">
+        <div class="modal-header border-0 pb-2">
+          <div>
+            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+              <i class="bi bi-people-fill text-primary"></i>
+              <span id="registered-modal-title">Registered Students</span>
+            </h5>
+            <small class="text-muted" id="registered-modal-subtitle">Real-time student registration records from database</small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-1">
+          <!-- Quick search inside modal -->
+          <div class="d-flex justify-content-between align-items-center mb-3 gap-2 flex-wrap">
+            <div class="input-group input-group-sm" style="max-width: 320px;">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+              <input type="text" id="modal-students-search" class="form-control border-start-0" placeholder="Search by name, reg no..." oninput="filterModalStudentsList()">
+            </div>
+            <div>
+              <span class="badge bg-primary bg-opacity-10 text-primary fs-6 px-3 py-2 rounded-pill" id="modal-students-count-badge">0 Students</span>
+            </div>
+          </div>
+
+          <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+            <table class="table table-hover table-sm align-middle mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th style="width: 45px;">#</th>
+                  <th>Student Name</th>
+                  <th>Register Number</th>
+                  <th>Gender</th>
+                  <th>Department</th>
+                  <th>Sport</th>
+                  <th>Tournament</th>
+                  <th>Registration Date</th>
+                  <th>Registration Type</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="modal-students-tbody">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-2">
+          <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: View Formed Team Details & Official Squad Sheet -->
+  <div class="modal fade" id="viewTeamSquadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-3">
+        <div class="modal-header border-0 pb-2">
+          <div>
+            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+              <i class="bi bi-shield-shaded text-primary"></i>
+              <span id="view-team-modal-name">Official Team Squad</span>
+            </h5>
+            <small class="text-secondary">Government Arts and Science College, Idappadi &bull; Physical Education</small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body pt-1">
+          <!-- Meta details block -->
+          <div class="p-3 bg-light rounded-3 border mb-3">
+            <div class="row g-2 text-dark small">
+              <div class="col-sm-6"><strong>Tournament:</strong> <span id="view-team-modal-tourn">-</span></div>
+              <div class="col-sm-6"><strong>Sport:</strong> <span id="view-team-modal-sport">-</span></div>
+              <div class="col-sm-6"><strong>Department:</strong> <span id="view-team-modal-dept">-</span></div>
+              <div class="col-sm-6"><strong>Gender:</strong> <span id="view-team-modal-gender">-</span></div>
+              <div class="col-sm-6"><strong>Squad Size:</strong> <span id="view-team-modal-size">11</span> Players</div>
+              <div class="col-sm-6"><strong>Formed Date:</strong> <span id="view-team-modal-date">-</span></div>
+            </div>
+          </div>
+
+          <h6 class="fw-bold text-dark mb-2">Official Squad Members:</h6>
+          <div class="table-responsive mb-3" style="max-height: 380px; overflow-y: auto;">
+            <table class="table table-sm table-bordered align-middle mb-0">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th style="width: 50px;">S.No</th>
+                  <th>Student Name</th>
+                  <th>Register Number</th>
+                  <th>Department</th>
+                  <th>Gender</th>
+                  <th>Role</th>
+                </tr>
+              </thead>
+              <tbody id="view-team-modal-members-tbody">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+          <button type="button" id="btn-modal-print-team-pdf" class="btn btn-primary rounded-pill px-4 fw-bold">
+            <i class="bi bi-file-earmark-pdf-fill me-1 text-warning"></i> DOWNLOAD TEAM PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Printable Container for High-Quality PDF / Print Generation -->
+  <div id="printable-team-sheet" class="d-none"></div>
+
+
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/config.js?v=20260927_emoji_v6"></script>
+  <script src="js/api.js?v=20260927_emoji_v6"></script>
+  <script src="js/charts.js?v=20260927_emoji_v6"></script>
+  <script src="js/admin.js?v=20260927_emoji_v6"></script>
+  <script src="js/offlineStatus.js?v=20260928_offline_v1"></script>
+</body>
+
+</html>

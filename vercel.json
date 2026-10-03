@@ -1,10 +1,13 @@
 {
   "version": 2,
-  "buildCommand": "cd student-client && npm install && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "student-client/dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api" },
-    { "source": "/uploads/:path*", "destination": "/api" },
-    { "source": "/((?!assets|images|favicon|_next).*)", "destination": "/index.html" }
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/api", "destination": "/api" },
+    { "source": "/admin/(.*)", "destination": "/api" },
+    { "source": "/uploads/(.*)", "destination": "/api" },
+    { "source": "/student/(.*)", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

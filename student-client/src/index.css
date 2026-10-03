@@ -615,18 +615,129 @@ button:active, .btn-primary:active, .btn-orange:active, .btn-outline:active, .fi
 /* ── Divider ── */
 .gasc-divider { height: 1px; background: rgba(255,255,255,0.10); }
 
-/* ── Responsive ── */
+/* ── Responsive Mobile & Tablet Rules ── */
+@media (max-width: 1024px) {
+  /* Tablet layout optimizations */
+  div[style*="grid-template-columns: repeat(4, 1fr)"],
+  div[style*="grid-template-columns: repeat(4,1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  div[style*="grid-template-columns: 1fr 1.4fr"],
+  div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); z-index: 200; }
-  .sidebar.mobile-open { transform: translateX(0); }
-  .main-wrapper { margin-left: 0 !important; }
-  .page-content { padding: 16px; padding-bottom: 80px; }
-  .top-header { padding: 0 16px; }
-  .mobile-bottom-nav { display: flex; justify-content: space-around; align-items: center; }
-  .search-bar { width: 160px; }
-  .search-bar:focus { width: 200px; }
+  .sidebar {
+    transform: translateX(-100%);
+    z-index: 200;
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+  .main-wrapper {
+    margin-left: 0 !important;
+  }
+  .page-content {
+    padding: 14px 12px 90px 12px !important;
+  }
+  .top-header {
+    padding: 0 14px;
+    height: 58px;
+  }
+  .mobile-bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: rgba(3, 17, 38, 0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+  }
+  .search-bar {
+    width: 140px;
+  }
+  .search-bar:focus {
+    width: 180px;
+  }
+
+  /* Responsive Grid Adjustments */
+  div[style*="grid-template-columns: repeat(4, 1fr)"],
+  div[style*="grid-template-columns: repeat(4,1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  div[style*="grid-template-columns: 1fr 1.4fr"],
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="grid-template-columns: 1fr 1.2fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  /* Card padding on mobile */
+  .gasc-card, .stat-card, .glass-card {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  /* Stats numbers on mobile */
+  .stat-card div[style*="font-size: 36px"] {
+    font-size: 28px !important;
+  }
+
+  /* Headers on mobile */
+  .section-title, h1[style*="font-size: 32px"], h1[style*="font-size: 28px"] {
+    font-size: 22px !important;
+  }
+  h2[style*="font-size: 22px"], h2[style*="font-size: 20px"] {
+    font-size: 18px !important;
+  }
+
+  /* Filter tabs overflow scrolling */
+  div:has(> .filter-tab) {
+    overflow-x: auto;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+  }
+  .filter-tab {
+    flex-shrink: 0;
+    font-size: 12px;
+    padding: 7px 12px;
+  }
 }
 
 @media (max-width: 480px) {
-  .search-bar { display: none; }
+  .search-bar {
+    display: none;
+  }
+
+  div[style*="grid-template-columns: repeat(4, 1fr)"],
+  div[style*="grid-template-columns: repeat(4,1fr)"] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Ensure card grids fit comfortably on small screens */
+  div[style*="grid-template-columns: repeat(auto-fill,minmax(320px,1fr))"],
+  div[style*="grid-template-columns: repeat(auto-fill,minmax(280px,1fr))"],
+  div[style*="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))"],
+  div[style*="grid-template-columns: repeat(auto-fill,minmax(380px,1fr))"] {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  /* Modal responsive on small screens */
+  .modal-dialog, div[style*="position: fixed"][style*="z-index: 1000"] > div {
+    max-width: 95vw !important;
+    margin: 10px auto !important;
+    padding: 16px !important;
+  }
 }

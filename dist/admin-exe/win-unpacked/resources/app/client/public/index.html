@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GASC Idappadi — Smart Sports Management System</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <!-- College Favicon -->
+  <link rel="icon" type="image/png" href="/images/college-logo.png">
+  <!-- Glassmorphism Stylesheet -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Top Announcement Bar -->
+  <div class="bg-sports-gradient py-2 text-white text-center small fw-semibold">
+    <div class="container d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-megaphone-fill me-2"></i> அரசு கலை மற்றும் அறிவியல் கல்லூரி, எடப்பாடி — Sports Department Portal</span>
+      <div class="d-none d-md-flex gap-3">
+        <span><i class="bi bi-envelope me-1"></i> sports@gascidappadi.edu.in</span>
+        <span><i class="bi bi-telephone me-1"></i> +91 94432 18765</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Glass Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-glass sticky-top">
+    <div class="container">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="/index.html">
+        <img src="/images/college-logo.png" alt="GASC Idappadi Logo" class="college-logo-img">
+        <div>
+          <span class="d-block fw-bold text-dark lh-1 fs-5">GASC IDAPPADI</span>
+          <span class="d-block small text-muted text-uppercase tracking-wider" style="font-size: 0.68rem;">Smart Sports System</span>
+        </div>
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="mainNavbar">
+        <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link active" href="/index.html">Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="/about.html">About Department</a></li>
+          <li class="nav-item"><a class="nav-link" href="/sports.html">Sports</a></li>
+          <li class="nav-item"><a class="nav-link" href="/competitions.html">Competitions</a></li>
+          <li class="nav-item"><a class="nav-link" href="/achievements.html">Hall of Fame</a></li>
+          <li class="nav-item"><a class="nav-link" href="/gallery.html">Gallery</a></li>
+          <li class="nav-item"><a class="nav-link" href="/contact.html">Contact</a></li>
+        </ul>
+        <div id="nav-auth-container" class="d-flex align-items-center gap-2">
+          <a href="/student/login" class="btn btn-outline-primary btn-sm px-3"><i class="bi bi-mortarboard me-1"></i> Student Portal</a>
+          <a href="/student/register" class="btn btn-sports-primary btn-sm px-3"><i class="bi bi-pencil-square me-1"></i> Student Register</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section with Glassmorphism Overlay -->
+  <header class="bg-sports-hero py-5">
+    <div class="container py-lg-5 position-relative" style="z-index: 2;">
+      <div class="row align-items-center">
+        <div class="col-lg-8 text-center text-lg-start">
+          <div class="d-flex flex-column flex-sm-row align-items-center align-items-lg-start gap-3 mb-3">
+            <img src="/images/college-logo.png" alt="GASC Idappadi Official Seal" class="college-logo-hero">
+            <div>
+              <div class="badge bg-white bg-opacity-20 text-white backdrop-blur mb-2 px-3 py-2 rounded-pill fs-6">
+                <i class="bi bi-award-fill text-warning me-1"></i> அரசு கலை மற்றும் அறிவியல் கல்லூரி, எடப்பாடி
+              </div>
+              <div class="text-white-50 small fw-semibold">“கசடற கற்க கற்பிக்க” — Government Arts and Science College, Idappadi</div>
+            </div>
+          </div>
+          <h1 class="display-4 fw-extrabold text-white mb-3">
+            GASC Idappadi <br><span class="text-warning">Smart Sports</span> Management System
+          </h1>
+          <p class="lead text-white-50 mb-4 fs-5" style="max-width: 650px;">
+            “Empowering Students Through Sports, Discipline and Excellence” — Streamlining student athlete registrations, tournaments, practice attendance, and equipment inventory under one digital roof.
+          </p>
+          <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-lg-start">
+            <a href="/student/login" class="btn btn-sports-accent btn-lg px-4">
+              <i class="bi bi-person-fill-lock me-1"></i> Student Login
+            </a>
+            <a href="/sports.html" class="btn btn-glass btn-lg px-4 text-white">
+              <i class="bi bi-compass me-1"></i> Explore Sports Disciplines
+            </a>
+            <a href="/student/register" class="btn btn-outline-light btn-lg px-4">
+              <i class="bi bi-pencil-square me-1"></i> New Student Registration
+            </a>
+          </div>
+        </div>
+        <div class="col-lg-4 mt-5 mt-lg-0">
+          <!-- Glass KPI Spotlight Card -->
+          <div class="glass-card-dark p-4 shadow-lg">
+            <div class="d-flex align-items-center gap-3 mb-3 border-bottom pb-3">
+              <img src="/images/college-logo.png" alt="College Logo" class="college-logo-sidebar">
+              <div>
+                <h5 class="fw-bold mb-0 text-white">Sports Department</h5>
+                <small class="text-white-50 dyn-incharge-name">Sports Incharge</small>
+              </div>
+            </div>
+            <div class="row text-center g-2 mb-3">
+              <div class="col-4">
+                <div class="p-2 bg-white bg-opacity-10 rounded">
+                  <div class="fs-4 fw-bold text-warning" id="stat-total-sports">8+</div>
+                  <div class="small text-white-50">Sports</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-2 bg-white bg-opacity-10 rounded">
+                  <div class="fs-4 fw-bold text-success" id="stat-total-competitions">4+</div>
+                  <div class="small text-white-50">Tournaments</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="p-2 bg-white bg-opacity-10 rounded">
+                  <div class="fs-4 fw-bold text-info" id="stat-total-medals">4+</div>
+                  <div class="small text-white-50">Podiums</div>
+                </div>
+              </div>
+            </div>
+            <div class="p-3 bg-white bg-opacity-10 rounded small mb-3">
+              <i class="bi bi-bell-fill text-warning me-2"></i>
+              <strong>Notice:</strong> Annual Inter-Department Cricket & Athletics registrations are currently open for all enrolled students.
+            </div>
+            <a href="/competitions.html" class="btn btn-sports-accent w-100 btn-sm">
+              View Active Tournaments <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live Stats Strip -->
+  <section id="home-stats-banner" class="container" style="margin-top: -30px; position: relative; z-index: 10;">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <div class="glass-card stat-card">
+          <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+            <i class="bi bi-people-fill"></i>
+          </div>
+          <div>
+            <div class="stat-value text-primary">248+</div>
+            <div class="stat-label">Student Athletes</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="glass-card stat-card">
+          <div class="stat-icon bg-success bg-opacity-10 text-success">
+            <i class="bi bi-trophy-fill"></i>
+          </div>
+          <div>
+            <div class="stat-value text-success">18+</div>
+            <div class="stat-label">Active Sports Disciplines</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="glass-card stat-card">
+          <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+            <i class="bi bi-box-seam-fill"></i>
+          </div>
+          <div>
+            <div class="stat-value text-warning">560+</div>
+            <div class="stat-label">Equipment Tracked</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="glass-card stat-card">
+          <div class="stat-icon bg-danger bg-opacity-10 text-danger">
+            <i class="bi bi-award-fill"></i>
+          </div>
+          <div>
+            <div class="stat-value text-danger">35+</div>
+            <div class="stat-label">University Trophies</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured Sports Section -->
+  <section class="py-5">
+    <div class="container py-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-end mb-4">
+        <div>
+          <span class="badge badge-glass-primary mb-2">CAMPUS DISCIPLINES</span>
+          <h2 class="fw-bold mb-0 text-dark">Premier Sports at GASC Idappadi</h2>
+        </div>
+        <a href="/sports.html" class="btn btn-outline-primary mt-2 mt-md-0">
+          View All Sports <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+      </div>
+
+      <div class="row g-4" id="home-top-sports">
+        <!-- Loaded dynamically via public.js -->
+        <div class="col-12 text-center py-5">
+          <div class="spinner-border text-primary"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Message from Sports Incharge -->
+  <section class="py-5 bg-white bg-opacity-60 border-top border-bottom">
+    <div class="container py-3">
+      <div class="row align-items-center">
+        <div class="col-lg-4 text-center mb-4 mb-lg-0">
+          <div class="glass-card p-3 d-inline-block">
+            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80" alt="Sports Incharge" class="rounded shadow" width="220" height="260" style="object-fit: cover;">
+            <div class="mt-3">
+              <h5 class="fw-bold mb-0 text-primary dyn-incharge-name">Sports Incharge</h5>
+              <div class="small text-muted dyn-incharge-degrees"></div>
+              <span class="badge badge-glass-success mt-1 dyn-incharge-role">Physical Directress & Sports Incharge</span>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <span class="badge badge-glass-success mb-2">LEADERSHIP MESSAGE</span>
+          <h3 class="fw-bold mb-3 text-dark">Nurturing Champions from Idappadi to State Level</h3>
+          <p class="text-secondary leading-relaxed mb-3">
+            At Government Arts and Science College, Idappadi, the Department of Physical Education is committed to the holistic physical, mental, and ethical development of every young man and woman. Through this Smart Sports Management System, our athletes have instant digital access to collegiate competitions, team rosters, modern equipment stock, and practice schedules.
+          </p>
+          <p class="text-secondary leading-relaxed mb-4">
+            We actively support our players with university training camps, nutrition guidance, and competition exposure across Salem district, Periyar University, and Tamil Nadu State championships.
+          </p>
+          <div class="d-flex gap-3">
+            <a href="/about.html" class="btn btn-sports-primary">Read More About Department</a>
+            <a href="/login.html" class="btn btn-outline-primary">Join Sports Squad</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action Banner -->
+  <section class="py-5 text-center text-white bg-sports-gradient">
+    <div class="container py-4">
+      <h2 class="display-6 fw-bold mb-3">Ready to Represent GASC Idappadi on the Field?</h2>
+      <p class="lead mb-4 mx-auto" style="max-width: 600px;">
+        Register your student profile today, choose your primary sport discipline, and prepare for upcoming university and district collegiate trials.
+      </p>
+      <div class="d-flex justify-content-center gap-3">
+        <a href="/register.html" class="btn btn-warning btn-lg fw-bold px-4">Register as Player</a>
+        <a href="/competitions.html" class="btn btn-outline-light btn-lg px-4">Browse Competitions</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Official Footer -->
+  <footer class="bg-sports-gradient text-white pt-5 pb-3">
+    <div class="container">
+      <div class="row g-4 mb-4">
+        <div class="col-lg-4">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <img src="/images/college-logo.png" alt="GASC Idappadi Logo" class="college-logo-sidebar">
+            <div>
+              <h5 class="fw-bold mb-0 text-white">GASC Idappadi</h5>
+              <small class="text-white-50" style="font-size: 0.72rem;">அரசு கலை & அறிவியல் கல்லூரி, எடப்பாடி</small>
+            </div>
+          </div>
+          <p class="text-white-50 small">
+            Government Arts and Science College, Idappadi.<br>
+            Department of Physical Education & Sports.<br>
+            Salem District – 637101, Tamil Nadu.
+          </p>
+          <div class="text-white-50 small">
+            <i class="bi bi-telephone me-1"></i> +91 94432 18765<br>
+            <i class="bi bi-envelope me-1"></i> sports@gascidappadi.edu.in
+          </div>
+        </div>
+        <div class="col-lg-2 col-6">
+          <h6 class="fw-bold text-warning mb-3">Quick Links</h6>
+          <ul class="list-unstyled small text-white-50 d-flex flex-column gap-2">
+            <li><a href="/index.html" class="text-white-50 text-decoration-none">Home</a></li>
+            <li><a href="/about.html" class="text-white-50 text-decoration-none">About Us</a></li>
+            <li><a href="/sports.html" class="text-white-50 text-decoration-none">Sports Catalog</a></li>
+            <li><a href="/competitions.html" class="text-white-50 text-decoration-none">Tournaments</a></li>
+            <li><a href="/achievements.html" class="text-white-50 text-decoration-none">Hall of Fame</a></li>
+          </ul>
+        </div>
+        <div class="col-lg-3 col-6">
+          <h6 class="fw-bold text-warning mb-3">Portals</h6>
+          <ul class="list-unstyled small text-white-50 d-flex flex-column gap-2">
+            <li><a href="/login.html" class="text-white-50 text-decoration-none">Student Login</a></li>
+            <li><a href="/register.html" class="text-white-50 text-decoration-none">Player Registration</a></li>
+            <li><a href="/login.html?role=admin" class="text-white-50 text-decoration-none">Sports Incharge Login</a></li>
+            <li><a href="/gallery.html" class="text-white-50 text-decoration-none">Campus Sports Gallery</a></li>
+          </ul>
+        </div>
+        <div class="col-lg-3">
+          <h6 class="fw-bold text-warning mb-3">College Vision</h6>
+          <p class="text-white-50 small">
+            Fostering sportsmanship, physical fitness, and leadership skills among rural and semi-urban student youth.
+          </p>
+          <div class="p-2 bg-white bg-opacity-10 rounded text-center small text-white-50">
+            Affiliated to Periyar University, Salem
+          </div>
+        </div>
+      </div>
+      <div class="border-top border-white border-opacity-10 pt-3 text-center small text-white-50">
+        &copy; 2026 Government Arts and Science College, Idappadi. Department of Physical Education. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/public.js"></script>
+</body>
+</html>

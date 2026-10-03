@@ -1,0 +1,50 @@
+[
+  {
+    "id": "n101-cm-trophy-news",
+    "title": "CM Trophy 2026 Selection Trials Announced for Salem District College Athletes",
+    "short_summary": "SDAT announced selection schedules for collegiate sports teams across Salem district for the upcoming Tamil Nadu Chief Minister Trophy 2026.",
+    "full_description": "Sports Development Authority of Tamil Nadu (SDAT) has released the complete schedule for college students participating in CM Trophy 2026. Events include Track & Field, Volleyball, Football, Badminton, and Kabaddi. Interested student players from GASC Idappadi are requested to contact Physical Directress Dr. R. Anitha for registration guidance and team entries.",
+    "sport": "General",
+    "category": "Tournament",
+    "source_name": "Daily Thanthi Sports / SDAT Notice",
+    "source_url": "https://sdat.tn.gov.in",
+    "published_date": "2026-09-08",
+    "image": "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&auto=format&fit=crop&q=80",
+    "featured": true,
+    "status": "Published",
+    "created_at": "2026-09-08T08:00:00.000Z",
+    "updated_at": "2026-09-09T06:45:05.541Z"
+  },
+  {
+    "id": "n102-gasc-athletic-victory",
+    "title": "GASC Idappadi Athletes Win 4 Medals at Zone Athletic Meet",
+    "short_summary": "College players bagged 2 Gold, 1 Silver, and 1 Bronze medals in 100m, 400m, and Shot Put events at the Zonal Meet.",
+    "full_description": "Our college athletes showcased exceptional grit and sportsmanship at the Periyar University Zonal Athletic Meet. Congratulations to Selvan K. Vignesh (III B.Sc CS) for winning Gold in 100m sprint and Selvi M. Deepa (II B.A Tamil) for winning Gold in Shot Put.",
+    "sport": "Athletics",
+    "category": "Achievement",
+    "source_name": "Department of Physical Education, GASC Idappadi",
+    "source_url": "",
+    "published_date": "2026-09-06",
+    "image": "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?w=800&auto=format&fit=crop&q=80",
+    "featured": true,
+    "status": "Published",
+    "created_at": "2026-09-06T10:00:00.000Z",
+    "updated_at": "2026-09-09T06:45:05.541Z"
+  },
+  {
+    "id": "n103-sdat-scholarship",
+    "title": "SDAT Sports Scholarship Scheme 2026-27 Open for Outstanding College Players",
+    "short_summary": "Financial assistance of up to Rs. 25,000 per annum offered by Tamil Nadu Government for collegiate medalists.",
+    "full_description": "Applications are invited from students who secured medals in National, State, or University-level sports tournaments during the academic year 2025-26. Eligible candidates may submit their certificates to the Physical Education office before October 15, 2026.",
+    "sport": "General",
+    "category": "Sports Announcement",
+    "source_name": "Tamil Nadu Sports Youth Welfare Dept",
+    "source_url": "https://sdat.tn.gov.in",
+    "published_date": "2026-09-04",
+    "image": "https://images.unsplash.com/photo-1551958219-acbc608c6377?w=800&auto=format&fit=crop&q=80",
+    "featured": false,
+    "status": "Published",
+    "created_at": "2026-09-04T09:30:00.000Z",
+    "updated_at": "2026-09-09T06:45:05.541Z"
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "files.autoSave": "afterDelay",
+  "editor.formatOnSave": true,
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "java.configuration.updateBuildConfiguration": "interactive"
+}

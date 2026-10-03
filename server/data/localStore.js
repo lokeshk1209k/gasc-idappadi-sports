@@ -2,7 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const DB_FILE = path.join(__dirname, 'local_db.json');
+// Central shared local DB file path across Workspace, Desktop, and Downloads
+const SHARED_DB_DIR = 'C:/Users/ELCOT/.gemini/antigravity-ide/scratch/gasc-idappadi-sports/server/data';
+const SHARED_DB_FILE = path.join(SHARED_DB_DIR, 'local_db.json');
+const LOCAL_FALLBACK_FILE = path.join(__dirname, 'local_db.json');
+
+// Prefer central scratch DB so admin app and student portal share the exact same database
+const DB_FILE = fs.existsSync(SHARED_DB_FILE) ? SHARED_DB_FILE : LOCAL_FALLBACK_FILE;
+
 
 function getInitialData() {
   const adminHashed = bcrypt.hashSync('admin123', 10);
@@ -547,7 +554,20 @@ class LocalStore {
 
   save() {
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.db, null, 2), 'utf8');
+      const payload = JSON.stringify(this.db, null, 2);
+      fs.writeFileSync(DB_FILE, payload, 'utf8');
+
+      // Mirror to secondary installations if they exist (Desktop & Downloads)
+      const mirrorPaths = [
+        'C:/Users/ELCOT/Downloads/GASC Sports Admin Portal/resources/app/server/data/local_db.json',
+        'C:/Users/ELCOT/Desktop/GASC Sports Admin/resources/app/server/data/local_db.json',
+        path.join(__dirname, 'local_db.json')
+      ];
+      for (const mPath of mirrorPaths) {
+        if (mPath !== DB_FILE && fs.existsSync(path.dirname(mPath))) {
+          try { fs.writeFileSync(mPath, payload, 'utf8'); } catch (err) {}
+        }
+      }
     } catch (e) {
       console.error('Error saving local db:', e.message);
     }

@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Portal — GASC Idappadi Sports</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="icon" type="image/png" href="images/college-logo.png">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/config.js"></script>
+  <script>
+    // Strict Role-Based Portal Guard: Students Only
+    (function() {
+      const token = localStorage.getItem('gasc_token');
+      const userStr = localStorage.getItem('gasc_user');
+      const loginUrl = (window.location.protocol === 'file:' || (window.GASC_CONFIG && window.GASC_CONFIG.IS_PACKAGED_APP && !window.location.protocol.startsWith('http')))
+        ? 'student-login.html'
+        : '/student/login';
+
+      if (!token || !userStr) {
+        window.location.replace(loginUrl);
+        return;
+      }
+      try {
+        const user = JSON.parse(userStr);
+        if (user.role !== 'student') {
+          window.location.replace(loginUrl);
+        }
+      } catch (e) {
+        window.location.replace(loginUrl);
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <div class="portal-wrapper">
+    <!-- Student Sidebar -->
+    <aside class="portal-sidebar">
+      <div class="portal-sidebar-brand">
+        <img src="images/college-logo.png" alt="GASC Idappadi Official Seal" class="college-logo-sidebar" onerror="this.src='images/college-logo.png'">
+        <div>
+          <div class="fw-bold text-white lh-1">GASC IDAPPADI</div>
+          <small class="text-white-50" style="font-size: 0.7rem;">Student Athlete Portal</small>
+        </div>
+      </div>
+
+      <nav class="mt-3 flex-grow-1">
+        <a class="sidebar-nav-item student-nav-item active" data-view="dashboard">
+          <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item" data-view="profile">
+          <i class="bi bi-person-badge"></i> <span>My Profile</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item" data-view="sports">
+          <i class="bi bi-trophy"></i> <span>My Sports</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item" data-view="competitions">
+          <i class="bi bi-flag"></i> <span>Competitions</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item" data-view="applications">
+          <i class="bi bi-file-earmark-check"></i> <span>My Applications</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item" data-view="team">
+          <i class="bi bi-shield-shaded"></i> <span>My Team</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item" data-view="equipment">
+          <i class="bi bi-box-seam"></i> <span>My Equipment</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item" data-view="achievements">
+          <i class="bi bi-award"></i> <span>Achievements</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item" data-view="external-competitions">
+          <i class="bi bi-globe2"></i> <span>External Tournaments</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item" data-view="news">
+          <i class="bi bi-newspaper"></i> <span>Sports News</span>
+        </a>
+        <a class="sidebar-nav-item student-nav-item d-flex justify-content-between align-items-center" data-view="notifications">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-bell"></i> <span>Notifications</span>
+          </div>
+          <span class="badge bg-danger rounded-pill" id="student-nav-unread-badge" style="display: none;">0</span>
+        </a>
+      </nav>
+
+      <div class="p-3 border-top border-white border-opacity-10 mt-auto">
+        <a href="/index.html" class="sidebar-nav-item text-white-50 m-0 mb-2">
+          <i class="bi bi-house-door"></i> <span>Public Home</span>
+        </a>
+        <button onclick="logout()" class="btn btn-outline-danger w-100 btn-sm">
+          <i class="bi bi-box-arrow-right me-1"></i> Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Portal Content Area -->
+    <div class="portal-content">
+      <!-- Topbar -->
+      <header class="portal-topbar">
+        <button class="btn btn-glass d-lg-none" onclick="toggleMoreDrawer(this)" aria-label="Open Navigation Menu">
+          <i class="bi bi-grid-3x3-gap-fill text-primary fs-5"></i>
+        </button>
+        <div class="d-none d-sm-block">
+          <span class="badge bg-primary bg-opacity-10 text-primary">Government Arts and Science College, Idappadi</span>
+        </div>
+        <div class="d-flex align-items-center gap-3 ms-auto">
+          <div class="text-end">
+            <div class="fw-bold text-dark lh-1" id="student-display-name">Arun Kumar S</div>
+            <small class="text-muted" id="student-display-regno">23UGCS101 (Computer Science)</small>
+          </div>
+          <img id="student-display-avatar" src="images/default-avatar.png" class="rounded-circle shadow-sm border border-2 border-primary" width="42" height="42" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+        </div>
+      </header>
+
+      <!-- Main Views -->
+      <main class="portal-main-view">
+        <div id="student-overdue-alert" class="d-none"></div>
+
+        <!-- VIEW 1: DASHBOARD -->
+        <section id="view-dashboard" class="student-view-section">
+          <div class="glass-card bg-sports-hero p-4 p-md-5 mb-4 text-white">
+            <h2 class="fw-bold mb-2">Welcome Back, Champion! 👋</h2>
+            <p class="text-white-50 mb-4" style="max-width: 600px;">
+              Here is your personal college sports activity overview. Track your team squads, equipment issuance status, and competition approvals.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+              <button class="btn btn-sports-accent" onclick="switchStudentView('competitions')">
+                <i class="bi bi-flag me-1"></i> View Competitions
+              </button>
+              <button class="btn btn-glass text-white" onclick="switchStudentView('equipment')">
+                <i class="bi bi-box-seam me-1"></i> Track My Equipment
+              </button>
+            </div>
+          </div>
+
+          <!-- Quick Metrics -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-3 col-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-trophy-fill"></i></div>
+                <div>
+                  <div class="stat-value text-primary fs-4" id="stat-primary-sport">Cricket</div>
+                  <div class="stat-label">Primary Sport</div>
+                  <small class="text-muted" id="stat-position">Top-Order Batsman</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-shield-shaded"></i></div>
+                <div>
+                  <div class="stat-value text-success fs-5 text-truncate" id="stat-primary-team" style="max-width: 140px;">GASC Cricket</div>
+                  <div class="stat-label">Assigned Squad</div>
+                  <small class="text-muted">Season 2025-26</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-box-seam-fill"></i></div>
+                <div>
+                  <div class="stat-value text-info" id="stat-issued-gear">0</div>
+                  <div class="stat-label">Issued Sports Gear</div>
+                  <small class="text-muted">Currently in Possession</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3 col-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-award-fill"></i></div>
+                <div>
+                  <div class="stat-value text-warning" id="stat-achievements-count">0</div>
+                  <div class="stat-label">Medals / Awards</div>
+                  <small class="text-muted">College Wall of Fame</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Split Sections -->
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="glass-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h5 class="fw-bold text-dark mb-0"><i class="bi bi-file-earmark-check-fill text-primary me-2"></i> My Tournament Applications</h5>
+                  <button class="btn btn-sm btn-link text-decoration-none" onclick="switchStudentView('applications')">View Status &rarr;</button>
+                </div>
+                <div id="student-recent-apps-preview">
+                  <div class="text-center py-4 text-muted small">Loading applications...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="glass-card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <h5 class="fw-bold text-dark mb-0"><i class="bi bi-flag-fill text-success me-2"></i> Open Tournaments</h5>
+                  <button class="btn btn-sm btn-link text-decoration-none" onclick="switchStudentView('competitions')">Explore All &rarr;</button>
+                </div>
+                <div id="student-open-comp-list">
+                  <div class="text-center py-4"><div class="spinner-border spinner-border-sm text-success"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 2: PROFILE -->
+        <section id="view-profile" class="student-view-section d-none">
+          <div class="glass-card p-4 p-md-5">
+            <h4 class="fw-bold text-dark mb-1">Student Athlete Profile</h4>
+            <p class="text-secondary small mb-4">Update your personal college records and sports specialization details.</p>
+
+            <form onsubmit="saveStudentProfile(event)" enctype="multipart/form-data">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">Full Name</label>
+                  <input type="text" id="prof-name" name="name" class="form-control form-control-glass" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold">College Register Number</label>
+                  <input type="text" id="prof-regno" class="form-control form-control-glass" readonly disabled>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Department</label>
+                  <input type="text" id="prof-dept" name="department" class="form-control form-control-glass" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Year of Study</label>
+                  <select id="prof-year" name="year" class="form-select form-select-glass">
+                    <option value="I Year">I Year</option>
+                    <option value="II Year">II Year</option>
+                    <option value="III Year">III Year</option>
+                    <option value="I PG">I PG</option>
+                    <option value="II PG">II PG</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Section</label>
+                  <input type="text" id="prof-section" name="section" class="form-control form-control-glass">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Gender</label>
+                  <select id="prof-gender" name="gender" class="form-select form-select-glass">
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Mobile Number</label>
+                  <input type="tel" id="prof-mobile" name="mobile" class="form-control form-control-glass">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Email Address</label>
+                  <input type="email" id="prof-email" class="form-control form-control-glass" readonly disabled>
+                </div>
+                <div class="col-12 border-top pt-3 mt-4">
+                  <h6 class="fw-bold text-primary mb-3">Sports Specialization</h6>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Playing Position / Role</label>
+                  <input type="text" id="prof-position" name="position" class="form-control form-control-glass" placeholder="e.g. Batsman, Goalkeeper, Raider">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Preferred Jersey Number</label>
+                  <input type="number" id="prof-jersey" name="jerseyNumber" class="form-control form-control-glass">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold">Playing Experience</label>
+                  <input type="text" id="prof-exp" name="experience" class="form-control form-control-glass" placeholder="e.g. 2 Years">
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold">Athletic Bio / Achievements Summary</label>
+                  <textarea id="prof-bio" name="bio" class="form-control form-control-glass" rows="3" placeholder="Describe your sports background..."></textarea>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-bold">Update Profile Photo</label>
+                  <input type="file" name="profilePhoto" class="form-control form-control-glass" accept="image/*">
+                </div>
+                <div class="col-12 mt-4">
+                  <button type="submit" class="btn btn-sports-primary px-4">
+                    <i class="bi bi-save me-1"></i> Save Changes
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- VIEW 3: MY SPORTS -->
+        <section id="view-sports" class="student-view-section d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">Sports Disciplines</h4>
+              <small class="text-secondary">College sports training programs available for enrollment</small>
+            </div>
+          </div>
+          <div class="row g-4" id="student-sports-list">
+            <!-- Loaded via student.js -->
+          </div>
+        </section>
+
+        <!-- VIEW 4: COMPETITIONS -->
+        <section id="view-competitions" class="student-view-section d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">Collegiate Tournaments</h4>
+              <small class="text-secondary">Explore open tournaments and click Register to submit your player application</small>
+            </div>
+            <button class="btn btn-sm btn-outline-primary" onclick="switchStudentView('applications')">
+              <i class="bi bi-file-earmark-check me-1"></i> My Application Status
+            </button>
+          </div>
+          <div id="student-all-competitions-list">
+            <!-- Loaded via student.js -->
+          </div>
+        </section>
+
+        <!-- VIEW 5: MY APPLICATIONS -->
+        <section id="view-applications" class="student-view-section d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">My Tournament Applications</h4>
+              <small class="text-secondary">Live review status from Physical Education & Sports Incharge</small>
+            </div>
+            <button class="btn btn-sm btn-sports-primary" onclick="switchStudentView('competitions')">
+              <i class="bi bi-plus-circle me-1"></i> Register for Another Event
+            </button>
+          </div>
+          <div class="table-glass-container">
+            <table class="table table-glass">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Competition Title</th>
+                  <th>Applied On</th>
+                  <th>Preferred Position</th>
+                  <th>Approval Status</th>
+                  <th>Incharge Remarks</th>
+                </tr>
+              </thead>
+              <tbody id="student-applications-table">
+                <!-- Loaded via student.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VIEW 6: MY TEAM -->
+        <section id="view-team" class="student-view-section d-none">
+          <div class="mb-4">
+            <h4 class="fw-bold text-dark mb-0">
+              <i class="bi bi-shield-shaded text-primary me-2"></i>My College Sports Team
+            </h4>
+            <small class="text-secondary">Official sports squads formed for your department and college with captain details</small>
+          </div>
+          <div id="student-team-container">
+            <!-- Loaded via student.js -->
+          </div>
+        </section>
+
+        <!-- VIEW 7: MY EQUIPMENT (SECTIONS 11, 12, 13, 20, 22, 24) -->
+        <section id="view-equipment" class="student-view-section d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary bg-opacity-20 text-primary border border-primary border-opacity-30 px-2.5 py-1 fw-bold">
+                  <i class="bi bi-box-seam-fill me-1"></i> ATHLETE GEAR INVENTORY
+                </span>
+                <span class="badge badge-glass-success">Live Sync Active</span>
+              </div>
+              <h3 class="fw-bold text-dark mb-0">My Sports Equipment</h3>
+              <small class="text-secondary">Track your issued sports gear, due dates, return statuses, and borrowing history</small>
+            </div>
+            <button class="btn btn-sm btn-glass shadow-sm" onclick="loadStudentEquipment()">
+              <i class="bi bi-arrow-clockwise me-1"></i> Refresh Status
+            </button>
+          </div>
+
+          <!-- Section 22: STUDENT OVERDUE NOTIFICATION BANNER -->
+          <div id="student-eq-overdue-banner" class="alert alert-danger d-none border border-danger shadow-sm p-3 rounded-4 mb-4" style="background: rgba(255, 82, 82, 0.12);">
+            <div class="d-flex align-items-start gap-3">
+              <div class="fs-2 text-danger lh-1"><i class="bi bi-exclamation-triangle-fill"></i></div>
+              <div>
+                <h5 class="fw-bold text-danger mb-1">⚠️ Equipment Return Reminder</h5>
+                <p class="text-danger-emphasis small mb-0" id="student-eq-overdue-msg">
+                  Your equipment return date has passed. Please return the equipment to the Sports Office / Sports Mam immediately.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 12: STUDENT EQUIPMENT DASHBOARD STATS CARDS -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="glass-card stat-card border border-primary border-opacity-20">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-box-seam-fill"></i></div>
+                <div>
+                  <div class="stat-value text-primary" id="student-stat-currently-issued">0</div>
+                  <div class="stat-label">Currently Issued</div>
+                  <small class="text-muted">In your possession</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="glass-card stat-card border border-success border-opacity-20">
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle-fill"></i></div>
+                <div>
+                  <div class="stat-value text-success" id="student-stat-returned">0</div>
+                  <div class="stat-label">Returned</div>
+                  <small class="text-muted">Safely checked back in</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="glass-card stat-card border border-danger border-opacity-20">
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-clock-history"></i></div>
+                <div>
+                  <div class="stat-value text-danger" id="student-stat-overdue">0</div>
+                  <div class="stat-label">Overdue</div>
+                  <small class="text-danger fw-bold" id="student-stat-overdue-sub">No overdue gear</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 11: CURRENTLY ISSUED GEAR (MODERN CARDS) -->
+          <div class="mb-5">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <h5 class="fw-bold text-dark mb-0">
+                <i class="bi bi-arrow-right-circle text-primary me-2"></i>Currently Issued Gear
+              </h5>
+              <span class="badge bg-primary bg-opacity-15 text-primary fw-bold" id="student-active-count-badge">0 Item(s)</span>
+            </div>
+            <div id="student-active-equipment-cards" class="row g-3">
+              <!-- Loaded via student.js -->
+            </div>
+          </div>
+
+          <!-- Section 24: MY EQUIPMENT HISTORY -->
+          <div>
+            <h5 class="fw-bold text-secondary mb-3">
+              <i class="bi bi-journal-check me-2"></i>Previous Equipment History
+            </h5>
+            <div class="table-responsive table-glass-container">
+              <table class="table table-glass align-middle">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Equipment Name</th>
+                    <th>Qty</th>
+                    <th>Issued Date & Time</th>
+                    <th>Return Date & Time</th>
+                    <th>Condition Checked</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="student-history-equipment-table">
+                  <!-- Loaded via student.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 10: ACHIEVEMENTS -->
+        <section id="view-achievements" class="student-view-section d-none">
+          <div class="mb-4">
+            <h4 class="fw-bold text-dark mb-0">My Medals & Honours</h4>
+            <small class="text-secondary">Honours won representing Government Arts and Science College, Idappadi</small>
+          </div>
+          <div class="row g-3" id="student-achievements-list">
+            <!-- Loaded via student.js -->
+          </div>
+        </section>
+
+        <!-- VIEW 11: NOTIFICATIONS -->
+        <section id="view-notifications" class="student-view-section d-none">
+          <div class="mb-4">
+            <h4 class="fw-bold text-dark mb-0">Notifications Inbox</h4>
+            <small class="text-secondary">Official announcements from Sports Incharge & Department</small>
+          </div>
+          <div id="student-notifications-list">
+            <!-- Loaded via student.js -->
+          </div>
+        </section>
+
+        <!-- VIEW 12: EXTERNAL COMPETITIONS -->
+        <section id="view-external-competitions" class="student-view-section d-none">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">
+                <i class="bi bi-globe2 text-primary me-2"></i>External Sports Meets & Open Tournaments
+              </h4>
+              <small class="text-secondary">Open competitions across Tamil Nadu, Inter-Collegiate, State & National Meets with direct online registration</small>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <input type="text" id="student-ec-search" class="form-control form-control-sm form-control-glass" placeholder="Search tournaments..." style="max-width: 220px;" oninput="loadStudentExternalCompetitions()">
+              <select id="student-ec-filter-level" class="form-select form-select-sm form-select-glass" style="max-width: 150px;" onchange="loadStudentExternalCompetitions()">
+                <option value="All">All Levels</option>
+                <option value="University">University</option>
+                <option value="District">District</option>
+                <option value="State">State</option>
+                <option value="National">National</option>
+                <option value="Open">Open</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-4" id="student-ec-cards">
+            <!-- Loaded via student.js -->
+          </div>
+        </section>
+
+        <!-- VIEW 13: SPORTS NEWS & ANNOUNCEMENTS -->
+        <section id="view-news" class="student-view-section d-none">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+            <div>
+              <h4 class="fw-bold text-dark mb-0">
+                <i class="bi bi-newspaper text-primary me-2"></i>Sports News & Department Circulars
+              </h4>
+              <small class="text-secondary">Latest athletic announcements, selection trials, camp notices, and tournament reports</small>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <input type="text" id="student-sn-search" class="form-control form-control-sm form-control-glass" placeholder="Search news..." style="max-width: 220px;" oninput="loadStudentSportsNews()">
+              <select id="student-sn-filter-category" class="form-select form-select-sm form-select-glass" style="max-width: 180px;" onchange="loadStudentSportsNews()">
+                <option value="All">All Categories</option>
+                <option value="Tournament">Tournament</option>
+                <option value="Competition">Competition</option>
+                <option value="Selection Trial">Selection Trial</option>
+                <option value="Sports Announcement">Announcement</option>
+                <option value="Achievement">Achievement</option>
+                <option value="Training">Training</option>
+                <option value="Team News">Team News</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-4" id="student-sn-cards">
+            <!-- Loaded via student.js -->
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal: Register for Competition -->
+  <div class="modal fade" id="competitionRegisterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-2">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold text-dark">Register for Tournament</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-primary py-2 small mb-3">
+            <strong id="modal-comp-title">Tournament Name</strong>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Preferred Playing Position / Role</label>
+            <input type="text" id="comp-position" class="form-control form-control-glass" placeholder="e.g. Opening Batsman, Setter, Raider">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Remarks / Past Tournament Experience</label>
+            <textarea id="comp-remarks" class="form-control form-control-glass" rows="3" placeholder="Mention any past district/school achievements..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" id="btn-submit-registration" class="btn btn-sports-accent" onclick="submitCompetitionRegistration()">
+            Confirm Registration
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================
+       MOBILE BOTTOM NAVIGATION BAR (Phone UI)
+       ===================================================== -->
+  <div class="mobile-bottom-nav" id="mobileBottomNav">
+    <button class="mob-nav-item active" data-view="dashboard" onclick="mobileNav('dashboard',this)">
+      <i class="bi bi-speedometer2"></i>
+      <span>Home</span>
+    </button>
+    <button class="mob-nav-item" data-view="sports" onclick="mobileNav('sports',this)">
+      <i class="bi bi-trophy"></i>
+      <span>Sports</span>
+    </button>
+    <button class="mob-nav-item" data-view="competitions" onclick="mobileNav('competitions',this)">
+      <i class="bi bi-flag"></i>
+      <span>Events</span>
+    </button>
+    <button class="mob-nav-item" data-view="profile" onclick="mobileNav('profile',this)">
+      <i class="bi bi-person-badge"></i>
+      <span>Profile</span>
+    </button>
+    <button class="mob-nav-item" onclick="toggleMoreDrawer(this)">
+      <i class="bi bi-grid-3x3-gap"></i>
+      <span>More</span>
+    </button>
+  </div>
+
+  <!-- More Drawer (hidden by default, slides up) -->
+  <div class="mob-more-drawer" id="mobMoreDrawer">
+    <button class="mob-drawer-item" data-view="team" onclick="mobileNavDrawer('team')">
+      <i class="bi bi-shield-shaded"></i>My Team
+    </button>
+    <button class="mob-drawer-item" data-view="equipment" onclick="mobileNavDrawer('equipment')">
+      <i class="bi bi-box-seam"></i>Equipment
+    </button>
+    <button class="mob-drawer-item" data-view="achievements" onclick="mobileNavDrawer('achievements')">
+      <i class="bi bi-award"></i>Awards
+    </button>
+    <button class="mob-drawer-item" data-view="applications" onclick="mobileNavDrawer('applications')">
+      <i class="bi bi-file-earmark-check"></i>My Applies
+    </button>
+    <button class="mob-drawer-item" data-view="external-competitions" onclick="mobileNavDrawer('external-competitions')">
+      <i class="bi bi-globe2"></i>External
+    </button>
+    <button class="mob-drawer-item" data-view="news" onclick="mobileNavDrawer('news')">
+      <i class="bi bi-newspaper"></i>News
+    </button>
+    <button class="mob-drawer-item" data-view="notifications" onclick="mobileNavDrawer('notifications')">
+      <i class="bi bi-bell"></i>Alerts
+    </button>
+    <a href="/index.html" class="mob-drawer-item text-decoration-none">
+      <i class="bi bi-house-door"></i>Public Home
+    </a>
+    <button class="mob-drawer-item" onclick="logout(); closeMoreDrawer();" style="color:#ff5252;">
+      <i class="bi bi-box-arrow-right" style="color:#ff5252;"></i>Sign Out
+    </button>
+  </div>
+  <!-- Modal: View Student Equipment Details (Section 13) -->
+  <div class="modal fade" id="studentViewEquipmentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card p-3 shadow-lg border border-primary border-opacity-30">
+        <div class="modal-header border-0 pb-1">
+          <h5 class="modal-title fw-bold text-dark">Issued Equipment Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-3">
+          <div class="text-center mb-3">
+            <div id="stud-modal-eq-badge" class="d-flex justify-content-center mb-2"></div>
+            <h5 class="fw-bold text-dark mt-2 mb-1" id="stud-modal-eq-name">Equipment</h5>
+            <span class="badge badge-glass-primary" id="stud-modal-eq-status">ISSUED</span>
+          </div>
+          <div class="p-3 rounded-4 bg-dark bg-opacity-10 border border-secondary border-opacity-25">
+            <div class="row g-2 small">
+              <div class="col-5 text-muted">Quantity:</div>
+              <div class="col-7 fw-bold text-dark" id="stud-modal-eq-qty">1 Unit</div>
+
+              <div class="col-5 text-muted">Issue Date:</div>
+              <div class="col-7 text-dark" id="stud-modal-eq-issue-date">-</div>
+
+              <div class="col-5 text-muted">Issue Time:</div>
+              <div class="col-7 text-dark" id="stud-modal-eq-issue-time">-</div>
+
+              <div class="col-5 text-muted">Expected Return:</div>
+              <div class="col-7 fw-bold text-danger" id="stud-modal-eq-expected-date">-</div>
+
+              <div class="col-5 text-muted">Return Date:</div>
+              <div class="col-7 text-dark" id="stud-modal-eq-return-date">-</div>
+
+              <div class="col-5 text-muted">Return Time:</div>
+              <div class="col-7 text-dark" id="stud-modal-eq-return-time">-</div>
+
+              <div class="col-5 text-muted">Issued By:</div>
+              <div class="col-7 fw-bold text-dark" id="stud-modal-eq-issued-by">Sports Incharge</div>
+
+              <div class="col-5 text-muted">Purpose / Remarks:</div>
+              <div class="col-7 text-dark" id="stud-modal-eq-remarks">College Practice</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-glass w-100" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/config.js?v=20260927_emoji_v6"></script>
+  <script src="js/api.js?v=20260927_emoji_v6"></script>
+  <script src="js/student.js?v=20260927_emoji_v6"></script>
+  <script>
+    // Mobile Navigation Helper Functions
+    function mobileNav(view, btn) {
+      closeMoreDrawer();
+      switchStudentView(view);
+      document.querySelectorAll('.mob-nav-item').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+    function mobileNavDrawer(view) {
+      closeMoreDrawer();
+      switchStudentView(view);
+      document.querySelectorAll('.mob-nav-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.mob-drawer-item').forEach(b => b.classList.remove('active'));
+      document.querySelector(`.mob-drawer-item[data-view="${view}"]`)?.classList.add('active');
+    }
+    function toggleMoreDrawer(btn) {
+      const drawer = document.getElementById('mobMoreDrawer');
+      const overlay = document.getElementById('mobOverlay');
+      const isOpen = drawer.classList.contains('open');
+      if (isOpen) { closeMoreDrawer(); }
+      else {
+        drawer.classList.add('open');
+        overlay.classList.add('show');
+        if (btn) btn.classList.add('active');
+      }
+    }
+    function closeMoreDrawer() {
+      document.getElementById('mobMoreDrawer').classList.remove('open');
+      document.getElementById('mobOverlay').classList.remove('show');
+      const moreBtn = document.querySelector('.mob-nav-item:last-child');
+      if (moreBtn) moreBtn.classList.remove('active');
+    }
+  </script>
+</body>
+</html>
