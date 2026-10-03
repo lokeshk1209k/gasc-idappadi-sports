@@ -118,40 +118,56 @@ const sportEmoji: Record<string, string> = {
 };
 
 const getStoredTournaments = (): Tournament[] => {
+  const baseMap: Record<string, Tournament> = {
+    'FLASH': { ...FLASH_TOURNAMENT, sports: [...FLASH_TOURNAMENT.sports] },
+    'SPARK 2026': { ...DEFAULT_TOURNAMENT, sports: [...DEFAULT_TOURNAMENT.sports] }
+  };
+
   try {
     const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
     if (Array.isArray(custom) && custom.length > 0) {
-      const extraList: Tournament[] = custom.map((c: any, idx: number) => ({
-        id: c.id || `custom_tour_${idx}`,
-        tournamentName: c.tournamentName || c.name || 'Annual Sports Meet',
-        description: c.description || 'Collegiate Sports Tournament',
-        startDate: c.date ? String(c.date).split('T')[0] : '2026-10-15',
-        endDate: c.registrationEnd ? String(c.registrationEnd).split('T')[0] : '2026-10-20',
-        venue: c.venue || 'GASC Idappadi Sports Ground',
-        bannerImage: c.bannerImage || '/images/sports/tournament.png',
-        status: c.status || 'Registration Open',
-        sports: [
-          {
-            id: String(c.id || `custom_sp_${idx}`),
-            name: c.name || c.sportName || 'Championship Event',
-            sportName: c.sportName || c.name || 'General',
-            type: c.type || 'Team Event',
-            date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 15, 2026',
-            startTime: c.startTime || '09:00 AM',
-            endTime: c.endTime || '05:00 PM',
-            registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
-            venue: c.venue || 'GASC Idappadi Sports Ground',
-            maxParticipants: c.maxParticipants || 50,
-            currentRegistrations: 0,
-            status: c.status || 'Registration Open',
-            description: c.description || 'Tournament competition'
+      custom.forEach((c: any, idx: number) => {
+        const tName = c.tournamentName || c.tournament_name || (c.name || '').split('-')[0].trim() || 'Collegiate Tournament';
+        const sName = c.sportName || c.name || 'General';
+        const sportItem: SportCompetition = {
+          id: String(c.id || c._id || `custom_sp_${idx}`),
+          name: c.name || `${sName} Event`,
+          sportName: sName,
+          type: (c.type && c.type.includes('Team')) ? 'Team Event' : 'Individual Event',
+          date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 15, 2026',
+          startTime: c.startTime || '09:00 AM',
+          endTime: c.endTime || '05:00 PM',
+          registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
+          venue: c.venue || 'GASC Idappadi Sports Ground',
+          maxParticipants: Number(c.maxParticipants) || 50,
+          currentRegistrations: c.currentRegistrations || 0,
+          status: c.status || 'Registration Open',
+          description: c.description || `${sName} competition inside ${tName}.`
+        };
+
+        if (baseMap[tName]) {
+          const already = baseMap[tName].sports.some(s => s.id === sportItem.id || s.name === sportItem.name);
+          if (!already) {
+            baseMap[tName].sports.unshift(sportItem);
           }
-        ]
-      }));
-      return [...extraList, FLASH_TOURNAMENT, DEFAULT_TOURNAMENT];
+        } else {
+          baseMap[tName] = {
+            id: c.tournamentId || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+            tournamentName: tName,
+            description: c.description || `Annual collegiate ${tName} event.`,
+            startDate: c.date ? String(c.date).split('T')[0] : '2026-10-15',
+            endDate: c.registrationEnd ? String(c.registrationEnd).split('T')[0] : '2026-10-20',
+            venue: c.venue || 'GASC Idappadi Sports Ground',
+            bannerImage: c.bannerImage || '/images/sports/tournament.png',
+            status: c.status || 'Registration Open',
+            sports: [sportItem]
+          };
+        }
+      });
     }
   } catch {}
-  return [FLASH_TOURNAMENT, DEFAULT_TOURNAMENT];
+
+  return Object.values(baseMap);
 };
 
 const CompetitionsPage = () => {
@@ -280,15 +296,33 @@ const CompetitionsPage = () => {
   // ── 2. Fetch Tournaments and Group Sports ──────────────────────────────────
   const fetchTournaments = async () => {
     try {
-      let res = await fetch('/api/competitions');
-      if (!res.ok) {
-        res = await fetch('/competitions.json');
+      let rawList: any[] = [];
+      try {
+        const res = await fetch('/api/competitions');
+        const cType = res.headers.get('content-type') || '';
+        if (res.ok && cType.includes('application/json')) {
+          const data = await res.json();
+          rawList = data.competitions || data.data || (Array.isArray(data) ? data : []);
+        } else {
+          throw new Error('Static fallback needed');
+        }
+      } catch {
+        try {
+          const fRes = await fetch('/competitions.json');
+          const fData = await fRes.json();
+          rawList = fData.competitions || [];
+        } catch {}
       }
-      const data = await res.json();
-      const rawList = data.competitions || data.data || (Array.isArray(data) ? data : []);
 
-      if (data.success && Array.isArray(rawList) && rawList.length > 0) {
-        // Group competitions by tournament_name
+      // Merge with custom tournaments from localStorage
+      try {
+        const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+        if (Array.isArray(custom) && custom.length > 0) {
+          rawList = [...custom, ...rawList];
+        }
+      } catch {}
+
+      if (rawList.length > 0) {
         const groupMap: Record<string, Tournament> = {};
 
         rawList.forEach((c: any) => {
@@ -310,28 +344,40 @@ const CompetitionsPage = () => {
             };
           }
 
-          groupMap[tName].sports.push({
-            id: String(c.id || c._id),
-            name: c.name || `${sName} Event`,
-            sportName: sName,
-            type: c.type && c.type.includes('Team') ? 'Team Event' : 'Individual Event',
-            date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
-            startTime: c.startTime || '09:00 AM',
-            endTime: c.endTime || '05:00 PM',
-            registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 08, 2026',
-            venue: c.venue || groupMap[tName].venue,
-            maxParticipants: c.maxParticipants || 50,
-            currentRegistrations: c.currentRegistrations || 0,
-            status: c.status || 'Registration Open',
-            description: c.description || `${sName} competition inside ${tName}.`
-          });
+          const sportIdStr = String(c.id || c._id);
+          const alreadyExists = groupMap[tName].sports.some(s => s.id === sportIdStr || s.name === c.name);
+          if (!alreadyExists) {
+            groupMap[tName].sports.push({
+              id: sportIdStr,
+              name: c.name || `${sName} Event`,
+              sportName: sName,
+              type: c.type && c.type.includes('Team') ? 'Team Event' : 'Individual Event',
+              date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
+              startTime: c.startTime || '09:00 AM',
+              endTime: c.endTime || '05:00 PM',
+              registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 08, 2026',
+              venue: c.venue || groupMap[tName].venue,
+              maxParticipants: c.maxParticipants || 50,
+              currentRegistrations: c.currentRegistrations || 0,
+              status: c.status || 'Registration Open',
+              description: c.description || `${sName} competition inside ${tName}.`
+            });
+          }
         });
 
-        const list = Object.values(groupMap);
-        setTournaments(list);
+        // Ensure FLASH and SPARK 2026 are always present
+        if (!groupMap['FLASH']) groupMap['FLASH'] = FLASH_TOURNAMENT;
+        if (!groupMap['SPARK 2026']) groupMap['SPARK 2026'] = DEFAULT_TOURNAMENT;
+
+        setTournaments(Object.values(groupMap));
+      } else {
+        setTournaments(getStoredTournaments());
       }
-    } catch { /* keep defaults */ }
-    setLoading(false);
+    } catch {
+      setTournaments(getStoredTournaments());
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── 3. Fetch Student Registrations & Official Team Assignment Status ──────
@@ -407,7 +453,7 @@ const CompetitionsPage = () => {
     } catch { /* keep existing */ }
   };
 
-  // ── 4. Live Polling ────────────────────────────────────────────────────────
+  // ── 4. Live Polling & Cross-Tab Sync ───────────────────────────────────────
   useEffect(() => {
     fetchTournaments();
     fetchMyRegistrations();
@@ -416,8 +462,18 @@ const CompetitionsPage = () => {
       fetchMyRegistrations();
     }, 4000);
 
+    const handleStorageUpdate = (e: StorageEvent) => {
+      if (e.key === 'gasc_custom_tournaments') {
+        fetchTournaments();
+      }
+    };
+    window.addEventListener('storage', handleStorageUpdate);
+    window.addEventListener('gasc_tournaments_updated', fetchTournaments);
+
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      window.removeEventListener('storage', handleStorageUpdate);
+      window.removeEventListener('gasc_tournaments_updated', fetchTournaments);
     };
   }, [studentUser.registerNumber, studentUser.id]);
 

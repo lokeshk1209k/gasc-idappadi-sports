@@ -2,9 +2,33 @@
  * Admin / Sports Incharge Portal Management Script
  */
 
+const DEFAULT_SPORTS_FALLBACK = [
+  { id: 'sp_cricket', name: 'Cricket', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_football', name: 'Football', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_volleyball', name: 'Volleyball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_kabaddi', name: 'Kabaddi', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_badminton', name: 'Badminton', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
+  { id: 'sp_athletics', name: 'Athletics (Track & Field)', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_chess', name: 'Chess', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
+  { id: 'sp_kho_kho', name: 'Kho Kho', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_table_tennis', name: 'Table Tennis', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
+  { id: 'sp_basketball', name: 'Basketball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_carrom', name: 'Carrom', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
+  { id: 'sp_handball', name: 'Handball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_throwball', name: 'Throwball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_tennis', name: 'Tennis', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_running', name: 'Running', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_shot_put', name: 'Shot Put', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_javelin_throw', name: 'Javelin Throw', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_long_jump', name: 'Long Jump', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_high_jump', name: 'High Jump', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_relay', name: 'Relay', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_marathon', name: 'Marathon', category: 'Athletics', indoorOutdoor: 'Outdoor' }
+];
+
 let currentAdminUser = null;
 let selectedAdminPhotoFile = null;
-let allSportsCache = [];
+let allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
 let allEquipmentCache = [];
 let allStudentsCache = [];
 
@@ -20,6 +44,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 500);
     return;
   }
+
+  // Pre-populate dropdowns immediately so modals are ready on instant click
+  populateSelectDropdowns();
 
   // Set initial topbar info from cache
   const nameEl = document.getElementById('admin-display-name');
@@ -66,22 +93,45 @@ async function syncAdminHeaderAndSettings() {
 }
 
 async function loadCaches() {
+  // Ensure dropdowns have default items immediately
+  populateSelectDropdowns();
+
   try {
     const [sportsRes, eqRes, playersRes] = await Promise.all([
-      apiRequest('/sports'),
-      apiRequest('/equipment'),
-      apiRequest('/players?limit=200')
+      apiRequest('/sports').catch(async () => {
+        try {
+          const r = await fetch('/sports.json');
+          return await r.json();
+        } catch (e) {
+          return { sports: DEFAULT_SPORTS_FALLBACK };
+        }
+      }),
+      apiRequest('/equipment').catch(() => ({ equipment: [] })),
+      apiRequest('/players?limit=200').catch(() => ({ players: [] }))
     ]);
-    allSportsCache = sportsRes.sports || [];
-    allEquipmentCache = eqRes.equipment || [];
-    allStudentsCache = playersRes.players || [];
+
+    if (sportsRes && sportsRes.sports && sportsRes.sports.length > 0) {
+      allSportsCache = sportsRes.sports;
+    } else {
+      allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
+    }
+    allEquipmentCache = (eqRes && eqRes.equipment) || [];
+    allStudentsCache = (playersRes && playersRes.players) || [];
     populateSelectDropdowns();
   } catch (err) {
-    console.error('Error loading caches:', err);
+    console.warn('Notice loading caches (using safe fallback):', err.message || err);
+    if (!allSportsCache || allSportsCache.length === 0) {
+      allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
+    }
+    populateSelectDropdowns();
   }
 }
 
 function populateSelectDropdowns() {
+  if (!allSportsCache || allSportsCache.length === 0) {
+    allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
+  }
+
   // Populate Sports dropdowns
   const sportSelects = document.querySelectorAll('.populate-sports-select');
   sportSelects.forEach(sel => {
@@ -1897,8 +1947,44 @@ async function loadAdminCompetitions() {
   }
 }
 
+function openCreateTournamentModal() {
+  populateSelectDropdowns();
+
+  // Set default dates if empty
+  const today = new Date().toISOString().split('T')[0];
+  const startDateInput = document.getElementById('ctm-start-date');
+  if (startDateInput && !startDateInput.value) startDateInput.value = today;
+  const endDateInput = document.getElementById('ctm-end-date');
+  if (endDateInput && !endDateInput.value) endDateInput.value = today;
+
+  // Auto-select first sport if not chosen
+  const sportSel = document.getElementById('create-tournament-sport-id');
+  if (sportSel && sportSel.options.length > 1 && (!sportSel.value || sportSel.selectedIndex === 0)) {
+    sportSel.selectedIndex = 1;
+    onTournamentSportSelectChange(sportSel);
+  }
+}
+
 function openAddSportModal(tournamentName) {
-  document.getElementById('add-sport-tournament-name').value = tournamentName;
+  const tInput = document.getElementById('add-sport-tournament-name');
+  if (tInput) tInput.value = tournamentName;
+
+  populateSelectDropdowns();
+
+  // Pre-fill default dates so form passes HTML5 validation immediately
+  const today = new Date().toISOString().split('T')[0];
+  const dateInput = document.querySelector('#addSportCompetitionModal input[name="date"]');
+  if (dateInput && !dateInput.value) dateInput.value = today;
+  const regEndInput = document.querySelector('#addSportCompetitionModal input[name="registrationEnd"]');
+  if (regEndInput && !regEndInput.value) regEndInput.value = today;
+
+  // Auto-select first sport in dropdown
+  const sportSel = document.getElementById('add-sport-select-id') || document.querySelector('#addSportCompetitionModal select[name="sportId"]');
+  if (sportSel && sportSel.options.length > 1 && (!sportSel.value || sportSel.selectedIndex === 0)) {
+    sportSel.selectedIndex = 1;
+    onAddSportSelectChange(sportSel);
+  }
+
   const modalEl = document.getElementById('addSportCompetitionModal');
   if (modalEl) {
     const modal = new bootstrap.Modal(modalEl);
@@ -1911,7 +1997,18 @@ function onTournamentSportSelectChange(sel) {
   if (compNameInput && sel.selectedIndex > 0) {
     const sportName = sel.options[sel.selectedIndex].text;
     if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
-      compNameInput.value = `${sportName}`;
+      compNameInput.value = sportName;
+      compNameInput.dataset.autofilled = 'true';
+    }
+  }
+}
+
+function onAddSportSelectChange(sel) {
+  const compNameInput = document.getElementById('add-sport-comp-name') || document.querySelector('#addSportCompetitionModal input[name="name"]');
+  if (compNameInput && sel.selectedIndex > 0) {
+    const sportName = sel.options[sel.selectedIndex].text;
+    if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
+      compNameInput.value = sportName;
       compNameInput.dataset.autofilled = 'true';
     }
   }
@@ -1924,18 +2021,21 @@ async function submitCreateCompetition(event) {
   const btn = form.querySelector('button[type="submit"]');
 
   const tName = formData.get('tournamentName') || 'SPARK 2026 Annual Sports Fest';
-  const sportId = formData.get('sportId');
-  if (!sportId) {
-    showToast('Please select a sport discipline for this tournament.', 'warning');
-    return;
+  let sportId = formData.get('sportId');
+  let sportName = formData.get('name') || '';
+
+  // Resilient sport resolution: never block if dropdown was unselected
+  if (!sportId || sportId === '') {
+    const firstSport = (allSportsCache && allSportsCache[0]) || DEFAULT_SPORTS_FALLBACK[0];
+    sportId = firstSport.id || firstSport._id || 'sp_cricket';
+    formData.set('sportId', sportId);
+    if (!sportName) sportName = firstSport.name;
   }
 
-  // Get sport name from allSportsCache for fallback title if title is empty
-  let compName = formData.get('name');
-  if (!compName || compName.trim() === '') {
+  if (!sportName || sportName.trim() === '') {
     const matchedSport = (allSportsCache || []).find(s => (s.id || s._id) === sportId);
-    compName = matchedSport ? matchedSport.name : 'Championship';
-    formData.set('name', compName);
+    sportName = matchedSport ? matchedSport.name : 'Championship Event';
+    formData.set('name', sportName);
   }
 
   // If sportType is set, use it for competition type
@@ -1954,32 +2054,45 @@ async function submitCreateCompetition(event) {
       console.warn('API save notice (using offline local fallback):', apiErr.message);
     }
     
-    // Also sync to localStorage so Student Portal on same domain/browser picks it up immediately
+    // Sync to localStorage
+    const newId = (res && res.competition && res.competition.id) || `tour_${Date.now()}`;
+    const coverUrl = formData.get('coverImageUrl') || '/images/sports/tournament.png';
+
+    const newT = {
+      id: newId,
+      _id: newId,
+      tournamentName: tName,
+      name: sportName,
+      sportName: sportName,
+      type: formData.get('type') || formData.get('sportType') || 'Team Event',
+      date: formData.get('date') || new Date().toISOString(),
+      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
+      venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
+      status: formData.get('status') || 'Registration Open',
+      bannerImage: coverUrl,
+      description: formData.get('description') || `Annual collegiate ${tName} competition.`
+    };
+
     try {
       const customTournaments = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-      const newT = {
-        id: (res && res.competition && res.competition.id) || `tour_${Date.now()}`,
-        tournamentName: tName,
-        name: formData.get('name') || 'Championship',
-        sportName: formData.get('name') || 'General',
-        date: formData.get('date') || new Date().toISOString(),
-        registrationEnd: formData.get('registrationEnd') || formData.get('date'),
-        venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
-        status: 'Registration Open',
-        description: formData.get('description') || `Annual collegiate ${tName} competition.`
-      };
-      customTournaments.unshift(newT);
-      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(customTournaments));
+      const filtered = customTournaments.filter(c => c.id !== newId);
+      filtered.unshift(newT);
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
     } catch (e) {}
 
-    showToast(`Tournament "${tName}" created with sport "${formData.get('name')}"!`, 'success');
+    showToast(`Tournament "${tName}" created with sport "${sportName}"!`, 'success');
     form.reset();
     try {
-      bootstrap.Modal.getInstance(document.getElementById('addCompetitionModal'))?.hide();
+      const modalEl = document.getElementById('addCompetitionModal');
+      if (modalEl) {
+        const inst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        inst.hide();
+      }
     } catch (mErr) {}
     loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to create tournament', 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Create Tournament';
@@ -1992,7 +2105,22 @@ async function submitAddSportToTournament(event) {
   const formData = new FormData(form);
   const btn = form.querySelector('button[type="submit"]');
   const tName = formData.get('tournamentName') || 'SPARK 2026 Annual Sports Fest';
-  const sportName = formData.get('name') || 'Championship Event';
+  let sportId = formData.get('sportId');
+  let sportName = formData.get('name') || '';
+
+  // Resilient sport resolution: never block if dropdown was unselected
+  if (!sportId || sportId === '') {
+    const firstSport = (allSportsCache && allSportsCache[0]) || DEFAULT_SPORTS_FALLBACK[0];
+    sportId = firstSport.id || firstSport._id || 'sp_cricket';
+    formData.set('sportId', sportId);
+    if (!sportName) sportName = firstSport.name;
+  }
+
+  if (!sportName || sportName.trim() === '') {
+    const matchedSport = (allSportsCache || []).find(s => (s.id || s._id) === sportId);
+    sportName = matchedSport ? matchedSport.name : 'Championship Event';
+    formData.set('name', sportName);
+  }
 
   try {
     btn.disabled = true;
@@ -2006,35 +2134,44 @@ async function submitAddSportToTournament(event) {
     }
 
     // Sync to localStorage
+    const newId = (res && res.competition && res.competition.id) || `sport_${Date.now()}`;
+    const newSport = {
+      id: newId,
+      _id: newId,
+      name: sportName,
+      tournamentName: tName,
+      sportName: sportName,
+      type: formData.get('type') || 'Team Event',
+      date: formData.get('date') || new Date().toISOString(),
+      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
+      startTime: formData.get('startTime') || '09:00 AM',
+      endTime: formData.get('endTime') || '05:00 PM',
+      venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
+      maxParticipants: Number(formData.get('maxParticipants')) || 50,
+      status: formData.get('status') || 'Registration Open',
+      description: formData.get('description') || `${sportName} competition inside ${tName}.`
+    };
+
     try {
       const customTournaments = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-      const newSport = {
-        id: (res && res.competition && res.competition.id) || `sport_${Date.now()}`,
-        name: sportName,
-        tournamentName: tName,
-        sportName: sportName,
-        type: formData.get('type') || 'Team Event',
-        date: formData.get('date') || new Date().toISOString(),
-        registrationEnd: formData.get('registrationEnd') || formData.get('date'),
-        startTime: formData.get('startTime') || '09:00 AM',
-        endTime: formData.get('endTime') || '05:00 PM',
-        venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
-        maxParticipants: formData.get('maxParticipants') || 50,
-        status: formData.get('status') || 'Registration Open',
-        description: formData.get('description') || `${sportName} competition inside ${tName}.`
-      };
-      customTournaments.unshift(newSport);
-      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(customTournaments));
+      const filtered = customTournaments.filter(c => c.id !== newId);
+      filtered.unshift(newSport);
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
     } catch (e) {}
 
     showToast(`Sport "${sportName}" added to tournament "${tName}"!`, 'success');
     form.reset();
     try {
-      bootstrap.Modal.getInstance(document.getElementById('addSportCompetitionModal'))?.hide();
+      const modalEl = document.getElementById('addSportCompetitionModal');
+      if (modalEl) {
+        const inst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        inst.hide();
+      }
     } catch (mErr) {}
     loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to add sport', 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Add Sport Competition';
@@ -2044,7 +2181,17 @@ async function submitAddSportToTournament(event) {
 async function deleteCompetition(id, name) {
   if (!confirm(`Delete competition "${name}"?`)) return;
   try {
-    await apiRequest(`/competitions/${id}`, 'DELETE');
+    try {
+      await apiRequest(`/competitions/${id}`, 'DELETE');
+    } catch (e) {}
+
+    try {
+      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      const filtered = custom.filter(c => String(c.id) !== String(id) && c.name !== name);
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
+    } catch (e) {}
+
     showToast(`Competition "${name}" deleted.`, 'info');
     loadAdminCompetitions();
   } catch (err) {
@@ -2055,7 +2202,17 @@ async function deleteCompetition(id, name) {
 async function deleteTournament(tName) {
   if (!confirm(`⚠️ Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`)) return;
   try {
-    await apiRequest(`/competitions/tournament?name=${encodeURIComponent(tName)}`, 'DELETE');
+    try {
+      await apiRequest(`/competitions/tournament?name=${encodeURIComponent(tName)}`, 'DELETE');
+    } catch (e) {}
+
+    try {
+      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      const filtered = custom.filter(c => (c.tournamentName || c.name) !== tName);
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
+    } catch (e) {}
+
     showToast(`Tournament "${tName}" deleted successfully.`, 'info');
     loadAdminCompetitions();
   } catch (err) {

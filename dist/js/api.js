@@ -72,9 +72,21 @@ async function apiRequest(endpoint, method = 'GET', body = null, isFormData = fa
 
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, options);
-    const data = await response.json();
+    const contentType = response.headers.get('content-type') || '';
+    let data = null;
 
-    if (!response.ok) {
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { success: false, message: `Server returned non-JSON response (${response.status})`, isHtml: true };
+      }
+    }
+
+    if (!response.ok || data.isHtml) {
       if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/admin-login')) {
         // Token expired or invalid
         localStorage.removeItem('gasc_token');
@@ -93,7 +105,7 @@ async function apiRequest(endpoint, method = 'GET', body = null, isFormData = fa
 
     return data;
   } catch (error) {
-    console.error(`API Error [${endpoint}]:`, error);
+    console.warn(`API Notice [${endpoint}]:`, error.message || error);
     throw error;
   }
 }

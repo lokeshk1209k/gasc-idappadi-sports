@@ -974,7 +974,7 @@
               <h4 class="fw-bold text-dark mb-0"><i class="bi bi-trophy-fill text-warning me-2"></i>Tournaments & Sports Competitions Management</h4>
               <small class="text-secondary">Create parent tournaments and manage sports competitions inside each event</small>
             </div>
-            <button class="btn btn-sports-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#addCompetitionModal">
+            <button class="btn btn-sports-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#addCompetitionModal" onclick="openCreateTournamentModal()">
               <i class="bi bi-plus-circle me-1"></i> Create Tournament
             </button>
           </div>
@@ -2419,11 +2419,11 @@
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label small fw-bold"><i class="bi bi-trophy-fill text-warning me-1"></i> Select Sport *</label>
-                <select name="sportId" class="form-select form-select-glass populate-sports-select" required></select>
+                <select name="sportId" id="add-sport-select-id" class="form-select form-select-glass populate-sports-select" required onchange="onAddSportSelectChange(this)"></select>
               </div>
               <div class="col-md-6">
                 <label class="form-label small fw-bold"><i class="bi bi-flag-fill text-primary me-1"></i> Competition Title *</label>
-                <input type="text" name="name" class="form-control form-control-glass" required placeholder="e.g. Men's Cricket">
+                <input type="text" name="name" id="add-sport-comp-name" class="form-control form-control-glass" required placeholder="e.g. Men's Cricket">
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Event Type</label>

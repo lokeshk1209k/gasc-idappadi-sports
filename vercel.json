@@ -3,14 +3,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" },
-    { "source": "/api", "destination": "/api" },
+    { "source": "/api/competitions", "destination": "/competitions.json" },
+    { "source": "/api/competitions.json", "destination": "/competitions.json" },
+    { "source": "/api/sports", "destination": "/sports.json" },
+    { "source": "/api/sports.json", "destination": "/sports.json" },
     { "source": "/admin", "destination": "/admin-dashboard.html" },
     { "source": "/admin/", "destination": "/admin-dashboard.html" },
     { "source": "/admin/dashboard", "destination": "/admin-dashboard.html" },
     { "source": "/admin/login", "destination": "/admin-login.html" },
-    { "source": "/admin/(.*)", "destination": "/api" },
-    { "source": "/uploads/(.*)", "destination": "/api" },
     { "source": "/student/(.*)", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
