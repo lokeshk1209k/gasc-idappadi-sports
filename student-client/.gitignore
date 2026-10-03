@@ -8,8 +8,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
-dist-ssr
+# dist - kept for Vercel deployment (do not ignore)
+# dist-ssr
 *.local
 
 # Editor directories and files

@@ -4,7 +4,8 @@ node_modules/
 uploads/
 android-student-app/
 electron/
-dist/
+# dist/ - only ignore electron build output, not student-client/dist
+electron/dist/
 .DS_Store
 Thumbs.db
 replay_pid*.log
@@ -25,4 +26,4 @@ supabase_schema.sql
 gasc_sports_local.db
 hs_err_pid*.log
 student-client/temp_images/
-student-client/public/images/
+# student-client/public/images/ - images needed for Vercel, don't ignore
