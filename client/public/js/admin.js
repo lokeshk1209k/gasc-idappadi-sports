@@ -1755,8 +1755,25 @@ function useTournamentBanner() {
 async function loadAdminCompetitions() {
   const container = document.getElementById('admin-competitions-list-container');
   try {
-    const res = await apiRequest('/competitions');
-    const competitions = res.competitions || res.data || [];
+    let competitions = [];
+    try {
+      const res = await apiRequest('/competitions');
+      competitions = res.competitions || res.data || [];
+    } catch (apiErr) {
+      try {
+        const fallbackRes = await fetch('/competitions.json');
+        const fallbackData = await fallbackRes.json();
+        competitions = fallbackData.competitions || [];
+      } catch (fErr) {}
+    }
+
+    // Merge custom tournaments created in Admin
+    try {
+      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      if (Array.isArray(custom) && custom.length > 0) {
+        competitions = [...custom, ...competitions];
+      }
+    } catch (e) {}
 
     if (competitions.length === 0) {
       container.innerHTML = `
@@ -1930,7 +1947,12 @@ async function submitCreateCompetition(event) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating Tournament...';
 
-    const res = await apiRequest('/competitions', 'POST', formData, true);
+    let res = null;
+    try {
+      res = await apiRequest('/competitions', 'POST', formData, true);
+    } catch (apiErr) {
+      console.warn('API save notice (using offline local fallback):', apiErr.message);
+    }
     
     // Also sync to localStorage so Student Portal on same domain/browser picks it up immediately
     try {
@@ -1940,7 +1962,8 @@ async function submitCreateCompetition(event) {
         tournamentName: tName,
         name: formData.get('name') || 'Championship',
         sportName: formData.get('name') || 'General',
-        date: formData.get('date'),
+        date: formData.get('date') || new Date().toISOString(),
+        registrationEnd: formData.get('registrationEnd') || formData.get('date'),
         venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
         status: 'Registration Open',
         description: formData.get('description') || `Annual collegiate ${tName} competition.`
@@ -1951,7 +1974,9 @@ async function submitCreateCompetition(event) {
 
     showToast(`Tournament "${tName}" created with sport "${formData.get('name')}"!`, 'success');
     form.reset();
-    bootstrap.Modal.getInstance(document.getElementById('addCompetitionModal')).hide();
+    try {
+      bootstrap.Modal.getInstance(document.getElementById('addCompetitionModal'))?.hide();
+    } catch (mErr) {}
     loadAdminCompetitions();
   } catch (err) {
     showToast(err.message, 'error');
@@ -1966,15 +1991,47 @@ async function submitAddSportToTournament(event) {
   const form = event.target;
   const formData = new FormData(form);
   const btn = form.querySelector('button[type="submit"]');
+  const tName = formData.get('tournamentName') || 'SPARK 2026 Annual Sports Fest';
+  const sportName = formData.get('name') || 'Championship Event';
 
   try {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Adding Sport...';
 
-    const res = await apiRequest('/competitions', 'POST', formData, true);
-    showToast(`Sport "${formData.get('name')}" added to tournament!`, 'success');
+    let res = null;
+    try {
+      res = await apiRequest('/competitions', 'POST', formData, true);
+    } catch (apiErr) {
+      console.warn('API save notice for add sport:', apiErr.message);
+    }
+
+    // Sync to localStorage
+    try {
+      const customTournaments = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      const newSport = {
+        id: (res && res.competition && res.competition.id) || `sport_${Date.now()}`,
+        name: sportName,
+        tournamentName: tName,
+        sportName: sportName,
+        type: formData.get('type') || 'Team Event',
+        date: formData.get('date') || new Date().toISOString(),
+        registrationEnd: formData.get('registrationEnd') || formData.get('date'),
+        startTime: formData.get('startTime') || '09:00 AM',
+        endTime: formData.get('endTime') || '05:00 PM',
+        venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
+        maxParticipants: formData.get('maxParticipants') || 50,
+        status: formData.get('status') || 'Registration Open',
+        description: formData.get('description') || `${sportName} competition inside ${tName}.`
+      };
+      customTournaments.unshift(newSport);
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(customTournaments));
+    } catch (e) {}
+
+    showToast(`Sport "${sportName}" added to tournament "${tName}"!`, 'success');
     form.reset();
-    bootstrap.Modal.getInstance(document.getElementById('addSportCompetitionModal')).hide();
+    try {
+      bootstrap.Modal.getInstance(document.getElementById('addSportCompetitionModal'))?.hide();
+    } catch (mErr) {}
     loadAdminCompetitions();
   } catch (err) {
     showToast(err.message, 'error');

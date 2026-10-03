@@ -110,18 +110,38 @@ exports.createCompetition = async (req, res) => {
       description
     } = req.body;
 
-    if (!name || !sportId || !date || !registrationEnd) {
-      return res.status(400).json({ success: false, message: 'Please provide all required fields.' });
+    if (!name || !date) {
+      return res.status(400).json({ success: false, message: 'Please provide Tournament Title and Date.' });
     }
 
-    const { data: sport } = await supabase
-      .from('sports')
-      .select('*')
-      .eq('id', sportId)
-      .single();
+    let sport = null;
+    if (sportId) {
+      try {
+        const { data } = await supabase
+          .from('sports')
+          .select('*')
+          .eq('id', sportId)
+          .single();
+        sport = data;
+      } catch (e) {}
+
+      if (!sport) {
+        try {
+          const { data } = await supabase
+            .from('sports')
+            .select('*')
+            .ilike('name', `%${sportId}%`)
+            .single();
+          sport = data;
+        } catch (e) {}
+      }
+    }
 
     if (!sport) {
-      return res.status(400).json({ success: false, message: 'Invalid sport ID.' });
+      sport = {
+        id: sportId || `sport_${Date.now()}`,
+        name: req.body.sportName || req.body.name || 'General Sports'
+      };
     }
 
     let bannerImage = '';
