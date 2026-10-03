@@ -1,13 +1,13 @@
 services:
   - type: web
-    name: gasc-idappadi-sports-backend
+    name: gasc-idappadi-sports
     env: node
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    buildCommand: npm install && cd student-client && npm install && npm run build && cd ..
+    startCommand: node server/server.js
     envVars:
       - key: PORT
-        value: 5000
+        value: 10000
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
@@ -33,4 +33,6 @@ services:
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_FROM
         sync: false

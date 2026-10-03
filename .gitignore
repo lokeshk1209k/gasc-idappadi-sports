@@ -13,7 +13,6 @@ replay_pid*.log
 *.exe
 *.apk
 *.aab
-client/public/images/
 client/public/GASC_*
 sample_students_template.xlsx
 generate_*.py
@@ -23,3 +22,5 @@ capacitor.config.json
 import-students.js
 create_tables.sql
 supabase_schema.sql
+gasc_sports_local.db
+hs_err_pid*.log
