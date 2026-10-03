@@ -83,14 +83,79 @@ const DEFAULT_TOURNAMENT: Tournament = {
   sports: DEFAULT_SPORTS
 };
 
+const FLASH_TOURNAMENT: Tournament = {
+  id: 'tour_flash',
+  tournamentName: 'FLASH',
+  description: 'Inter-College Kabaddi Tournament and Zonal State Selection Trials.',
+  startDate: '2026-10-14',
+  endDate: '2026-10-18',
+  venue: 'GASC Idappadi Sports Ground',
+  bannerImage: '/images/sports/kabaddi.png',
+  status: 'Registration Open',
+  sports: [
+    {
+      id: 'id_1791026219551_yosjs8',
+      name: 'Kabaddi',
+      sportName: 'Kabaddi',
+      type: 'Team Event',
+      date: 'Oct 14, 2026',
+      startTime: '09:00 AM',
+      endTime: '05:00 PM',
+      registrationEnd: 'Oct 10, 2026',
+      venue: 'GASC Idappadi Sports Ground',
+      maxParticipants: 40,
+      currentRegistrations: 12,
+      status: 'Registration Open',
+      description: 'Zonal collegiate Kabaddi tournament with team selection.'
+    }
+  ]
+};
+
 const sportEmoji: Record<string, string> = {
   Cricket: '🏏', Football: '⚽', Volleyball: '🏐', Basketball: '🏀',
   Badminton: '🏸', Kabaddi: '🤼', Athletics: '🏃', Handball: '🤾',
   Throwball: '🏐', Tennis: '🎾', Chess: '♟️', Carrom: '🎯', Running: '🏃'
 };
 
+const getStoredTournaments = (): Tournament[] => {
+  try {
+    const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+    if (Array.isArray(custom) && custom.length > 0) {
+      const extraList: Tournament[] = custom.map((c: any, idx: number) => ({
+        id: c.id || `custom_tour_${idx}`,
+        tournamentName: c.tournamentName || c.name || 'Annual Sports Meet',
+        description: c.description || 'Collegiate Sports Tournament',
+        startDate: c.date ? String(c.date).split('T')[0] : '2026-10-15',
+        endDate: c.registrationEnd ? String(c.registrationEnd).split('T')[0] : '2026-10-20',
+        venue: c.venue || 'GASC Idappadi Sports Ground',
+        bannerImage: c.bannerImage || '/images/sports/tournament.png',
+        status: c.status || 'Registration Open',
+        sports: [
+          {
+            id: String(c.id || `custom_sp_${idx}`),
+            name: c.name || c.sportName || 'Championship Event',
+            sportName: c.sportName || c.name || 'General',
+            type: c.type || 'Team Event',
+            date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 15, 2026',
+            startTime: c.startTime || '09:00 AM',
+            endTime: c.endTime || '05:00 PM',
+            registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
+            venue: c.venue || 'GASC Idappadi Sports Ground',
+            maxParticipants: c.maxParticipants || 50,
+            currentRegistrations: 0,
+            status: c.status || 'Registration Open',
+            description: c.description || 'Tournament competition'
+          }
+        ]
+      }));
+      return [...extraList, FLASH_TOURNAMENT, DEFAULT_TOURNAMENT];
+    }
+  } catch {}
+  return [FLASH_TOURNAMENT, DEFAULT_TOURNAMENT];
+};
+
 const CompetitionsPage = () => {
-  const [tournaments, setTournaments] = useState<Tournament[]>([DEFAULT_TOURNAMENT]);
+  const [tournaments, setTournaments] = useState<Tournament[]>(getStoredTournaments);
   const [loading, setLoading] = useState(true);
   
   // Navigation & View States

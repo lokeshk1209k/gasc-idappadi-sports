@@ -26,7 +26,9 @@ function copyRecursiveSync(src, dest, skipFiles = []) {
   } else {
     const filename = path.basename(src);
     if (!skipFiles.includes(filename)) {
-      fs.copyFileSync(src, dest);
+      try {
+        fs.copyFileSync(src, dest);
+      } catch (err) {}
     }
   }
 }

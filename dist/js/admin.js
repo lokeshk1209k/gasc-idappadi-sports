@@ -1931,6 +1931,24 @@ async function submitCreateCompetition(event) {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating Tournament...';
 
     const res = await apiRequest('/competitions', 'POST', formData, true);
+    
+    // Also sync to localStorage so Student Portal on same domain/browser picks it up immediately
+    try {
+      const customTournaments = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      const newT = {
+        id: (res && res.competition && res.competition.id) || `tour_${Date.now()}`,
+        tournamentName: tName,
+        name: formData.get('name') || 'Championship',
+        sportName: formData.get('name') || 'General',
+        date: formData.get('date'),
+        venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
+        status: 'Registration Open',
+        description: formData.get('description') || `Annual collegiate ${tName} competition.`
+      };
+      customTournaments.unshift(newT);
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(customTournaments));
+    } catch (e) {}
+
     showToast(`Tournament "${tName}" created with sport "${formData.get('name')}"!`, 'success');
     form.reset();
     bootstrap.Modal.getInstance(document.getElementById('addCompetitionModal')).hide();
