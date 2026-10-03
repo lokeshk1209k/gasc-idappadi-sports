@@ -75,7 +75,9 @@ if (!fs.existsSync(uploadDir)) {
 // 🏛️ CLEAN PORTAL ROUTES (STUDENT & SPORTS INCHARGE / ADMIN)
 // ============================================================
 
-const studentPublic = path.join(__dirname, '../student-client/dist');
+const studentPublic = fs.existsSync(path.join(__dirname, '../dist/index.html'))
+  ? path.join(__dirname, '../dist')
+  : path.join(__dirname, '../student-client/dist');
 
 // 1. Student Portal Routes
 app.get(['/student', '/student/'], (req, res) => {

@@ -1,12 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 
-const srcDir = path.join(__dirname, '../client/public');
-const destDir = path.join(__dirname, '../student-client/dist');
+const rootDir = path.join(__dirname, '..');
+const srcDir = path.join(rootDir, 'client/public');
+const studentDistDir = path.join(rootDir, 'student-client/dist');
+const rootDistDir = path.join(rootDir, 'dist');
 
-if (!fs.existsSync(destDir)) {
-  fs.mkdirSync(destDir, { recursive: true });
-}
+[studentDistDir, rootDistDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
 function copyRecursiveSync(src, dest, skipFiles = []) {
   if (!fs.existsSync(src)) return;
@@ -26,23 +30,22 @@ function copyRecursiveSync(src, dest, skipFiles = []) {
   }
 }
 
-console.log('[prepare-dist] Copying client/public assets to student-client/dist...');
-// Copy css, js, uploads
-copyRecursiveSync(path.join(srcDir, 'css'), path.join(destDir, 'css'));
-copyRecursiveSync(path.join(srcDir, 'js'), path.join(destDir, 'js'));
-copyRecursiveSync(path.join(srcDir, 'uploads'), path.join(destDir, 'uploads'));
+console.log('[prepare-dist] 1. Copying Vite build artifacts to root dist...');
+copyRecursiveSync(studentDistDir, rootDistDir);
 
-// Copy images (merge into destDir/images)
-copyRecursiveSync(path.join(srcDir, 'images'), path.join(destDir, 'images'));
+console.log('[prepare-dist] 2. Merging client/public assets to root dist and student-client/dist...');
+[rootDistDir, studentDistDir].forEach(targetDir => {
+  copyRecursiveSync(path.join(srcDir, 'css'), path.join(targetDir, 'css'));
+  copyRecursiveSync(path.join(srcDir, 'js'), path.join(targetDir, 'js'));
+  copyRecursiveSync(path.join(srcDir, 'uploads'), path.join(targetDir, 'uploads'));
+  copyRecursiveSync(path.join(srcDir, 'images'), path.join(targetDir, 'images'));
 
-// Copy all HTML pages except index.html (so React student app stays as main SPA index.html)
-// but also save client/public/index.html as landing.html / portal.html if needed
-const htmlFiles = fs.readdirSync(srcDir).filter(f => f.endsWith('.html') && f !== 'index.html');
-htmlFiles.forEach(file => {
-  fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file));
+  const htmlFiles = fs.readdirSync(srcDir).filter(f => f.endsWith('.html') && f !== 'index.html');
+  htmlFiles.forEach(file => {
+    fs.copyFileSync(path.join(srcDir, file), path.join(targetDir, file));
+  });
+
+  fs.copyFileSync(path.join(srcDir, 'index.html'), path.join(targetDir, 'public-portal.html'));
 });
 
-// Also copy client/public/index.html as public-portal.html so traditional view is accessible
-fs.copyFileSync(path.join(srcDir, 'index.html'), path.join(destDir, 'public-portal.html'));
-
-console.log('[prepare-dist] ✅ Successfully merged all static pages, images, CSS, and JS into student-client/dist!');
+console.log('[prepare-dist] ✅ Both dist and student-client/dist are ready for Vercel deployment!');
