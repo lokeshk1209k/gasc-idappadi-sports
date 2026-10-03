@@ -166,13 +166,25 @@ app.use('/api/supabase', supabaseRoutes);
 app.use('/api/external-competitions', externalCompetitionRoutes);
 app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
+// Health check + Supabase diagnostics
+app.get('/api/health', async (req, res) => {
+  const cfgMod = require('./config/supabase');
+  const configured = cfgMod.isSupabaseConfigured();
+  const supabaseUrlShort = cfgMod.supabaseUrl ? cfgMod.supabaseUrl.substring(0, 35) + '...' : 'NOT SET';
+  let dbStatus = configured ? 'testing...' : 'not_configured';
+  let dbError = null;
+  if (configured) {
+    try {
+      const { supabase } = require('./utils/supabaseHelper');
+      const { data, error } = await supabase.from('sports').select('id').limit(1);
+      dbStatus = error ? 'error' : 'connected_ok';
+      if (error) dbError = error.message;
+    } catch (e) { dbStatus = 'error'; dbError = e.message; }
+  }
   res.json({
     status: 'online',
     college: 'Government Arts and Science College, Idappadi',
-    system: 'Smart Sports Management System',
-    database: 'Supabase Cloud (PostgreSQL)',
+    supabase: { configured, url: supabaseUrlShort, dbStatus, dbError },
     timestamp: new Date()
   });
 });
