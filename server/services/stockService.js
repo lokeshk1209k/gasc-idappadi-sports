@@ -147,6 +147,24 @@ class StockService {
       }
     } catch (supaTxErr) {}
 
+    // Save to Supabase notifications for instant real-time student portal synchronization
+    try {
+      await supabase.from('notifications').upsert({
+        id: newTxRecord.id,
+        title: 'EQUIPMENT_ISSUE',
+        category: 'equipment',
+        type: 'equipment_transaction',
+        sender: student.registerNumber,
+        target_type: 'Specific Student',
+        target_audience: student.id,
+        priority: 'Normal',
+        message: JSON.stringify(newTxRecord),
+        created_at: issueDateStr
+      });
+    } catch (cloudErr) {
+      console.warn('Supabase equipment transaction cloud sync notice:', cloudErr.message);
+    }
+
     // Sync localStore for 100% offline & persistent reliability
     try {
       const localStore = require('../data/localStore');
@@ -320,9 +338,17 @@ class StockService {
       console.warn('localStore sync notice on returnEquipment:', e.message);
     }
 
+    // Sync return status to Supabase notifications store
+    try {
+      await supabase.from('notifications').update({
+        title: 'EQUIPMENT_RETURNED',
+        message: JSON.stringify(updatedTxRaw)
+      }).eq('id', transactionId);
+    } catch (e) {}
+
     return {
       transaction: toCamelCase(updatedTxRaw),
-      equipment: toCamelCase(updatedEqRaw)
+      equipment: toCamelCase(currentEq)
     };
   }
 }

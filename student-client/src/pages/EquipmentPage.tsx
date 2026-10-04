@@ -4,6 +4,7 @@ import {
   ShieldAlert, Info, ArrowUpRight, X, User, MapPin, RefreshCw
 } from 'lucide-react';
 import { getSportImage } from '../utils/sportImages';
+import { supabase } from '../lib/supabase';
 
 interface EquipmentItem {
   id: string;
@@ -74,51 +75,172 @@ const EquipmentPage = () => {
       const stored = localStorage.getItem('gasc_user');
       if (stored) {
         const u = JSON.parse(stored);
-        if (u && (u.register_number || u.registerNumber)) {
-          return u.register_number || u.registerNumber;
+        if (u) {
+          const reg = u.register_number || u.registerNumber || u.regNo || u.reg_no || u.id || u.student_id;
+          if (reg) return String(reg).trim();
         }
       }
     } catch { /* fallback */ }
-    return '21CS001';
+    return '';
+  };
+
+  const processTransactions = (items: any[]) => {
+    const now = new Date();
+    const active: EquipmentTransaction[] = [];
+    const hist: EquipmentTransaction[] = [];
+
+    items.forEach((item: any) => {
+      const isPastExpected = item.status === 'Issued' && new Date(item.expectedReturnDate) < now;
+      const isOverdue = isPastExpected;
+      let daysOverdue = 0;
+      if (isPastExpected) {
+        const diffMs = now.getTime() - new Date(item.expectedReturnDate).getTime();
+        daysOverdue = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+      }
+
+      const tx: EquipmentTransaction = {
+        id: item.id || `eq_${Date.now()}`,
+        studentId: item.studentId || item.student_id || '',
+        studentName: item.studentName || item.student_name || '',
+        registerNumber: item.registerNumber || item.register_number || item.regNo || '',
+        equipmentId: item.equipmentId || item.equipment_id || '',
+        equipmentName: item.equipmentName || item.equipment_name || item.name || 'Sports Equipment',
+        quantity: Number(item.quantity || 1),
+        issueDate: item.issueDate || item.issue_date || new Date().toISOString(),
+        issueTime: item.issueTime || item.issue_time || '',
+        expectedReturnDate: item.expectedReturnDate || item.expected_return_date || '',
+        returnDate: item.returnDate || item.return_date || '',
+        returnTime: item.returnTime || item.return_time || '',
+        status: item.status || 'Issued',
+        returnCondition: item.returnCondition || item.return_condition || '',
+        remarks: item.remarks || '',
+        purpose: item.purpose || '',
+        issuedBy: item.issuedBy || item.issued_by || 'Physical Education Dept',
+        isOverdue,
+        daysOverdue
+      };
+
+      if (tx.status === 'Issued') {
+        active.push(tx);
+      } else {
+        hist.push(tx);
+      }
+    });
+
+    setActiveIssued(active);
+    setHistory(hist);
+    setStats({
+      currentlyIssued: active.length,
+      returned: hist.length,
+      overdue: active.filter(i => i.isOverdue).length
+    });
   };
 
   const fetchEquipmentData = async (silent = false) => {
     if (!silent) setIsRefreshing(true);
     const regNo = getStudentRegister();
-    try {
-      const token = localStorage.getItem('gasc_token') || localStorage.getItem('token');
-      const res = await fetch(`/api/equipment/my-equipment?registerNumber=${encodeURIComponent(regNo)}`, {
-        headers: {
-          'x-register-number': regNo,
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setActiveIssued(data.activeIssued || []);
-        setHistory(data.history || []);
-        setStats(data.stats || {
-          currentlyIssued: (data.activeIssued || []).length,
-          returned: (data.history || []).length,
-          overdue: (data.activeIssued || []).filter((i: any) => i.isOverdue).length
+
+    let loaded = false;
+
+    // 1. Serverless API fetch
+    if (regNo) {
+      try {
+        const token = localStorage.getItem('gasc_token') || localStorage.getItem('token');
+        const res = await fetch(`/api/equipment/my-equipment?registerNumber=${encodeURIComponent(regNo)}`, {
+          headers: {
+            'x-register-number': regNo,
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
         });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && (data.activeIssued?.length > 0 || data.history?.length > 0)) {
+            setActiveIssued(data.activeIssued || []);
+            setHistory(data.history || []);
+            setStats(data.stats || {
+              currentlyIssued: (data.activeIssued || []).length,
+              returned: (data.history || []).length,
+              overdue: (data.activeIssued || []).filter((i: any) => i.isOverdue).length
+            });
+            loaded = true;
+          }
+        }
+      } catch (err) {
+        console.warn('Equipment API fetch error:', err);
       }
-    } catch {
-      /* Keep existing state */
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
     }
+
+    // 2. Direct Supabase Cloud query fallback (Immediate single source of truth)
+    if (!loaded) {
+      try {
+        const { data: supaRows } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('category', 'equipment')
+          .order('created_at', { ascending: false });
+
+        if (supaRows && supaRows.length > 0) {
+          const cleanReg = regNo.toLowerCase();
+          const matched: any[] = [];
+
+          for (const row of supaRows) {
+            try {
+              const msg = typeof row.message === 'string' ? JSON.parse(row.message) : row.message;
+              if (!msg) continue;
+              const sender = (row.sender || '').toLowerCase();
+              const target = (row.target_audience || '').toLowerCase();
+              const tReg = (msg.registerNumber || msg.register_number || msg.regNo || '').toLowerCase();
+              const tStudentId = (msg.studentId || '').toString().toLowerCase();
+
+              if (!cleanReg || sender === cleanReg || target.includes(cleanReg) || tReg === cleanReg || tStudentId === cleanReg) {
+                matched.push(msg);
+              }
+            } catch {}
+          }
+
+          if (matched.length > 0) {
+            processTransactions(matched);
+            loaded = true;
+          } else if (regNo) {
+            setActiveIssued([]);
+            setHistory([]);
+            setStats({ currentlyIssued: 0, returned: 0, overdue: 0 });
+          }
+        }
+      } catch (sbErr) {
+        console.warn('Supabase equipment fallback error:', sbErr);
+      }
+    }
+
+    setLoading(false);
+    setIsRefreshing(false);
   };
 
   useEffect(() => {
     fetchEquipmentData();
+
+    // Instant Realtime Subscription from Supabase Cloud
+    const channel = supabase
+      .channel('equipment-realtime-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        (payload) => {
+          if (payload && (payload.new as any)?.category === 'equipment') {
+            fetchEquipmentData(true);
+          }
+        }
+      )
+      .subscribe();
+
+    // High-frequency polling (4s) for background synchronization
     pollRef.current = setInterval(() => {
       fetchEquipmentData(true);
     }, 4000);
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      supabase.removeChannel(channel);
     };
   }, []);
 
