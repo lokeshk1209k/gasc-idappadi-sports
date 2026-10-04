@@ -102,5 +102,8 @@
     "portable": {
       "artifactName": "GASC-Sports-Admin-Portable.exe"
     }
+  },
+  "engines": {
+    "node": "24.x"
   }
 }
