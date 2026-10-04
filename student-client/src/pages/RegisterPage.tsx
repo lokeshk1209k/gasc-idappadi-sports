@@ -261,8 +261,8 @@ const RegisterPage: React.FC = () => {
     setSendingOtp(true);
 
     try {
-      // 1. Check if email is already registered by another student
-      const emailCheckUrl = `${SUPABASE_REST}/users?email=ilike.${encodeURIComponent(cleanEmail)}&select=id,role,password`;
+      // 1. Strict Unique Email Check against Supabase (ore email id exist aga kudathu)
+      const emailCheckUrl = `${SUPABASE_REST}/users?email=ilike.${encodeURIComponent(cleanEmail)}&select=id,name,register_number,email`;
       const emailRes = await fetch(emailCheckUrl, {
         headers: {
           'apikey': SB_KEY,
@@ -271,9 +271,13 @@ const RegisterPage: React.FC = () => {
       });
       const emailRows = await emailRes.json();
       if (emailRows && Array.isArray(emailRows) && emailRows.length > 0) {
-        const existingWithEmail = emailRows[0];
-        if (existingWithEmail.role === 'student' && existingWithEmail.password && existingWithEmail.id !== verifiedStudent?.id) {
-          setFormError('This email address is already registered. Please use another email address or login to your existing account.');
+        const conflict = emailRows.find((u: any) => {
+          const uReg = (u.register_number || '').toUpperCase().trim();
+          const curReg = (verifiedStudent?.register_number || '').toUpperCase().trim();
+          return uReg !== curReg && u.id !== verifiedStudent?.id;
+        });
+        if (conflict) {
+          setFormError(`This email address (${cleanEmail}) is already registered to another account. Each student must use their own unique email address.`);
           setSendingOtp(false);
           return;
         }
@@ -283,7 +287,27 @@ const RegisterPage: React.FC = () => {
       const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
       const expTime = Date.now() + 10 * 60 * 1000;
 
-      // 3. Save OTP in Supabase notifications table
+      // 3. Dispatch Email via API and check status
+      const otpRes = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          registerNumber: verifiedStudent?.register_number,
+          name: verifiedStudent?.name,
+          otp: generatedOtp
+        })
+      });
+
+      const otpData = await otpRes.json().catch(() => null);
+
+      if (!otpRes.ok || (otpData && !otpData.success)) {
+        setFormError(otpData?.message || 'Failed to dispatch verification email. Please check that the email address is correct.');
+        setSendingOtp(false);
+        return;
+      }
+
+      // 4. Save OTP in Supabase notifications table
       try {
         await fetch(`${SUPABASE_REST}/notifications`, {
           method: 'POST',
@@ -309,21 +333,7 @@ const RegisterPage: React.FC = () => {
         });
       } catch (e) {}
 
-      // 4. Dispatch Email via API
-      try {
-        await fetch('/api/auth/send-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: cleanEmail,
-            registerNumber: verifiedStudent?.register_number,
-            name: verifiedStudent?.name,
-            otp: generatedOtp
-          })
-        });
-      } catch (e) {}
-
-      setOtpToken(`otp_${generatedOtp}_${expTime}`);
+      setOtpToken(otpData?.otpToken || `otp_${generatedOtp}_${expTime}`);
       setOtpValues(['', '', '', '', '', '']);
       setResendTimer(30);
       setOtpError(null);
@@ -858,6 +868,16 @@ const RegisterPage: React.FC = () => {
               </p>
             </div>
 
+            {/* Spam notice banner */}
+            <div style={{ background: 'rgba(56,167,255,0.08)', border: '1px solid rgba(56,167,255,0.25)', borderRadius: '12px', padding: '12px 14px', marginBottom: '20px', textAlign: 'left' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <Mail style={{ width: 17, height: 17, color: '#38A7FF', flexShrink: 0, marginTop: 2 }} />
+                <div style={{ fontSize: '12px', color: '#CBD5E1', lineHeight: 1.5 }}>
+                  Didn't see the email? Please check your <strong style={{ color: '#FBBF24' }}>Spam / Junk</strong> or <strong>Promotions</strong> folder. It usually arrives within 10-30 seconds.
+                </div>
+              </div>
+            </div>
+
             {otpError && (
               <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#F87171', padding: '12px 14px', borderRadius: '10px', marginBottom: '18px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
@@ -914,8 +934,8 @@ const RegisterPage: React.FC = () => {
               )}
             </button>
 
-            {/* Resend button */}
-            <div style={{ textAlign: 'center' }}>
+            {/* Resend button & Change Email link */}
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {resendTimer > 0 ? (
                 <span style={{ fontSize: '12px', color: '#6E86A5' }}>
                   Resend OTP in <strong>{resendTimer}s</strong>
@@ -929,6 +949,13 @@ const RegisterPage: React.FC = () => {
                   Resend OTP Code
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => { setCurrentStep(2); setOtpError(null); }}
+                style={{ background: 'none', border: 'none', color: '#6E86A5', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Wrong email address? Change Email
+              </button>
             </div>
           </form>
         )}

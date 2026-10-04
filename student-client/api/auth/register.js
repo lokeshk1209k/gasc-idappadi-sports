@@ -63,17 +63,17 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 2. Check if email is already used by another student
+    // 2. Check if email is already used by another student or admin
     const { data: existingEmail } = await supabase
       .from('users')
-      .select('id, role, password')
+      .select('id, register_number, email, role')
       .ilike('email', cleanEmail)
       .maybeSingle();
 
-    if (existingEmail && existingEmail.role === 'student' && existingEmail.password && existingEmail.id !== rosterUser.id) {
+    if (existingEmail && existingEmail.id !== rosterUser.id) {
       return res.status(400).json({
         success: false,
-        message: `This email address (${cleanEmail}) is already associated with an account. Please use another email or login.`
+        message: `This email address (${cleanEmail}) is already registered to another account. Each student must use their own unique email address.`
       });
     }
 
