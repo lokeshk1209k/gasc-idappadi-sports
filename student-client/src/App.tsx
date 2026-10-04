@@ -11,6 +11,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
 import EquipmentPage from './pages/EquipmentPage';
 
+// GASC Student Portal v2026.10.4
 function App() {
   return (
     <Router>
