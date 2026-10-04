@@ -11,8 +11,7 @@ class NotificationService {
         message,
         category,
         target_type: targetType,
-        target_id: targetId || null,
-        target_model: targetModel || null,
+        target_audience: targetId || 'all',
         priority,
         sender
       };

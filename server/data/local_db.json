@@ -500,6 +500,19 @@
       "sender": "Sports Incharge",
       "created_at": "2026-10-04T21:03:24.518Z",
       "updated_at": "2026-10-04T21:03:24.518Z"
+    },
+    {
+      "id": "id_1791149172095_7mo8bk",
+      "title": "Equipment Issued: Cosco Volleyball Super (1)",
+      "message": "You have been issued 1 unit(s) of Cosco Volleyball Super. Please return the item in good condition by 10 Oct 2026.",
+      "category": "Equipment",
+      "target_type": "Specific Student",
+      "target_id": "roster_C24UG183CSC031",
+      "target_model": "User",
+      "priority": "Normal",
+      "sender": "Sports Incharge",
+      "created_at": "2026-10-04T21:26:12.095Z",
+      "updated_at": "2026-10-04T21:26:12.095Z"
     }
   ],
   "tournaments": [
@@ -590,6 +603,41 @@
       "issued_by": "Dr. R. ANITHA",
       "created_at": "2026-10-04T21:03:23.694Z",
       "updated_at": "2026-10-04T21:03:23.694Z"
+    },
+    {
+      "id": "tx_1791149170080_uen6",
+      "student_id": "roster_C24UG183CSC031",
+      "studentId": "roster_C24UG183CSC031",
+      "student_name": "aruna",
+      "studentName": "aruna",
+      "register_number": "C24UG183CSC031",
+      "registerNumber": "C24UG183CSC031",
+      "equipment_id": "eq_1791129548184_69nj",
+      "equipmentId": "eq_1791129548184_69nj",
+      "equipment_name": "Cosco Volleyball Super",
+      "equipmentName": "Cosco Volleyball Super",
+      "quantity": 1,
+      "issue_date": "2026-10-04T21:26:09.874Z",
+      "issueDate": "2026-10-04T21:26:09.874Z",
+      "issue_time": "02:56 am",
+      "issueTime": "02:56 am",
+      "expected_return_date": "2026-10-10T00:00:00.000Z",
+      "expectedReturnDate": "2026-10-10T00:00:00.000Z",
+      "status": "Returned",
+      "return_condition": "Good",
+      "returnCondition": "Pending",
+      "purpose": "Zonal Tournament",
+      "remarks": "Issued for college sports practice | Returned in test",
+      "issued_by": "Dr. R. ANITHA",
+      "issuedBy": "Dr. R. ANITHA",
+      "created_at": "2026-10-04T21:26:09.874Z",
+      "createdAt": "2026-10-04T21:26:09.874Z",
+      "updated_at": "2026-10-04T21:27:41.015Z",
+      "updatedAt": "2026-10-04T21:26:09.874Z",
+      "return_date": "2026-10-04T21:27:40.159Z",
+      "return_time": "02:57 am",
+      "damage_description": "",
+      "fine_amount": 0
     }
   ],
   "competition_registrations": []
