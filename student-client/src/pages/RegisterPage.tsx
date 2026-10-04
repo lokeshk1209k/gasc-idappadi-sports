@@ -127,80 +127,110 @@ const RegisterPage = () => {
         const variants = getRegisterNumberVariants(rawReg);
         const cleanRegNo = variants[0] || rawReg.toUpperCase();
 
-        // 1. First, check if student is already registered in users table
-        let existingUser: { id: string; name: string; register_number?: string } | null = null;
+        // 1. First, check if student has ALREADY registered an active account:
+        let isAlreadyRegistered = false;
+        let registeredName = '';
 
-        // Try direct Supabase query with orQuery
+        // Check A: competition_registrations table (publicly accessible on Supabase)
         try {
-          const orQuery = variants.map(v => `register_number.ilike.%${v}%`).join(',');
-          const { data: usersFound } = await supabase
-            .from('users')
-            .select('id, name, register_number, email')
-            .or(orQuery);
-          if (usersFound && usersFound.length > 0) {
-            existingUser = usersFound[0];
+          const { data: regAcc } = await supabase
+            .from('competition_registrations')
+            .select('student_name, register_number')
+            .eq('competition_id', '__STUDENT_ACCOUNT__')
+            .in('register_number', variants);
+
+          if (regAcc && regAcc.length > 0) {
+            isAlreadyRegistered = true;
+            registeredName = regAcc[0].student_name;
           }
-        } catch (e) {
-          console.warn('Supabase users check:', e);
-        }
+        } catch (e) {}
 
-        // Try Supabase in-query fallback
-        if (!existingUser) {
-          try {
-            const { data: usersIn } = await supabase
-              .from('users')
-              .select('id, name, register_number, email')
-              .in('register_number', variants);
-            if (usersIn && usersIn.length > 0) {
-              existingUser = usersIn[0];
-            }
-          } catch (e) {}
-        }
-
-        // Try backend API verification if running
-        if (!existingUser) {
+        // Check B: backend API verification if server is running
+        if (!isAlreadyRegistered) {
           try {
             const res = await fetch(`/api/auth/verify-student/${encodeURIComponent(cleanRegNo)}`);
             const data = await res.json();
             if (data && data.isRegistered) {
-              existingUser = {
-                id: 'existing',
-                name: data.message?.includes('"') ? data.message.split('"')[1] : 'Student Athlete',
-                register_number: cleanRegNo
-              };
+              isAlreadyRegistered = true;
+              registeredName = data.message?.includes('"') ? data.message.split('"')[1] : 'Student Athlete';
             }
           } catch (e) {}
         }
 
-        if (existingUser) {
+        // 2. Query Supabase notifications table for Real-Time Roster (instant next-second detection!)
+        let rosterMatch: any = null;
+        try {
+          const { data: notifRows } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('category', 'roster')
+            .in('title', variants);
+
+          if (notifRows && notifRows.length > 0) {
+            const matchRow = notifRows[0];
+            try {
+              const parsed = JSON.parse(matchRow.message);
+              rosterMatch = {
+                register_number: parsed.registerNumber || matchRow.title,
+                name: parsed.name,
+                department: parsed.department,
+                year: parsed.year,
+                section: parsed.section,
+                gender: parsed.gender,
+                isRegistered: parsed.isRegistered || matchRow.sender === 'registered'
+              };
+            } catch (pErr) {
+              rosterMatch = {
+                register_number: matchRow.title,
+                name: matchRow.title,
+                department: matchRow.target_type,
+                year: matchRow.target_audience,
+                gender: matchRow.priority,
+                isRegistered: matchRow.sender === 'registered'
+              };
+            }
+          }
+        } catch (e) {
+          console.warn('Real-time Supabase roster check error:', e);
+        }
+
+        // Fallback: Check static roster if Supabase had no match
+        if (!rosterMatch) {
+          let rosterList = [...MASTER_ROSTER];
+          try {
+            const rRes = await fetch('/roster.json');
+            if (rRes.ok) {
+              const rData = await rRes.json();
+              if (rData && Array.isArray(rData.roster)) {
+                rosterList = [...rData.roster, ...MASTER_ROSTER];
+              }
+            }
+          } catch (e) {}
+
+          const staticMatch = rosterList.find(r => {
+            const rVariants = getRegisterNumberVariants(r.register_number);
+            return variants.some(v => rVariants.includes(v));
+          });
+          if (staticMatch) {
+            rosterMatch = staticMatch;
+          }
+        }
+
+        // 3. Handle results
+        if (isAlreadyRegistered || (rosterMatch && rosterMatch.isRegistered)) {
+          const displayName = registeredName || (rosterMatch ? rosterMatch.name : 'Student Athlete');
           setVerifyStatus({
             verified: false,
             isPreEnrolled: false,
             isRegistered: true,
-            message: `Student "${existingUser.name}" (${existingUser.register_number || cleanRegNo}) already exists! Please proceed to Login.`
+            message: `Student "${displayName}" (${cleanRegNo}) already exists! Please proceed to Login.`
           });
           setVerifying(false);
           return;
         }
 
-        // 2. Not registered yet. Check if pre-enrolled in College Roster
-        let rosterList = [...MASTER_ROSTER];
-        try {
-          const rRes = await fetch('/roster.json');
-          if (rRes.ok) {
-            const rData = await rRes.json();
-            if (rData && Array.isArray(rData.roster)) {
-              rosterList = [...rData.roster, ...MASTER_ROSTER];
-            }
-          }
-        } catch (e) {}
-
-        const rosterMatch = rosterList.find(r => {
-          const rVariants = getRegisterNumberVariants(r.register_number);
-          return variants.some(v => rVariants.includes(v));
-        });
-
         if (rosterMatch) {
+          // Pre-enrolled in Roster and NOT yet registered -> ALLOW REGISTRATION!
           setVerifyStatus({
             verified: true,
             isPreEnrolled: true,
@@ -218,7 +248,7 @@ const RegisterPage = () => {
             gender: rosterMatch.gender || prev.gender
           }));
         } else {
-          // 3. Register number not in College Student Roster -> NOT allowed to register!
+          // Register number not found in College Student Roster -> REJECT!
           setVerifyStatus({
             verified: false,
             isPreEnrolled: false,
@@ -507,6 +537,24 @@ const RegisterPage = () => {
         userData = userRecord;
         localStorage.setItem('gasc_token', `gasc_student_jwt_${Date.now()}`);
         regSuccess = true;
+      }
+
+      // Sync registered account to competition_registrations table for instant registration status across clients
+      try {
+        const cleanReg = formData.register_number.trim().toUpperCase();
+        await supabase.from('competition_registrations').insert({
+          id: `acc_${Date.now()}_${cleanReg}`,
+          competition_id: '__STUDENT_ACCOUNT__',
+          student_id: `usr_${cleanReg}`,
+          student_name: formData.name.trim(),
+          register_number: cleanReg,
+          department: formData.department,
+          gender: formData.gender,
+          remarks: formData.email.trim().toLowerCase(),
+          status: 'Active'
+        });
+      } catch (accErr) {
+        console.warn('Account sync error:', accErr);
       }
 
       if (regSuccess && userData) {

@@ -146,11 +146,46 @@ exports.uploadExcelRoster = async (req, res) => {
         insertedCount++;
       }
 
-      // Sync to Supabase if table exists
+      // Real-time sync to Supabase
       try {
-        await supabase
-          .from('college_student_roster')
-          .upsert(record, { onConflict: 'register_number' });
+        if (!userExists) {
+          const rosterUser = {
+            id: `roster_${record.register_number}`,
+            name: record.name,
+            register_number: record.register_number,
+            email: `${record.register_number.toLowerCase()}@roster.internal`,
+            role: 'roster',
+            department: record.department,
+            year: record.year,
+            section: record.section,
+            gender: record.gender,
+            status: 'Pending Registration',
+            created_at: new Date().toISOString()
+          };
+          await supabase.from('users').upsert(rosterUser, { onConflict: 'register_number' });
+        }
+
+        // Real-time sync to notifications table (100% accessible to student-client via anon key)
+        const notifRecord = {
+          id: `roster_${record.register_number}`,
+          title: record.register_number,
+          category: 'roster',
+          type: 'roster_student',
+          target_type: record.department || 'Computer Science',
+          target_audience: record.year || 'I Year',
+          priority: record.gender || 'Male',
+          sender: record.is_registered ? 'registered' : 'unregistered',
+          message: JSON.stringify({
+            registerNumber: record.register_number,
+            name: record.name,
+            department: record.department,
+            year: record.year,
+            section: record.section,
+            gender: record.gender,
+            isRegistered: !!record.is_registered
+          })
+        };
+        await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
       } catch (e) {}
     }
 
@@ -361,9 +396,47 @@ exports.addSingleStudent = async (req, res) => {
     storeInstance.db['college_student_roster'] = localRoster;
     storeInstance.save();
 
+    // Instant real-time sync to Supabase so Student Portal detects it the very next second!
     try {
-      await supabase.from('college_student_roster').insert(newRecord);
-    } catch (e) {}
+      const rosterUser = {
+        id: `roster_${cleanRegNo}`,
+        name: newRecord.name,
+        register_number: cleanRegNo,
+        email: `${cleanRegNo.toLowerCase()}@roster.internal`,
+        role: 'roster',
+        department: newRecord.department,
+        year: newRecord.year,
+        section: newRecord.section,
+        gender: newRecord.gender,
+        status: 'Pending Registration',
+        created_at: new Date().toISOString()
+      };
+      await supabase.from('users').upsert(rosterUser, { onConflict: 'register_number' });
+
+      // Real-time sync to notifications table (100% accessible to student-client via anon key)
+      const notifRecord = {
+        id: `roster_${cleanRegNo}`,
+        title: cleanRegNo,
+        category: 'roster',
+        type: 'roster_student',
+        target_type: newRecord.department || 'Computer Science',
+        target_audience: newRecord.year || 'I Year',
+        priority: newRecord.gender || 'Male',
+        sender: newRecord.is_registered ? 'registered' : 'unregistered',
+        message: JSON.stringify({
+          registerNumber: cleanRegNo,
+          name: newRecord.name,
+          department: newRecord.department,
+          year: newRecord.year,
+          section: newRecord.section,
+          gender: newRecord.gender,
+          isRegistered: !!newRecord.is_registered
+        })
+      };
+      await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('Real-time Supabase roster user sync error:', e.message);
+    }
 
     const totalCount = localRoster.length;
     const registeredCount = localRoster.filter(r => r.is_registered).length;
@@ -401,7 +474,8 @@ exports.deleteStudent = async (req, res) => {
     storeInstance.save();
 
     try {
-      await supabase.from('college_student_roster').delete().or(`id.eq.${id},register_number.eq.${id}`);
+      await supabase.from('users').delete().eq('register_number', target.register_number).eq('role', 'roster');
+      await supabase.from('notifications').delete().eq('id', `roster_${target.register_number}`);
     } catch (e) {}
 
     const updatedRoster = storeInstance.db['college_student_roster'];
@@ -448,7 +522,26 @@ exports.updateStudent = async (req, res) => {
     storeInstance.save();
 
     try {
-      await supabase.from('college_student_roster').update(toSnakeCase(localRoster[idx])).or(`id.eq.${id},register_number.eq.${id}`);
+      const notifRecord = {
+        id: `roster_${localRoster[idx].register_number}`,
+        title: localRoster[idx].register_number,
+        category: 'roster',
+        type: 'roster_student',
+        target_type: localRoster[idx].department || 'Computer Science',
+        target_audience: localRoster[idx].year || 'I Year',
+        priority: localRoster[idx].gender || 'Male',
+        sender: localRoster[idx].is_registered ? 'registered' : 'unregistered',
+        message: JSON.stringify({
+          registerNumber: localRoster[idx].register_number,
+          name: localRoster[idx].name,
+          department: localRoster[idx].department,
+          year: localRoster[idx].year,
+          section: localRoster[idx].section,
+          gender: localRoster[idx].gender,
+          isRegistered: !!localRoster[idx].is_registered
+        })
+      };
+      await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
     } catch (e) {}
 
     res.json({

@@ -30,28 +30,57 @@ exports.verifyStudent = async (req, res) => {
     }
 
     const cleanRegNo = registerNumber.trim().toUpperCase();
+    const cleanNoZeros = cleanRegNo.replace(/0(?=[0-9]+$)/, '');
 
     // 1. Check if user already registered an account
-    const { data: userExists } = await supabase
-      .from('users')
-      .select('id, name')
-      .ilike('register_number', cleanRegNo)
-      .single();
+    let userExists = null;
+    try {
+      const { data: usersFound } = await supabase
+        .from('users')
+        .select('id, name, register_number, email')
+        .or(`register_number.ilike.%${cleanRegNo}%,register_number.ilike.%${cleanNoZeros}%`);
+      if (usersFound && usersFound.length > 0) {
+        userExists = usersFound[0];
+      }
+    } catch (e) {}
+
+    if (!userExists) {
+      const { storeInstance } = require('../data/localStore');
+      const localUsers = storeInstance.getTable('users') || [];
+      userExists = localUsers.find(u => {
+        const uReg = (u.register_number || u.registerNumber || '').toUpperCase();
+        return uReg === cleanRegNo || uReg.replace(/0(?=[0-9]+$)/, '') === cleanNoZeros;
+      });
+    }
 
     if (userExists) {
-      return res.status(400).json({
+      return res.json({
         success: false,
         isRegistered: true,
-        message: `Student "${userExists.name}" (${cleanRegNo}) has already registered an account. Please proceed to Login.`
+        message: `Student "${userExists.name}" (${userExists.register_number || cleanRegNo}) already exists! Please proceed to Login.`
       });
     }
 
     // 2. Check if student is pre-enrolled in college roster
-    const { data: rosterStudent } = await supabase
-      .from('college_student_roster')
-      .select('*')
-      .ilike('register_number', cleanRegNo)
-      .single();
+    let rosterStudent = null;
+    try {
+      const { data: rosterFound } = await supabase
+        .from('college_student_roster')
+        .select('*')
+        .or(`register_number.ilike.%${cleanRegNo}%,register_number.ilike.%${cleanNoZeros}%`);
+      if (rosterFound && rosterFound.length > 0) {
+        rosterStudent = rosterFound[0];
+      }
+    } catch (e) {}
+
+    if (!rosterStudent) {
+      const { storeInstance } = require('../data/localStore');
+      const localRoster = storeInstance.getTable('college_student_roster') || [];
+      rosterStudent = localRoster.find(r => {
+        const rReg = (r.register_number || r.registerNumber || '').toUpperCase();
+        return rReg === cleanRegNo || rReg.replace(/0(?=[0-9]+$)/, '') === cleanNoZeros;
+      });
+    }
 
     if (rosterStudent) {
       return res.json({
@@ -63,18 +92,13 @@ exports.verifyStudent = async (req, res) => {
       });
     }
 
-    // 3. For any valid GASC register number format (at least 4 characters)
-    if (cleanRegNo.length >= 4) {
-      return res.json({
-        success: true,
-        isRegistered: false,
-        isPreEnrolled: false,
-        message: `Register Number (${cleanRegNo}) verified. Please fill in your basic student details.`,
-        student: {
-          registerNumber: cleanRegNo
-        }
-      });
-    }
+    // 3. Register number not in College Student Roster -> Registration NOT allowed!
+    return res.status(403).json({
+      success: false,
+      isRegistered: false,
+      isPreEnrolled: false,
+      message: `Registration Not Allowed: Register Number (${cleanRegNo}) is not found in the official College Student Roster. Only enrolled GASC students can register.`
+    });
 
     return res.status(400).json({
       success: false,

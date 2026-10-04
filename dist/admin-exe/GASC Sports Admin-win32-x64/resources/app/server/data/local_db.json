@@ -434,6 +434,23 @@
       "status": "Active",
       "created_at": "2026-10-04T10:20:27.061Z",
       "updated_at": "2026-10-04T10:20:28.487Z"
+    },
+    {
+      "id": "usr_1791109259666_cqliut",
+      "name": "Lokesh Krishnan",
+      "register_number": "C24UG183CSC013",
+      "email": "c24ug183csc013@gascidappadi.edu.in",
+      "password": "$2a$10$ceyWIMjSBWqgoyjE7xH8puZzRoAcX6mUyU6LzeBxl8VAfbBbupZgK",
+      "role": "student",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "mobile": "+91 98421 54321",
+      "profile_photo": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80",
+      "status": "Active",
+      "created_at": "2026-10-04T10:20:59.733Z",
+      "updated_at": "2026-10-04T10:21:01.455Z"
     }
   ],
   "sports": [
@@ -1018,6 +1035,58 @@
       "registered_user_id": "id_1790520177064_npke5n",
       "created_at": "2026-09-27T11:55:21.746Z",
       "updated_at": "2026-09-27T14:42:57.080Z"
+    },
+    {
+      "id": "ros_1791109379283_mk00",
+      "register_number": "C24UG183CSC011",
+      "name": "harish",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "is_registered": false,
+      "registered_user_id": null,
+      "created_at": "2026-10-04T10:22:59.283Z",
+      "updated_at": "2026-10-04T10:22:59.283Z"
+    },
+    {
+      "id": "ros_1791109379283_mk00",
+      "register_number": "C24UG183CSC011",
+      "name": "harish",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "is_registered": false,
+      "registered_user_id": null,
+      "created_at": "2026-10-04T10:22:59.283Z",
+      "updated_at": "2026-10-04T10:23:00.577Z"
+    },
+    {
+      "id": "ros_1791113664924_iz8z",
+      "register_number": "C24UG183CSC012",
+      "name": "kishor k",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "is_registered": false,
+      "registered_user_id": null,
+      "created_at": "2026-10-04T11:34:24.925Z",
+      "updated_at": "2026-10-04T11:34:24.925Z"
+    },
+    {
+      "id": "ros_1791113664924_iz8z",
+      "register_number": "C24UG183CSC012",
+      "name": "kishor k",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "is_registered": false,
+      "registered_user_id": null,
+      "created_at": "2026-10-04T11:34:24.925Z",
+      "updated_at": "2026-10-04T11:34:25.577Z"
     }
   ],
   "equipment": [
@@ -2760,6 +2829,21 @@
       "auto_notifications": true,
       "created_at": "2026-10-04T10:10:55.011Z",
       "updated_at": "2026-10-04T10:10:55.011Z"
+    },
+    {
+      "id": "id_1791109318051_8hggzq",
+      "college_name": "Government Arts and Science College, Idappadi",
+      "department_name": "Department of Physical Education & Sports",
+      "sports_incharge_name": "Dr. R. ANITHA",
+      "sports_incharge_role": "Sports Incharge",
+      "sports_incharge_photo": "images/default-avatar.png",
+      "email": "sports@gascidappadi.edu.in",
+      "phone": "+91 94432 18765",
+      "address": "Government Arts and Science College, Idappadi, Salem District - 637101, Tamil Nadu",
+      "office_hours": "08:30 AM - 05:30 PM (Mon - Sat)",
+      "auto_notifications": true,
+      "created_at": "2026-10-04T10:21:58.051Z",
+      "updated_at": "2026-10-04T10:21:58.051Z"
     }
   ],
   "gallery": [
