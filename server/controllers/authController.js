@@ -92,18 +92,13 @@ exports.verifyStudent = async (req, res) => {
       });
     }
 
-    // 3. For any valid GASC register number format (at least 4 characters)
-    if (cleanRegNo.length >= 4) {
-      return res.json({
-        success: true,
-        isRegistered: false,
-        isPreEnrolled: false,
-        message: `Register Number (${cleanRegNo}) available. Please fill in your basic student details.`,
-        student: {
-          registerNumber: cleanRegNo
-        }
-      });
-    }
+    // 3. Register number not in College Student Roster -> Registration NOT allowed!
+    return res.status(403).json({
+      success: false,
+      isRegistered: false,
+      isPreEnrolled: false,
+      message: `Registration Not Allowed: Register Number (${cleanRegNo}) is not found in the official College Student Roster. Only enrolled GASC students can register.`
+    });
 
     return res.status(400).json({
       success: false,

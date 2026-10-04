@@ -218,12 +218,12 @@ const RegisterPage = () => {
             gender: rosterMatch.gender || prev.gender
           }));
         } else {
-          // 3. Register number format valid, student can enter details
+          // 3. Register number not in College Student Roster -> NOT allowed to register!
           setVerifyStatus({
-            verified: true,
+            verified: false,
             isPreEnrolled: false,
             isRegistered: false,
-            message: `Register Number (${cleanRegNo}) available. Please complete your basic student details below.`
+            message: `Registration Not Allowed: Register Number (${cleanRegNo}) is not found in the official College Student Roster. Only enrolled GASC students are permitted to register.`
           });
         }
       } catch (err) {
@@ -262,6 +262,11 @@ const RegisterPage = () => {
 
     if (verifyStatus?.isRegistered) {
       setError('An account with this register number already exists. Please login.');
+      return;
+    }
+
+    if (!verifyStatus?.isPreEnrolled) {
+      setError('Registration Not Allowed: Your Register Number is not found in the official College Student Roster. Only pre-enrolled GASC students can register.');
       return;
     }
 
@@ -616,15 +621,10 @@ const RegisterPage = () => {
                     <CheckCircle style={{ width: 15, height: 15, flexShrink: 0 }} />
                     <span style={{ fontWeight: 600 }}>{verifyStatus.message} — Details auto-filled!</span>
                   </div>
-                ) : verifyStatus.verified ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(56,167,255,0.15)', border: '1px solid rgba(56,167,255,0.3)', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#38A7FF' }}>
-                    <ShieldCheck style={{ width: 15, height: 15, flexShrink: 0 }} />
-                    <span>Register Number Available. Please complete your basic student details below.</span>
-                  </div>
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#F87171' }}>
-                    <AlertCircle style={{ width: 15, height: 15 }} />
-                    <span>{verifyStatus.message}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.35)', padding: '10px 14px', borderRadius: '10px', fontSize: '12px', color: '#F87171' }}>
+                    <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
+                    <span style={{ fontWeight: 600 }}>{verifyStatus.message}</span>
                   </div>
                 )}
               </div>
@@ -818,14 +818,27 @@ const RegisterPage = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || verifying || verifyStatus?.isRegistered}
+            disabled={loading || verifying || !verifyStatus?.isPreEnrolled}
             className="btn-primary"
-            style={{ width: '100%', padding: '14px', fontSize: '15px', fontWeight: 700, justifyContent: 'center', opacity: (loading || verifying || verifyStatus?.isRegistered) ? 0.7 : 1 }}
+            style={{
+              width: '100%',
+              padding: '14px',
+              fontSize: '15px',
+              fontWeight: 700,
+              justifyContent: 'center',
+              opacity: (loading || verifying || !verifyStatus?.isPreEnrolled) ? 0.6 : 1,
+              cursor: (!verifyStatus?.isPreEnrolled) ? 'not-allowed' : 'pointer'
+            }}
           >
             {loading ? (
               <>
                 <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
                 <span>Sending Email Verification OTP...</span>
+              </>
+            ) : verifyStatus && !verifyStatus.isPreEnrolled ? (
+              <>
+                <AlertCircle style={{ width: 18, height: 18 }} />
+                <span>Registration Not Allowed (Not in College Roster)</span>
               </>
             ) : (
               <>
