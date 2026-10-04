@@ -37,14 +37,15 @@ module.exports = async (req, res) => {
     auth: { persistSession: false }
   });
 
-  const url = req.url || '';
+  const rawUrl = req.url || '';
+  const parsedUrl = new URL(rawUrl, 'http://localhost');
   const query = req.query || {};
-  const action = (query.action || '').toLowerCase();
+  const action = (query.action || parsedUrl.searchParams.get('action') || (rawUrl.includes('lookup-student') ? 'lookup-student' : '')).toLowerCase();
 
   try {
     // ──────── ACTION: LOOKUP STUDENT ────────
-    if (action === 'lookup-student' || url.includes('lookup-student')) {
-      const regNo = (query.regNo || query.registerNumber || '').trim();
+    if (action === 'lookup-student' || rawUrl.includes('lookup-student')) {
+      const regNo = (query.regNo || query.registerNumber || parsedUrl.searchParams.get('regNo') || parsedUrl.searchParams.get('registerNumber') || '').trim();
       if (!regNo) {
         return res.status(400).json({ success: false, message: 'Register number is required.' });
       }
@@ -124,7 +125,7 @@ module.exports = async (req, res) => {
     }
 
     // ──────── ACTION: ISSUE EQUIPMENT ────────
-    if (action === 'issue' || (req.method === 'POST' && req.body && req.body.studentIdentifier)) {
+    if (action === 'issue' || rawUrl.includes('issue') || (req.method === 'POST' && req.body && req.body.studentIdentifier)) {
       const { studentIdentifier, equipmentId, quantity, expectedReturnDate, purpose, remarks } = req.body || {};
       if (!studentIdentifier || !equipmentId || !quantity || !expectedReturnDate) {
         return res.status(400).json({ success: false, message: 'Please provide all required fields.' });
@@ -275,7 +276,7 @@ module.exports = async (req, res) => {
     }
 
     // ──────── ACTION: RETURN EQUIPMENT ────────
-    if (action === 'return' || (req.method === 'POST' && req.body && req.body.transactionId)) {
+    if (action === 'return' || rawUrl.includes('return') || (req.method === 'POST' && req.body && req.body.transactionId)) {
       const { transactionId, returnCondition, damageDescription, fineAmount, remarks } = req.body || {};
       if (!transactionId) {
         return res.status(400).json({ success: false, message: 'Transaction ID is required.' });
@@ -358,7 +359,7 @@ module.exports = async (req, res) => {
     }
 
     // ──────── ACTION: TRANSACTIONS ────────
-    if (action === 'transactions' || url.includes('transactions')) {
+    if (action === 'transactions' || rawUrl.includes('transactions')) {
       const { data: notifRows, error } = await supabase
         .from('notifications')
         .select('*')
