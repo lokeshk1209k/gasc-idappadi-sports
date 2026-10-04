@@ -1,8 +1,41 @@
 const { supabase: rawSupabase, isSupabaseConfigured } = require('../config/supabase');
 const localStore = require('../data/localStore');
 
-let cloudAvailable = false; // By default assume local first if DNS failed
+let cloudAvailable = isSupabaseConfigured() && !!rawSupabase;
 let hasLoggedCloudStatus = false;
+let isTestingCloud = false;
+
+async function checkCloudStatus() {
+  if (!isSupabaseConfigured() || !rawSupabase || isTestingCloud) return false;
+  isTestingCloud = true;
+  try {
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Supabase probe timeout')), 4000)
+    );
+    const probePromise = rawSupabase.from('tournaments').select('id').limit(1);
+    const res = await Promise.race([probePromise, timeoutPromise]);
+    if (res && !res.error) {
+      cloudAvailable = true;
+      if (!hasLoggedCloudStatus) {
+        console.log('⚡ Supabase Cloud Database verified & active!');
+        hasLoggedCloudStatus = true;
+      }
+      isTestingCloud = false;
+      return true;
+    }
+  } catch (e) {}
+  // Check if configured at all
+  if (isSupabaseConfigured()) {
+    cloudAvailable = true; // Still allow write attempts
+  }
+  isTestingCloud = false;
+  return cloudAvailable;
+}
+
+const tInit = setTimeout(checkCloudStatus, 300);
+if (tInit.unref) tInit.unref();
+const tInterval = setInterval(checkCloudStatus, 30000);
+if (tInterval.unref) tInterval.unref();
 
 class ResilientQuery {
   constructor(table) {
@@ -121,41 +154,43 @@ class ResilientQuery {
   }
 
   async execute() {
-    // If Supabase is not configured or cloud is known to be unavailable, execute local immediately
-    if (!isSupabaseConfigured() || !rawSupabase || cloudAvailable === false) {
+    if (!isSupabaseConfigured() || !rawSupabase) {
       return this.executeLocal();
     }
 
     try {
       let query = rawSupabase.from(this.table);
+      const isMutation = this.calls.some(c => ['insert', 'upsert', 'update', 'delete'].includes(c.method));
+
       for (const call of this.calls) {
         if (typeof query[call.method] === 'function') {
           query = query[call.method](...call.args);
         }
       }
 
-      const res = await query;
-      if (res.error) {
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Supabase query timeout')), 6000)
+      );
+
+      const res = await Promise.race([query, timeoutPromise]);
+      if (res && res.error) {
         const msg = String(res.error.message || '');
-        if (msg.includes('fetch failed') || msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED')) {
-          cloudAvailable = false;
-          if (!hasLoggedCloudStatus) {
-            console.log('⚡ Supabase is paused/unreachable. Switched to high-speed persistent Local Store.');
-            hasLoggedCloudStatus = true;
-          }
+        if (msg.includes('fetch failed') || msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('timeout')) {
+          console.warn(`[SupabaseHelper] Cloud query failed (${msg}), falling back to localStore for table: ${this.table}`);
           return this.executeLocal();
         }
       }
+
+      // Also mirror writes to localStore so offline cache is updated
+      if (isMutation) {
+        try {
+          this.executeLocal();
+        } catch (mErr) {}
+      }
+
       return res;
     } catch (err) {
-      const msg = String(err.message || '');
-      if (msg.includes('fetch failed') || msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED')) {
-        cloudAvailable = false;
-        if (!hasLoggedCloudStatus) {
-          console.log('⚡ Supabase is paused/unreachable. Switched to high-speed persistent Local Store.');
-          hasLoggedCloudStatus = true;
-        }
-      }
+      console.warn(`[SupabaseHelper] Cloud query error (${err.message}), falling back to localStore for table: ${this.table}`);
       return this.executeLocal();
     }
   }

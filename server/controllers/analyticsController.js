@@ -53,7 +53,7 @@ exports.getAdminDashboardData = async (req, res) => {
       { data: recentAchsRaw },
       { data: latestNotifsRaw }
     ] = await Promise.all([
-      supabase.from('competition_registrations').select('*, users(name, register_number, department, profile_photo), competitions(name, sport_name, date)').order('registration_date', { ascending: false }).limit(5),
+      supabase.from('competition_registrations').select('*').order('registration_date', { ascending: false }).limit(5),
       supabase.from('equipment_transactions').select('*, users(name, register_number), equipment(name, code)').order('issue_date', { ascending: false }).limit(5),
       supabase.from('achievements').select('*').order('created_at', { ascending: false }).limit(4),
       supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(5)
@@ -209,12 +209,12 @@ exports.getStudentDashboardData = async (req, res) => {
       { data: upCompsRaw },
       { data: notifsRaw }
     ] = await Promise.all([
-      supabase.from('player_profiles').select('*, sports(*)').eq('user_id', studentId).single(),
-      supabase.from('competition_registrations').select('*, competitions(*)').eq('student_id', studentId).order('registration_date', { ascending: false }),
+      supabase.from('player_profiles').select('*').eq('user_id', studentId).maybeSingle(),
+      supabase.from('competition_registrations').select('*').eq('student_id', studentId).order('registration_date', { ascending: false }),
       supabase.from('teams').select('*').or(`department.ilike.%${req.user.department}%,captain_name.ilike.%${req.user.name}%`),
-      supabase.from('equipment_transactions').select('*, equipment(name, code)').eq('student_id', studentId).eq('status', 'Issued'),
+      supabase.from('equipment_transactions').select('*').eq('student_id', studentId).eq('status', 'Issued'),
       supabase.from('achievements').select('*').eq('student_id', studentId),
-      supabase.from('competitions').select('*, sports(name, icon)').eq('status', 'Registration Open').order('date', { ascending: true }).limit(4),
+      supabase.from('competitions').select('*').eq('status', 'Registration Open').order('date', { ascending: true }).limit(4),
       supabase.from('notifications').select('*').or(`target_type.eq.All Students,target_id.eq.${studentId}`).order('created_at', { ascending: false }).limit(5)
     ]);
 

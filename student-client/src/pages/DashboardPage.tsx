@@ -4,6 +4,7 @@ import {
   Trophy, Calendar, Medal, Dumbbell, ArrowRight, Clock,
   MapPin, ChevronRight, Star, Zap, Users, TrendingUp, Image
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 // ── Sample data ───────────────────────────────────────────────────────────────
 const STATS = [
@@ -14,8 +15,8 @@ const STATS = [
 ];
 
 const QUICK_ACTIONS = [
-  { icon: Dumbbell, label: 'Register for Sports', desc: 'Join your favorite sport', path: '/student/sports', color: '#1677FF' },
-  { icon: Users, label: 'View My Teams', desc: 'Check team roster', path: '/student/sports', color: '#6C4CFF' },
+  { icon: Dumbbell, label: 'Register for Sports', desc: 'Join your favorite sport', path: '/student/tournaments', color: '#1677FF' },
+  { icon: Users, label: 'View My Teams', desc: 'Check team roster', path: '/student/tournaments', color: '#6C4CFF' },
   { icon: Trophy, label: 'Official Tournaments', desc: 'Browse parent tournaments', path: '/student/tournaments', color: '#FF6A21' },
   { icon: Image, label: 'Sports Photos', desc: 'View college athletic moments', path: '/student/gallery', color: '#22D3EE' },
 ];
@@ -33,6 +34,21 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchEvents = async () => {
+      // 1. Direct Supabase query
+      try {
+        const { data: supaEvents } = await supabase
+          .from('competitions')
+          .select('*')
+          .order('date', { ascending: true })
+          .limit(4);
+        if (supaEvents && supaEvents.length > 0) {
+          setEvents(supaEvents);
+          setLoading(false);
+          return;
+        }
+      } catch (err) {}
+
+      // 2. Fallback to API
       try {
         let res = await fetch('/api/competitions');
         if (res.ok) {
@@ -48,12 +64,25 @@ const DashboardPage = () => {
 
     fetchEvents();
     const interval = setInterval(fetchEvents, 3000);
+
+    // Supabase Realtime for instant dashboard event updates
+    const channel = supabase
+      .channel('dashboard_realtime_events')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'competitions' }, () => {
+        fetchEvents();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, () => {
+        fetchEvents();
+      })
+      .subscribe();
+
     window.addEventListener('storage', fetchEvents);
     window.addEventListener('gasc_tournaments_updated', fetchEvents);
     window.addEventListener('focus', fetchEvents);
 
     return () => {
       clearInterval(interval);
+      supabase.removeChannel(channel);
       window.removeEventListener('storage', fetchEvents);
       window.removeEventListener('gasc_tournaments_updated', fetchEvents);
       window.removeEventListener('focus', fetchEvents);

@@ -1,6 +1,7 @@
 const xlsx = require('xlsx');
 const fs = require('fs');
 const { supabase, toCamelCase, toSnakeCase } = require('../utils/supabaseHelper');
+const { storeInstance } = require('../data/localStore');
 
 // Helper function to map flexible column headers
 function normalizeKeys(row) {
@@ -100,6 +101,8 @@ exports.uploadExcelRoster = async (req, res) => {
     let updatedCount = 0;
     let skippedCount = 0;
 
+    let localRoster = storeInstance.getTable('college_student_roster') || [];
+
     for (const row of sheetData) {
       const student = extractStudentFromRow(row);
       if (!student || !student.register_number) {
@@ -108,47 +111,54 @@ exports.uploadExcelRoster = async (req, res) => {
       }
 
       // Check if user has already created a login account
-      const { data: userExists } = await supabase
-        .from('users')
-        .select('id')
-        .ilike('register_number', student.register_number)
-        .single();
+      let userExists = null;
+      try {
+        const { data: u } = await supabase
+          .from('users')
+          .select('id')
+          .ilike('register_number', student.register_number)
+          .maybeSingle();
+        userExists = u;
+      } catch (e) {}
 
-      // Check if already in roster
-      const { data: existing } = await supabase
-        .from('college_student_roster')
-        .select('id')
-        .ilike('register_number', student.register_number)
-        .single();
+      const cleanReg = student.register_number.toUpperCase();
+      const existingIdx = localRoster.findIndex(r => (r.register_number || '').toUpperCase() === cleanReg);
 
-      if (existing) {
-        await supabase
-          .from('college_student_roster')
-          .update({
-            name: student.name,
-            department: student.department,
-            year: student.year,
-            section: student.section,
-            gender: student.gender,
-            is_registered: !!userExists,
-            registered_user_id: userExists ? userExists.id : null
-          })
-          .eq('id', existing.id);
+      const record = {
+        id: existingIdx >= 0 ? localRoster[existingIdx].id : `ros_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        register_number: cleanReg,
+        name: student.name,
+        department: student.department,
+        year: student.year,
+        section: student.section,
+        gender: student.gender,
+        is_registered: !!userExists,
+        registered_user_id: userExists ? userExists.id : null,
+        updated_at: new Date().toISOString()
+      };
+
+      if (existingIdx >= 0) {
+        localRoster[existingIdx] = { ...localRoster[existingIdx], ...record };
         updatedCount++;
       } else {
-        await supabase
-          .from('college_student_roster')
-          .insert({
-            ...student,
-            is_registered: !!userExists,
-            registered_user_id: userExists ? userExists.id : null
-          });
+        record.created_at = new Date().toISOString();
+        localRoster.push(record);
         insertedCount++;
       }
+
+      // Sync to Supabase if table exists
+      try {
+        await supabase
+          .from('college_student_roster')
+          .upsert(record, { onConflict: 'register_number' });
+      } catch (e) {}
     }
 
-    const { count: totalStudents } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true });
-    const { count: registeredCount } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true }).eq('is_registered', true);
+    storeInstance.db['college_student_roster'] = localRoster;
+    storeInstance.save();
+
+    const totalStudents = localRoster.length;
+    const registeredCount = localRoster.filter(r => r.is_registered).length;
 
     res.json({
       success: true,
@@ -157,9 +167,9 @@ exports.uploadExcelRoster = async (req, res) => {
         insertedCount,
         updatedCount,
         skippedCount,
-        totalInRoster: totalStudents || 0,
-        registeredCount: registeredCount || 0,
-        pendingCount: (totalStudents || 0) - (registeredCount || 0)
+        totalInRoster: totalStudents,
+        registeredCount: registeredCount,
+        pendingCount: totalStudents - registeredCount
       }
     });
   } catch (error) {
@@ -174,56 +184,125 @@ exports.uploadExcelRoster = async (req, res) => {
 exports.getRosterStudents = async (req, res) => {
   try {
     const { search, department, year, status } = req.query;
-    let query = supabase.from('college_student_roster').select('*');
 
-    if (search) {
-      query = query.or(`register_number.ilike.%${search.trim()}%,name.ilike.%${search.trim()}%`);
-    }
+    let students = null;
+    let totalCount = 0;
+    let registeredCount = 0;
 
-    if (department && department !== 'All') {
-      if (department === 'Maths' || department === 'Mathematics') {
-        query = query.in('department', ['Maths', 'Mathematics']);
-      } else if (department === 'B.Com' || department === 'Commerce' || department === 'B COM') {
-        query = query.in('department', ['B.Com', 'Commerce', 'B COM']);
-      } else if (department === 'BBA' || department === 'Business Administration') {
-        query = query.in('department', ['BBA', 'Business Administration']);
-      } else if (department === 'BMA' || department === 'MBA') {
-        query = query.in('department', ['BMA', 'MBA']);
-      } else if (department === 'M.Com' || department === 'MCOM') {
-        query = query.in('department', ['M.Com', 'MCOM']);
-      } else if (department === 'MA Tamil' || department === 'M.A. Tamil') {
-        query = query.in('department', ['MA Tamil', 'M.A. Tamil']);
-      } else if (department === 'MA English' || department === 'M.A. English') {
-        query = query.in('department', ['MA English', 'M.A. English']);
-      } else if (department === 'MA Maths' || department === 'M.Sc. Mathematics') {
-        query = query.in('department', ['MA Maths', 'M.Sc. Mathematics']);
-      } else {
-        query = query.eq('department', department);
+    // 1. Try Supabase
+    try {
+      let query = supabase.from('college_student_roster').select('*');
+
+      if (search) {
+        query = query.or(`register_number.ilike.%${search.trim()}%,name.ilike.%${search.trim()}%`);
       }
+
+      if (department && department !== 'All') {
+        if (department === 'Maths' || department === 'Mathematics') {
+          query = query.in('department', ['Maths', 'Mathematics']);
+        } else if (department === 'B.Com' || department === 'Commerce' || department === 'B COM') {
+          query = query.in('department', ['B.Com', 'Commerce', 'B COM']);
+        } else if (department === 'BBA' || department === 'Business Administration') {
+          query = query.in('department', ['BBA', 'Business Administration']);
+        } else if (department === 'BMA' || department === 'MBA') {
+          query = query.in('department', ['BMA', 'MBA']);
+        } else if (department === 'M.Com' || department === 'MCOM') {
+          query = query.in('department', ['M.Com', 'MCOM']);
+        } else if (department === 'MA Tamil' || department === 'M.A. Tamil') {
+          query = query.in('department', ['MA Tamil', 'M.A. Tamil']);
+        } else if (department === 'MA English' || department === 'M.A. English') {
+          query = query.in('department', ['MA English', 'M.A. English']);
+        } else if (department === 'MA Maths' || department === 'M.Sc. Mathematics') {
+          query = query.in('department', ['MA Maths', 'M.Sc. Mathematics']);
+        } else {
+          query = query.eq('department', department);
+        }
+      }
+
+      if (year && year !== 'All') {
+        query = query.eq('year', year);
+      }
+
+      if (status === 'registered') {
+        query = query.eq('is_registered', true);
+      } else if (status === 'unregistered') {
+        query = query.eq('is_registered', false);
+      }
+
+      query = query.order('register_number', { ascending: true });
+
+      const { data: studentsRaw, error } = await query;
+      if (!error && studentsRaw && studentsRaw.length > 0) {
+        students = studentsRaw.map(toCamelCase);
+        const { count: tc } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true });
+        const { count: rc } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true }).eq('is_registered', true);
+        totalCount = tc || students.length;
+        registeredCount = rc || 0;
+      }
+    } catch (e) {
+      // Supabase table not created yet, fall through to localStore
     }
 
-    if (year && year !== 'All') {
-      query = query.eq('year', year);
+    // 2. Fallback to localStore
+    if (!students) {
+      let allRoster = storeInstance.getTable('college_student_roster') || [];
+
+      // Update is_registered status by checking registered users
+      let userRegNos = new Set();
+      try {
+        const { data: supUsers } = await supabase.from('users').select('register_number');
+        if (supUsers && supUsers.length > 0) {
+          supUsers.forEach(u => {
+            if (u.register_number) userRegNos.add(u.register_number.trim().toUpperCase());
+          });
+        }
+      } catch(e) {}
+
+      if (userRegNos.size === 0) {
+        const allUsers = storeInstance.getTable('users') || [];
+        allUsers.forEach(u => {
+          const rn = u.register_number || u.registerNumber;
+          if (rn) userRegNos.add(rn.trim().toUpperCase());
+        });
+      }
+
+      allRoster = allRoster.map(s => {
+        const regNo = (s.register_number || s.registerNumber || '').trim().toUpperCase();
+        const isReg = s.is_registered || s.isRegistered || userRegNos.has(regNo);
+        return {
+          ...s,
+          is_registered: isReg,
+          isRegistered: isReg
+        };
+      });
+
+      totalCount = allRoster.length;
+      registeredCount = allRoster.filter(s => s.is_registered || s.isRegistered).length;
+
+      let filtered = [...allRoster];
+      if (search) {
+        const sLower = search.trim().toLowerCase();
+        filtered = filtered.filter(s =>
+          (s.register_number || s.registerNumber || '').toLowerCase().includes(sLower) ||
+          (s.name || '').toLowerCase().includes(sLower)
+        );
+      }
+      if (department && department !== 'All') {
+        const dLower = department.trim().toLowerCase();
+        filtered = filtered.filter(s => (s.department || '').toLowerCase().includes(dLower));
+      }
+      if (year && year !== 'All') {
+        filtered = filtered.filter(s => (s.year || '').toLowerCase() === year.toLowerCase());
+      }
+      if (status === 'registered') {
+        filtered = filtered.filter(s => s.is_registered || s.isRegistered);
+      } else if (status === 'unregistered') {
+        filtered = filtered.filter(s => !s.is_registered && !s.isRegistered);
+      }
+
+      filtered.sort((a, b) => (a.register_number || a.registerNumber || '').localeCompare(b.register_number || b.registerNumber || ''));
+      students = filtered.map(toCamelCase);
     }
-
-    if (status === 'registered') {
-      query = query.eq('is_registered', true);
-    } else if (status === 'unregistered') {
-      query = query.eq('is_registered', false);
-    }
-
-    query = query.order('register_number', { ascending: true });
-
-    const { data: studentsRaw, error } = await query;
-
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
-
-    const { count: totalCount } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true });
-    const { count: registeredCount } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true }).eq('is_registered', true);
-
-    const students = (studentsRaw || []).map(toCamelCase);
 
     res.json({
       success: true,
@@ -248,23 +327,24 @@ exports.addSingleStudent = async (req, res) => {
     }
 
     const cleanRegNo = registerNumber.trim().toUpperCase();
-    const { data: existing } = await supabase
-      .from('college_student_roster')
-      .select('id')
-      .ilike('register_number', cleanRegNo)
-      .single();
+    let localRoster = storeInstance.getTable('college_student_roster') || [];
 
-    if (existing) {
+    if (localRoster.some(r => (r.register_number || '').toUpperCase() === cleanRegNo)) {
       return res.status(400).json({ success: false, message: `Student with Register No "${cleanRegNo}" is already in the roster.` });
     }
 
-    const { data: userExists } = await supabase
-      .from('users')
-      .select('id')
-      .ilike('register_number', cleanRegNo)
-      .single();
+    let userExists = null;
+    try {
+      const { data: u } = await supabase
+        .from('users')
+        .select('id')
+        .ilike('register_number', cleanRegNo)
+        .maybeSingle();
+      userExists = u;
+    } catch (e) {}
 
     const newRecord = {
+      id: `ros_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       register_number: cleanRegNo,
       name: name.trim(),
       department: department || 'Computer Science',
@@ -272,30 +352,30 @@ exports.addSingleStudent = async (req, res) => {
       section: section ? section.trim().toUpperCase() : 'A',
       gender: gender || 'Male',
       is_registered: !!userExists,
-      registered_user_id: userExists ? userExists.id : null
+      registered_user_id: userExists ? userExists.id : null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    const { data: createdRaw, error } = await supabase
-      .from('college_student_roster')
-      .insert(newRecord)
-      .select()
-      .single();
+    localRoster.push(newRecord);
+    storeInstance.db['college_student_roster'] = localRoster;
+    storeInstance.save();
 
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    try {
+      await supabase.from('college_student_roster').insert(newRecord);
+    } catch (e) {}
 
-    const { count: totalCount } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true });
-    const { count: registeredCount } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true }).eq('is_registered', true);
+    const totalCount = localRoster.length;
+    const registeredCount = localRoster.filter(r => r.is_registered).length;
 
     res.status(201).json({
       success: true,
-      message: `Student "${createdRaw.name}" (${createdRaw.register_number}) successfully added to college roster!`,
-      student: toCamelCase(createdRaw),
+      message: `Student "${newRecord.name}" (${newRecord.register_number}) successfully added to college roster!`,
+      student: toCamelCase(newRecord),
       stats: {
-        totalCount: totalCount || 0,
-        registeredCount: registeredCount || 0,
-        pendingCount: (totalCount || 0) - (registeredCount || 0)
+        totalCount,
+        registeredCount,
+        pendingCount: totalCount - registeredCount
       }
     });
   } catch (error) {
@@ -310,27 +390,31 @@ exports.deleteStudent = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: studentRaw, error } = await supabase
-      .from('college_student_roster')
-      .delete()
-      .eq('id', id)
-      .select()
-      .single();
+    let localRoster = storeInstance.getTable('college_student_roster') || [];
+    const target = localRoster.find(r => r.id === id || r.register_number === id);
 
-    if (error || !studentRaw) {
+    if (!target) {
       return res.status(404).json({ success: false, message: 'Student not found in roster.' });
     }
 
-    const { count: totalCount } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true });
-    const { count: registeredCount } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true }).eq('is_registered', true);
+    storeInstance.db['college_student_roster'] = localRoster.filter(r => r.id !== id && r.register_number !== id);
+    storeInstance.save();
+
+    try {
+      await supabase.from('college_student_roster').delete().or(`id.eq.${id},register_number.eq.${id}`);
+    } catch (e) {}
+
+    const updatedRoster = storeInstance.db['college_student_roster'];
+    const totalCount = updatedRoster.length;
+    const registeredCount = updatedRoster.filter(r => r.is_registered).length;
 
     res.json({
       success: true,
-      message: `Removed ${studentRaw.name} (${studentRaw.register_number}) from college roster.`,
+      message: `Removed ${target.name} (${target.register_number}) from college roster.`,
       stats: {
-        totalCount: totalCount || 0,
-        registeredCount: registeredCount || 0,
-        pendingCount: (totalCount || 0) - (registeredCount || 0)
+        totalCount,
+        registeredCount,
+        pendingCount: totalCount - registeredCount
       }
     });
   } catch (error) {
@@ -346,29 +430,31 @@ exports.updateStudent = async (req, res) => {
     const { id } = req.params;
     const { registerNumber, name, department, year, section, gender } = req.body;
 
-    const updates = {};
-    if (name) updates.name = name.trim();
-    if (registerNumber) updates.register_number = registerNumber.trim().toUpperCase();
-    if (department) updates.department = department;
-    if (year) updates.year = year;
-    if (section !== undefined) updates.section = section.trim().toUpperCase() || 'A';
-    if (gender) updates.gender = gender;
+    let localRoster = storeInstance.getTable('college_student_roster') || [];
+    const idx = localRoster.findIndex(r => r.id === id || r.register_number === id);
 
-    const { data: updatedRaw, error } = await supabase
-      .from('college_student_roster')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error || !updatedRaw) {
+    if (idx === -1) {
       return res.status(404).json({ success: false, message: 'Student not found in roster.' });
     }
 
+    if (name) localRoster[idx].name = name.trim();
+    if (registerNumber) localRoster[idx].register_number = registerNumber.trim().toUpperCase();
+    if (department) localRoster[idx].department = department;
+    if (year) localRoster[idx].year = year;
+    if (section !== undefined) localRoster[idx].section = section.trim().toUpperCase() || 'A';
+    if (gender) localRoster[idx].gender = gender;
+    localRoster[idx].updated_at = new Date().toISOString();
+
+    storeInstance.save();
+
+    try {
+      await supabase.from('college_student_roster').update(toSnakeCase(localRoster[idx])).or(`id.eq.${id},register_number.eq.${id}`);
+    } catch (e) {}
+
     res.json({
       success: true,
-      message: `Student "${updatedRaw.name}" (${updatedRaw.register_number}) updated successfully!`,
-      student: toCamelCase(updatedRaw)
+      message: `Student "${localRoster[idx].name}" (${localRoster[idx].register_number}) updated successfully!`,
+      student: toCamelCase(localRoster[idx])
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

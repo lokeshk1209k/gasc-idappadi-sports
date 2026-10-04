@@ -27,13 +27,20 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const supabaseRoutes = require('./routes/supabaseRoutes');
 const externalCompetitionRoutes = require('./routes/externalCompetitionRoutes');
 const sportsNewsRoutes = require('./routes/sportsNewsRoutes');
-const compression = require('compression');
+let compression;
+try {
+  compression = require('compression');
+} catch (e) {
+  // Compression is optional for offline/portable environments
+}
 const { apiCache } = require('./middleware/cacheMiddleware');
 
 const app = express();
 
-// Enable Gzip Compression for 10,000+ concurrent users (reduces network payload by ~80%)
-app.use(compression());
+// Enable Gzip Compression for 10,000+ concurrent users if available
+if (compression) {
+  app.use(compression());
+}
 
 // Initialize local SQLite database for offline-first operation
 try {
@@ -79,33 +86,56 @@ const studentPublic = fs.existsSync(path.join(__dirname, '../dist/index.html'))
   ? path.join(__dirname, '../dist')
   : path.join(__dirname, '../student-client/dist');
 
-// 1. Student Portal Routes
-app.get(['/student', '/student/'], (req, res) => {
+// 1. Static Assets (Must come before route matchers so images, css, and js always resolve)
+app.use('/images', express.static(path.join(clientPublic, 'images')));
+app.use('/images', express.static(path.join(studentPublic, 'images')));
+app.use('/admin/images', express.static(path.join(clientPublic, 'images')));
+app.use('/admin/vendor', express.static(path.join(clientPublic, 'vendor')));
+app.use('/vendor', express.static(path.join(clientPublic, 'vendor')));
+app.use('/admin/css', express.static(path.join(clientPublic, 'css')));
+app.use('/admin/js', express.static(path.join(clientPublic, 'js')));
+app.use('/css', express.static(path.join(clientPublic, 'css')));
+// 1. Live Dynamic API Routes (High Priority - Always Handled By Controllers)
+app.use('/api/auth', authRoutes);
+app.use('/api/players', playerRoutes);
+app.use('/api/sports', sportRoutes);
+app.use('/api/equipment', equipmentRoutes);
+app.use('/api/competitions', competitionRoutes);
+app.use('/api/teams', teamRoutes);
+app.use('/api/achievements', achievementRoutes);
+app.use('/api/notifications', apiCache(10), notificationRoutes);
+app.use('/api/gallery', apiCache(30), galleryRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/roster', rosterRoutes);
+app.use('/api/practice', practiceRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/supabase', supabaseRoutes);
+app.use('/api/external-competitions', externalCompetitionRoutes);
+app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
+
+// 2. Static Assets & File Hosting
+app.use('/css', express.static(path.join(clientPublic, 'css')));
+app.use('/vendor', express.static(path.join(clientPublic, 'vendor')));
+app.use('/images', express.static(path.join(clientPublic, 'images')));
+app.use('/js', express.static(path.join(clientPublic, 'js')));
+app.use('/assets', express.static(path.join(studentPublic, 'assets')));
+app.use('/uploads', express.static(uploadDir));
+app.use(express.static(studentPublic));
+app.use(express.static(clientPublic));
+app.use('/admin', express.static(clientPublic));
+
+// 3. Student Portal Routes (Modern 2050 Sports Cyber Portal - React + Vite + Tailwind)
+// Root / directly loads the React Cyber Student Portal
+app.get(['/', '/index.html', '/student', '/student/*', '/student-portal', '/cyber-portal'], (req, res) => {
   if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
     return res.sendFile(path.join(studentPublic, 'index.html'));
   }
-  res.sendFile(path.join(clientPublic, 'student-login.html'));
-});
-app.get('/student/login', (req, res) => {
-  if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
-    return res.sendFile(path.join(studentPublic, 'index.html'));
-  }
-  res.sendFile(path.join(clientPublic, 'student-login.html'));
-});
-app.get('/student/register', (req, res) => {
-  if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
-    return res.sendFile(path.join(studentPublic, 'index.html'));
-  }
-  res.sendFile(path.join(clientPublic, 'student-register.html'));
-});
-app.get('/student/dashboard', (req, res) => {
-  if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
-    return res.sendFile(path.join(studentPublic, 'index.html'));
-  }
-  res.sendFile(path.join(clientPublic, 'student-dashboard.html'));
+  res.sendFile(path.join(clientPublic, 'admin-login.html'));
 });
 
-// 2. Sports Incharge / Admin Portal Routes
+// 4. Sports Incharge / Admin Portal Routes
 app.get('/admin/login', (req, res) => {
   res.sendFile(path.join(clientPublic, 'admin-login.html'));
 });
@@ -115,11 +145,14 @@ app.get('/admin/dashboard', (req, res) => {
 app.get(['/admin', '/admin/'], (req, res) => {
   res.redirect('/admin/dashboard');
 });
-app.get('/admin/:section', (req, res) => {
+app.get('/admin/:section', (req, res, next) => {
+  if (req.params.section.includes('.') || req.path.includes('.')) {
+    return next();
+  }
   res.sendFile(path.join(clientPublic, 'admin-dashboard.html'));
 });
 
-// 3. Legacy Redirects for seamless backward compatibility
+// 5. Legacy Redirects for seamless backward compatibility
 app.get('/login.html', (req, res) => {
   if (req.query.role === 'admin') {
     return res.redirect('/admin/login');
@@ -136,72 +169,20 @@ app.get('/student.html', (req, res) => {
   res.redirect('/student/login');
 });
 
-
-// Serve static frontend assets
-app.use('/images', express.static(path.join(clientPublic, 'images')));
-app.use('/images', express.static(path.join(studentPublic, 'images')));
-// Serve React app first (so it handles /index.html and its assets)
-app.use(express.static(studentPublic));
-// Serve admin portal static assets for relative /admin/* paths
-app.use('/admin', express.static(clientPublic));
-app.use(express.static(clientPublic));
-app.use('/uploads', express.static(uploadDir));
-
-
-// API Routes (Optimized for 10,000+ Concurrent Student Requests)
-app.use('/api/auth', authRoutes);
-app.use('/api/players', playerRoutes);
-app.use('/api/sports', apiCache(20), sportRoutes);
-app.use('/api/equipment', equipmentRoutes);
-app.use('/api/competitions', apiCache(15), competitionRoutes);
-app.use('/api/teams', teamRoutes);
-app.use('/api/achievements', achievementRoutes);
-app.use('/api/notifications', apiCache(10), notificationRoutes);
-app.use('/api/gallery', apiCache(30), galleryRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/roster', rosterRoutes);
-app.use('/api/practice', practiceRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/supabase', supabaseRoutes);
-app.use('/api/external-competitions', externalCompetitionRoutes);
-app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
-
-// Health check + Supabase diagnostics
-app.get('/api/health', async (req, res) => {
-  const cfgMod = require('./config/supabase');
-  const configured = cfgMod.isSupabaseConfigured();
-  const supabaseUrlShort = cfgMod.supabaseUrl ? cfgMod.supabaseUrl.substring(0, 35) + '...' : 'NOT SET';
-  let dbStatus = configured ? 'testing...' : 'not_configured';
-  let dbError = null;
-  if (configured) {
-    try {
-      const { supabase } = require('./utils/supabaseHelper');
-      const { data, error } = await supabase.from('sports').select('id').limit(1);
-      dbStatus = error ? 'error' : 'connected_ok';
-      if (error) dbError = error.message;
-    } catch (e) { dbStatus = 'error'; dbError = e.message; }
-  }
+// Instant Health check (0ms response, does not hang on remote cloud)
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
     college: 'Government Arts and Science College, Idappadi',
-    supabase: { configured, url: supabaseUrlShort, dbStatus, dbError },
+    port: activeServer && activeServer.address() ? activeServer.address().port : 5000,
     timestamp: new Date()
   });
 });
-// React SPA Fallback Route
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api') || req.path.startsWith('/admin') || req.path.startsWith('/uploads')) {
-    return next();
-  }
-  res.sendFile(path.join(studentPublic, 'index.html'));
-});
 
 // Catch-all route for React SPA routes (/student/*, /student/login, /student/dashboard, etc.)
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(404).json({ success: false, message: 'API route not found' });
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/admin') || req.path.startsWith('/uploads') || req.path.includes('.')) {
+    return next();
   }
   res.sendFile(path.join(studentPublic, 'index.html'));
 });
@@ -218,6 +199,14 @@ app.use((err, req, res, next) => {
 const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 5000;
 
 let activeServer = null;
+const readyCallbacks = [];
+
+const notifyReady = (port) => {
+  while (readyCallbacks.length) {
+    const cb = readyCallbacks.shift();
+    try { cb(port); } catch(e) {}
+  }
+};
 
 // Resilient port listener (auto-switches to next port if busy)
 const listenOnPort = (port) => {
@@ -229,12 +218,13 @@ const listenOnPort = (port) => {
     console.log('---------------------------------------------------------------');
     console.log(`🚀 Server running on: http://localhost:${port}`);
     console.log(`🌐 Public Website:    http://localhost:${port}/index.html`);
-    console.log(`⚡ Supabase Database: ${isSupabaseConfigured() ? '✅ Connected & Active' : '❌ Not configured'}`);
+    console.log(`⚡ Database Mode:     Local Store Ready + Supabase Sync Engine`);
     console.log('---------------------------------------------------------------');
     console.log('Demo Credentials for Viva / Presentation:');
     console.log('  Admin (Sports Incharge):       admin / admin123');
     console.log('  Student Player:                23UGCS101 / student123');
     console.log('===============================================================\n');
+    notifyReady(port);
   });
 
   server.on('error', (err) => {
@@ -248,18 +238,18 @@ const listenOnPort = (port) => {
   });
 };
 
-// Initialize Supabase Database and Start Server
+// Start Server (Instant non-blocking startup)
 const startServer = async () => {
   listenOnPort(DEFAULT_PORT);
-  try {
-    if (isSupabaseConfigured()) {
-      console.log('⚡ Connected to Supabase Cloud Database!');
-      await seedSupabase(false);
-    } else {
-      console.warn('⚠️ Supabase credentials missing in .env');
-    }
-  } catch (error) {
-    console.error('Failed during server startup check:', error.message);
+  if (isSupabaseConfigured()) {
+    // Background seed test without blocking express startup
+    setTimeout(async () => {
+      try {
+        await seedSupabase(false);
+      } catch (err) {
+        console.warn('Background seed notice:', err.message);
+      }
+    }, 1500);
   }
 };
 
@@ -271,5 +261,10 @@ module.exports = {
   app,
   startServer,
   getHttpServer: () => activeServer,
-  getActivePort: () => (activeServer && activeServer.address && activeServer.address() ? activeServer.address().port : null)
+  getActivePort: () => (activeServer && activeServer.address && activeServer.address() ? activeServer.address().port : null),
+  whenReady: (cb) => {
+    const p = activeServer && activeServer.address && activeServer.address() ? activeServer.address().port : null;
+    if (p) return cb(p);
+    readyCallbacks.push(cb);
+  }
 };

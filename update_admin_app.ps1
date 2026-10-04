@@ -6,6 +6,7 @@ Start-Sleep -Seconds 2
 
 $workspace = "c:\Users\ELCOT\.gemini\antigravity-ide\scratch\gasc-idappadi-sports"
 $targets = @(
+    "D:\GASC-Sports-Admin-Portable\GASC Sports Admin-win32-x64",
     "$workspace\dist\admin-exe\GASC Sports Admin-win32-x64",
     "C:\Users\ELCOT\Downloads\GASC Sports Admin Portal",
     "C:\Users\ELCOT\Desktop\GASC Sports Admin Portable"
@@ -31,15 +32,31 @@ foreach ($target in $targets) {
             if (!(Test-Path $studentAppDst)) { New-Item -ItemType Directory -Path $studentAppDst -Force | Out-Null }
             Copy-Item -Path "$workspace\student-client\dist\*" -Destination $studentAppDst -Recurse -Force
         }
-        # Sync root config files
+        # Sync root config files & local database
         Copy-Item -Path "$workspace\package.json" -Destination $appDir -Force
         if (Test-Path "$workspace\.env") {
             Copy-Item -Path "$workspace\.env" -Destination $appDir -Force
         }
+        if (Test-Path "$workspace\gasc_sports_local.db") {
+            Copy-Item -Path "$workspace\gasc_sports_local.db" -Destination $appDir -Force
+        }
 
-        # Update / create Start GASC Sports Admin.bat
-        $batContent = "@echo off`r`ntitle GASC Sports Admin Portal`r`ncd /d `"%~dp0`"`r`nstart `"`" `"GASC Sports Admin.exe`"`r`n"
+        # Sync any missing node_modules such as compression
+        $targetNm = Join-Path $appDir "node_modules"
+        if (Test-Path $targetNm) {
+            foreach ($mod in @("compression", "compressible", "on-headers")) {
+                $modSrc = Join-Path "$workspace\node_modules" $mod
+                $modDst = Join-Path $targetNm $mod
+                if ((Test-Path $modSrc) -and !(Test-Path $modDst)) {
+                    Copy-Item -Path $modSrc -Destination $modDst -Recurse -Force
+                }
+            }
+        }
+
+        # Update / create Start scripts
+        $batContent = "@echo off`r`ntitle GASC Sports Admin Portal`r`ncd /d `"%~dp0`"`r`ntaskkill /F /IM `"GASC Sports Admin.exe`" >nul 2>&1`r`necho Starting GASC Sports Admin...`r`nstart `"`" `"GASC Sports Admin.exe`"`r`n"
         Set-Content -Path (Join-Path $target "Start GASC Sports Admin.bat") -Value $batContent -Force
+        Set-Content -Path (Join-Path $target "Start App.bat") -Value $batContent -Force
 
         # Verify admin.js syntax
         $adminJsPath = Join-Path $appDir "client\public\js\admin.js"

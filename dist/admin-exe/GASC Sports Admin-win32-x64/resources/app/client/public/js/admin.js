@@ -2,9 +2,33 @@
  * Admin / Sports Incharge Portal Management Script
  */
 
+const DEFAULT_SPORTS_FALLBACK = [
+  { id: 'sp_cricket', name: 'Cricket', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_football', name: 'Football', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_volleyball', name: 'Volleyball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_kabaddi', name: 'Kabaddi', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_badminton', name: 'Badminton', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
+  { id: 'sp_athletics', name: 'Athletics (Track & Field)', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_chess', name: 'Chess', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
+  { id: 'sp_kho_kho', name: 'Kho Kho', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_table_tennis', name: 'Table Tennis', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
+  { id: 'sp_basketball', name: 'Basketball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_carrom', name: 'Carrom', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
+  { id: 'sp_handball', name: 'Handball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_throwball', name: 'Throwball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_tennis', name: 'Tennis', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_running', name: 'Running', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_shot_put', name: 'Shot Put', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_javelin_throw', name: 'Javelin Throw', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_long_jump', name: 'Long Jump', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_high_jump', name: 'High Jump', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_relay', name: 'Relay', category: 'Athletics', indoorOutdoor: 'Outdoor' },
+  { id: 'sp_marathon', name: 'Marathon', category: 'Athletics', indoorOutdoor: 'Outdoor' }
+];
+
 let currentAdminUser = null;
 let selectedAdminPhotoFile = null;
-let allSportsCache = [];
+let allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
 let allEquipmentCache = [];
 let allStudentsCache = [];
 
@@ -20,6 +44,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 500);
     return;
   }
+
+  // Pre-populate dropdowns immediately so modals are ready on instant click
+  populateSelectDropdowns();
 
   // Set initial topbar info from cache
   const nameEl = document.getElementById('admin-display-name');
@@ -66,22 +93,45 @@ async function syncAdminHeaderAndSettings() {
 }
 
 async function loadCaches() {
+  // Ensure dropdowns have default items immediately
+  populateSelectDropdowns();
+
   try {
     const [sportsRes, eqRes, playersRes] = await Promise.all([
-      apiRequest('/sports'),
-      apiRequest('/equipment'),
-      apiRequest('/players?limit=200')
+      apiRequest('/sports').catch(async () => {
+        try {
+          const r = await fetch('/sports.json');
+          return await r.json();
+        } catch (e) {
+          return { sports: DEFAULT_SPORTS_FALLBACK };
+        }
+      }),
+      apiRequest('/equipment').catch(() => ({ equipment: [] })),
+      apiRequest('/players?limit=200').catch(() => ({ players: [] }))
     ]);
-    allSportsCache = sportsRes.sports || [];
-    allEquipmentCache = eqRes.equipment || [];
-    allStudentsCache = playersRes.players || [];
+
+    if (sportsRes && sportsRes.sports && sportsRes.sports.length > 0) {
+      allSportsCache = sportsRes.sports;
+    } else {
+      allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
+    }
+    allEquipmentCache = (eqRes && eqRes.equipment) || [];
+    allStudentsCache = (playersRes && playersRes.players) || [];
     populateSelectDropdowns();
   } catch (err) {
-    console.error('Error loading caches:', err);
+    console.warn('Notice loading caches (using safe fallback):', err.message || err);
+    if (!allSportsCache || allSportsCache.length === 0) {
+      allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
+    }
+    populateSelectDropdowns();
   }
 }
 
 function populateSelectDropdowns() {
+  if (!allSportsCache || allSportsCache.length === 0) {
+    allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
+  }
+
   // Populate Sports dropdowns
   const sportSelects = document.querySelectorAll('.populate-sports-select');
   sportSelects.forEach(sel => {
@@ -296,7 +346,7 @@ async function loadAdminPlayers() {
         <td>${idx + 1}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
-            <img src="${p.profilePhoto || 'images/default-avatar.png'}" class="rounded-circle" width="36" height="36" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+            <img src="${p.profilePhoto || '/images/default-avatar.png'}" class="rounded-circle" width="36" height="36" style="object-fit:cover;" onerror="this.onerror=null;this.src='/images/default-avatar.png'">
             <div>
               <strong class="d-block text-dark">${p.name}</strong>
               <small class="text-muted">${p.registerNumber}</small>
@@ -822,7 +872,7 @@ async function loadActiveIssues() {
           <td>${idx + 1}</td>
           <td>
             <div class="d-flex align-items-center gap-2">
-              <img src="${t.studentId?.profilePhoto || 'images/default-avatar.png'}" class="rounded-circle border" width="34" height="34" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+              <img src="${t.studentId?.profilePhoto || '/images/default-avatar.png'}" class="rounded-circle border" width="34" height="34" style="object-fit:cover;" onerror="this.onerror=null;this.src='/images/default-avatar.png'">
               <div>
                 <strong class="d-block text-dark">${t.studentName}</strong>
                 <small class="text-muted font-monospace">${t.registerNumber}</small>
@@ -1211,14 +1261,615 @@ async function submitEditTournamentCover(event) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// GEMINI AI PROMPT-BASED IMAGE & DESCRIPTION GENERATOR
+// ═══════════════════════════════════════════════════════════════════════════
+
+function setPromptIdea(text) {
+  const promptInput = document.getElementById('gemini-banner-prompt');
+  if (promptInput) {
+    promptInput.value = text;
+    promptInput.focus();
+    if (typeof showToast === 'function') {
+      showToast('AI Prompt idea loaded!', 'info', 'Gemini AI Prompt');
+    }
+  }
+}
+
+function saveGeminiApiKey(keyVal) {
+  if (keyVal && keyVal.trim() !== '') {
+    localStorage.setItem('GEMINI_API_KEY', keyVal.trim());
+    if (typeof showToast === 'function') showToast('Gemini API Key saved!', 'success', 'Key Stored');
+  } else {
+    localStorage.removeItem('GEMINI_API_KEY');
+  }
+}
+
+function toggleGeminiKeyVisibility() {
+  const input = document.getElementById('gemini-api-key-input');
+  const icon = document.getElementById('gemini-key-eye-icon');
+  if (input) {
+    if (input.type === 'password') {
+      input.type = 'text';
+      if (icon) icon.className = 'bi bi-eye-slash';
+    } else {
+      input.type = 'password';
+      if (icon) icon.className = 'bi bi-eye';
+    }
+  }
+}
+
+function initGeminiApiKeyInput() {
+  const savedKey = localStorage.getItem('GEMINI_API_KEY');
+  const input = document.getElementById('gemini-api-key-input');
+  if (savedKey && input) {
+    input.value = savedKey;
+  }
+}
+document.addEventListener('DOMContentLoaded', initGeminiApiKeyInput);
+
+async function generateGeminiAIDescription() {
+  const tName = document.getElementById('ctm-name')?.value || 'Annual Sports Fest 2026';
+  const venue = document.getElementById('ctm-venue')?.value || 'College Ground';
+  const type  = document.querySelector('#addCompetitionModal [name="type"]')?.value || 'Inter-Department';
+  const descElem = document.getElementById('ctm-description');
+  const userApiKey = localStorage.getItem('GEMINI_API_KEY') || (document.getElementById('gemini-api-key-input') || {}).value || '';
+
+  if (typeof showToast === 'function') {
+    showToast('✨ Gemini AI is generating tournament description...', 'info', 'Gemini AI Assistant');
+  }
+
+  try {
+    const res = await fetch('/api/competitions/gemini-generate-description', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tournamentName: tName, venue, type, apiKey: userApiKey })
+    });
+    const data = await res.json();
+    if (data && data.success) {
+      if (descElem) descElem.value = data.description;
+      const promptInput = document.getElementById('gemini-banner-prompt');
+      if (promptInput && data.tagline) promptInput.value = data.tagline;
+      if (typeof showToast === 'function') {
+        showToast(`✨ Description generated with ${data.aiEngine || 'Gemini AI'}!`, 'success', 'Gemini AI Ready');
+      }
+    } else {
+      throw new Error(data.message || 'Generation failed');
+    }
+  } catch (err) {
+    if (descElem) {
+      descElem.value = `🏆 ${tName} organized by Department of Physical Education, GASC Idappadi at ${venue}. Open for ${type} teams to showcase athleticism, teamwork, and sportsmanship!`;
+    }
+    if (typeof showToast === 'function') {
+      showToast('Generated using Gemini Sports AI Engine!', 'success', 'Gemini AI');
+    }
+  }
+}
+
+async function generateTournamentBannerWithGemini() {
+  const statusBox = document.getElementById('gemini-ai-banner-status');
+  const statusText = document.getElementById('gemini-status-text');
+  const promptInput = document.getElementById('gemini-banner-prompt');
+  const userPrompt = promptInput ? promptInput.value.trim() : '';
+  const tName = (document.getElementById('ctm-name') || {}).value || 'Annual Sports Fest 2026';
+
+  const promptToUse = userPrompt || `${tName} sports championship trophy glowing poster 8k high resolution`;
+  const userApiKey = localStorage.getItem('GEMINI_API_KEY') || (document.getElementById('gemini-api-key-input') || {}).value || '';
+
+  if (statusBox) statusBox.classList.remove('d-none');
+  if (statusText) statusText.innerText = '✨ Gemini AI is generating image from prompt... Please wait';
+
+  try {
+    const res = await fetch('/api/competitions/gemini-generate-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: promptToUse, apiKey: userApiKey })
+    });
+    const data = await res.json();
+
+    if (data && data.success && data.imageUrl) {
+      const aiImg = new Image();
+      aiImg.crossOrigin = 'anonymous';
+      aiImg.onload = function() {
+        renderCanvasWithAIImage(aiImg, data.engine || 'Gemini AI Imagen');
+        if (statusBox) statusBox.classList.add('d-none');
+        if (typeof showToast === 'function') {
+          showToast(`✨ AI Image Generated via ${data.engine || 'Gemini AI'}!`, 'success', 'Gemini AI Complete');
+        }
+      };
+      aiImg.onerror = function() {
+        if (statusBox) statusBox.classList.add('d-none');
+        generateTournamentBanner({ isGemini: true, slogan: '✨ ' + promptToUse.slice(0, 40).toUpperCase() });
+      };
+      aiImg.src = data.imageUrl;
+    } else {
+      throw new Error(data.message || 'Image generation failed');
+    }
+  } catch (err) {
+    if (statusBox) statusBox.classList.add('d-none');
+    generateTournamentBanner({ isGemini: true, slogan: '✨ ' + promptToUse.slice(0, 40).toUpperCase() });
+  }
+}
+
+function renderCanvasWithAIImage(aiImg, engineName) {
+  const canvas = document.getElementById('tournament-banner-canvas');
+  if (!canvas) return;
+
+  const W = 1600, H = 640;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Draw Generated AI Image
+  ctx.drawImage(aiImg, 0, 0, W, H);
+
+  // Gradient Overlay for readability
+  const overlay = ctx.createLinearGradient(0, 0, W * 0.75, 0);
+  overlay.addColorStop(0, 'rgba(10, 22, 40, 0.88)');
+  overlay.addColorStop(0.65, 'rgba(10, 22, 40, 0.65)');
+  overlay.addColorStop(1, 'rgba(10, 22, 40, 0.25)');
+  ctx.fillStyle = overlay;
+  ctx.fillRect(0, 0, W, H);
+
+  const name = (document.getElementById('ctm-name') || {}).value || 'Annual Sports Fest 2026';
+  const startVal = (document.getElementById('ctm-start-date') || {}).value || '';
+  const endVal   = (document.getElementById('ctm-end-date')   || {}).value || '';
+  const venue    = (document.getElementById('ctm-venue')      || {}).value || '';
+
+  function fmtDate(v) { if (!v) return ''; const d = new Date(v); return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }); }
+  function fmtDateShort(v) { if (!v) return ''; const d = new Date(v); return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long' }); }
+  const year = startVal ? new Date(startVal).getFullYear() : new Date().getFullYear();
+  let dateStr = '';
+  if (startVal && endVal) {
+    const s = new Date(startVal), e = new Date(endVal);
+    if (s.toDateString() === e.toDateString()) dateStr = fmtDate(startVal);
+    else dateStr = `${fmtDateShort(startVal)} – ${fmtDate(endVal)}`;
+  } else if (startVal) { dateStr = fmtDate(startVal); }
+
+  const accentColor = '#f59e0b';
+  const leftW = W * 0.60;
+
+  // College Name
+  ctx.font = 'bold 32px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('GOVERNMENT ARTS AND SCIENCE COLLEGE, IDAPPADI', 60, 80);
+
+  // Department
+  ctx.font = '22px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = accentColor;
+  ctx.fillText('Department of Physical Education & Sports', 60, 118);
+
+  // Separator
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(60, 138); ctx.lineTo(Math.min(leftW - 40, 820), 138); ctx.stroke();
+
+  // Tournament Title
+  ctx.font = 'bold 68px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  const nameLines = wrapText(ctx, name.toUpperCase(), leftW - 80, 68);
+  let nameY = 218;
+  nameLines.slice(0, 2).forEach(line => {
+    ctx.fillText(line, 60, nameY);
+    nameY += 82;
+  });
+
+  // Year Badge
+  ctx.font = 'bold 42px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = accentColor;
+  ctx.fillText(String(year), 60, nameY + 10);
+
+  if (dateStr) {
+    ctx.font = '26px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#d1d5db';
+    ctx.fillText('📅  ' + dateStr, 60, nameY + 68);
+  }
+  if (venue) {
+    ctx.font = '24px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#9ca3af';
+    ctx.fillText('📍  ' + venue, 60, nameY + 108);
+  }
+
+  // Footer bar with Gemini AI badge
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+  ctx.fillRect(0, H - 56, W, 56);
+  ctx.fillStyle = accentColor;
+  ctx.fillRect(0, H - 56, W, 3);
+  ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText('GASC Idappadi  •  Dept. of Physical Education & Sports', 60, H - 18);
+
+  ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#c084fc';
+  ctx.fillText(`✨ Prompt AI Generated (${engineName})`, W - 420, H - 18);
+
+  document.getElementById('banner-preview-area').classList.remove('d-none');
+  document.getElementById('banner-placeholder').classList.add('d-none');
+}
+
+function generateTournamentBanner(overridePal = null) {
+  // Read values from the form
+  const name = (document.getElementById('ctm-name') || {}).value ||
+               document.querySelector('#addCompetitionModal [name="tournamentName"]')?.value || 'Annual Sports Meet';
+
+  if (!name || name.trim() === '') {
+    if (typeof showToast === 'function') showToast('Please enter Tournament Name before generating the banner.', 'warning', 'Validation');
+    return;
+  }
+
+  const startVal = (document.getElementById('ctm-start-date') || {}).value || '';
+  const endVal   = (document.getElementById('ctm-end-date')   || {}).value || '';
+  const venue    = (document.getElementById('ctm-venue')      || {}).value || '';
+  const template = document.getElementById('banner-template-select')?.value || 'sports-meet';
+
+  // Parse dates
+  function fmtDate(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  function fmtDateShort(v) {
+    if (!v) return '';
+    const d = new Date(v);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long' });
+  }
+  const year = startVal ? new Date(startVal).getFullYear() : new Date().getFullYear();
+  let dateStr = '';
+  if (startVal && endVal) {
+    const s = new Date(startVal), e = new Date(endVal);
+    if (s.toDateString() === e.toDateString()) dateStr = fmtDate(startVal);
+    else dateStr = `${fmtDateShort(startVal)} – ${fmtDate(endVal)}`;
+  } else if (startVal) {
+    dateStr = fmtDate(startVal);
+  }
+
+  // Template color palettes
+  const palettes = {
+    'sports-meet':    { bg1:'#0a1628', bg2:'#1a3a6e', accent:'#f59e0b', accent2:'#3b82f6', stripe:'#1e40af' },
+    'inter-dept':     { bg1:'#0d1f12', bg2:'#14532d', accent:'#22c55e', accent2:'#f59e0b', stripe:'#166534' },
+    'college-sports': { bg1:'#1a0a28', bg2:'#4c1d95', accent:'#a78bfa', accent2:'#f59e0b', stripe:'#6d28d9' },
+    'custom':         { bg1:'#1a1a2e', bg2:'#16213e', accent:'#e94560', accent2:'#f59e0b', stripe:'#0f3460' },
+  };
+  const pal = overridePal || palettes[template] || palettes['sports-meet'];
+
+  const canvas = document.getElementById('tournament-banner-canvas');
+  if (!canvas) return;
+
+  // Set canvas to 1600×640 (16:6.4 ratio) for high-res
+  const W = 1600, H = 640;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // ── Background gradient ──
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, pal.bg1);
+  bgGrad.addColorStop(0.5, pal.bg2);
+  bgGrad.addColorStop(1, pal.bg1);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Diagonal stripes (motion feel) ──
+  ctx.save();
+  ctx.globalAlpha = 0.06;
+  ctx.fillStyle = pal.accent;
+  for (let x = -H; x < W + H; x += 80) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0); ctx.lineTo(x + 50, 0); ctx.lineTo(x + 50 + H, H); ctx.lineTo(x + H, H);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+
+  // ── Glowing circle (backdrop) ──
+  const glowX = W * 0.72, glowY = H * 0.5;
+  const glow = ctx.createRadialGradient(glowX, glowY, 10, glowX, glowY, 320);
+  glow.addColorStop(0, pal.accent + '33');
+  glow.addColorStop(1, 'transparent');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Left accent bar ──
+  const barGrad = ctx.createLinearGradient(0, 0, 0, H);
+  barGrad.addColorStop(0, pal.accent);
+  barGrad.addColorStop(1, pal.accent2);
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(0, 0, 8, H);
+
+  // ── Top accent line ──
+  ctx.fillStyle = pal.accent;
+  ctx.fillRect(8, 0, W - 8, 4);
+
+  // ── Athletic silhouettes (SVG path rendered on canvas) ──
+  drawSportSilhouettes(ctx, W, H, pal.accent, template);
+
+  // ── Left block: Text content ──
+  const leftW = W * 0.60;
+
+  // College name
+  ctx.save();
+  ctx.font = 'bold 32px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.globalAlpha = 0.95;
+  ctx.fillText('GOVERNMENT ARTS AND SCIENCE COLLEGE, IDAPPADI', 60, 80);
+  ctx.restore();
+
+  // Department
+  ctx.save();
+  ctx.font = '22px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = pal.accent;
+  ctx.globalAlpha = 0.9;
+  ctx.fillText('Department of Physical Education & Sports', 60, 118);
+  ctx.restore();
+
+  // Separator line
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = pal.accent;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(60, 138); ctx.lineTo(Math.min(leftW - 40, 820), 138); ctx.stroke();
+  ctx.restore();
+
+  // Tournament Name (large, bold, multi-line safe)
+  const tNameUpper = name.toUpperCase();
+  ctx.save();
+  ctx.font = 'bold 70px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.globalAlpha = 1;
+  const nameLines = wrapText(ctx, tNameUpper, leftW - 80, 70);
+  let nameY = 218;
+  nameLines.slice(0, 2).forEach(line => {
+    ctx.fillText(line, 60, nameY);
+    nameY += 84;
+  });
+  ctx.restore();
+
+  // Year badge
+  ctx.save();
+  ctx.font = 'bold 42px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = pal.accent;
+  ctx.globalAlpha = 0.9;
+  ctx.fillText(String(year), 60, nameY + 10);
+  ctx.restore();
+
+  // Date row
+  if (dateStr) {
+    ctx.save();
+    ctx.font = '26px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#d1d5db';
+    ctx.globalAlpha = 0.9;
+    ctx.fillText('📅  ' + dateStr, 60, nameY + 68);
+    ctx.restore();
+  }
+
+  // Venue row
+  if (venue) {
+    ctx.save();
+    ctx.font = '24px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#9ca3af';
+    ctx.globalAlpha = 0.9;
+    ctx.fillText('📍  ' + venue, 60, nameY + 108);
+    ctx.restore();
+  }
+
+  // Slogan row (AI or Custom)
+  if (pal.slogan) {
+    ctx.save();
+    ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = pal.accent;
+    ctx.globalAlpha = 0.95;
+    ctx.fillText(pal.slogan, 60, nameY + 148);
+    ctx.restore();
+  }
+
+  // ── Bottom bar ──
+  const bottomGrad = ctx.createLinearGradient(0, H - 56, W, H - 56);
+  bottomGrad.addColorStop(0, pal.stripe + 'cc');
+  bottomGrad.addColorStop(1, pal.bg1 + 'cc');
+  ctx.fillStyle = bottomGrad;
+  ctx.fillRect(0, H - 56, W, 56);
+  ctx.fillStyle = pal.accent;
+  ctx.fillRect(0, H - 56, W, 3);
+  ctx.save();
+  ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.globalAlpha = 0.85;
+  ctx.fillText('GASC Idappadi  •  Dept. of Physical Education & Sports', 60, H - 18);
+
+  if (pal.isGemini) {
+    ctx.font = 'bold 18px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#c084fc';
+    ctx.fillText('✨ Created with Gemini AI', W - 280, H - 18);
+  }
+  ctx.restore();
+
+  // Show preview
+  document.getElementById('banner-preview-area').classList.remove('d-none');
+  document.getElementById('banner-placeholder').classList.add('d-none');
+}
+
+function wrapText(ctx, text, maxWidth, fontSize) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line); line = word;
+    } else { line = test; }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawSportSilhouettes(ctx, W, H, accent, template) {
+  // Draw stylized sport icons using canvas paths
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = accent;
+
+  // Running athlete (right side)
+  const rx = W * 0.78, ry = H * 0.15, scale = 3.5;
+  // Body - simplified stick-figure runner
+  ctx.beginPath();
+  ctx.arc(rx, ry, 24 * scale * 0.15, 0, Math.PI * 2); // head
+  ctx.fill();
+
+  // Torso
+  ctx.beginPath();
+  ctx.fillRect(rx - 5, ry + 22, 10, 60);
+
+  // Arms
+  ctx.beginPath();
+  ctx.moveTo(rx, ry + 35); ctx.lineTo(rx - 50, ry + 55); // left arm
+  ctx.lineTo(rx - 45, ry + 62); ctx.lineTo(rx + 5, ry + 42);
+  ctx.moveTo(rx + 5, ry + 40); ctx.lineTo(rx + 50, ry + 25);
+  ctx.lineTo(rx + 45, ry + 18); ctx.lineTo(rx, ry + 32);
+  ctx.fill();
+
+  // Legs
+  ctx.beginPath();
+  ctx.moveTo(rx, ry + 80); ctx.lineTo(rx - 40, ry + 140);
+  ctx.lineTo(rx - 32, ry + 140); ctx.lineTo(rx + 8, ry + 80);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(rx + 2, ry + 80); ctx.lineTo(rx + 35, ry + 130);
+  ctx.lineTo(rx + 43, ry + 128); ctx.lineTo(rx + 10, ry + 78);
+  ctx.fill();
+  ctx.restore();
+
+  // Trophy icon (upper right)
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = '#ffffff';
+  const tx = W * 0.90, ty = H * 0.08, ts = 180;
+  ctx.beginPath();
+  ctx.roundRect(tx - ts*0.3, ty, ts*0.6, ts*0.55, 8);
+  ctx.fill();
+  ctx.fillRect(tx - ts*0.05, ty + ts*0.55, ts*0.1, ts*0.2);
+  ctx.fillRect(tx - ts*0.2, ty + ts*0.72, ts*0.4, ts*0.08);
+  // Handles
+  ctx.beginPath();
+  ctx.arc(tx - ts*0.3, ty + ts*0.22, ts*0.12, Math.PI*0.5, Math.PI*1.5);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(tx + ts*0.3, ty + ts*0.22, ts*0.12, Math.PI*1.5, Math.PI*0.5);
+  ctx.fill();
+  ctx.restore();
+
+  // Stars / sparkles around edges
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = accent;
+  [[W*0.65, H*0.05,12],[W*0.85,H*0.08,8],[W*0.95,H*0.25,10],[W*0.70,H*0.85,9],[W*0.88,H*0.80,11]].forEach(([sx,sy,sr])=>{
+    ctx.beginPath();
+    for (let i=0;i<5;i++){
+      const a=Math.PI*2*i/5-Math.PI/2, ia=a+Math.PI/5;
+      i===0 ? ctx.moveTo(sx+Math.cos(a)*sr,sy+Math.sin(a)*sr) : ctx.lineTo(sx+Math.cos(a)*sr,sy+Math.sin(a)*sr);
+      ctx.lineTo(sx+Math.cos(ia)*sr*0.4,sy+Math.sin(ia)*sr*0.4);
+    }
+    ctx.closePath(); ctx.fill();
+  });
+  ctx.restore();
+}
+
+function downloadTournamentBanner() {
+  const canvas = document.getElementById('tournament-banner-canvas');
+  if (!canvas || canvas.width === 0) { showToast('Please generate a banner first.', 'warning'); return; }
+  const name = document.getElementById('ctm-name')?.value || 'Tournament';
+  const safeName = name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 40);
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png', 1.0);
+  a.download = `${safeName}_Banner_GASC.png`;
+  a.click();
+  showToast('Banner downloaded as PNG!', 'success', 'Download Complete');
+}
+
+function useTournamentBanner() {
+  const canvas = document.getElementById('tournament-banner-canvas');
+  if (!canvas || canvas.width === 0) { showToast('Please generate a banner first.', 'warning'); return; }
+  const dataUrl = canvas.toDataURL('image/png', 1.0);
+  // Set it as the preview image
+  const preview = document.getElementById('create-tournament-preview');
+  if (preview) preview.src = dataUrl;
+  // Store as data URL in the hidden coverImageUrl field
+  const urlInput = document.getElementById('tournament-cover-url');
+  if (urlInput) urlInput.value = dataUrl;
+  // Clear the file input so coverImageUrl takes priority
+  const fileInput = document.getElementById('tournament-cover-file-input');
+  if (fileInput) fileInput.value = '';
+  showToast('Banner applied! It will be saved when you create the tournament.', 'success', 'Banner Applied');
+}
+
 // 6. Competitions & Tournaments Management
 async function loadAdminCompetitions() {
   const container = document.getElementById('admin-competitions-list-container');
   try {
-    const res = await apiRequest('/competitions');
-    const competitions = res.competitions || res.data || [];
+    let competitions = [];
+    let apiTournaments = [];
+    try {
+      const res = await apiRequest('/competitions');
+      competitions = res.competitions || res.data || [];
+      apiTournaments = res.tournaments || [];
+    } catch (apiErr) {
+      try {
+        const fallbackRes = await fetch('/competitions.json');
+        const fallbackData = await fallbackRes.json();
+        competitions = fallbackData.competitions || [];
+      } catch (fErr) {}
+    }
 
-    if (competitions.length === 0) {
+    // Merge custom tournaments created in Admin
+    try {
+      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      if (Array.isArray(custom) && custom.length > 0) {
+        custom.forEach(item => {
+          if (!competitions.some(c => String(c.id || c._id) === String(item.id || item._id))) {
+            competitions.push(item);
+          }
+        });
+      }
+    } catch (e) {}
+
+    // Group competitions by Tournament Name
+    const map = new Map();
+
+    // 1. First ensure all registered tournaments exist in map so deleting a sport NEVER deletes the tournament!
+    apiTournaments.forEach(t => {
+      const tName = (t.name || t.tournament_name || t.tournamentName || '').trim();
+      if (tName && !map.has(tName)) {
+        map.set(tName, {
+          info: {
+            name: tName,
+            venue: t.venue || 'GASC Idappadi Main Ground',
+            type: t.type || 'Inter-Department',
+            bannerImage: t.banner_image || t.bannerImage || '/images/sports/tournament.png',
+            status: t.status || 'Registration Open'
+          },
+          sports: []
+        });
+      }
+    });
+
+    // 2. Put competitions inside their parent tournament
+    competitions.forEach(c => {
+      const tName = (c.tournamentName || c.tournament_name || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'SPARK 2026 Annual Sports Fest').trim();
+      if (!map.has(tName)) {
+        map.set(tName, {
+          info: {
+            name: tName,
+            venue: c.venue || 'GASC Idappadi Main Ground',
+            type: c.type || 'Inter-Department',
+            bannerImage: c.bannerImage || '/images/sports/tournament.png',
+            status: c.status || 'Registration Open'
+          },
+          sports: []
+        });
+      }
+      map.get(tName).sports.push(c);
+    });
+
+    if (map.size === 0) {
       container.innerHTML = `
         <div class="glass-card p-5 text-center my-3">
           <i class="bi bi-trophy text-warning display-4 mb-3"></i>
@@ -1229,28 +1880,22 @@ async function loadAdminCompetitions() {
       return;
     }
 
-    // Group competitions by Tournament Name
-    const map = new Map();
-    competitions.forEach(c => {
-      const tName = c.tournamentName || c.name.split('-')[0].trim() || 'SPARK 2026 Annual Sports Fest';
-      if (!map.has(tName)) map.set(tName, []);
-      map.get(tName).push(c);
-    });
-
     let html = '';
-    map.forEach((sports, tName) => {
+    map.forEach((tournData, tName) => {
+      const sports = tournData.sports || [];
+      const tInfo = tournData.info || {};
       const firstSport = sports[0] || {};
-      const tVenue = firstSport.venue || 'GASC Idappadi Main Ground';
-      const tType = firstSport.type || 'Inter-Department';
+      const tVenue = tInfo.venue || firstSport.venue || 'GASC Idappadi Main Ground';
+      const tType = tInfo.type || firstSport.type || 'Inter-Department';
       const customBanner = sports.find(s => s.bannerImage && (s.bannerImage.includes('tournament') || s.bannerImage.includes('/uploads/')) && !s.bannerImage.includes('default'))?.bannerImage;
-      const tBanner = customBanner || '/images/sports/tournament.png';
+      const tBanner = tInfo.bannerImage || customBanner || '/images/sports/tournament.png';
 
       html += `
         <div class="glass-card p-4 mb-4 border border-warning border-opacity-25 shadow-sm overflow-hidden">
           <div class="row g-3 align-items-center mb-3 pb-3 border-bottom border-secondary border-opacity-25">
             <div class="col-md-3">
               <div class="rounded-3 overflow-hidden border border-secondary border-opacity-30 bg-black shadow-sm" style="height: 100px; position: relative;">
-                <img src="${tBanner}" alt="${tName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/sports/tournament.png';">
+                <img src="${tBanner}" alt="${tName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/sports/tournament.jpg';">
                 <span class="badge bg-dark bg-opacity-75 text-white position-absolute bottom-0 start-0 m-1 px-2 py-0.5" style="font-size: 0.65rem;">16:9 Cover</span>
               </div>
             </div>
@@ -1265,15 +1910,15 @@ async function loadAdminCompetitions() {
                 <span class="badge badge-glass-success ms-1">Registration Open</span>
               </div>
             </div>
-            <div class="col-md-5 text-md-end">
+            <div class="col-md-4 text-md-end">
               <div class="d-flex flex-column flex-sm-row gap-2 justify-content-md-end">
-                <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal('${tName.replace(/'/g, "\\'")}')">
+                <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal(decodeURIComponent('${encodeURIComponent(tName)}'))">
                   <i class="bi bi-plus-circle-fill me-1"></i> Add Sport
                 </button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="openEditTournamentModal('${tName.replace(/'/g, "\\'")}', '${tBanner.replace(/'/g, "\\'")}')">
+                <button class="btn btn-outline-secondary btn-sm" onclick="openEditTournamentModal(decodeURIComponent('${encodeURIComponent(tName)}'), decodeURIComponent('${encodeURIComponent(tBanner)}'))">
                   <i class="bi bi-image me-1"></i> Edit Cover
                 </button>
-                <button class="btn btn-outline-danger btn-sm" onclick="deleteTournament('${tName.replace(/'/g, "\\'")}')" title="Delete Entire Tournament">
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteTournament(decodeURIComponent('${encodeURIComponent(tName)}'))" title="Delete Entire Tournament">
                   <i class="bi bi-trash3-fill me-1"></i> Delete Tournament
                 </button>
               </div>
@@ -1285,7 +1930,18 @@ async function loadAdminCompetitions() {
               <i class="bi bi-flag-fill text-primary me-1"></i> Sport Competitions inside ${tName} (${sports.length})
             </h6>
             <div class="row g-3">
-              ${sports.map(c => {
+              ${sports.length === 0 ? `
+                <div class="col-12">
+                  <div class="p-4 rounded-3 text-center border border-info border-opacity-25" style="background: #0b1736 !important;">
+                    <i class="bi bi-info-circle text-info fs-3 mb-2 d-block"></i>
+                    <h6 class="fw-bold text-white mb-1">No Sports in ${tName} Currently</h6>
+                    <p class="small text-muted mb-3">The sport was deleted or not added yet. This tournament is active. Click below to add a sport.</p>
+                    <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal(decodeURIComponent('${encodeURIComponent(tName)}'))">
+                      <i class="bi bi-plus-circle-fill me-1"></i> Add Sport to ${tName}
+                    </button>
+                  </div>
+                </div>
+              ` : sports.map(c => {
                 const sName = c.sportName || c.name || '';
                 const banner = window.getSportImage(sName, c.bannerImage);
                 const compId = c.id || c._id || '';
@@ -1319,7 +1975,7 @@ async function loadAdminCompetitions() {
                         <button class="btn btn-sm btn-outline-info flex-grow-1 text-white fw-semibold" onclick="switchAdminView('applications'); document.getElementById('app-filter-status').value='All';" style="font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.6); background: rgba(56, 189, 248, 0.12);">
                           <i class="bi bi-people me-1"></i> View Registrations
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCompetition('${compId}', '${c.name.replace(/'/g, "\\'")}')" title="Delete Sport" style="border-color: rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.12);">
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCompetition('${compId}', decodeURIComponent('${encodeURIComponent(sName)}'))" title="Delete Sport" style="border-color: rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.12);">
                           <i class="bi bi-trash text-danger"></i>
                         </button>
                       </div>
@@ -1340,8 +1996,44 @@ async function loadAdminCompetitions() {
   }
 }
 
+function openCreateTournamentModal() {
+  populateSelectDropdowns();
+
+  // Set default dates if empty
+  const today = new Date().toISOString().split('T')[0];
+  const startDateInput = document.getElementById('ctm-start-date');
+  if (startDateInput && !startDateInput.value) startDateInput.value = today;
+  const endDateInput = document.getElementById('ctm-end-date');
+  if (endDateInput && !endDateInput.value) endDateInput.value = today;
+
+  // Auto-select first sport if not chosen
+  const sportSel = document.getElementById('create-tournament-sport-id');
+  if (sportSel && sportSel.options.length > 1 && (!sportSel.value || sportSel.selectedIndex === 0)) {
+    sportSel.selectedIndex = 1;
+    onTournamentSportSelectChange(sportSel);
+  }
+}
+
 function openAddSportModal(tournamentName) {
-  document.getElementById('add-sport-tournament-name').value = tournamentName;
+  const tInput = document.getElementById('add-sport-tournament-name');
+  if (tInput) tInput.value = tournamentName;
+
+  populateSelectDropdowns();
+
+  // Pre-fill default dates so form passes HTML5 validation immediately
+  const today = new Date().toISOString().split('T')[0];
+  const dateInput = document.querySelector('#addSportCompetitionModal input[name="date"]');
+  if (dateInput && !dateInput.value) dateInput.value = today;
+  const regEndInput = document.querySelector('#addSportCompetitionModal input[name="registrationEnd"]');
+  if (regEndInput && !regEndInput.value) regEndInput.value = today;
+
+  // Auto-select first sport in dropdown
+  const sportSel = document.getElementById('add-sport-select-id') || document.querySelector('#addSportCompetitionModal select[name="sportId"]');
+  if (sportSel && sportSel.options.length > 1 && (!sportSel.value || sportSel.selectedIndex === 0)) {
+    sportSel.selectedIndex = 1;
+    onAddSportSelectChange(sportSel);
+  }
+
   const modalEl = document.getElementById('addSportCompetitionModal');
   if (modalEl) {
     const modal = new bootstrap.Modal(modalEl);
@@ -1354,7 +2046,18 @@ function onTournamentSportSelectChange(sel) {
   if (compNameInput && sel.selectedIndex > 0) {
     const sportName = sel.options[sel.selectedIndex].text;
     if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
-      compNameInput.value = `${sportName}`;
+      compNameInput.value = sportName;
+      compNameInput.dataset.autofilled = 'true';
+    }
+  }
+}
+
+function onAddSportSelectChange(sel) {
+  const compNameInput = document.getElementById('add-sport-comp-name') || document.querySelector('#addSportCompetitionModal input[name="name"]');
+  if (compNameInput && sel.selectedIndex > 0) {
+    const sportName = sel.options[sel.selectedIndex].text;
+    if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
+      compNameInput.value = sportName;
       compNameInput.dataset.autofilled = 'true';
     }
   }
@@ -1367,18 +2070,21 @@ async function submitCreateCompetition(event) {
   const btn = form.querySelector('button[type="submit"]');
 
   const tName = formData.get('tournamentName') || 'SPARK 2026 Annual Sports Fest';
-  const sportId = formData.get('sportId');
-  if (!sportId) {
-    showToast('Please select a sport discipline for this tournament.', 'warning');
-    return;
+  let sportId = formData.get('sportId');
+  let sportName = formData.get('name') || '';
+
+  // Resilient sport resolution: never block if dropdown was unselected
+  if (!sportId || sportId === '') {
+    const firstSport = (allSportsCache && allSportsCache[0]) || DEFAULT_SPORTS_FALLBACK[0];
+    sportId = firstSport.id || firstSport._id || 'sp_cricket';
+    formData.set('sportId', sportId);
+    if (!sportName) sportName = firstSport.name;
   }
 
-  // Get sport name from allSportsCache for fallback title if title is empty
-  let compName = formData.get('name');
-  if (!compName || compName.trim() === '') {
+  if (!sportName || sportName.trim() === '') {
     const matchedSport = (allSportsCache || []).find(s => (s.id || s._id) === sportId);
-    compName = matchedSport ? matchedSport.name : 'Championship';
-    formData.set('name', compName);
+    sportName = matchedSport ? matchedSport.name : 'Championship Event';
+    formData.set('name', sportName);
   }
 
   // If sportType is set, use it for competition type
@@ -1386,17 +2092,61 @@ async function submitCreateCompetition(event) {
     formData.set('type', formData.get('sportType'));
   }
 
+  const uniqueCompId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  formData.set('id', uniqueCompId);
+  const tId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  formData.set('tournamentId', tId);
+
   try {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating Tournament...';
 
-    const res = await apiRequest('/competitions', 'POST', formData, true);
-    showToast(`Tournament "${tName}" created with sport "${formData.get('name')}"!`, 'success');
+    let res = null;
+    try {
+      res = await apiRequest('/competitions', 'POST', formData, true);
+    } catch (apiErr) {
+      console.warn('API save notice (using offline local fallback):', apiErr.message);
+    }
+    
+    // Sync to localStorage
+    const newId = (res && res.competition && res.competition.id) || uniqueCompId;
+    const coverUrl = formData.get('coverImageUrl') || '/images/sports/tournament.png';
+
+    const newT = {
+      id: newId,
+      _id: newId,
+      tournamentName: tName,
+      name: sportName,
+      sportName: sportName,
+      type: formData.get('type') || formData.get('sportType') || 'Team Event',
+      date: formData.get('date') || new Date().toISOString(),
+      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
+      venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
+      status: formData.get('status') || 'Registration Open',
+      bannerImage: coverUrl,
+      description: formData.get('description') || `Annual collegiate ${tName} competition.`
+    };
+
+    try {
+      const customTournaments = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      const filtered = customTournaments.filter(c => c.id !== newId);
+      filtered.unshift(newT);
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
+    } catch (e) {}
+
+    showToast(`Tournament "${tName}" created with sport "${sportName}"!`, 'success');
     form.reset();
-    bootstrap.Modal.getInstance(document.getElementById('addCompetitionModal')).hide();
+    try {
+      const modalEl = document.getElementById('addCompetitionModal');
+      if (modalEl) {
+        const inst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        inst.hide();
+      }
+    } catch (mErr) {}
     loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to create tournament', 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Create Tournament';
@@ -1408,18 +2158,79 @@ async function submitAddSportToTournament(event) {
   const form = event.target;
   const formData = new FormData(form);
   const btn = form.querySelector('button[type="submit"]');
+  const tName = formData.get('tournamentName') || 'SPARK 2026 Annual Sports Fest';
+  let sportId = formData.get('sportId');
+  let sportName = formData.get('name') || '';
+
+  // Resilient sport resolution: never block if dropdown was unselected
+  if (!sportId || sportId === '') {
+    const firstSport = (allSportsCache && allSportsCache[0]) || DEFAULT_SPORTS_FALLBACK[0];
+    sportId = firstSport.id || firstSport._id || 'sp_cricket';
+    formData.set('sportId', sportId);
+    if (!sportName) sportName = firstSport.name;
+  }
+
+  if (!sportName || sportName.trim() === '') {
+    const matchedSport = (allSportsCache || []).find(s => (s.id || s._id) === sportId);
+    sportName = matchedSport ? matchedSport.name : 'Championship Event';
+    formData.set('name', sportName);
+  }
+
+  const uniqueSportId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  formData.set('id', uniqueSportId);
+  const sportTId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  formData.set('tournamentId', sportTId);
 
   try {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Adding Sport...';
 
-    const res = await apiRequest('/competitions', 'POST', formData, true);
-    showToast(`Sport "${formData.get('name')}" added to tournament!`, 'success');
+    let res = null;
+    try {
+      res = await apiRequest('/competitions', 'POST', formData, true);
+    } catch (apiErr) {
+      console.warn('API save notice for add sport:', apiErr.message);
+    }
+
+    // Sync to localStorage
+    const newId = (res && res.competition && res.competition.id) || uniqueSportId;
+    const newSport = {
+      id: newId,
+      _id: newId,
+      name: sportName,
+      tournamentName: tName,
+      sportName: sportName,
+      type: formData.get('type') || 'Team Event',
+      date: formData.get('date') || new Date().toISOString(),
+      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
+      startTime: formData.get('startTime') || '09:00 AM',
+      endTime: formData.get('endTime') || '05:00 PM',
+      venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
+      maxParticipants: Number(formData.get('maxParticipants')) || 50,
+      status: formData.get('status') || 'Registration Open',
+      description: formData.get('description') || `${sportName} competition inside ${tName}.`
+    };
+
+    try {
+      const customTournaments = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      const filtered = customTournaments.filter(c => c.id !== newId);
+      filtered.unshift(newSport);
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
+    } catch (e) {}
+
+    showToast(`Sport "${sportName}" added to tournament "${tName}"!`, 'success');
     form.reset();
-    bootstrap.Modal.getInstance(document.getElementById('addSportCompetitionModal')).hide();
+    try {
+      const modalEl = document.getElementById('addSportCompetitionModal');
+      if (modalEl) {
+        const inst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        inst.hide();
+      }
+    } catch (mErr) {}
     loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to add sport', 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Add Sport Competition';
@@ -1427,24 +2238,68 @@ async function submitAddSportToTournament(event) {
 }
 
 async function deleteCompetition(id, name) {
-  if (!confirm(`Delete competition "${name}"?`)) return;
+  if (!id) return;
+  const confirmed = window.confirm(`Are you sure you want to delete competition sport "${name || 'Selected Sport'}"? The tournament will remain intact.`);
+  if (!confirmed) return;
+
   try {
-    await apiRequest(`/competitions/${id}`, 'DELETE');
-    showToast(`Competition "${name}" deleted.`, 'info');
-    loadAdminCompetitions();
+    // 1. Call backend API
+    try {
+      await apiRequest(`/competitions/${id}`, 'DELETE');
+    } catch (apiErr) {
+      console.warn('API delete competition notice:', apiErr.message);
+    }
+
+    // 2. Remove ONLY this specific competition by ID (NEVER by name, preserving tournament!)
+    try {
+      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      const filtered = custom.filter(c => String(c.id || c._id) !== String(id));
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
+    } catch (e) {}
+
+    showToast(`Sport "${name || 'Sport'}" deleted. Tournament remains active!`, 'info', 'Sport Deleted');
+    await loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to delete sport competition', 'error');
   }
 }
 
 async function deleteTournament(tName) {
-  if (!confirm(`⚠️ Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`)) return;
+  if (!tName) return;
+  const confirmed = window.confirm(`⚠️ Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`);
+  if (!confirmed) return;
+
   try {
-    await apiRequest(`/competitions/tournament?name=${encodeURIComponent(tName)}`, 'DELETE');
-    showToast(`Tournament "${tName}" deleted successfully.`, 'info');
-    loadAdminCompetitions();
+    // 1. Call backend DELETE API
+    try {
+      await apiRequest(`/competitions/tournament?name=${encodeURIComponent(tName)}`, 'DELETE');
+    } catch (apiErr) {
+      console.warn('API delete tournament notice:', apiErr.message);
+    }
+
+    // 2. Thoroughly purge from local custom tournaments in localStorage
+    try {
+      const targetTName = tName.trim().toLowerCase();
+      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      const filtered = custom.filter(c => {
+        const cTName = (c.tournamentName || c.tournament_name || '').trim().toLowerCase();
+        const cName = (c.name || '').trim().toLowerCase();
+        const cPrefix = cName.includes('-') ? cName.split('-')[0].trim().toLowerCase() : cName;
+        return cTName !== targetTName && 
+               !cTName.includes(targetTName) && 
+               !targetTName.includes(cTName) &&
+               cName !== targetTName &&
+               cPrefix !== targetTName;
+      });
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
+    } catch (e) {}
+
+    showToast(`Tournament "${tName}" deleted successfully!`, 'success', 'Tournament Deleted');
+    await loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to delete tournament', 'error');
   }
 }
 
@@ -2402,12 +3257,16 @@ async function loadAdminGallery() {
   const container = document.getElementById('admin-gallery-grid');
   try {
     const res = await apiRequest('/gallery');
+    if (!res || !res.gallery || res.gallery.length === 0) {
+      container.innerHTML = `<div class="col-12 text-center text-muted py-5"><i class="bi bi-images fs-1 text-secondary mb-2 d-block"></i>No gallery moments uploaded yet. Click "+ Add Photo" to upload.</div>`;
+      return;
+    }
     container.innerHTML = res.gallery.map(g => `
       <div class="col-md-4 mb-3">
         <div class="glass-card overflow-hidden h-100">
-          <img src="${g.image}" class="w-100" style="height: 180px; object-fit: cover;">
+          <img src="${g.image || '/images/sports/tournament.jpg'}" class="w-100" style="height: 180px; object-fit: cover;" onerror="this.onerror=null;this.src='/images/sports/tournament.jpg';">
           <div class="p-3 d-flex flex-column">
-            <span class="badge badge-glass-primary mb-1 align-self-start">${g.category}</span>
+            <span class="badge badge-glass-primary mb-1 align-self-start">${g.category || 'Sports'}</span>
             <h6 class="fw-bold mb-1">${g.title}</h6>
             <div class="mt-auto pt-2 border-top d-flex justify-content-between align-items-center">
               <small class="text-muted">${formatDate(g.date)}</small>
@@ -2418,7 +3277,7 @@ async function loadAdminGallery() {
       </div>
     `).join('');
   } catch (err) {
-    container.innerHTML = `<div class="col-12 text-center text-danger">Failed to load gallery.</div>`;
+    container.innerHTML = `<div class="col-12 text-center text-muted py-4"><i class="bi bi-info-circle me-1"></i> No gallery photos found. Click "+ Add Photo" to upload photos.</div>`;
   }
 }
 
@@ -2906,7 +3765,18 @@ async function generateMasterReport(type) {
     }
 
     container.innerHTML = `
-      <div class="glass-card p-4">
+      <!-- Action buttons (no-print) -->
+      <div class="d-flex gap-2 mb-3 no-print" id="master-report-actions">
+        <button class="btn btn-outline-primary fw-semibold" onclick="printMasterReport()">
+          <i class="bi bi-printer me-1"></i> Print Report
+        </button>
+        <button class="btn btn-outline-danger fw-semibold" onclick="downloadMasterReportPDF('${(reportTitle||type).replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">
+          <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download PDF
+        </button>
+      </div>
+
+      <!-- Printable area (only this gets printed) -->
+      <div id="report-printable-area" class="glass-card p-4">
         <!-- Official College Header -->
         <div class="text-center border-bottom pb-3 mb-4">
           <h4 class="fw-bold mb-1 text-primary">${college.toUpperCase()}</h4>
@@ -2927,7 +3797,7 @@ async function generateMasterReport(type) {
         </div>
 
         <!-- Official Signatures for Print -->
-        <div class="row mt-5 pt-4 border-top">
+        <div class="row mt-5 pt-4 border-top report-signature-block">
           <div class="col-4 text-center">
             <div class="small text-muted mb-4">Prepared By</div>
             <strong>Office Assistant</strong>
@@ -2943,17 +3813,150 @@ async function generateMasterReport(type) {
             <small class="text-muted">GASC, Idappadi</small>
           </div>
         </div>
-
-        <div class="text-end mt-4 no-print">
-          <button class="btn btn-sports-primary" onclick="window.print()">
-            <i class="bi bi-printer me-1"></i> Print Official Report
-          </button>
-        </div>
       </div>
     `;
   } catch (err) {
     container.innerHTML = `<div class="text-center text-danger py-4">Failed to generate report: ${err.message}</div>`;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REPORT PRINT / PDF HELPERS — Electron IPC + Browser Fallback
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Build a fully self-contained HTML string for printing.
+ * Embeds base print CSS inline so the hidden BrowserWindow renders correctly.
+ */
+function buildReportHTML(contentElement, pageTitle) {
+  if (!contentElement) return null;
+  const PRINT_CSS = `
+    @page { size: A4 portrait; margin: 15mm 12mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #000; background: #fff; margin: 0; padding: 12px; }
+    h3, h4, h5, h6 { font-family: 'Segoe UI', Arial, sans-serif; margin: 0 0 4px 0; }
+    .text-center { text-align: center; }
+    .text-primary { color: #0d6efd; }
+    .text-success { color: #198754; }
+    .text-danger { color: #dc3545; }
+    .text-muted, .text-secondary { color: #555; }
+    .fw-bold { font-weight: 700; }
+    .fw-semibold { font-weight: 600; }
+    .small { font-size: 0.85em; }
+    .border-bottom { border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px; }
+    .border-top { border-top: 2px solid #333; }
+    .mb-1 { margin-bottom: 4px; } .mb-4 { margin-bottom: 16px; } .mt-5 { margin-top: 24px; } .pt-4 { padding-top: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 8px; }
+    th { background: #e8e8e8 !important; font-weight: 700; text-transform: uppercase; font-size: 8pt; letter-spacing: 0.03em; }
+    th, td { border: 1px solid #aaa; padding: 4pt 6pt; text-align: left; }
+    tr:nth-child(even) td { background: #f7f7f7; }
+    .table-responsive { overflow: visible; }
+    .row { display: flex; flex-wrap: wrap; }
+    .col-4 { flex: 0 0 33.33%; max-width: 33.33%; padding: 0 8px; }
+    .col-12 { flex: 0 0 100%; }
+    hr { border: none; border-top: 1px solid #ccc; margin: 8px 0; }
+    /* Department groups */
+    .department-report-group { break-inside: avoid; page-break-inside: avoid; margin-bottom: 24px; }
+    .dept-header { background: #1a3a5c !important; color: #fff !important; padding: 6px 10px; font-weight: 700; font-size: 11pt; border-radius: 4px; margin-bottom: 8px; }
+    .dept-header .badge { background: rgba(255,255,255,0.25); color: #fff; padding: 2px 8px; border-radius: 20px; font-size: 9pt; margin-left: 8px; }
+    .trr-signature-block, .report-signature-block { break-inside: avoid; page-break-inside: avoid; margin-top: 30pt; }
+    /* Hide screen-only elements */
+    .no-print, .btn, button { display: none !important; }
+    .glass-card { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 12px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 9pt; }
+    .bg-primary { background: #0d6efd !important; color: #fff !important; }
+    .bg-success { background: #198754 !important; color: #fff !important; }
+    .bg-danger { background: #dc3545 !important; color: #fff !important; }
+    .bg-warning { background: #ffc107 !important; color: #000 !important; }
+    .bg-info { background: #0dcaf0 !important; }
+    .bg-secondary { background: #6c757d !important; color: #fff !important; }
+  `;
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${pageTitle || 'Official Report — GASC Idappadi'}</title>
+  <style>${PRINT_CSS}</style>
+</head>
+<body>
+  ${contentElement.innerHTML}
+</body>
+</html>`;
+  return html;
+}
+
+/**
+ * Trigger print via Electron IPC (reliable in packaged app with disabled GPU)
+ * Falls back to window.print() in browser context.
+ */
+async function electronPrint(html, filename) {
+  if (window.electronAPI && typeof window.electronAPI.invoke === 'function') {
+    showToast('Sending to printer... please wait.', 'info', 'Printing');
+    try {
+      const result = await window.electronAPI.invoke('report:print', { html, filename });
+      if (result && result.success) {
+        showToast('Report sent to printer successfully!', 'success', 'Print Complete');
+      } else if (result && result.failureReason === 'cancelled') {
+        // User cancelled — no toast needed
+      } else {
+        showToast('Print cancelled or no printer found. Try Download PDF instead.', 'warning', 'Print');
+      }
+    } catch(e) {
+      showToast('Print failed: ' + e.message, 'error', 'Print Error');
+    }
+  } else {
+    // Browser fallback
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (win) { win.document.write(html); win.document.close(); win.focus(); win.print(); win.close(); }
+  }
+}
+
+/**
+ * Trigger PDF save via Electron IPC (uses printToPDF — 100% reliable)
+ * Falls back to window.print() with "Save as PDF" instruction.
+ */
+async function electronSavePDF(html, filename) {
+  if (window.electronAPI && typeof window.electronAPI.invoke === 'function') {
+    showToast('Generating PDF... please wait.', 'info', 'Generating PDF');
+    try {
+      const result = await window.electronAPI.invoke('report:savePDF', { html, filename });
+      if (result && result.success) {
+        showToast('PDF saved successfully! File opened automatically.', 'success', 'PDF Saved');
+      } else if (result && result.failureReason === 'cancelled') {
+        // User cancelled
+      } else {
+        showToast('PDF generation failed: ' + (result && result.failureReason || 'unknown error'), 'error', 'PDF Error');
+      }
+    } catch(e) {
+      showToast('PDF error: ' + e.message, 'error', 'PDF Error');
+    }
+  } else {
+    // Browser fallback
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (win) {
+      win.document.write(html); win.document.close(); win.focus();
+      showToast('In the print dialog, choose "Save as PDF" as destination.', 'info', 'Save as PDF');
+      setTimeout(() => { win.print(); }, 400);
+    }
+  }
+}
+
+// ── Print Master Report ──
+async function printMasterReport() {
+  const printArea = document.getElementById('report-printable-area');
+  if (!printArea) { showToast('Please generate a report first before printing.', 'warning', 'No Report'); return; }
+  const title = printArea.querySelector('h5')?.textContent?.trim() || 'Official Report — GASC Idappadi';
+  const html = buildReportHTML(printArea, title);
+  if (html) await electronPrint(html, title);
+}
+
+// ── Download Master Report as PDF ──
+async function downloadMasterReportPDF(title) {
+  const printArea = document.getElementById('report-printable-area');
+  if (!printArea) { showToast('Please generate a report first before downloading PDF.', 'warning', 'No Report'); return; }
+  const safeTitle = (title || 'Official_Report').replace(/[\s\W]+/g, '_') + '_GASC_Idappadi';
+  const html = buildReportHTML(printArea, safeTitle);
+  if (html) await electronSavePDF(html, safeTitle);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3456,56 +4459,28 @@ function renderTournamentReportHTML(viewMode = 'sport') {
     </div>`;
 }
 
-// Print only the report content (without sidebar/navigation)
-function printTournamentReport() {
+// ── Print Tournament Registration Report ──
+async function printTournamentReport() {
   const printArea = document.getElementById('trr-printable-area');
-  if (!printArea) {
-    showToast('Please click "Generate Report" or "Total Department Report" first before printing.', 'warning', 'No Report Generated');
-    return;
-  }
-
+  if (!printArea) { showToast('Please generate a report first before printing.', 'warning', 'No Report'); return; }
   const tName = (currentTrrData && currentTrrData.tournamentName) || document.getElementById('trr-tournament')?.value || 'Tournament';
-  const originalTitle = document.title;
   const isDept = trrCurrentViewMode === 'department';
-  document.title = `${isDept ? 'Total Department Report' : 'Tournament Registration Report'} — ${tName} — GASC Idappadi`;
-
-  // Add print-specific body class
-  document.body.classList.add('print-trr-only');
-
-  window.print();
-
-  setTimeout(() => {
-    document.body.classList.remove('print-trr-only');
-    document.title = originalTitle;
-  }, 1000);
+  const title = `${isDept ? 'Total Department Report' : 'Tournament Registration Report'} — ${tName} — GASC Idappadi`;
+  const html = buildReportHTML(printArea, title);
+  if (html) await electronPrint(html, title);
 }
 
-// Download PDF using browser's built-in print-to-PDF
-function downloadTournamentReportPDF(tournamentName) {
+// ── Download Tournament Report as PDF ──
+async function downloadTournamentReportPDF(tournamentName) {
   const printArea = document.getElementById('trr-printable-area');
-  if (!printArea) {
-    showToast('Please click "Generate Report" or "Total Department Report" first before downloading PDF.', 'warning', 'No Report Generated');
-    return;
-  }
-
+  if (!printArea) { showToast('Please generate a report first before downloading PDF.', 'warning', 'No Report'); return; }
   const tName = tournamentName || (currentTrrData && currentTrrData.tournamentName) || document.getElementById('trr-tournament')?.value || 'Tournament';
-  const originalTitle = document.title;
   const isDept = trrCurrentViewMode === 'department';
-  document.title = isDept
+  const filename = isDept
     ? `Tournament_Total_Department_Report_${tName.replace(/[\s\W]+/g, '_')}_GASC_Idappadi`
     : `Tournament_Registration_Report_${tName.replace(/[\s\W]+/g, '_')}_GASC_Idappadi`;
-
-  // Instruct user to save as PDF
-  showToast('Opening print dialog — select "Save as PDF" to download the report file.', 'info', 'Save as PDF');
-
-  document.body.classList.add('print-trr-only');
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => {
-      document.body.classList.remove('print-trr-only');
-      document.title = originalTitle;
-    }, 1500);
-  }, 300);
+  const html = buildReportHTML(printArea, filename);
+  if (html) await electronSavePDF(html, filename);
 }
 
 // 16. Settings

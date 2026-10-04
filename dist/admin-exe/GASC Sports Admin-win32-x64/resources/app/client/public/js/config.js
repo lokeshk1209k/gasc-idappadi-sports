@@ -12,10 +12,8 @@
   // =========================================================================
   // 🌐 PRODUCTION BACKEND CONFIGURATION
   // =========================================================================
-  // When deploying your Node.js backend to Render, Railway, or VPS,
-  // simply put your online production URL here (e.g. 'https://gasc-sports-api.onrender.com').
-  // When running locally, leave it as '' or 'http://localhost:5000'.
-  const PRODUCTION_BACKEND_URL = 'https://gasc-idappadi-sports.onrender.com';
+  // Running locally / offline on college network
+  const PRODUCTION_BACKEND_URL = '';
 
   // Determine current origin & environment
   const isHttpOrHttps = window.location.protocol === 'http:' || window.location.protocol === 'https:';
@@ -111,40 +109,46 @@
       .replace(/^_+|_+$/g, '');
   };
 
-  // Centralized Source of Truth for Sport Images
+  // Centralized Source of Truth for Sport Images (Lightweight & Instant Loading)
   window.SPORT_IMAGES = {
-    badminton: '/images/sports/badminton.png',
-    kabaddi: '/images/sports/kabaddi.png',
-    boxing: '/images/sports/boxing.png',
-    cricket: '/images/sports/cricket.png',
-    football: '/images/sports/football.png',
-    volleyball: '/images/sports/volleyball.png',
-    basketball: '/images/sports/basketball.png',
-    chess: '/images/sports/chess.png',
-    running: '/images/sports/running.png',
-    athletics: '/images/sports/running.png',
-    carrom: '/images/sports/carrom.png',
-    table_tennis: '/images/sports/table_tennis.png',
-    hockey: '/images/sports/hockey.png',
-    kho_kho: '/images/sports/kho_kho.png',
-    tennis: '/images/sports/tennis.png',
-    handball: '/images/sports/handball.png',
-    throwball: '/images/sports/throwball.png',
-    relay: '/images/sports/relay.png',
-    long_jump: '/images/sports/long_jump.png',
-    high_jump: '/images/sports/high_jump.png',
-    triple_jump: '/images/sports/triple_jump.png',
-    shot_put: '/images/sports/shot_put.png',
-    discus_throw: '/images/sports/discus_throw.png',
-    javelin_throw: '/images/sports/javelin_throw.png',
-    marathon: '/images/sports/marathon.png'
+    badminton: '/images/sports/badminton.jpg',
+    kabaddi: '/images/sports/kabaddi.jpg',
+    boxing: '/images/sports/boxing.jpg',
+    cricket: '/images/sports/cricket.jpg',
+    football: '/images/sports/football.jpg',
+    volleyball: '/images/sports/volleyball.jpg',
+    basketball: '/images/sports/basketball.jpg',
+    chess: '/images/sports/chess.jpg',
+    running: '/images/sports/running.jpg',
+    athletics: '/images/sports/running.jpg',
+    carrom: '/images/sports/carrom.jpg',
+    table_tennis: '/images/sports/table_tennis.jpg',
+    hockey: '/images/sports/hockey.jpg',
+    kho_kho: '/images/sports/kho_kho.jpg',
+    tennis: '/images/sports/tennis.jpg',
+    handball: '/images/sports/handball.jpg',
+    throwball: '/images/sports/throwball.jpg',
+    relay: '/images/sports/relay.jpg',
+    long_jump: '/images/sports/long_jump.jpg',
+    high_jump: '/images/sports/high_jump.jpg',
+    triple_jump: '/images/sports/triple_jump.jpg',
+    shot_put: '/images/sports/shot_put.jpg',
+    discus_throw: '/images/sports/discus_throw.jpg',
+    javelin_throw: '/images/sports/javelin_throw.jpg',
+    marathon: '/images/sports/marathon.jpg',
+    half_marathon: '/images/sports/half_marathon.jpg',
+    wrestling: '/images/sports/wrestling.jpg',
+    karate: '/images/sports/karate.jpg',
+    kickboxing: '/images/sports/kickboxing.jpg',
+    silambam: '/images/sports/silambam.jpg',
+    tournament: '/images/sports/tournament.jpg'
   };
 
   window.getSportImage = function(sportName, explicitUrl) {
     if (
       explicitUrl &&
       explicitUrl.includes('/uploads/') &&
-      !explicitUrl.includes('tournament.png') &&
+      !explicitUrl.includes('tournament') &&
       explicitUrl !== 'null' &&
       explicitUrl !== 'undefined'
     ) {
@@ -166,9 +170,9 @@
     if (slug.includes('chess')) return window.SPORT_IMAGES.chess;
     if (slug.includes('running') || slug.includes('athletics')) return window.SPORT_IMAGES.running;
 
-    if (slug) return '/images/sports/' + slug + '.png';
+    if (slug) return '/images/sports/' + slug + '.jpg';
 
-    return '/images/sports/running.png';
+    return '/images/sports/running.jpg';
   };
 
   /**

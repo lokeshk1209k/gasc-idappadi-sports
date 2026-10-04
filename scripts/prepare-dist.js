@@ -43,12 +43,13 @@ console.log('[prepare-dist] 2. Merging client/public assets to root dist and stu
   copyRecursiveSync(path.join(srcDir, 'uploads'), path.join(targetDir, 'uploads'));
   copyRecursiveSync(path.join(srcDir, 'images'), path.join(targetDir, 'images'));
 
-  const htmlFiles = fs.readdirSync(srcDir).filter(f => f.endsWith('.html') && f !== 'index.html');
-  htmlFiles.forEach(file => {
-    fs.copyFileSync(path.join(srcDir, file), path.join(targetDir, file));
+  // Copy only admin portal HTML files
+  ['admin-dashboard.html', 'admin-login.html'].forEach(file => {
+    const srcFile = path.join(srcDir, file);
+    if (fs.existsSync(srcFile)) {
+      fs.copyFileSync(srcFile, path.join(targetDir, file));
+    }
   });
-
-  fs.copyFileSync(path.join(srcDir, 'index.html'), path.join(targetDir, 'public-portal.html'));
 
   // Export current tournaments from local_db.json so student portal on static hosts (like Vercel)
   // displays all tournaments created by the admin (like FLASH, SPARK, etc.)
@@ -62,12 +63,6 @@ console.log('[prepare-dist] 2. Merging client/public assets to root dist and stu
       }, null, 2);
 
       fs.writeFileSync(path.join(targetDir, 'competitions.json'), competitionsPayload, 'utf8');
-
-      // Also create an api/competitions static route if static fallback is queried
-      const apiDir = path.join(targetDir, 'api');
-      if (!fs.existsSync(apiDir)) fs.mkdirSync(apiDir, { recursive: true });
-      fs.writeFileSync(path.join(apiDir, 'competitions'), competitionsPayload, 'utf8');
-      fs.writeFileSync(path.join(apiDir, 'competitions.json'), competitionsPayload, 'utf8');
 
       // Export sports list for offline and static host availability
       const sportsList = [
@@ -101,12 +96,21 @@ console.log('[prepare-dist] 2. Merging client/public assets to root dist and stu
       }, null, 2);
 
       fs.writeFileSync(path.join(targetDir, 'sports.json'), sportsPayload, 'utf8');
-      fs.writeFileSync(path.join(apiDir, 'sports'), sportsPayload, 'utf8');
-      fs.writeFileSync(path.join(apiDir, 'sports.json'), sportsPayload, 'utf8');
+
+      // Export college student roster for instant client-side verification
+      const rosterList = db.college_student_roster || [];
+      const rosterPayload = JSON.stringify({
+        success: true,
+        count: rosterList.length,
+        roster: rosterList
+      }, null, 2);
+
+      fs.writeFileSync(path.join(targetDir, 'roster.json'), rosterPayload, 'utf8');
 
       console.log(`[prepare-dist] 🏆 Exported ${(db.competitions || []).length} tournaments to competitions.json`);
+      console.log(`[prepare-dist] 📋 Exported ${rosterList.length} students to roster.json`);
     } catch (e) {
-      console.warn('[prepare-dist] Could not export competitions payload:', e.message);
+      console.warn('[prepare-dist] Could not export data payload:', e.message);
     }
   }
 });

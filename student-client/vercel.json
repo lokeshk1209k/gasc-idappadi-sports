@@ -1,27 +1,9 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "cleanUrls": true,
-  "trailingSlash": false,
+  "framework": "vite",
   "rewrites": [
-    { "source": "/api/competitions/my-applications", "destination": "/api/competitions/my-applications" },
-    { "source": "/api/competitions/:id/register", "destination": "/api/competitions/register?id=:id" },
-    { "source": "/api/competitions/register", "destination": "/api/competitions/register" },
-    { "source": "/api/competitions", "destination": "/api/competitions" },
-    { "source": "/api/auth/session-token", "destination": "/api/auth/session-token" },
-    { "source": "/api/auth/login", "destination": "/api/auth/login" },
-    { "source": "/api/teams/student-status", "destination": "/api/teams/student-status" },
-    { "source": "/api/notifications", "destination": "/api/notifications" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
     {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-student-id, x-register-number" }
-      ]
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

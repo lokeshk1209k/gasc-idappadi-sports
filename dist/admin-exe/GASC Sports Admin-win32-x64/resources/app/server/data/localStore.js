@@ -2,7 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const DB_FILE = path.join(__dirname, 'local_db.json');
+// Central shared local DB file path across Workspace, Desktop, and Downloads
+const SHARED_DB_DIR = 'C:/Users/ELCOT/.gemini/antigravity-ide/scratch/gasc-idappadi-sports/server/data';
+const SHARED_DB_FILE = path.join(SHARED_DB_DIR, 'local_db.json');
+const LOCAL_FALLBACK_FILE = path.join(__dirname, 'local_db.json');
+
+// Prefer central scratch DB so admin app and student portal share the exact same database
+const DB_FILE = fs.existsSync(SHARED_DB_FILE) ? SHARED_DB_FILE : LOCAL_FALLBACK_FILE;
+
 
 function getInitialData() {
   const adminHashed = bcrypt.hashSync('admin123', 10);
@@ -524,14 +531,43 @@ function getInitialData() {
 class LocalStore {
   constructor() {
     this.db = null;
+    this.lastLoadedMtime = 0;
     this.init();
   }
 
   init() {
     try {
       if (fs.existsSync(DB_FILE)) {
+        this.lastLoadedMtime = fs.statSync(DB_FILE).mtimeMs;
         const raw = fs.readFileSync(DB_FILE, 'utf8');
         this.db = JSON.parse(raw);
+        if (!this.db.tournaments || !Array.isArray(this.db.tournaments)) {
+          this.db.tournaments = [];
+        }
+        // Auto-seed existing tournaments from competitions if empty
+        if (this.db.tournaments.length === 0 && Array.isArray(this.db.competitions)) {
+          const map = new Map();
+          for (const c of this.db.competitions) {
+            const tName = (c.tournament_name || c.tournamentName || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'SPARK 2026 Annual Sports Fest').trim();
+            if (!map.has(tName)) {
+              map.set(tName, {
+                id: `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+                name: tName,
+                tournament_name: tName,
+                description: c.description || `Official ${tName} Tournament conducted by GASC Idappadi.`,
+                venue: c.venue || 'GASC Idappadi Sports Ground',
+                date: c.date || new Date().toISOString(),
+                registration_end: c.registration_end || c.date || new Date().toISOString(),
+                type: c.type || 'Inter-Department',
+                status: c.status || 'Registration Open',
+                banner_image: c.banner_image || '/images/sports/tournament.png',
+                created_at: c.created_at || new Date().toISOString()
+              });
+            }
+          }
+          this.db.tournaments = Array.from(map.values());
+          this.save();
+        }
         console.log('📦 Local Store loaded from local_db.json successfully.');
       } else {
         this.db = getInitialData();
@@ -545,15 +581,52 @@ class LocalStore {
     }
   }
 
+  checkReload() {
+    try {
+      if (fs.existsSync(DB_FILE)) {
+        const stat = fs.statSync(DB_FILE);
+        if (stat.mtimeMs > (this.lastLoadedMtime || 0)) {
+          const raw = fs.readFileSync(DB_FILE, 'utf8');
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            this.db = parsed;
+            this.lastLoadedMtime = stat.mtimeMs;
+            console.log('🔄 Local Store auto-reloaded from local_db.json (external update detected).');
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore transient read concurrency
+    }
+  }
+
   save() {
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.db, null, 2), 'utf8');
+      const payload = JSON.stringify(this.db, null, 2);
+      fs.writeFileSync(DB_FILE, payload, 'utf8');
+      try {
+        this.lastLoadedMtime = fs.statSync(DB_FILE).mtimeMs;
+      } catch (err) {}
+
+      // Mirror to secondary installations if they exist (Portable, Desktop & Downloads)
+      const mirrorPaths = [
+        'D:/GASC-Sports-Admin-Portable/GASC Sports Admin-win32-x64/resources/app/server/data/local_db.json',
+        'C:/Users/ELCOT/Downloads/GASC Sports Admin Portal/resources/app/server/data/local_db.json',
+        'C:/Users/ELCOT/Desktop/GASC Sports Admin/resources/app/server/data/local_db.json',
+        path.join(__dirname, 'local_db.json')
+      ];
+      for (const mPath of mirrorPaths) {
+        if (mPath !== DB_FILE && fs.existsSync(path.dirname(mPath))) {
+          try { fs.writeFileSync(mPath, payload, 'utf8'); } catch (err) {}
+        }
+      }
     } catch (e) {
       console.error('Error saving local db:', e.message);
     }
   }
 
   getTable(tableName) {
+    this.checkReload();
     if (!this.db[tableName]) {
       this.db[tableName] = [];
     }

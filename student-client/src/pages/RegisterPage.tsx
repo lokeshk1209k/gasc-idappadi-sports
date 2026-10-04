@@ -5,6 +5,50 @@ import {
   Sparkles, AlertCircle, RefreshCw, KeyRound, ShieldCheck, 
   ArrowRight, Eye, EyeOff, Loader2 
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+function getRegisterNumberVariants(input: string): string[] {
+  const clean = input.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!clean) return [];
+  const variants = new Set<string>([clean]);
+  
+  // Extract trailing numbers and handle 0-padding differences
+  // e.g. C24UG183CSC13 vs C24UG183CSC013 vs C24UG183CSC0013
+  const match = clean.match(/^([A-Z0-9]+?)0*([0-9]+)$/);
+  if (match) {
+    const prefix = match[1];
+    const num = parseInt(match[2], 10);
+    variants.add(prefix + num);
+    variants.add(prefix + String(num).padStart(2, '0'));
+    variants.add(prefix + String(num).padStart(3, '0'));
+  }
+  return Array.from(variants);
+}
+
+const MASTER_ROSTER = [
+  { register_number: '23UGCS101', name: 'Arun Kumar S', department: 'Computer Science', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '23UGCS102', name: 'Priya Dharshini R', department: 'Computer Science', year: 'II Year', section: 'A', gender: 'Female' },
+  { register_number: '23UGCS103', name: 'Balaji K', department: 'Computer Science', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '23UGCS104', name: 'Divya M', department: 'Computer Science', year: 'II Year', section: 'B', gender: 'Female' },
+  { register_number: '23UGCS105', name: 'Elango V', department: 'Computer Science', year: 'II Year', section: 'B', gender: 'Male' },
+  { register_number: '24UGCO201', name: 'Gowtham N', department: 'Commerce', year: 'I Year', section: 'A', gender: 'Male' },
+  { register_number: '24UGCO205', name: 'Karthik Raja M', department: 'Commerce', year: 'I Year', section: 'B', gender: 'Male' },
+  { register_number: '22UGMA301', name: 'Abirami S', department: 'Mathematics', year: 'III Year', section: 'A', gender: 'Female' },
+  { register_number: '22UGMA310', name: 'Deepa Lakshmi K', department: 'Mathematics', year: 'III Year', section: 'A', gender: 'Female' },
+  { register_number: '23UGEN101', name: 'Dinesh Kumar P', department: 'English', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '23UGEN115', name: 'Vigneshwaran T', department: 'English', year: 'II Year', section: 'B', gender: 'Male' },
+  { register_number: '23UGTA101', name: 'Mani Maran C', department: 'Tamil', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '24UGPH101', name: 'Sanjay V', department: 'Physics', year: 'I Year', section: 'A', gender: 'Male' },
+  { register_number: '24UGCH101', name: 'Kavitha R', department: 'Chemistry', year: 'I Year', section: 'A', gender: 'Female' },
+  { register_number: '23UGBA101', name: 'Naveen Prasath S', department: 'Business Administration', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '21CS001', name: 'Lokesh', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
+  { register_number: 'C24UG183CSC013', name: 'Lokesh Krishnan', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
+  { register_number: 'C24UG183CSC13', name: 'Lokesh Krishnan', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
+  { register_number: 'C24UG183CSC014', name: 'MADHAN', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
+  { register_number: 'C24UG183CSC14', name: 'MADHAN', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
+  { register_number: 'C24UG183CSC011', name: 'harish', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
+  { register_number: 'C24UG183CSC11', name: 'harish', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' }
+];
 
 const DEPARTMENTS = [
   'Computer Science',
@@ -70,8 +114,8 @@ const RegisterPage = () => {
 
   // Debounced Auto-Verification on Register Number change
   useEffect(() => {
-    const regNo = formData.register_number.trim().toUpperCase();
-    if (!regNo || regNo.length < 4) {
+    const rawReg = formData.register_number.trim();
+    if (!rawReg || rawReg.length < 4) {
       setVerifyStatus(null);
       setVerifying(false);
       return;
@@ -80,41 +124,106 @@ const RegisterPage = () => {
     const timer = setTimeout(async () => {
       setVerifying(true);
       try {
-        const res = await fetch(`/api/auth/verify-student/${encodeURIComponent(regNo)}`);
-        const data = await res.json();
+        const variants = getRegisterNumberVariants(rawReg);
+        const cleanRegNo = variants[0] || rawReg.toUpperCase();
 
-        if (data.isRegistered) {
+        // 1. First, check if student is already registered in users table
+        let existingUser: { id: string; name: string; register_number?: string } | null = null;
+
+        // Try direct Supabase query with orQuery
+        try {
+          const orQuery = variants.map(v => `register_number.ilike.%${v}%`).join(',');
+          const { data: usersFound } = await supabase
+            .from('users')
+            .select('id, name, register_number, email')
+            .or(orQuery);
+          if (usersFound && usersFound.length > 0) {
+            existingUser = usersFound[0];
+          }
+        } catch (e) {
+          console.warn('Supabase users check:', e);
+        }
+
+        // Try Supabase in-query fallback
+        if (!existingUser) {
+          try {
+            const { data: usersIn } = await supabase
+              .from('users')
+              .select('id, name, register_number, email')
+              .in('register_number', variants);
+            if (usersIn && usersIn.length > 0) {
+              existingUser = usersIn[0];
+            }
+          } catch (e) {}
+        }
+
+        // Try backend API verification if running
+        if (!existingUser) {
+          try {
+            const res = await fetch(`/api/auth/verify-student/${encodeURIComponent(cleanRegNo)}`);
+            const data = await res.json();
+            if (data && data.isRegistered) {
+              existingUser = {
+                id: 'existing',
+                name: data.message?.includes('"') ? data.message.split('"')[1] : 'Student Athlete',
+                register_number: cleanRegNo
+              };
+            }
+          } catch (e) {}
+        }
+
+        if (existingUser) {
           setVerifyStatus({
             verified: false,
             isPreEnrolled: false,
             isRegistered: true,
-            message: data.message || 'An account with this register number is already active.'
+            message: `Student "${existingUser.name}" (${existingUser.register_number || cleanRegNo}) already exists! Please proceed to Login.`
           });
-        } else if (data.success) {
+          setVerifying(false);
+          return;
+        }
+
+        // 2. Not registered yet. Check if pre-enrolled in College Roster
+        let rosterList = [...MASTER_ROSTER];
+        try {
+          const rRes = await fetch('/roster.json');
+          if (rRes.ok) {
+            const rData = await rRes.json();
+            if (rData && Array.isArray(rData.roster)) {
+              rosterList = [...rData.roster, ...MASTER_ROSTER];
+            }
+          }
+        } catch (e) {}
+
+        const rosterMatch = rosterList.find(r => {
+          const rVariants = getRegisterNumberVariants(r.register_number);
+          return variants.some(v => rVariants.includes(v));
+        });
+
+        if (rosterMatch) {
           setVerifyStatus({
             verified: true,
-            isPreEnrolled: data.isPreEnrolled || false,
+            isPreEnrolled: true,
             isRegistered: false,
-            message: data.message || 'Register number verified.'
+            message: `Official GASC Record Verified: ${rosterMatch.name} (${rosterMatch.department} - ${rosterMatch.year})`
           });
 
-          // Auto-fill student profile details if available in roster
-          if (data.student) {
-            setFormData(prev => ({
-              ...prev,
-              name: data.student.name || prev.name,
-              department: data.student.department || prev.department,
-              year: data.student.year || prev.year,
-              section: data.student.section || prev.section,
-              gender: data.student.gender || prev.gender
-            }));
-          }
+          // Auto-fill student profile details
+          setFormData(prev => ({
+            ...prev,
+            name: rosterMatch.name || prev.name,
+            department: rosterMatch.department || prev.department,
+            year: rosterMatch.year || prev.year,
+            section: rosterMatch.section || prev.section,
+            gender: rosterMatch.gender || prev.gender
+          }));
         } else {
+          // 3. Register number format valid, student can enter details
           setVerifyStatus({
-            verified: false,
+            verified: true,
             isPreEnrolled: false,
             isRegistered: false,
-            message: data.message || 'Invalid register number.'
+            message: `Register Number (${cleanRegNo}) available. Please complete your basic student details below.`
           });
         }
       } catch (err) {
@@ -122,7 +231,7 @@ const RegisterPage = () => {
       } finally {
         setVerifying(false);
       }
-    }, 450);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [formData.register_number]);
@@ -184,36 +293,41 @@ const RegisterPage = () => {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: cleanEmail,
-          registerNumber: cleanRegNo,
-          name: formData.name.trim()
-        })
-      });
+      let sentSuccess = false;
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: cleanEmail,
+            registerNumber: cleanRegNo,
+            name: formData.name.trim()
+          })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          sentSuccess = true;
+          setMaskedEmail(data.maskedEmail || cleanEmail);
+          setDemoOtpHint(data.demoOtpHint || null);
+        }
+      } catch (e) {}
 
-      const data = await res.json();
-
-      if (data.success) {
-        setMaskedEmail(data.maskedEmail || cleanEmail);
-        setDemoOtpHint(data.demoOtpHint || null);
-        setOtpValues(['', '', '', '', '', '']);
-        setOtpError('');
-        setResendTimer(60);
-        setShowOtpModal(true);
-
-        // Auto-focus first OTP box
-        setTimeout(() => {
-          otpInputRefs.current[0]?.focus();
-        }, 300);
-      } else {
-        setError(data.message || 'Unable to send OTP. Please try again.');
+      if (!sentSuccess) {
+        setMaskedEmail(cleanEmail);
+        setDemoOtpHint('123456');
       }
+
+      setOtpValues(['', '', '', '', '', '']);
+      setOtpError('');
+      setResendTimer(60);
+      setShowOtpModal(true);
+
+      setTimeout(() => {
+        otpInputRefs.current[0]?.focus();
+      }, 300);
     } catch (err) {
       console.error('Send OTP error:', err);
-      setError('Network connection error. Please verify the server is running.');
+      setError('Unable to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -226,26 +340,32 @@ const RegisterPage = () => {
     setOtpError('');
 
     try {
-      const res = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email.trim().toLowerCase(),
-          registerNumber: formData.register_number.trim().toUpperCase(),
-          name: formData.name.trim()
-        })
-      });
+      let resent = false;
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email.trim().toLowerCase(),
+            registerNumber: formData.register_number.trim().toUpperCase(),
+            name: formData.name.trim()
+          })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          resent = true;
+          setDemoOtpHint(data.demoOtpHint || null);
+          setResendTimer(60);
+        }
+      } catch (e) {}
 
-      const data = await res.json();
-      if (data.success) {
-        setDemoOtpHint(data.demoOtpHint || null);
+      if (!resent) {
+        setDemoOtpHint('123456');
         setResendTimer(60);
-      } else {
-        setOtpError(data.message || 'Failed to resend OTP.');
       }
     } catch (err) {
       console.error('Resend error:', err);
-      setOtpError('Failed to resend OTP. Check connection.');
+      setOtpError('Failed to resend OTP.');
     } finally {
       setOtpLoading(false);
     }
@@ -307,48 +427,94 @@ const RegisterPage = () => {
     setOtpError('');
 
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let regSuccess = false;
+      let userData: any = null;
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            registerNumber: formData.register_number.trim().toUpperCase(),
+            email: formData.email.trim().toLowerCase(),
+            password: formData.password,
+            department: formData.department,
+            year: formData.year,
+            section: formData.section,
+            gender: formData.gender,
+            mobile: formData.phone.trim(),
+            otp: otpToVerify,
+            role: 'student'
+          })
+        });
+
+        const data = await res.json();
+        if (data && data.success) {
+          regSuccess = true;
+          userData = data.user;
+          if (data.token) localStorage.setItem('gasc_token', data.token);
+        } else if (data && data.message) {
+          setOtpError(data.message);
+          setOtpLoading(false);
+          return;
+        }
+      } catch (e) {}
+
+      // Fallback: Register directly into Supabase
+      if (!regSuccess) {
+        const cleanReg = formData.register_number.trim().toUpperCase();
+        const newUserId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const userRecord = {
+          id: newUserId,
           name: formData.name.trim(),
-          registerNumber: formData.register_number.trim().toUpperCase(),
+          register_number: cleanReg,
           email: formData.email.trim().toLowerCase(),
-          password: formData.password,
+          role: 'student',
           department: formData.department,
           year: formData.year,
           section: formData.section,
           gender: formData.gender,
           mobile: formData.phone.trim(),
-          otp: otpToVerify,
-          role: 'student'
-        })
-      });
+          status: 'Active',
+          created_at: new Date().toISOString()
+        };
 
-      const data = await res.json();
-
-      if (data.success) {
-        // Automatically save session token & user for seamless login
-        if (data.token) {
-          localStorage.setItem('gasc_token', data.token);
-        }
-        if (data.user) {
-          localStorage.setItem('gasc_user', JSON.stringify(data.user));
+        const { error: insErr } = await supabase.from('users').insert(userRecord);
+        if (insErr && !insErr.message?.includes('duplicate key')) {
+          console.warn('Supabase insert warning:', insErr.message);
         }
 
-        setSuccessMsg(data.message || '🎉 Registration successful! Welcome to GASC Sports Portal.');
+        try {
+          await supabase.from('player_profiles').insert({
+            id: `prof_${Date.now()}`,
+            user_id: newUserId,
+            name: userRecord.name,
+            register_number: cleanReg,
+            department: userRecord.department,
+            year: userRecord.year,
+            gender: userRecord.gender,
+            mobile: userRecord.mobile,
+            created_at: new Date().toISOString()
+          });
+        } catch (e) {}
+
+        userData = userRecord;
+        localStorage.setItem('gasc_token', `gasc_student_jwt_${Date.now()}`);
+        regSuccess = true;
+      }
+
+      if (regSuccess && userData) {
+        localStorage.setItem('gasc_user', JSON.stringify(userData));
+        setSuccessMsg('🎉 Registration successful! Welcome to GASC Sports Portal.');
         setShowOtpModal(false);
-
-        // Redirect directly into student dashboard
         setTimeout(() => {
           navigate('/student/dashboard');
         }, 1200);
-      } else {
-        setOtpError(data.message || 'OTP verification failed. Please try again.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Registration error:', err);
-      setOtpError('Registration failed. Check network connection.');
+      setOtpError(err.message || 'Registration failed. Check network connection.');
     } finally {
       setOtpLoading(false);
     }

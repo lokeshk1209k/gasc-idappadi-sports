@@ -231,7 +231,53 @@ function createTables() {
       updated_at INTEGER DEFAULT (strftime('%s','now'))
     );
   `);
+  seedFromLocalStore(db);
   saveDB();
+}
+
+function seedFromLocalStore(d) {
+  try {
+    const res = d.exec("SELECT COUNT(*) as cnt FROM sports");
+    const count = (res && res[0] && res[0].values && res[0].values[0] && res[0].values[0][0]) || 0;
+    if (count > 0) return;
+
+    const storePath = path.join(__dirname, "../data/local_db.json");
+    if (!fs.existsSync(storePath)) return;
+    const store = JSON.parse(fs.readFileSync(storePath, "utf8"));
+
+    if (store.sports && store.sports.length > 0) {
+      for (const s of store.sports) {
+        d.run("INSERT OR REPLACE INTO sports (id, name, category, description, icon_url, image_url, is_active, sync_status) VALUES (?,?,?,?,?,?,?,'synced')",
+          [s.id, s.name, s.category || '', s.description || '', s.icon || '', s.image || '', 1]);
+      }
+    }
+
+    if (store.users && store.users.length > 0) {
+      for (const u of store.users) {
+        if (u.role === 'student') {
+          d.run("INSERT OR REPLACE INTO students (id, name, register_number, email, department, year, section, gender, mobile, profile_photo, status, sync_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,'synced')",
+            [u.id, u.name, u.register_number, u.email || '', u.department || '', u.year || '', u.section || '', u.gender || '', u.mobile || '', u.profile_photo || '/images/default-avatar.png', u.status || 'Active']);
+        }
+      }
+    }
+
+    if (store.competitions && store.competitions.length > 0) {
+      for (const c of store.competitions) {
+        d.run("INSERT OR REPLACE INTO competitions (id, tournament_id, sport_id, sport_name, name, category, gender, department, max_participants, status, sync_status) VALUES (?,?,?,?,?,?,?,?,?,'Open','synced')",
+          [c.id, c.tournament_id || 'tourn_01', c.sport_id || 'sp_cricket', c.sport_name || '', c.name, c.category || 'General', c.gender || 'Mixed', c.department || 'All', c.max_participants || 50]);
+      }
+    }
+
+    if (store.equipment && store.equipment.length > 0) {
+      for (const e of store.equipment) {
+        d.run("INSERT OR REPLACE INTO equipment (id, name, category, total_quantity, available_quantity, issued_quantity, condition_status, location, sync_status) VALUES (?,?,?,?,?,?,?,'Sports Room','synced')",
+          [e.id, e.name, e.category || '', e.total_quantity || 10, e.available_quantity || 10, e.issued_quantity || 0, e.condition_status || 'Good']);
+      }
+    }
+    console.log("[LocalDB] Seeded SQLite database from local_db.json successfully!");
+  } catch(e) {
+    console.warn("[LocalDB] Seed notice:", e.message);
+  }
 }
 
 function getDB() { return db; }

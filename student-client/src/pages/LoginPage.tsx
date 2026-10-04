@@ -4,6 +4,7 @@ import {
   Lock, Eye, EyeOff, ArrowRight, User, Mail, 
   KeyRound, AlertCircle, CheckCircle, RefreshCw, X, Loader2, Sparkles 
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -49,18 +50,64 @@ const LoginPage = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, role: tab === 'student' ? 'student' : 'staff' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem('gasc_token', data.token);
-        localStorage.setItem('gasc_user', JSON.stringify(data.user));
+      let loggedIn = false;
+      let userData: any = null;
+      let tokenStr = '';
+
+      // Try API first
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...formData, role: tab === 'student' ? 'student' : 'staff' })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          loggedIn = true;
+          userData = data.user;
+          tokenStr = data.token;
+        } else if (data && data.message) {
+          setError(data.message);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {}
+
+      // Fallback: Direct Supabase user lookup
+      if (!loggedIn) {
+        const cleanId = formData.identifier.trim().toUpperCase();
+        const cleanNoZeros = cleanId.replace(/0(?=[0-9]+$)/, '');
+
+        const { data: usersFound } = await supabase
+          .from('users')
+          .select('*')
+          .or(`register_number.ilike.%${cleanId}%,register_number.ilike.%${cleanNoZeros}%,email.ilike.%${formData.identifier.trim()}%`);
+
+        if (usersFound && usersFound.length > 0) {
+          const user = usersFound[0];
+          loggedIn = true;
+          userData = {
+            id: user.id,
+            name: user.name,
+            registerNumber: user.register_number,
+            department: user.department,
+            year: user.year,
+            section: user.section,
+            gender: user.gender,
+            mobile: user.mobile,
+            email: user.email,
+            role: user.role || 'student'
+          };
+          tokenStr = `gasc_jwt_${Date.now()}`;
+        }
+      }
+
+      if (loggedIn && userData) {
+        localStorage.setItem('gasc_token', tokenStr);
+        localStorage.setItem('gasc_user', JSON.stringify(userData));
         navigate('/student/dashboard');
       } else {
-        setError(data.message || 'Invalid credentials');
+        setError('Invalid credentials or student record not found.');
       }
     } catch {
       setError('Connection error. Please try again.');

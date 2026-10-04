@@ -10,6 +10,8 @@ router.get('/my-applications', verifyToken, requireStudent, competitionControlle
 router.get('/:id', competitionController.getCompetitionById);
 
 router.post('/', verifyToken, requireAdmin, upload.single('bannerImage'), competitionController.createCompetition);
+router.post('/gemini-generate-description', competitionController.generateGeminiDescription);
+router.post('/gemini-generate-image', competitionController.generateGeminiImage);
 router.put('/tournament/cover', verifyToken, requireAdmin, upload.single('bannerImage'), competitionController.updateTournamentCover);
 router.delete('/tournament', verifyToken, requireAdmin, competitionController.deleteTournament);
 router.put('/:id', verifyToken, requireAdmin, upload.single('bannerImage'), competitionController.updateCompetition);

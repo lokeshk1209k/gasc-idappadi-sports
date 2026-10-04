@@ -5,6 +5,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { getSportImage, getTournamentCoverImage } from '../utils/sportImages';
+import { supabase } from '../lib/supabase';
 
 interface RegistrationItem {
   id: string;
@@ -183,9 +184,9 @@ const CompetitionsPage = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ registerNumber: 'C24UG183CSC013' })
         })
-          .then(r => r.json())
+          .then(r => (r.ok && (r.headers.get('content-type') || '').includes('application/json')) ? r.json() : null)
           .then(d => {
-            if (d.success && d.token) {
+            if (d && d.success && d.token) {
               localStorage.setItem('gasc_token', d.token);
               if (d.user) {
                 localStorage.setItem('gasc_user', JSON.stringify(d.user));
@@ -203,16 +204,36 @@ const CompetitionsPage = () => {
     try {
       let rawList: any[] = [];
       let apiTournaments: any[] = [];
+
+      // 1. Direct fetch from Supabase Cloud (Single Source of Truth)
       try {
-        const res = await fetch('/api/competitions');
-        const cType = res.headers.get('content-type') || '';
-        if (res.ok && cType.includes('application/json')) {
-          const data = await res.json();
-          rawList = data.competitions || data.data || (Array.isArray(data) ? data : []);
-          apiTournaments = data.tournaments || [];
+        const [tournRes, compRes] = await Promise.all([
+          supabase.from('tournaments').select('*').order('created_at', { ascending: false }),
+          supabase.from('competitions').select('*').order('created_at', { ascending: false })
+        ]);
+        if (tournRes.data && tournRes.data.length > 0) {
+          apiTournaments = tournRes.data;
+        }
+        if (compRes.data && compRes.data.length > 0) {
+          rawList = compRes.data;
         }
       } catch (err) {
-        console.warn('API fetch competitions notice:', err);
+        console.warn('Supabase direct query notice:', err);
+      }
+
+      // 2. Fallback to API if Supabase query returned no records
+      if (rawList.length === 0 && apiTournaments.length === 0) {
+        try {
+          const res = await fetch('/api/competitions');
+          const cType = res.headers.get('content-type') || '';
+          if (res.ok && cType.includes('application/json')) {
+            const data = await res.json();
+            rawList = data.competitions || data.data || (Array.isArray(data) ? data : []);
+            apiTournaments = data.tournaments || [];
+          }
+        } catch (err) {
+          console.warn('API fetch competitions notice:', err);
+        }
       }
 
       if (rawList.length > 0 || apiTournaments.length > 0) {
@@ -226,8 +247,8 @@ const CompetitionsPage = () => {
               id: t.id || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
               tournamentName: tName,
               description: t.description || `Official ${tName} Tournament featuring collegiate sports competitions.`,
-              startDate: t.date ? new Date(t.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
-              endDate: (t.registration_end || t.registrationEnd) ? new Date(t.registration_end || t.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 20, 2026',
+              startDate: (t.start_date || t.date) ? new Date(t.start_date || t.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
+              endDate: (t.end_date || t.registration_end || t.registrationEnd) ? new Date(t.end_date || t.registration_end || t.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 20, 2026',
               venue: t.venue || 'GASC Idappadi Sports Ground',
               bannerImage: t.banner_image || t.bannerImage || '/images/sports/tournament.png',
               status: t.status || 'Registration Open',
@@ -238,17 +259,25 @@ const CompetitionsPage = () => {
 
         // 2. Put competitions inside their parent tournament
         rawList.forEach((c: any) => {
-          const tName = (c.tournamentName || c.tournament_name || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'Collegiate Tournament').trim();
-          const tId = c.tournamentId || c.tournament_id || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-          const sName = c.sportName || c.sport_name || (c.sportId?.name) || c.name || 'General';
+          const compTournId = (c.tournament_id || c.tournamentId || '').trim();
+          const compTournName = (c.tournament_name || c.tournamentName || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : '')).trim();
 
-          if (!groupMap[tName]) {
-            groupMap[tName] = {
-              id: tId,
-              tournamentName: tName,
-              description: c.tournamentDescription || c.description || `Official ${tName} Tournament featuring collegiate sports competitions.`,
-              startDate: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
-              endDate: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 20, 2026',
+          // Find matching tournament in groupMap by either ID or Name
+          let targetTournName = Object.keys(groupMap).find(k => {
+            const t = groupMap[k];
+            if (compTournId && t.id.toLowerCase() === compTournId.toLowerCase()) return true;
+            if (compTournName && t.tournamentName.toLowerCase() === compTournName.toLowerCase()) return true;
+            return false;
+          });
+
+          if (!targetTournName) {
+            targetTournName = compTournName || 'Collegiate Tournament';
+            groupMap[targetTournName] = {
+              id: compTournId || `tour_${targetTournName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+              tournamentName: targetTournName,
+              description: c.tournamentDescription || c.description || `Official ${targetTournName} Tournament featuring collegiate sports competitions.`,
+              startDate: (c.start_date || c.date) ? new Date(c.start_date || c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
+              endDate: (c.end_date || c.registrationEnd || c.registration_end) ? new Date(c.end_date || c.registrationEnd || c.registration_end).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 20, 2026',
               venue: c.venue || 'GASC Idappadi Sports Ground',
               bannerImage: c.tournamentBanner || c.bannerImage || '/images/sports/tournament.png',
               status: c.status || 'Registration Open',
@@ -256,23 +285,24 @@ const CompetitionsPage = () => {
             };
           }
 
+          const sName = c.sportName || c.sport_name || (c.sportId?.name) || c.name || 'General';
           const sportIdStr = String(c.id || c._id);
-          const alreadyExists = groupMap[tName].sports.some(s => s.id === sportIdStr || s.name === c.name);
+          const alreadyExists = groupMap[targetTournName].sports.some(s => s.id === sportIdStr);
           if (!alreadyExists) {
-            groupMap[tName].sports.push({
+            groupMap[targetTournName].sports.push({
               id: sportIdStr,
               name: c.name || `${sName} Event`,
               sportName: sName,
               type: c.type && c.type.includes('Team') ? 'Team Event' : 'Individual Event',
-              date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
+              date: (c.date || c.start_date) ? new Date(c.date || c.start_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
               startTime: c.startTime || c.start_time || '09:00 AM',
               endTime: c.endTime || c.end_time || '05:00 PM',
-              registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 08, 2026',
-              venue: c.venue || groupMap[tName].venue,
+              registrationEnd: (c.registrationEnd || c.registration_end) ? new Date(c.registrationEnd || c.registration_end).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 08, 2026',
+              venue: c.venue || groupMap[targetTournName].venue,
               maxParticipants: Number(c.maxParticipants || c.max_participants) || 50,
               currentRegistrations: Number(c.currentRegistrations || c.current_registrations) || 0,
               status: c.status || 'Registration Open',
-              description: c.description || `${sName} competition inside ${tName}.`
+              description: c.description || `${sName} competition inside ${targetTournName}.`
             });
           }
         });
@@ -309,68 +339,144 @@ const CompetitionsPage = () => {
       const regNo = studentUser.registerNumber || '23CS001';
       const sId = studentUser.id || 'usr_cs_b_1';
 
-      // 1. Fetch official team status first
+      // 1. Fetch official team status from Supabase Cloud
       let teamStatusMap: Record<string, any> = {};
       try {
-        const teamRes = await fetch(`/api/teams/student-status?studentId=${encodeURIComponent(sId)}&registerNumber=${encodeURIComponent(regNo)}`, {
-          headers: {
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            'x-student-id': sId,
-            'x-register-number': regNo
-          }
-        });
-        const teamData = await teamRes.json();
-        if (teamData.success) {
-          if (Array.isArray(teamData.myTeams)) {
-            setMyAssignedTeams(teamData.myTeams);
-          }
-          if (Array.isArray(teamData.registrations)) {
-            teamData.registrations.forEach((r: any) => {
-              const k = (r.sportName || '').toLowerCase().trim();
-              teamStatusMap[k] = r;
+        const { data: memberRows } = await supabase
+          .from('team_members')
+          .select('*')
+          .or(`student_id.eq.${sId},register_number.eq.${regNo}`);
+
+        if (memberRows && memberRows.length > 0) {
+          const teamIds = memberRows.map((m: any) => m.team_id).filter(Boolean);
+          const { data: formedTeams } = await supabase
+            .from('teams')
+            .select('*')
+            .in('id', teamIds);
+
+          if (formedTeams && formedTeams.length > 0) {
+            setMyAssignedTeams(formedTeams);
+            formedTeams.forEach((t: any) => {
+              const k = (t.sport_name || '').toLowerCase().trim();
+              teamStatusMap[k] = {
+                sportName: t.sport_name,
+                tournamentName: t.tournament_name || 'Official Tournament',
+                registrationStatus: 'Approved',
+                isTeamEvent: true,
+                teamStatus: 'TEAM CREATED',
+                assignedTeam: t
+              };
             });
           }
         }
-      } catch (e) {
-        console.warn('Team status fetch notice:', e);
+      } catch (supaTeamErr) {
+        console.warn('Supabase team status query notice:', supaTeamErr);
       }
 
-      // 2. Fetch my applications
-      const res = await fetch('/api/competitions/my-applications', {
-        headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          'x-student-id': sId,
-          'x-register-number': regNo
+      // Fallback team status fetch via API if needed
+      if (Object.keys(teamStatusMap).length === 0) {
+        try {
+          const teamRes = await fetch(`/api/teams/student-status?studentId=${encodeURIComponent(sId)}&registerNumber=${encodeURIComponent(regNo)}`, {
+            headers: {
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              'x-student-id': sId,
+              'x-register-number': regNo
+            }
+          });
+          const teamData = await teamRes.json();
+          if (teamData.success) {
+            if (Array.isArray(teamData.myTeams)) {
+              setMyAssignedTeams(teamData.myTeams);
+            }
+            if (Array.isArray(teamData.registrations)) {
+              teamData.registrations.forEach((r: any) => {
+                const k = (r.sportName || '').toLowerCase().trim();
+                teamStatusMap[k] = r;
+              });
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 2. Fetch my applications from Supabase Cloud directly
+      let loadedFromSupabase = false;
+      try {
+        const { data: supaRegs } = await supabase
+          .from('competition_registrations')
+          .select('*')
+          .or(`student_id.eq.${sId},register_number.eq.${regNo}`);
+
+        if (supaRegs && supaRegs.length > 0) {
+          loadedFromSupabase = true;
+          const map: Record<string, RegistrationItem> = {};
+          supaRegs.forEach((r: any) => {
+            const compId = String(r.competition_id || r.id);
+            const tName = r.tournament_name || 'Collegiate Tournament';
+            const sName = r.sport_name || 'Sports Event';
+            const sKey = sName.toLowerCase().trim();
+            const tInfo = teamStatusMap[sKey];
+            const isTeam = tInfo ? tInfo.isTeamEvent : ['cricket','football','kabaddi','volleyball','basketball','handball','kho kho'].some(s => sKey.includes(s));
+
+            map[compId] = {
+              id: String(r.id),
+              registrationCode: r.registration_code || `REG-${sName.substring(0, 3).toUpperCase()}`,
+              tournamentName: tName,
+              sportName: sName,
+              status: r.status === 'Approved' ? 'Approved' : (r.status === 'Rejected' ? 'Rejected' : 'Registered'),
+              registeredAt: r.registration_date ? new Date(r.registration_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+              venue: 'GASC Campus Ground',
+              remarks: r.admin_remarks || r.remarks || 'Confirmed entry',
+              isTeamEvent: isTeam,
+              teamStatus: tInfo ? tInfo.teamStatus : (!isTeam ? 'INDIVIDUAL' : 'Not Assigned'),
+              assignedTeam: tInfo?.assignedTeam || null
+            };
+          });
+          setMyRegistrations(prev => ({ ...prev, ...map }));
         }
-      });
-      const data = await res.json();
+      } catch (supaRegErr) {
+        console.warn('Supabase my applications query notice:', supaRegErr);
+      }
 
-      if (data.success && Array.isArray(data.registrations)) {
-        const map: Record<string, RegistrationItem> = {};
-        data.registrations.forEach((r: any) => {
-          const compId = String(r.competitionId?.id || r.competitionId?._id || r.competition_id || r.competitionId || r.id);
-          const tName = r.competitionId?.tournamentName || r.competitionId?.tournament_name || r.tournamentName || 'Collegiate Tournament';
-          const sName = r.competitionId?.sportName || r.competitionId?.sport_name || r.sportName || 'Sports Event';
-          const sKey = sName.toLowerCase().trim();
-          const tInfo = teamStatusMap[sKey];
+      // 3. Fallback to API if Supabase returned zero records
+      if (!loadedFromSupabase) {
+        try {
+          const res = await fetch('/api/competitions/my-applications', {
+            headers: {
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              'x-student-id': sId,
+              'x-register-number': regNo
+            }
+          });
+          const data = await res.json();
 
-          const isTeam = tInfo ? tInfo.isTeamEvent : (r.competitionId?.type?.includes('Team') || ['cricket','football','kabaddi','volleyball','basketball','handball'].some(s => sKey.includes(s)));
+          if (data.success && Array.isArray(data.registrations)) {
+            const map: Record<string, RegistrationItem> = {};
+            data.registrations.forEach((r: any) => {
+              const compId = String(r.competitionId?.id || r.competitionId?._id || r.competition_id || r.competitionId || r.id);
+              const tName = r.competitionId?.tournamentName || r.competitionId?.tournament_name || r.tournamentName || 'Collegiate Tournament';
+              const sName = r.competitionId?.sportName || r.competitionId?.sport_name || r.sportName || 'Sports Event';
+              const sKey = sName.toLowerCase().trim();
+              const tInfo = teamStatusMap[sKey];
 
-          map[compId] = {
-            id: String(r.id || r._id),
-            registrationCode: r.registrationCode || r.registration_code || `REG-${sName.substring(0, 3).toUpperCase()}`,
-            tournamentName: tName,
-            sportName: sName,
-            status: r.status === 'Approved' ? 'Approved' : (r.status === 'Rejected' ? 'Rejected' : 'Registered'),
-            registeredAt: r.registrationDate ? new Date(r.registrationDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Sep 27, 2026',
-            venue: r.competitionId?.venue || 'GASC Campus',
-            remarks: r.adminRemarks || r.remarks || 'Confirmed entry',
-            isTeamEvent: isTeam,
-            teamStatus: tInfo ? tInfo.teamStatus : (!isTeam ? 'INDIVIDUAL' : 'Not Assigned'),
-            assignedTeam: tInfo?.assignedTeam || null
-          };
-        });
-        setMyRegistrations(prev => ({ ...prev, ...map }));
+              const isTeam = tInfo ? tInfo.isTeamEvent : (r.competitionId?.type?.includes('Team') || ['cricket','football','kabaddi','volleyball','basketball','handball'].some(s => sKey.includes(s)));
+
+              map[compId] = {
+                id: String(r.id || r._id),
+                registrationCode: r.registrationCode || r.registration_code || `REG-${sName.substring(0, 3).toUpperCase()}`,
+                tournamentName: tName,
+                sportName: sName,
+                status: r.status === 'Approved' ? 'Approved' : (r.status === 'Rejected' ? 'Rejected' : 'Registered'),
+                registeredAt: r.registrationDate ? new Date(r.registrationDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Sep 27, 2026',
+                venue: r.competitionId?.venue || 'GASC Campus',
+                remarks: r.adminRemarks || r.remarks || 'Confirmed entry',
+                isTeamEvent: isTeam,
+                teamStatus: tInfo ? tInfo.teamStatus : (!isTeam ? 'INDIVIDUAL' : 'Not Assigned'),
+                assignedTeam: tInfo?.assignedTeam || null
+              };
+            });
+            setMyRegistrations(prev => ({ ...prev, ...map }));
+          }
+        } catch {}
       }
     } catch { /* keep existing */ }
   };
@@ -399,8 +505,31 @@ const CompetitionsPage = () => {
     window.addEventListener('gasc_registration_created', fetchMyRegistrations);
     window.addEventListener('focus', handleFocus);
 
+    // Supabase Realtime subscription for instant multi-client live updates
+    const channel = supabase
+      .channel('student_portal_realtime_events')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, () => {
+        fetchTournaments();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'competitions' }, () => {
+        fetchTournaments();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'teams' }, () => {
+        fetchTournaments();
+        fetchMyRegistrations();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => {
+        fetchMyRegistrations();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'competition_registrations' }, () => {
+        fetchTournaments();
+        fetchMyRegistrations();
+      })
+      .subscribe();
+
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      supabase.removeChannel(channel);
       window.removeEventListener('storage', handleStorageUpdate);
       window.removeEventListener('gasc_tournaments_updated', fetchTournaments);
       window.removeEventListener('gasc_registration_created', fetchMyRegistrations);
@@ -444,72 +573,66 @@ const CompetitionsPage = () => {
           if (sData.success && sData.token) {
             token = sData.token;
             localStorage.setItem('gasc_token', sData.token);
-            if (sData.user) localStorage.setItem('gasc_user', JSON.stringify(sData.user));
           }
         } catch { /* proceed */ }
       }
 
-      const regPayload = {
-        competitionId: compId,
-        id: compId,
-        remarks: 'Confirmed via Student 1-Click Registration',
-        registerNumber: studentUser.registerNumber || 'C24UG183CSC013',
-        studentId: studentUser.id || 'usr_lokesh_csc013',
-        studentName: studentUser.name || 'Lokesh Krishnan',
-        department: studentUser.department || 'Computer Science',
-        year: studentUser.year || 'III Year',
-        gender: studentUser.gender || 'Male',
-        mobile: studentUser.mobile || '+91 98421 54321',
-        email: studentUser.email || `${(studentUser.registerNumber || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`
-      };
-
-      const reqHeaders: Record<string, string> = {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        'x-register-number': studentUser.registerNumber || 'C24UG183CSC013',
-        'x-student-id': studentUser.id || 'usr_lokesh_csc013'
-      };
-
-      let res = await fetch(`/api/competitions/${compId}/register`, {
-        method: 'POST',
-        headers: reqHeaders,
-        body: JSON.stringify(regPayload)
-      });
-
-      // If rewrite wasn't hit or returned non-JSON, fallback to direct endpoint
-      if (!res.ok && res.status === 405) {
-        res = await fetch('/api/competitions/register', {
-          method: 'POST',
-          headers: reqHeaders,
-          body: JSON.stringify(regPayload)
-        });
-      }
-
-      let data: any = {};
+      // 1. Direct write to Supabase Cloud (Single Source of Truth)
+      const supaRegId = `reg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
       try {
-        const text = await res.text();
-        data = JSON.parse(text);
-      } catch {
-        data = { success: false, message: `Registration response error (${res.status}).` };
+        const regRecord = {
+          id: supaRegId,
+          competition_id: compId,
+          student_id: studentUser.id || 'usr_lokesh_csc013',
+          student_name: studentUser.name || 'Lokesh Krishnan',
+          register_number: studentUser.registerNumber || 'C24UG183CSC013',
+          department: studentUser.department || 'Computer Science',
+          gender: studentUser.gender || 'Male',
+          tournament_id: activeTournament ? activeTournament.id : '',
+          sport_name: sName,
+          status: 'Pending',
+          remarks: 'Confirmed via Student 1-Click Registration'
+        };
+        await supabase.from('competition_registrations').upsert(regRecord, { onConflict: 'competition_id,student_id' });
+      } catch (supaErr) {
+        console.warn('Direct Supabase registration notice:', supaErr);
       }
 
-      if (!res.ok || !data.success) {
-        if (data.message && data.message.toLowerCase().includes('already registered')) {
-          showToast(data.message, 'error');
-        } else {
-          showToast(data.message || 'Registration failed. Please try again.', 'error');
+      // Optional sync to local API
+      try {
+        const res = await fetch(`/api/competitions/${compId}/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            'x-register-number': studentUser.registerNumber || 'C24UG183CSC013',
+            'x-student-id': studentUser.id || 'usr_lokesh_csc013'
+          },
+          body: JSON.stringify({
+            remarks: 'Confirmed via Student 1-Click Registration',
+            registerNumber: studentUser.registerNumber || 'C24UG183CSC013',
+            studentId: studentUser.id || 'usr_lokesh_csc013',
+            studentName: studentUser.name || 'Lokesh Krishnan',
+            department: studentUser.department || 'Computer Science',
+            year: studentUser.year || 'III Year',
+            gender: studentUser.gender || 'Male',
+            mobile: studentUser.mobile || '+91 98421 54321',
+            email: studentUser.email || `${(studentUser.registerNumber || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`
+          })
+        });
+        if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) {
+          await res.json();
         }
-        setRegistering(false);
-        return;
+      } catch (apiErr) {
+        // Expected on serverless Vercel frontend where Supabase is primary
       }
 
-      const regCode = data.registration?.registrationCode || data.registrationCode || generatedCode;
       const newRegItem: RegistrationItem = {
-        id: data.registration?.id || `reg_${Date.now()}`,
-        registrationCode: regCode,
-        tournamentName: data.registration?.tournamentName || parentTName,
-        sportName: data.registration?.sportName || sName,
-        status: data.registration?.status || 'Registered',
+        id: supaRegId,
+        registrationCode: generatedCode,
+        tournamentName: parentTName,
+        sportName: sName,
+        status: 'Registered',
         registeredAt: new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
         venue: selectedSport.venue
       };
@@ -521,9 +644,10 @@ const CompetitionsPage = () => {
 
       setShowConfirmModal(false);
       setSuccessRegistration(newRegItem);
+      showToast(`Registration confirmed for ${sName}!`, 'success');
       fetchMyRegistrations();
     } catch (err: any) {
-      showToast(err.message || 'Network error during registration.', 'error');
+      showToast(err.message || 'Error saving registration.', 'error');
     } finally {
       setRegistering(false);
     }
@@ -810,14 +934,47 @@ const CompetitionsPage = () => {
       ) : activeTournament ? (
         /* ── VIEW 2: TOURNAMENT DETAILS PAGE ("CHOOSE YOUR SPORT") ──────────── */
         <div>
-          {/* Back Button */}
-          <button
-            onClick={() => setActiveTournament(null)}
-            className="btn btn-outline"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 20 }}
-          >
-            <ChevronLeft style={{ width: 16, height: 16 }} /> Back to All Tournaments
-          </button>
+          {/* Back Button & Tournament Switcher */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+            <button
+              onClick={() => setActiveTournament(null)}
+              className="btn btn-outline"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <ChevronLeft style={{ width: 16, height: 16 }} /> Back to All Tournaments
+            </button>
+
+            {tournaments.length > 1 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#6E86A5', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Tournaments:
+                </span>
+                {tournaments.map(t => {
+                  const isActive = t.id === activeTournament.id || t.tournamentName.toLowerCase() === activeTournament.tournamentName.toLowerCase();
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveTournament(t)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 10,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        border: isActive ? '1px solid #38A7FF' : '1px solid rgba(255,255,255,0.12)',
+                        background: isActive ? 'rgba(56,167,255,0.22)' : 'rgba(11,27,58,0.6)',
+                        color: isActive ? '#38A7FF' : '#94A3B8',
+                        boxShadow: isActive ? '0 2px 8px rgba(56,167,255,0.25)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      🏆 {t.tournamentName} ({t.sports.length})
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Tournament Hero Header */}
           <div

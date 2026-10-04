@@ -19,8 +19,6 @@ const SOURCE_PATHS = [
   path.resolve(__dirname, '..', 'server', 'data', 'local_db.json'),
   // Fallback: project root
   path.resolve(__dirname, '..', 'local_db.json'),
-  // Fallback: self pre-populated
-  path.resolve(__dirname, 'api', 'data', 'local_db.json'),
 ];
 
 // ── Destination: inside api/data/ (read by serverless functions) ───────────────

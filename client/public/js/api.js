@@ -55,6 +55,15 @@ async function apiRequest(endpoint, method = 'GET', body = null, isFormData = fa
   const token = localStorage.getItem('gasc_token');
   const headers = {};
 
+  const isAdmin = (typeof window !== 'undefined') && (
+    window.location.pathname.includes('admin') ||
+    window.location.href.includes('admin') ||
+    (endpoint && endpoint.includes('tournament'))
+  );
+  if (isAdmin) {
+    headers['X-Portal-Type'] = 'admin';
+  }
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }

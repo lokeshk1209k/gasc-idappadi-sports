@@ -346,7 +346,7 @@ async function loadAdminPlayers() {
         <td>${idx + 1}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
-            <img src="${p.profilePhoto || 'images/default-avatar.png'}" class="rounded-circle" width="36" height="36" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+            <img src="${p.profilePhoto || '/images/default-avatar.png'}" class="rounded-circle" width="36" height="36" style="object-fit:cover;" onerror="this.onerror=null;this.src='/images/default-avatar.png'">
             <div>
               <strong class="d-block text-dark">${p.name}</strong>
               <small class="text-muted">${p.registerNumber}</small>
@@ -872,7 +872,7 @@ async function loadActiveIssues() {
           <td>${idx + 1}</td>
           <td>
             <div class="d-flex align-items-center gap-2">
-              <img src="${t.studentId?.profilePhoto || 'images/default-avatar.png'}" class="rounded-circle border" width="34" height="34" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
+              <img src="${t.studentId?.profilePhoto || '/images/default-avatar.png'}" class="rounded-circle border" width="34" height="34" style="object-fit:cover;" onerror="this.onerror=null;this.src='/images/default-avatar.png'">
               <div>
                 <strong class="d-block text-dark">${t.studentName}</strong>
                 <small class="text-muted font-monospace">${t.registerNumber}</small>
@@ -1806,9 +1806,11 @@ async function loadAdminCompetitions() {
   const container = document.getElementById('admin-competitions-list-container');
   try {
     let competitions = [];
+    let apiTournaments = [];
     try {
       const res = await apiRequest('/competitions');
       competitions = res.competitions || res.data || [];
+      apiTournaments = res.tournaments || [];
     } catch (apiErr) {
       try {
         const fallbackRes = await fetch('/competitions.json');
@@ -1821,11 +1823,53 @@ async function loadAdminCompetitions() {
     try {
       const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
       if (Array.isArray(custom) && custom.length > 0) {
-        competitions = [...custom, ...competitions];
+        custom.forEach(item => {
+          if (!competitions.some(c => String(c.id || c._id) === String(item.id || item._id))) {
+            competitions.push(item);
+          }
+        });
       }
     } catch (e) {}
 
-    if (competitions.length === 0) {
+    // Group competitions by Tournament Name
+    const map = new Map();
+
+    // 1. First ensure all registered tournaments exist in map so deleting a sport NEVER deletes the tournament!
+    apiTournaments.forEach(t => {
+      const tName = (t.name || t.tournament_name || t.tournamentName || '').trim();
+      if (tName && !map.has(tName)) {
+        map.set(tName, {
+          info: {
+            name: tName,
+            venue: t.venue || 'GASC Idappadi Main Ground',
+            type: t.type || 'Inter-Department',
+            bannerImage: t.banner_image || t.bannerImage || '/images/sports/tournament.png',
+            status: t.status || 'Registration Open'
+          },
+          sports: []
+        });
+      }
+    });
+
+    // 2. Put competitions inside their parent tournament
+    competitions.forEach(c => {
+      const tName = (c.tournamentName || c.tournament_name || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'SPARK 2026 Annual Sports Fest').trim();
+      if (!map.has(tName)) {
+        map.set(tName, {
+          info: {
+            name: tName,
+            venue: c.venue || 'GASC Idappadi Main Ground',
+            type: c.type || 'Inter-Department',
+            bannerImage: c.bannerImage || '/images/sports/tournament.png',
+            status: c.status || 'Registration Open'
+          },
+          sports: []
+        });
+      }
+      map.get(tName).sports.push(c);
+    });
+
+    if (map.size === 0) {
       container.innerHTML = `
         <div class="glass-card p-5 text-center my-3">
           <i class="bi bi-trophy text-warning display-4 mb-3"></i>
@@ -1836,28 +1880,22 @@ async function loadAdminCompetitions() {
       return;
     }
 
-    // Group competitions by Tournament Name
-    const map = new Map();
-    competitions.forEach(c => {
-      const tName = c.tournamentName || c.name.split('-')[0].trim() || 'SPARK 2026 Annual Sports Fest';
-      if (!map.has(tName)) map.set(tName, []);
-      map.get(tName).push(c);
-    });
-
     let html = '';
-    map.forEach((sports, tName) => {
+    map.forEach((tournData, tName) => {
+      const sports = tournData.sports || [];
+      const tInfo = tournData.info || {};
       const firstSport = sports[0] || {};
-      const tVenue = firstSport.venue || 'GASC Idappadi Main Ground';
-      const tType = firstSport.type || 'Inter-Department';
+      const tVenue = tInfo.venue || firstSport.venue || 'GASC Idappadi Main Ground';
+      const tType = tInfo.type || firstSport.type || 'Inter-Department';
       const customBanner = sports.find(s => s.bannerImage && (s.bannerImage.includes('tournament') || s.bannerImage.includes('/uploads/')) && !s.bannerImage.includes('default'))?.bannerImage;
-      const tBanner = customBanner || '/images/sports/tournament.png';
+      const tBanner = tInfo.bannerImage || customBanner || '/images/sports/tournament.png';
 
       html += `
         <div class="glass-card p-4 mb-4 border border-warning border-opacity-25 shadow-sm overflow-hidden">
           <div class="row g-3 align-items-center mb-3 pb-3 border-bottom border-secondary border-opacity-25">
             <div class="col-md-3">
               <div class="rounded-3 overflow-hidden border border-secondary border-opacity-30 bg-black shadow-sm" style="height: 100px; position: relative;">
-                <img src="${tBanner}" alt="${tName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/sports/tournament.png';">
+                <img src="${tBanner}" alt="${tName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/sports/tournament.jpg';">
                 <span class="badge bg-dark bg-opacity-75 text-white position-absolute bottom-0 start-0 m-1 px-2 py-0.5" style="font-size: 0.65rem;">16:9 Cover</span>
               </div>
             </div>
@@ -1872,15 +1910,15 @@ async function loadAdminCompetitions() {
                 <span class="badge badge-glass-success ms-1">Registration Open</span>
               </div>
             </div>
-            <div class="col-md-5 text-md-end">
+            <div class="col-md-4 text-md-end">
               <div class="d-flex flex-column flex-sm-row gap-2 justify-content-md-end">
-                <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal('${tName.replace(/'/g, "\\'")}')">
+                <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal(decodeURIComponent('${encodeURIComponent(tName)}'))">
                   <i class="bi bi-plus-circle-fill me-1"></i> Add Sport
                 </button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="openEditTournamentModal('${tName.replace(/'/g, "\\'")}', '${tBanner.replace(/'/g, "\\'")}')">
+                <button class="btn btn-outline-secondary btn-sm" onclick="openEditTournamentModal(decodeURIComponent('${encodeURIComponent(tName)}'), decodeURIComponent('${encodeURIComponent(tBanner)}'))">
                   <i class="bi bi-image me-1"></i> Edit Cover
                 </button>
-                <button class="btn btn-outline-danger btn-sm" onclick="deleteTournament('${tName.replace(/'/g, "\\'")}')" title="Delete Entire Tournament">
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteTournament(decodeURIComponent('${encodeURIComponent(tName)}'))" title="Delete Entire Tournament">
                   <i class="bi bi-trash3-fill me-1"></i> Delete Tournament
                 </button>
               </div>
@@ -1892,7 +1930,18 @@ async function loadAdminCompetitions() {
               <i class="bi bi-flag-fill text-primary me-1"></i> Sport Competitions inside ${tName} (${sports.length})
             </h6>
             <div class="row g-3">
-              ${sports.map(c => {
+              ${sports.length === 0 ? `
+                <div class="col-12">
+                  <div class="p-4 rounded-3 text-center border border-info border-opacity-25" style="background: #0b1736 !important;">
+                    <i class="bi bi-info-circle text-info fs-3 mb-2 d-block"></i>
+                    <h6 class="fw-bold text-white mb-1">No Sports in ${tName} Currently</h6>
+                    <p class="small text-muted mb-3">The sport was deleted or not added yet. This tournament is active. Click below to add a sport.</p>
+                    <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal(decodeURIComponent('${encodeURIComponent(tName)}'))">
+                      <i class="bi bi-plus-circle-fill me-1"></i> Add Sport to ${tName}
+                    </button>
+                  </div>
+                </div>
+              ` : sports.map(c => {
                 const sName = c.sportName || c.name || '';
                 const banner = window.getSportImage(sName, c.bannerImage);
                 const compId = c.id || c._id || '';
@@ -1926,7 +1975,7 @@ async function loadAdminCompetitions() {
                         <button class="btn btn-sm btn-outline-info flex-grow-1 text-white fw-semibold" onclick="switchAdminView('applications'); document.getElementById('app-filter-status').value='All';" style="font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.6); background: rgba(56, 189, 248, 0.12);">
                           <i class="bi bi-people me-1"></i> View Registrations
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCompetition('${compId}', '${c.name.replace(/'/g, "\\'")}')" title="Delete Sport" style="border-color: rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.12);">
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCompetition('${compId}', decodeURIComponent('${encodeURIComponent(sName)}'))" title="Delete Sport" style="border-color: rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.12);">
                           <i class="bi bi-trash text-danger"></i>
                         </button>
                       </div>
@@ -2043,6 +2092,11 @@ async function submitCreateCompetition(event) {
     formData.set('type', formData.get('sportType'));
   }
 
+  const uniqueCompId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  formData.set('id', uniqueCompId);
+  const tId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  formData.set('tournamentId', tId);
+
   try {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating Tournament...';
@@ -2055,7 +2109,7 @@ async function submitCreateCompetition(event) {
     }
     
     // Sync to localStorage
-    const newId = (res && res.competition && res.competition.id) || `tour_${Date.now()}`;
+    const newId = (res && res.competition && res.competition.id) || uniqueCompId;
     const coverUrl = formData.get('coverImageUrl') || '/images/sports/tournament.png';
 
     const newT = {
@@ -2122,6 +2176,11 @@ async function submitAddSportToTournament(event) {
     formData.set('name', sportName);
   }
 
+  const uniqueSportId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+  formData.set('id', uniqueSportId);
+  const sportTId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+  formData.set('tournamentId', sportTId);
+
   try {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Adding Sport...';
@@ -2134,7 +2193,7 @@ async function submitAddSportToTournament(event) {
     }
 
     // Sync to localStorage
-    const newId = (res && res.competition && res.competition.id) || `sport_${Date.now()}`;
+    const newId = (res && res.competition && res.competition.id) || uniqueSportId;
     const newSport = {
       id: newId,
       _id: newId,
@@ -2179,44 +2238,68 @@ async function submitAddSportToTournament(event) {
 }
 
 async function deleteCompetition(id, name) {
-  if (!confirm(`Delete competition "${name}"?`)) return;
+  if (!id) return;
+  const confirmed = window.confirm(`Are you sure you want to delete competition sport "${name || 'Selected Sport'}"? The tournament will remain intact.`);
+  if (!confirmed) return;
+
   try {
+    // 1. Call backend API
     try {
       await apiRequest(`/competitions/${id}`, 'DELETE');
-    } catch (e) {}
+    } catch (apiErr) {
+      console.warn('API delete competition notice:', apiErr.message);
+    }
 
+    // 2. Remove ONLY this specific competition by ID (NEVER by name, preserving tournament!)
     try {
       const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-      const filtered = custom.filter(c => String(c.id) !== String(id) && c.name !== name);
+      const filtered = custom.filter(c => String(c.id || c._id) !== String(id));
       localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
       window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
     } catch (e) {}
 
-    showToast(`Competition "${name}" deleted.`, 'info');
-    loadAdminCompetitions();
+    showToast(`Sport "${name || 'Sport'}" deleted. Tournament remains active!`, 'info', 'Sport Deleted');
+    await loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to delete sport competition', 'error');
   }
 }
 
 async function deleteTournament(tName) {
-  if (!confirm(`⚠️ Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`)) return;
+  if (!tName) return;
+  const confirmed = window.confirm(`⚠️ Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`);
+  if (!confirmed) return;
+
   try {
+    // 1. Call backend DELETE API
     try {
       await apiRequest(`/competitions/tournament?name=${encodeURIComponent(tName)}`, 'DELETE');
-    } catch (e) {}
+    } catch (apiErr) {
+      console.warn('API delete tournament notice:', apiErr.message);
+    }
 
+    // 2. Thoroughly purge from local custom tournaments in localStorage
     try {
+      const targetTName = tName.trim().toLowerCase();
       const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-      const filtered = custom.filter(c => (c.tournamentName || c.name) !== tName);
+      const filtered = custom.filter(c => {
+        const cTName = (c.tournamentName || c.tournament_name || '').trim().toLowerCase();
+        const cName = (c.name || '').trim().toLowerCase();
+        const cPrefix = cName.includes('-') ? cName.split('-')[0].trim().toLowerCase() : cName;
+        return cTName !== targetTName && 
+               !cTName.includes(targetTName) && 
+               !targetTName.includes(cTName) &&
+               cName !== targetTName &&
+               cPrefix !== targetTName;
+      });
       localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
       window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
     } catch (e) {}
 
-    showToast(`Tournament "${tName}" deleted successfully.`, 'info');
-    loadAdminCompetitions();
+    showToast(`Tournament "${tName}" deleted successfully!`, 'success', 'Tournament Deleted');
+    await loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to delete tournament', 'error');
   }
 }
 
@@ -3174,12 +3257,16 @@ async function loadAdminGallery() {
   const container = document.getElementById('admin-gallery-grid');
   try {
     const res = await apiRequest('/gallery');
+    if (!res || !res.gallery || res.gallery.length === 0) {
+      container.innerHTML = `<div class="col-12 text-center text-muted py-5"><i class="bi bi-images fs-1 text-secondary mb-2 d-block"></i>No gallery moments uploaded yet. Click "+ Add Photo" to upload.</div>`;
+      return;
+    }
     container.innerHTML = res.gallery.map(g => `
       <div class="col-md-4 mb-3">
         <div class="glass-card overflow-hidden h-100">
-          <img src="${g.image}" class="w-100" style="height: 180px; object-fit: cover;">
+          <img src="${g.image || '/images/sports/tournament.jpg'}" class="w-100" style="height: 180px; object-fit: cover;" onerror="this.onerror=null;this.src='/images/sports/tournament.jpg';">
           <div class="p-3 d-flex flex-column">
-            <span class="badge badge-glass-primary mb-1 align-self-start">${g.category}</span>
+            <span class="badge badge-glass-primary mb-1 align-self-start">${g.category || 'Sports'}</span>
             <h6 class="fw-bold mb-1">${g.title}</h6>
             <div class="mt-auto pt-2 border-top d-flex justify-content-between align-items-center">
               <small class="text-muted">${formatDate(g.date)}</small>
@@ -3190,7 +3277,7 @@ async function loadAdminGallery() {
       </div>
     `).join('');
   } catch (err) {
-    container.innerHTML = `<div class="col-12 text-center text-danger">Failed to load gallery.</div>`;
+    container.innerHTML = `<div class="col-12 text-center text-muted py-4"><i class="bi bi-info-circle me-1"></i> No gallery photos found. Click "+ Add Photo" to upload photos.</div>`;
   }
 }
 

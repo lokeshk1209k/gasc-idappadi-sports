@@ -351,7 +351,7 @@ exports.getEligiblePlayers = async (req, res) => {
     // 3. Find registered students
     const { data: regsRaw } = await supabase
       .from('competition_registrations')
-      .select('*, users(id, name, register_number, department, gender, year, mobile, email, profile_photo), competitions(id, name, tournament_name, sport_name)');
+      .select('*');
 
     // Set of students already assigned to a team in this tournament & sport
     const assignedMap = {};
@@ -371,26 +371,28 @@ exports.getEligiblePlayers = async (req, res) => {
     const eligiblePlayers = [];
 
     (regsRaw || []).forEach(r => {
-      const u = r.users;
-      const c = r.competitions;
-      if (!u || !c) return;
+      const uId = r.student_id || r.id;
+      const uName = r.student_name || 'Student Athlete';
+      const uReg = r.register_number || 'N/A';
+      const uDept = r.department || '';
+      const uGender = r.gender || 'Male';
 
-      // Check tournament match (flexible matching for SPARK / SPARK 2026 / Annual Sports Fest)
-      const cTourn = c.tournament_name || (c.name ? c.name.split('-')[0].trim() : '');
+      // Check tournament match (flexible matching for SPARK / SPARK 2026 / Annual Sports Fest / FLASH)
+      const cTourn = (r.tournament_id || '').replace(/^tour_/, '');
       const tournMatch = !targetTourn || targetTourn === 'All' ||
         cTourn.toLowerCase() === targetTourn.toLowerCase() ||
         cTourn.toLowerCase().includes(targetTourn.toLowerCase()) ||
         targetTourn.toLowerCase().includes(cTourn.toLowerCase()) ||
-        c.id === tournamentId;
+        r.tournament_id === tournamentId ||
+        r.competition_id === tournamentId;
       if (!tournMatch) return;
 
       // Check sport match
-      const cSport = c.sport_name || '';
-      const sportMatch = cSport.toLowerCase() === targetSport.toLowerCase() || c.sport_id === sportId;
+      const cSport = r.sport_name || '';
+      const sportMatch = cSport.toLowerCase() === targetSport.toLowerCase() || r.sport_id === sportId;
       if (!sportMatch) return;
 
       // Check department match (handling aliases)
-      const uDept = u.department || '';
       const isDeptMatch = uDept.toLowerCase() === targetDept.toLowerCase() ||
         (targetDept === 'B.Sc CS' && (uDept === 'Computer Science' || uDept === 'B.Sc Computer Science')) ||
         (targetDept === 'B.Sc Maths' && (uDept === 'Mathematics' || uDept === 'B.Sc Mathematics' || uDept === 'Maths')) ||
@@ -399,22 +401,21 @@ exports.getEligiblePlayers = async (req, res) => {
       if (!isDeptMatch) return;
 
       // Check gender match
-      const uGender = u.gender || 'Male';
       const isGenderMatch = targetGender === 'Boys' 
         ? (uGender === 'Male' || uGender.toLowerCase() === 'boy' || uGender.toLowerCase() === 'male')
         : (uGender === 'Female' || uGender.toLowerCase() === 'girl' || uGender.toLowerCase() === 'female');
       if (!isGenderMatch) return;
 
       // Check if already in this or other team
-      const assignedTeam = assignedMap[u.id] || null;
+      const assignedTeam = assignedMap[uId] || null;
 
       eligiblePlayers.push({
-        id: u.id,
-        name: u.name,
-        registerNumber: u.register_number || 'N/A',
+        id: uId,
+        name: uName,
+        registerNumber: uReg,
         department: targetDept,
         gender: targetGender,
-        year: u.year || 'II Year',
+        year: r.year || 'II Year',
         registrationDate: r.registration_date,
         registrationCode: r.registration_code,
         alreadyInTeam: !!assignedTeam,
@@ -721,7 +722,7 @@ exports.getStudentTeamStatus = async (req, res) => {
       { data: allMembersRaw },
       { data: allUsersRaw }
     ] = await Promise.all([
-      supabase.from('competition_registrations').select('*, competitions(id, name, tournament_name, sport_name, type)').eq('student_id', targetId),
+      supabase.from('competition_registrations').select('*').eq('student_id', targetId),
       supabase.from('team_members').select('*').eq('student_id', targetId),
       supabase.from('teams').select('*'),
       supabase.from('team_members').select('*'),

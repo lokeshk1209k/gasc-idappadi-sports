@@ -31,6 +31,8 @@ student-client/temp_images/
 # student-client/public/images/ - images needed for Vercel, don't ignore
 *.bin
 vk_swiftshader_icd.json
-# DO NOT ignore api/data - it contains the bundled DB for Vercel serverless functions
-!student-client/api/data/
-!student-client/api/data/local_db.json
+scripts/sync_to_production_supabase.js
+scripts/e2e_production_verification.js
+scripts/test_reg_verify.js
+production_supabase_setup.sql
+student-client/.env*
