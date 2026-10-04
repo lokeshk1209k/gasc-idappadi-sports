@@ -434,7 +434,49 @@
       "updated_at": "2026-10-04T20:42:09.450Z"
     }
   ],
-  "equipment": [],
+  "equipment": [
+    {
+      "id": "eq_1791149403730_feh1",
+      "name": "bat",
+      "code": "4565",
+      "category": "Balls & Shuttles",
+      "sport_name": "Cricket",
+      "total_quantity": 10,
+      "available_quantity": 9,
+      "issued_quantity": 1,
+      "condition_status": "Good",
+      "location": "Main Sports Room, Shelf B1",
+      "created_at": "2026-10-04T21:30:04.136Z",
+      "updated_at": "2026-10-04T21:30:27.145Z",
+      "status": "In Stock"
+    },
+    {
+      "id": "eq_1791149403730_feh1",
+      "name": "bat",
+      "code": "4565",
+      "sport_id": "sp_cricket",
+      "sport_name": "Cricket",
+      "category": "Balls & Shuttles",
+      "total_quantity": 10,
+      "available_quantity": 9,
+      "issued_quantity": 1,
+      "damaged_quantity": 0,
+      "lost_quantity": 0,
+      "minimum_stock": 3,
+      "purchase_date": "2026-10-04",
+      "purchase_price": 1500,
+      "supplier": "Salem Sports Goods Co.",
+      "storage_location": "Main Sports Room, Shelf B1",
+      "condition": "Good",
+      "condition_status": "Good",
+      "warranty": "1 Year",
+      "description": "",
+      "image": "/images/equipment/default.jpg",
+      "status": "In Stock",
+      "created_at": "2026-10-04T21:30:03.730Z",
+      "updated_at": "2026-10-04T21:30:27.145Z"
+    }
+  ],
   "notifications": [
     {
       "id": "roster_C24UG183CSC024",
@@ -513,6 +555,19 @@
       "sender": "Sports Incharge",
       "created_at": "2026-10-04T21:26:12.095Z",
       "updated_at": "2026-10-04T21:26:12.095Z"
+    },
+    {
+      "id": "id_1791149428480_kwe9yz",
+      "title": "Equipment Issued: bat (1)",
+      "message": "You have been issued 1 unit(s) of bat. Please return the item in good condition by 7 Oct 2026.",
+      "category": "Equipment",
+      "target_type": "Specific Student",
+      "target_id": "roster_C24UG183CSC031",
+      "target_model": "User",
+      "priority": "Normal",
+      "sender": "Sports Incharge",
+      "created_at": "2026-10-04T21:30:28.480Z",
+      "updated_at": "2026-10-04T21:30:28.480Z"
     }
   ],
   "tournaments": [
@@ -596,13 +651,14 @@
       "issue_date": "2026-10-04T21:03:23.694Z",
       "issue_time": "02:33 am",
       "expected_return_date": "2026-10-07T00:00:00.000Z",
-      "status": "Issued",
+      "status": "Returned",
       "return_condition": "Pending",
       "purpose": "College Practice / Match",
       "remarks": "",
       "issued_by": "Dr. R. ANITHA",
       "created_at": "2026-10-04T21:03:23.694Z",
-      "updated_at": "2026-10-04T21:03:23.694Z"
+      "updated_at": "2026-10-04T21:03:23.694Z",
+      "return_date": "2026-10-04T21:34:02.036Z"
     },
     {
       "id": "tx_1791149170080_uen6",
@@ -638,6 +694,25 @@
       "return_time": "02:57 am",
       "damage_description": "",
       "fine_amount": 0
+    },
+    {
+      "id": "tx_1791149427177_5b0j",
+      "student_id": "roster_C24UG183CSC031",
+      "student_name": "aruna",
+      "register_number": "C24UG183CSC031",
+      "equipment_id": "eq_1791149403730_feh1",
+      "equipment_name": "bat",
+      "quantity": 1,
+      "issue_date": "2026-10-04T21:30:27.152Z",
+      "issue_time": "03:00 am",
+      "expected_return_date": "2026-10-07T00:00:00.000Z",
+      "status": "Issued",
+      "return_condition": "Pending",
+      "purpose": "College Practice / Match",
+      "remarks": "",
+      "issued_by": "Dr. R. ANITHA",
+      "created_at": "2026-10-04T21:30:27.152Z",
+      "updated_at": "2026-10-04T21:30:27.152Z"
     }
   ],
   "competition_registrations": []
