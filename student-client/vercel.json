@@ -5,7 +5,8 @@
   "trailingSlash": false,
   "rewrites": [
     { "source": "/api/competitions/my-applications", "destination": "/api/competitions/my-applications" },
-    { "source": "/api/competitions/:id/register", "destination": "/api/competitions/:id/register" },
+    { "source": "/api/competitions/:id/register", "destination": "/api/competitions/register?id=:id" },
+    { "source": "/api/competitions/register", "destination": "/api/competitions/register" },
     { "source": "/api/competitions", "destination": "/api/competitions" },
     { "source": "/api/auth/session-token", "destination": "/api/auth/session-token" },
     { "source": "/api/auth/login", "destination": "/api/auth/login" },

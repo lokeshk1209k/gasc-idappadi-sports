@@ -449,28 +449,49 @@ const CompetitionsPage = () => {
         } catch { /* proceed */ }
       }
 
-      const res = await fetch(`/api/competitions/${compId}/register`, {
+      const regPayload = {
+        competitionId: compId,
+        id: compId,
+        remarks: 'Confirmed via Student 1-Click Registration',
+        registerNumber: studentUser.registerNumber || 'C24UG183CSC013',
+        studentId: studentUser.id || 'usr_lokesh_csc013',
+        studentName: studentUser.name || 'Lokesh Krishnan',
+        department: studentUser.department || 'Computer Science',
+        year: studentUser.year || 'III Year',
+        gender: studentUser.gender || 'Male',
+        mobile: studentUser.mobile || '+91 98421 54321',
+        email: studentUser.email || `${(studentUser.registerNumber || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`
+      };
+
+      const reqHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        'x-register-number': studentUser.registerNumber || 'C24UG183CSC013',
+        'x-student-id': studentUser.id || 'usr_lokesh_csc013'
+      };
+
+      let res = await fetch(`/api/competitions/${compId}/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          'x-register-number': studentUser.registerNumber || 'C24UG183CSC013',
-          'x-student-id': studentUser.id || 'usr_lokesh_csc013'
-        },
-        body: JSON.stringify({
-          remarks: 'Confirmed via Student 1-Click Registration',
-          registerNumber: studentUser.registerNumber || 'C24UG183CSC013',
-          studentId: studentUser.id || 'usr_lokesh_csc013',
-          studentName: studentUser.name || 'Lokesh Krishnan',
-          department: studentUser.department || 'Computer Science',
-          year: studentUser.year || 'III Year',
-          gender: studentUser.gender || 'Male',
-          mobile: studentUser.mobile || '+91 98421 54321',
-          email: studentUser.email || `${(studentUser.registerNumber || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`
-        })
+        headers: reqHeaders,
+        body: JSON.stringify(regPayload)
       });
 
-      const data = await res.json();
+      // If rewrite wasn't hit or returned non-JSON, fallback to direct endpoint
+      if (!res.ok && res.status === 405) {
+        res = await fetch('/api/competitions/register', {
+          method: 'POST',
+          headers: reqHeaders,
+          body: JSON.stringify(regPayload)
+        });
+      }
+
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = JSON.parse(text);
+      } catch {
+        data = { success: false, message: `Registration response error (${res.status}).` };
+      }
 
       if (!res.ok || !data.success) {
         if (data.message && data.message.toLowerCase().includes('already registered')) {

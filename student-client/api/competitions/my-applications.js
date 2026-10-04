@@ -1,18 +1,30 @@
 // Vercel Serverless Function – GET /api/competitions/my-applications
-// Returns mock registration history for the authenticated student
-// Reads from bundled local_db.json competition_registrations table
-
 const path = require('path');
 const fs = require('fs');
 
-const DATA_FILE = path.join(__dirname, '..', '..', 'data', 'local_db.json');
+function findDataFile() {
+  const candidates = [
+    path.join(__dirname, '..', 'data', 'local_db.json'),
+    path.join(__dirname, 'data', 'local_db.json'),
+    path.join(__dirname, '..', '..', 'data', 'local_db.json'),
+    path.join(process.cwd(), 'api', 'data', 'local_db.json'),
+    path.join(process.cwd(), 'student-client', 'api', 'data', 'local_db.json'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
 
 function loadDb() {
   try {
-    if (fs.existsSync(DATA_FILE)) {
-      return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    const dataFile = findDataFile();
+    if (dataFile && fs.existsSync(dataFile)) {
+      return JSON.parse(fs.readFileSync(dataFile, 'utf8'));
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('loadDb error:', e);
+  }
   return { competition_registrations: [], competitions: [] };
 }
 
