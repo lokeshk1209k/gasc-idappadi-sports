@@ -176,8 +176,9 @@ const LoginPage = () => {
         userData = {
           id: user.id,
           name: user.name,
-          registerNumber: user.register_number,
-          regNo: user.register_number,
+          register_number: String(user.register_number || user.registerNumber || user.regNo || '').trim().toUpperCase(),
+          registerNumber: String(user.register_number || user.registerNumber || user.regNo || '').trim().toUpperCase(),
+          regNo: String(user.register_number || user.registerNumber || user.regNo || '').trim().toUpperCase(),
           department: user.department,
           dept: user.department,
           year: user.year,

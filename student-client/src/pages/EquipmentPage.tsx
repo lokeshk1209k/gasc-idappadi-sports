@@ -88,10 +88,16 @@ const EquipmentPage = () => {
     const now = new Date();
     const active: EquipmentTransaction[] = [];
     const hist: EquipmentTransaction[] = [];
+    const seenIds = new Set<string>();
 
     items.forEach((item: any) => {
-      const isPastExpected = item.status === 'Issued' && new Date(item.expectedReturnDate) < now;
-      const isOverdue = isPastExpected;
+      const id = item.id || `eq_${Date.now()}`;
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+
+      const statusNormalized = (item.status && String(item.status).toLowerCase() === 'returned') ? 'Returned' : 'Issued';
+      const isPastExpected = statusNormalized === 'Issued' && item.expectedReturnDate && new Date(item.expectedReturnDate) < now;
+      const isOverdue = Boolean(isPastExpected);
       let daysOverdue = 0;
       if (isPastExpected) {
         const diffMs = now.getTime() - new Date(item.expectedReturnDate).getTime();
@@ -99,7 +105,7 @@ const EquipmentPage = () => {
       }
 
       const tx: EquipmentTransaction = {
-        id: item.id || `eq_${Date.now()}`,
+        id,
         studentId: item.studentId || item.student_id || '',
         studentName: item.studentName || item.student_name || '',
         registerNumber: item.registerNumber || item.register_number || item.regNo || '',
@@ -111,7 +117,7 @@ const EquipmentPage = () => {
         expectedReturnDate: item.expectedReturnDate || item.expected_return_date || '',
         returnDate: item.returnDate || item.return_date || '',
         returnTime: item.returnTime || item.return_time || '',
-        status: item.status || 'Issued',
+        status: statusNormalized,
         returnCondition: item.returnCondition || item.return_condition || '',
         remarks: item.remarks || '',
         purpose: item.purpose || '',
@@ -120,7 +126,7 @@ const EquipmentPage = () => {
         daysOverdue
       };
 
-      if (tx.status === 'Issued') {
+      if (statusNormalized === 'Issued') {
         active.push(tx);
       } else {
         hist.push(tx);
@@ -163,7 +169,27 @@ const EquipmentPage = () => {
             const tReg = (msg.registerNumber || msg.register_number || msg.regNo || '').toLowerCase();
             const tStudentId = (msg.studentId || msg.student_id || '').toString().toLowerCase();
 
-            if (!cleanReg || sender === cleanReg || target.includes(cleanReg) || tReg === cleanReg || tStudentId === cleanReg) {
+            const normClean = cleanReg.replace(/[^a-z0-9]/g, '');
+            const normSender = sender.replace(/[^a-z0-9]/g, '');
+            const normTarget = target.replace(/[^a-z0-9]/g, '');
+            const normTReg = tReg.replace(/[^a-z0-9]/g, '');
+            const normTStudentId = tStudentId.replace(/[^a-z0-9]/g, '');
+
+            const isMatch = (
+              !cleanReg ||
+              sender === cleanReg ||
+              target.includes(cleanReg) ||
+              tReg === cleanReg ||
+              tStudentId === cleanReg ||
+              (normClean && (
+                normSender === normClean ||
+                normTarget.includes(normClean) ||
+                normTReg === normClean ||
+                normTStudentId.includes(normClean)
+              ))
+            );
+
+            if (isMatch) {
               matched.push(msg);
             }
           } catch {}

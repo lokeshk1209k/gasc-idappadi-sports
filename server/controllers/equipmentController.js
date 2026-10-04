@@ -462,10 +462,16 @@ exports.lookupStudent = async (req, res) => {
     }
 
     if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: 'Student not found.'
-      });
+      student = {
+        id: `ros_${cleanReg}`,
+        name: cleanReg,
+        registerNumber: cleanReg,
+        department: 'General',
+        year: 'Student',
+        profilePhoto: 'images/default-avatar.png',
+        mobile: '',
+        status: 'Active'
+      };
     }
 
     // 4. Find active issues for this student (for duplicate check)
@@ -569,7 +575,24 @@ exports.issueEquipment = async (req, res) => {
     }
 
     if (!studentRaw) {
-      return res.status(404).json({ success: false, message: `Student with Register Number "${studentIdentifier}" not found.` });
+      const cleanReg = studentIdentifier.trim().toUpperCase();
+      studentRaw = {
+        id: `ros_${cleanReg}`,
+        name: cleanReg,
+        register_number: cleanReg,
+        department: 'General',
+        year: 'Student',
+        role: 'student'
+      };
+      try {
+        await supabase.from('users').upsert({
+          id: studentRaw.id,
+          name: cleanReg,
+          register_number: cleanReg,
+          role: 'student',
+          status: 'Active'
+        });
+      } catch (uErr) {}
     }
 
     const student = toCamelCase(studentRaw);
