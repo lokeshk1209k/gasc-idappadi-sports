@@ -1,61 +1,69 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, User, Lock, Mail, Phone, BookOpen, CheckCircle, 
-  Sparkles, AlertCircle, RefreshCw, KeyRound, ShieldCheck, 
-  ArrowRight, Eye, EyeOff, Loader2 
+  User, 
+  Mail, 
+  Lock, 
+  Phone, 
+  BookOpen, 
+  Eye, 
+  EyeOff, 
+  CheckCircle, 
+  AlertCircle, 
+  Loader2, 
+  ArrowRight, 
+  ArrowLeft,
+  KeyRound,
+  RefreshCw,
+  Sparkles,
+  ShieldCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
-function getRegisterNumberVariants(input: string): string[] {
-  const clean = input.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (!clean) return [];
-  const variants = new Set<string>([clean]);
-  
-  // Extract trailing numbers and handle 0-padding differences
-  // e.g. C24UG183CSC13 vs C24UG183CSC013 vs C24UG183CSC0013
-  const match = clean.match(/^([A-Z0-9]+?)0*([0-9]+)$/);
-  if (match) {
-    const prefix = match[1];
-    const num = parseInt(match[2], 10);
-    variants.add(prefix + num);
-    variants.add(prefix + String(num).padStart(2, '0'));
-    variants.add(prefix + String(num).padStart(3, '0'));
-  }
-  return Array.from(variants);
-}
-
+// Static College Roster dataset as high-reliability fallback
 const MASTER_ROSTER = [
   { register_number: '23UGCS101', name: 'Arun Kumar S', department: 'Computer Science', year: 'II Year', section: 'A', gender: 'Male' },
   { register_number: '23UGCS102', name: 'Priya Dharshini R', department: 'Computer Science', year: 'II Year', section: 'A', gender: 'Female' },
   { register_number: '23UGCS103', name: 'Balaji K', department: 'Computer Science', year: 'II Year', section: 'A', gender: 'Male' },
-  { register_number: '23UGCS104', name: 'Divya M', department: 'Computer Science', year: 'II Year', section: 'B', gender: 'Female' },
-  { register_number: '23UGCS105', name: 'Elango V', department: 'Computer Science', year: 'II Year', section: 'B', gender: 'Male' },
-  { register_number: '24UGCO201', name: 'Gowtham N', department: 'Commerce', year: 'I Year', section: 'A', gender: 'Male' },
-  { register_number: '24UGCO205', name: 'Karthik Raja M', department: 'Commerce', year: 'I Year', section: 'B', gender: 'Male' },
-  { register_number: '22UGMA301', name: 'Abirami S', department: 'Mathematics', year: 'III Year', section: 'A', gender: 'Female' },
-  { register_number: '22UGMA310', name: 'Deepa Lakshmi K', department: 'Mathematics', year: 'III Year', section: 'A', gender: 'Female' },
-  { register_number: '23UGEN101', name: 'Dinesh Kumar P', department: 'English', year: 'II Year', section: 'A', gender: 'Male' },
-  { register_number: '23UGEN115', name: 'Vigneshwaran T', department: 'English', year: 'II Year', section: 'B', gender: 'Male' },
-  { register_number: '23UGTA101', name: 'Mani Maran C', department: 'Tamil', year: 'II Year', section: 'A', gender: 'Male' },
-  { register_number: '24UGPH101', name: 'Sanjay V', department: 'Physics', year: 'I Year', section: 'A', gender: 'Male' },
-  { register_number: '24UGCH101', name: 'Kavitha R', department: 'Chemistry', year: 'I Year', section: 'A', gender: 'Female' },
-  { register_number: '23UGBA101', name: 'Naveen Prasath S', department: 'Business Administration', year: 'II Year', section: 'A', gender: 'Male' },
-  { register_number: '21CS001', name: 'Lokesh', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
-  { register_number: 'C24UG183CSC013', name: 'Lokesh Krishnan', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
-  { register_number: 'C24UG183CSC13', name: 'Lokesh Krishnan', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
-  { register_number: 'C24UG183CSC014', name: 'MADHAN', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
-  { register_number: 'C24UG183CSC14', name: 'MADHAN', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
-  { register_number: 'C24UG183CSC011', name: 'harish', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' },
-  { register_number: 'C24UG183CSC11', name: 'harish', department: 'Computer Science', year: 'III Year', section: 'A', gender: 'Male' }
+  { register_number: '23UGCS104', name: 'Divya M', department: 'Computer Science', year: 'II Year', section: 'A', gender: 'Female' },
+  { register_number: '23UGCS105', name: 'Gokulnath P', department: 'Computer Science', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '23UGMA101', name: 'Karthik V', department: 'Maths', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '23UGMA102', name: 'Deepika S', department: 'Maths', year: 'II Year', section: 'A', gender: 'Female' },
+  { register_number: '23UGCO101', name: 'Sanjay R', department: 'B.Com', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '23UGCO102', name: 'Ananya M', department: 'B.Com', year: 'II Year', section: 'A', gender: 'Female' },
+  { register_number: '23UGBB101', name: 'Vignesh P', department: 'BBA', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '23UGBB102', name: 'Sneha K', department: 'BBA', year: 'II Year', section: 'A', gender: 'Female' },
+  { register_number: '23UGEN101', name: 'Praveen Kumar T', department: 'English', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '23UGTA101', name: 'Manikandan C', department: 'Tamil', year: 'II Year', section: 'A', gender: 'Male' },
+  { register_number: '24UGCS201', name: 'Naveen Kumar M', department: 'Computer Science', year: 'I Year', section: 'B', gender: 'Male' },
+  { register_number: '24UGCS202', name: 'Keerthana R', department: 'Computer Science', year: 'I Year', section: 'B', gender: 'Female' },
+  { register_number: '24UGCO205', name: 'Dhanush S', department: 'B.Com', year: 'I Year', section: 'B', gender: 'Male' },
+  { register_number: '24UGMA210', name: 'Pavithra G', department: 'Maths', year: 'I Year', section: 'A', gender: 'Female' },
+  { register_number: 'C24UG183CSC013', name: 'Lokesh Krishnan', department: 'Computer Science', year: 'I Year', section: 'A', gender: 'Male' }
 ];
+
+function getRegisterNumberVariants(regNo: string): string[] {
+  if (!regNo) return [];
+  const raw = regNo.trim().toUpperCase();
+  const variants = new Set<string>();
+  variants.add(raw);
+  const withoutLeadingZeroesInNumber = raw.replace(/(?<=[A-Z])0+(?=[0-9]+$)/, '');
+  variants.add(withoutLeadingZeroesInNumber);
+  const match = raw.match(/^([A-Z0-9]+?)([0-9]+)$/);
+  if (match) {
+    const prefix = match[1];
+    const num = parseInt(match[2], 10);
+    variants.add(`${prefix}${num}`);
+    variants.add(`${prefix}${String(num).padStart(3, '0')}`);
+    variants.add(`${prefix}${String(num).padStart(4, '0')}`);
+  }
+  return Array.from(variants);
+}
 
 const DEPARTMENTS = [
   'Computer Science',
-  'Commerce',
-  'Mathematics',
-  'Physics',
-  'Chemistry',
+  'Maths',
+  'B.Com',
   'English',
   'Tamil',
   'BBA',
@@ -85,6 +93,9 @@ const RegisterPage = () => {
     termsAgreed: false
   });
 
+  // Touched state for live field validation
+  const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
+
   // UI & Loading States
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -106,11 +117,22 @@ const RegisterPage = () => {
   const [otpValues, setOtpValues] = useState<string[]>(['', '', '', '', '', '']);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
-  const [demoOtpHint, setDemoOtpHint] = useState<string | null>(null);
+  const [otpToken, setOtpToken] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(60);
   const [maskedEmail, setMaskedEmail] = useState('');
 
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Field validation helpers
+  const isEmailValid = (email: string) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+  const isPhoneValid = (phone: string) => /^[6-9]\d{9}$/.test(phone.trim());
+  const isNameValid = (name: string) => name.trim().length >= 3 && /^[a-zA-Z\s.]*$/.test(name.trim());
+  const isPasswordValid = (pw: string) => pw.length >= 6;
+  const isPasswordMatch = formData.password.length > 0 && formData.password === formData.confirm_password;
+
+  const markTouched = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  };
 
   // Debounced Auto-Verification on Register Number change
   useEffect(() => {
@@ -277,13 +299,25 @@ const RegisterPage = () => {
     return () => clearInterval(interval);
   }, [showOtpModal, resendTimer]);
 
-  // Handle Form Submit -> Dispatches OTP
+  // Handle Form Submit -> Dispatches Real OTP Email
   const handleSubmitAndSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
+    // Mark all fields touched
+    setTouched({
+      register_number: true,
+      name: true,
+      email: true,
+      phone: true,
+      password: true,
+      confirm_password: true,
+      termsAgreed: true
+    });
+
     const cleanRegNo = formData.register_number.trim().toUpperCase();
     const cleanEmail = formData.email.trim().toLowerCase();
+    const cleanPhone = formData.phone.trim();
 
     if (!cleanRegNo || cleanRegNo.length < 4) {
       setError('Please enter a valid College Register Number.');
@@ -291,7 +325,7 @@ const RegisterPage = () => {
     }
 
     if (verifyStatus?.isRegistered) {
-      setError('An account with this register number already exists. Please login.');
+      setError('An account with this register number already exists. Please proceed to login.');
       return;
     }
 
@@ -300,28 +334,33 @@ const RegisterPage = () => {
       return;
     }
 
-    if (!formData.name.trim()) {
-      setError('Please enter your full official name.');
+    if (!isNameValid(formData.name)) {
+      setError('Please enter your full official name (minimum 3 characters, letters and spaces only).');
       return;
     }
 
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setError('Please provide a valid email address to receive your OTP.');
+    if (!isEmailValid(cleanEmail)) {
+      setError('Please enter a valid email address (e.g. name@gascidappadi.edu.in or student@gmail.com).');
       return;
     }
 
-    if (formData.password.length < 6) {
+    if (!isPhoneValid(cleanPhone)) {
+      setError('Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.');
+      return;
+    }
+
+    if (!isPasswordValid(formData.password)) {
       setError('Password must be at least 6 characters long.');
       return;
     }
 
     if (formData.password !== formData.confirm_password) {
-      setError('Passwords do not match. Please verify your password.');
+      setError('Passwords do not match. Please ensure both password fields are identical.');
       return;
     }
 
     if (!formData.termsAgreed) {
-      setError('Please agree to the Athletics Code of Conduct & Terms.');
+      setError('Please agree to the Athletics Code of Conduct & Terms to continue.');
       return;
     }
 
@@ -329,6 +368,10 @@ const RegisterPage = () => {
 
     try {
       let sentSuccess = false;
+      let returnedToken: string | null = null;
+      let emailMask = cleanEmail;
+
+      // Call Vercel Serverless / Express API endpoint to dispatch real email
       try {
         const res = await fetch('/api/auth/send-otp', {
           method: 'POST',
@@ -339,68 +382,70 @@ const RegisterPage = () => {
             name: formData.name.trim()
           })
         });
+
         const data = await res.json();
         if (data && data.success) {
           sentSuccess = true;
-          setMaskedEmail(data.maskedEmail || cleanEmail);
-          setDemoOtpHint(data.demoOtpHint || null);
+          emailMask = data.maskedEmail || cleanEmail;
+          returnedToken = data.otpToken || null;
+        } else if (data && data.message) {
+          setError(data.message);
+          setLoading(false);
+          return;
         }
-      } catch (e) {}
-
-      if (!sentSuccess) {
-        setMaskedEmail(cleanEmail);
-        setDemoOtpHint('123456');
+      } catch (e) {
+        console.warn('API send-otp call failed:', e);
       }
 
-      setOtpValues(['', '', '', '', '', '']);
-      setOtpError('');
-      setResendTimer(60);
-      setShowOtpModal(true);
+      if (sentSuccess) {
+        setMaskedEmail(emailMask);
+        setOtpToken(returnedToken);
+        setOtpValues(['', '', '', '', '', '']);
+        setOtpError('');
+        setResendTimer(60);
+        setShowOtpModal(true);
 
-      setTimeout(() => {
-        otpInputRefs.current[0]?.focus();
-      }, 300);
-    } catch (err) {
+        setTimeout(() => {
+          otpInputRefs.current[0]?.focus();
+        }, 300);
+      } else {
+        setError('Unable to send OTP verification email. Please check your internet connection or email address.');
+      }
+    } catch (err: any) {
       console.error('Send OTP error:', err);
-      setError('Unable to send OTP. Please try again.');
+      setError('Unable to send OTP email: ' + (err.message || 'Please try again.'));
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle Resend OTP
+  // Handle Resend OTP Email
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
     setOtpLoading(true);
     setOtpError('');
 
     try {
-      let resent = false;
-      try {
-        const res = await fetch('/api/auth/send-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: formData.email.trim().toLowerCase(),
-            registerNumber: formData.register_number.trim().toUpperCase(),
-            name: formData.name.trim()
-          })
-        });
-        const data = await res.json();
-        if (data && data.success) {
-          resent = true;
-          setDemoOtpHint(data.demoOtpHint || null);
-          setResendTimer(60);
-        }
-      } catch (e) {}
-
-      if (!resent) {
-        setDemoOtpHint('123456');
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email.trim().toLowerCase(),
+          registerNumber: formData.register_number.trim().toUpperCase(),
+          name: formData.name.trim()
+        })
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        setOtpToken(data.otpToken || null);
         setResendTimer(60);
+        setOtpError('');
+      } else {
+        setOtpError(data?.message || 'Failed to resend OTP.');
       }
     } catch (err) {
       console.error('Resend error:', err);
-      setOtpError('Failed to resend OTP.');
+      setOtpError('Failed to resend OTP. Please check your connection.');
     } finally {
       setOtpLoading(false);
     }
@@ -413,12 +458,10 @@ const RegisterPage = () => {
     newValues[index] = digit;
     setOtpValues(newValues);
 
-    // Auto-advance to next input
     if (digit && index < 5) {
       otpInputRefs.current[index + 1]?.focus();
     }
 
-    // Auto-submit if all 6 digits entered
     if (digit && index === 5 && newValues.every(v => v !== '')) {
       const fullOtp = newValues.join('');
       executeRegistration(fullOtp);
@@ -454,7 +497,7 @@ const RegisterPage = () => {
     const otpToVerify = enteredOtp || otpValues.join('');
 
     if (otpToVerify.length !== 6) {
-      setOtpError('Please enter all 6 digits of the OTP.');
+      setOtpError('Please enter all 6 digits of the verification code.');
       return;
     }
 
@@ -462,6 +505,33 @@ const RegisterPage = () => {
     setOtpError('');
 
     try {
+      const cleanEmail = formData.email.trim().toLowerCase();
+      const cleanReg = formData.register_number.trim().toUpperCase();
+
+      // Step 1: Verify OTP code via Serverless / Backend verify-otp
+      if (otpToken) {
+        try {
+          const vRes = await fetch('/api/auth/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: cleanEmail,
+              otp: otpToVerify,
+              otpToken: otpToken
+            })
+          });
+          const vData = await vRes.json();
+          if (!vData || !vData.success) {
+            setOtpError(vData?.message || 'Invalid or expired OTP code. Please check your email.');
+            setOtpLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn('verify-otp API check notice:', e);
+        }
+      }
+
+      // Step 2: Register account
       let regSuccess = false;
       let userData: any = null;
 
@@ -471,8 +541,8 @@ const RegisterPage = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: formData.name.trim(),
-            registerNumber: formData.register_number.trim().toUpperCase(),
-            email: formData.email.trim().toLowerCase(),
+            registerNumber: cleanReg,
+            email: cleanEmail,
             password: formData.password,
             department: formData.department,
             year: formData.year,
@@ -489,7 +559,7 @@ const RegisterPage = () => {
           regSuccess = true;
           userData = data.user;
           if (data.token) localStorage.setItem('gasc_token', data.token);
-        } else if (data && data.message) {
+        } else if (data && data.message && !otpToken) {
           setOtpError(data.message);
           setOtpLoading(false);
           return;
@@ -498,13 +568,12 @@ const RegisterPage = () => {
 
       // Fallback: Register directly into Supabase
       if (!regSuccess) {
-        const cleanReg = formData.register_number.trim().toUpperCase();
         const newUserId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
         const userRecord = {
           id: newUserId,
           name: formData.name.trim(),
           register_number: cleanReg,
-          email: formData.email.trim().toLowerCase(),
+          email: cleanEmail,
           role: 'student',
           department: formData.department,
           year: formData.year,
@@ -515,24 +584,11 @@ const RegisterPage = () => {
           created_at: new Date().toISOString()
         };
 
-        const { error: insErr } = await supabase.from('users').insert(userRecord);
-        if (insErr && !insErr.message?.includes('duplicate key')) {
-          console.warn('Supabase insert warning:', insErr.message);
-        }
-
         try {
-          await supabase.from('player_profiles').insert({
-            id: `prof_${Date.now()}`,
-            user_id: newUserId,
-            name: userRecord.name,
-            register_number: cleanReg,
-            department: userRecord.department,
-            year: userRecord.year,
-            gender: userRecord.gender,
-            mobile: userRecord.mobile,
-            created_at: new Date().toISOString()
-          });
-        } catch (e) {}
+          await supabase.from('users').upsert(userRecord, { onConflict: 'register_number' });
+        } catch (insErr) {
+          console.warn('Supabase upsert warning:', insErr);
+        }
 
         userData = userRecord;
         localStorage.setItem('gasc_token', `gasc_student_jwt_${Date.now()}`);
@@ -541,7 +597,6 @@ const RegisterPage = () => {
 
       // Sync registered account to competition_registrations table for instant registration status across clients
       try {
-        const cleanReg = formData.register_number.trim().toUpperCase();
         await supabase.from('competition_registrations').insert({
           id: `acc_${Date.now()}_${cleanReg}`,
           competition_id: '__STUDENT_ACCOUNT__',
@@ -550,7 +605,7 @@ const RegisterPage = () => {
           register_number: cleanReg,
           department: formData.department,
           gender: formData.gender,
-          remarks: formData.email.trim().toLowerCase(),
+          remarks: cleanEmail,
           status: 'Active'
         });
       } catch (accErr) {
@@ -573,13 +628,25 @@ const RegisterPage = () => {
     }
   };
 
+  const isFormSubmittable = 
+    verifyStatus?.isPreEnrolled === true &&
+    !verifyStatus?.isRegistered &&
+    isNameValid(formData.name) &&
+    isEmailValid(formData.email) &&
+    isPhoneValid(formData.phone) &&
+    isPasswordValid(formData.password) &&
+    isPasswordMatch &&
+    formData.termsAgreed &&
+    !loading &&
+    !verifying;
+
   return (
     <div style={{ minHeight: '100vh', background: 'radial-gradient(ellipse at top, #061938 0%, #020817 70%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px', position: 'relative' }}>
 
-      {/* Background cyber ambient glow */}
+      {/* Ambient background glow */}
       <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '600px', height: '400px', background: 'radial-gradient(circle, rgba(22,119,255,0.12) 0%, transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none' }} />
 
-      <div style={{ width: '100%', maxWidth: '780px', background: 'rgba(8, 27, 53, 0.75)', backdropFilter: 'blur(24px)', border: '1px solid rgba(55,140,255,0.25)', borderRadius: '24px', padding: '36px 40px', boxShadow: '0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)', position: 'relative', zIndex: 10 }}>
+      <div style={{ width: '100%', maxWidth: '780px', background: 'rgba(8, 27, 53, 0.85)', backdropFilter: 'blur(24px)', border: '1px solid rgba(55,140,255,0.25)', borderRadius: '24px', padding: '36px 40px', boxShadow: '0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)', position: 'relative', zIndex: 10 }}>
 
         {/* Back Link */}
         <Link 
@@ -609,7 +676,7 @@ const RegisterPage = () => {
 
         {/* Global Error Banner */}
         {error && (
-          <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#F87171', padding: '12px 16px', borderRadius: '12px', marginBottom: '24px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.35)', color: '#F87171', padding: '12px 16px', borderRadius: '12px', marginBottom: '24px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <AlertCircle style={{ width: 18, height: 18, flexShrink: 0 }} />
             <span>{error}</span>
           </div>
@@ -632,7 +699,7 @@ const RegisterPage = () => {
               <label style={{ fontSize: '12px', fontWeight: 700, color: '#AFC4DF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 COLLEGE REGISTER NUMBER <span style={{ color: '#FF6A21' }}>*</span>
               </label>
-              <span style={{ fontSize: '11px', color: '#6E86A5' }}>Automatic Instant Verification</span>
+              <span style={{ fontSize: '11px', color: '#6E86A5' }}>Instant College Roster Verification</span>
             </div>
 
             <div style={{ position: 'relative' }}>
@@ -643,8 +710,17 @@ const RegisterPage = () => {
                 className="input-dark"
                 placeholder="e.g. 23UGCS101 or 24UGCO205"
                 value={formData.register_number}
+                onBlur={() => markTouched('register_number')}
                 onChange={e => setFormData({ ...formData, register_number: e.target.value.toUpperCase() })}
-                style={{ paddingLeft: '42px', paddingRight: verifying ? '42px' : '14px', fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase' }}
+                style={{ 
+                  paddingLeft: '42px', 
+                  paddingRight: verifying ? '42px' : '14px', 
+                  fontSize: '15px', 
+                  fontWeight: 700, 
+                  letterSpacing: '0.5px', 
+                  textTransform: 'uppercase',
+                  borderColor: verifyStatus?.isPreEnrolled ? '#34D399' : (verifyStatus ? '#F87171' : undefined)
+                }}
               />
               {verifying && (
                 <Loader2 style={{ width: 18, height: 18, position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF', animation: 'spin 1s linear infinite' }} />
@@ -655,18 +731,18 @@ const RegisterPage = () => {
             {verifyStatus && (
               <div style={{ marginTop: '10px' }}>
                 {verifyStatus.isRegistered ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#F87171' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', padding: '10px 14px', borderRadius: '10px', fontSize: '12px', color: '#F87171' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <AlertCircle style={{ width: 15, height: 15 }} />
+                      <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
                       <span>{verifyStatus.message}</span>
                     </div>
-                    <Link to="/student/login" style={{ color: '#38A7FF', fontWeight: 700, textDecoration: 'none', marginLeft: '10px' }}>
+                    <Link to="/student/login" style={{ color: '#38A7FF', fontWeight: 700, textDecoration: 'none', marginLeft: '10px', whiteSpace: 'nowrap' }}>
                       Login Now →
                     </Link>
                   </div>
                 ) : verifyStatus.isPreEnrolled ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '8px 12px', borderRadius: '10px', fontSize: '12px', color: '#34D399' }}>
-                    <CheckCircle style={{ width: 15, height: 15, flexShrink: 0 }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '10px 14px', borderRadius: '10px', fontSize: '12px', color: '#34D399' }}>
+                    <ShieldCheck style={{ width: 16, height: 16, flexShrink: 0 }} />
                     <span style={{ fontWeight: 600 }}>{verifyStatus.message} — Details auto-filled!</span>
                   </div>
                 ) : (
@@ -679,14 +755,21 @@ const RegisterPage = () => {
             )}
           </div>
 
-          {/* ── STEP 2: BASIC STUDENT DETAILS ── */}
+          {/* ── STEP 2: STUDENT DETAILS WITH VERIFICATION & VALIDATION ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px', marginBottom: '24px' }}>
 
             {/* Full Name */}
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
-                Full Name (Official) <span style={{ color: '#FF6A21' }}>*</span>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#AFC4DF' }}>
+                  Full Name (Official) <span style={{ color: '#FF6A21' }}>*</span>
+                </label>
+                {touched.name && isNameValid(formData.name) && (
+                  <span style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <CheckCircle style={{ width: 12, height: 12 }} /> Valid
+                  </span>
+                )}
+              </div>
               <div style={{ position: 'relative' }}>
                 <User style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                 <input
@@ -694,16 +777,25 @@ const RegisterPage = () => {
                   required
                   className="input-dark"
                   placeholder="e.g. Arun Kumar S"
-                  style={{ paddingLeft: '38px' }}
+                  style={{ 
+                    paddingLeft: '38px',
+                    borderColor: touched.name && !isNameValid(formData.name) ? '#F87171' : undefined
+                  }}
                   value={formData.name}
+                  onBlur={() => markTouched('name')}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
+              {touched.name && !isNameValid(formData.name) && (
+                <span style={{ fontSize: '11px', color: '#F87171', display: 'block', marginTop: '4px' }}>
+                  Name must be at least 3 characters (letters and dots only).
+                </span>
+              )}
             </div>
 
             {/* Department */}
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
                 Department <span style={{ color: '#FF6A21' }}>*</span>
               </label>
               <select
@@ -722,7 +814,7 @@ const RegisterPage = () => {
 
             {/* Year of Study */}
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
                 Year of Study <span style={{ color: '#FF6A21' }}>*</span>
               </label>
               <select
@@ -739,9 +831,28 @@ const RegisterPage = () => {
               </select>
             </div>
 
+            {/* Section */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
+                Section <span style={{ color: '#FF6A21' }}>*</span>
+              </label>
+              <select
+                className="input-dark"
+                value={formData.section}
+                onChange={e => setFormData({ ...formData, section: e.target.value })}
+                style={{ cursor: 'pointer', background: '#031126' }}
+              >
+                {SECTIONS.map(s => (
+                  <option key={s} value={s} style={{ background: '#031126', color: '#FFF' }}>
+                    Section {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Gender */}
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
                 Gender <span style={{ color: '#FF6A21' }}>*</span>
               </label>
               <select
@@ -758,30 +869,18 @@ const RegisterPage = () => {
               </select>
             </div>
 
-            {/* Email Address (Where OTP will be received) */}
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
-                Email Address (OTP will be sent here) <span style={{ color: '#FF6A21' }}>*</span>
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Mail style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
-                <input
-                  type="email"
-                  required
-                  className="input-dark"
-                  placeholder="student@gascidappadi.edu.in"
-                  style={{ paddingLeft: '38px' }}
-                  value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
-            </div>
-
             {/* Mobile Number */}
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
-                Mobile Number <span style={{ color: '#FF6A21' }}>*</span>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#AFC4DF' }}>
+                  Mobile Number (10 Digits) <span style={{ color: '#FF6A21' }}>*</span>
+                </label>
+                {touched.phone && isPhoneValid(formData.phone) && (
+                  <span style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <CheckCircle style={{ width: 12, height: 12 }} /> Valid
+                  </span>
+                )}
+              </div>
               <div style={{ position: 'relative' }}>
                 <Phone style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                 <input
@@ -789,18 +888,73 @@ const RegisterPage = () => {
                   required
                   className="input-dark"
                   placeholder="e.g. 9876543210"
-                  style={{ paddingLeft: '38px' }}
+                  maxLength={10}
+                  style={{ 
+                    paddingLeft: '38px',
+                    borderColor: touched.phone && !isPhoneValid(formData.phone) ? '#F87171' : undefined
+                  }}
                   value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                  onBlur={() => markTouched('phone')}
+                  onChange={e => {
+                    const onlyNums = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setFormData({ ...formData, phone: onlyNums });
+                  }}
                 />
               </div>
+              {touched.phone && !isPhoneValid(formData.phone) && (
+                <span style={{ fontSize: '11px', color: '#F87171', display: 'block', marginTop: '4px' }}>
+                  Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.
+                </span>
+              )}
+            </div>
+
+            {/* Email Address */}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#AFC4DF' }}>
+                  Email Address (Verification OTP will be sent here) <span style={{ color: '#FF6A21' }}>*</span>
+                </label>
+                {touched.email && isEmailValid(formData.email) && (
+                  <span style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <CheckCircle style={{ width: 12, height: 12 }} /> Valid email format
+                  </span>
+                )}
+              </div>
+              <div style={{ position: 'relative' }}>
+                <Mail style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
+                <input
+                  type="email"
+                  required
+                  className="input-dark"
+                  placeholder="student@gmail.com or your_name@gascidappadi.edu.in"
+                  style={{ 
+                    paddingLeft: '38px',
+                    borderColor: touched.email && !isEmailValid(formData.email) ? '#F87171' : undefined
+                  }}
+                  value={formData.email}
+                  onBlur={() => markTouched('email')}
+                  onChange={e => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
+                />
+              </div>
+              {touched.email && !isEmailValid(formData.email) && (
+                <span style={{ fontSize: '11px', color: '#F87171', display: 'block', marginTop: '4px' }}>
+                  Please enter a valid email address (e.g. name@domain.com).
+                </span>
+              )}
             </div>
 
             {/* Password */}
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
-                Password (min 6 chars) <span style={{ color: '#FF6A21' }}>*</span>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#AFC4DF' }}>
+                  Password (min 6 chars) <span style={{ color: '#FF6A21' }}>*</span>
+                </label>
+                {touched.password && isPasswordValid(formData.password) && (
+                  <span style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <CheckCircle style={{ width: 12, height: 12 }} /> Good
+                  </span>
+                )}
+              </div>
               <div style={{ position: 'relative' }}>
                 <Lock style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                 <input
@@ -808,8 +962,13 @@ const RegisterPage = () => {
                   required
                   className="input-dark"
                   placeholder="••••••••"
-                  style={{ paddingLeft: '38px', paddingRight: '38px' }}
+                  style={{ 
+                    paddingLeft: '38px', 
+                    paddingRight: '38px',
+                    borderColor: touched.password && !isPasswordValid(formData.password) ? '#F87171' : undefined
+                  }}
                   value={formData.password}
+                  onBlur={() => markTouched('password')}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
                 />
                 <button
@@ -820,13 +979,25 @@ const RegisterPage = () => {
                   {showPassword ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
                 </button>
               </div>
+              {touched.password && !isPasswordValid(formData.password) && (
+                <span style={{ fontSize: '11px', color: '#F87171', display: 'block', marginTop: '4px' }}>
+                  Password must be at least 6 characters long.
+                </span>
+              )}
             </div>
 
             {/* Confirm Password */}
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
-                Confirm Password <span style={{ color: '#FF6A21' }}>*</span>
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#AFC4DF' }}>
+                  Confirm Password <span style={{ color: '#FF6A21' }}>*</span>
+                </label>
+                {touched.confirm_password && isPasswordMatch && (
+                  <span style={{ fontSize: '11px', color: '#34D399', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <CheckCircle style={{ width: 12, height: 12 }} /> Passwords match
+                  </span>
+                )}
+              </div>
               <div style={{ position: 'relative' }}>
                 <Lock style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                 <input
@@ -834,8 +1005,13 @@ const RegisterPage = () => {
                   required
                   className="input-dark"
                   placeholder="••••••••"
-                  style={{ paddingLeft: '38px', paddingRight: '38px' }}
+                  style={{ 
+                    paddingLeft: '38px', 
+                    paddingRight: '38px',
+                    borderColor: touched.confirm_password && !isPasswordMatch ? '#F87171' : undefined
+                  }}
                   value={formData.confirm_password}
+                  onBlur={() => markTouched('confirm_password')}
                   onChange={e => setFormData({ ...formData, confirm_password: e.target.value })}
                 />
                 <button
@@ -846,6 +1022,11 @@ const RegisterPage = () => {
                   {showConfirmPassword ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
                 </button>
               </div>
+              {touched.confirm_password && !isPasswordMatch && (
+                <span style={{ fontSize: '11px', color: '#F87171', display: 'block', marginTop: '4px' }}>
+                  Passwords do not match. Please verify your password.
+                </span>
+              )}
             </div>
           </div>
 
@@ -856,17 +1037,25 @@ const RegisterPage = () => {
                 type="checkbox"
                 required
                 checked={formData.termsAgreed}
-                onChange={e => setFormData({ ...formData, termsAgreed: e.target.checked })}
+                onChange={e => {
+                  setFormData({ ...formData, termsAgreed: e.target.checked });
+                  markTouched('termsAgreed');
+                }}
                 style={{ marginTop: '2px', accentColor: '#1677FF', width: 16, height: 16 }}
               />
               <span>I confirm that I am a bonafide student of GASC Idappadi and agree to adhere to the official College Sports Code of Conduct.</span>
             </label>
+            {touched.termsAgreed && !formData.termsAgreed && (
+              <span style={{ fontSize: '11px', color: '#F87171', display: 'block', marginTop: '4px' }}>
+                You must accept the Code of Conduct & Terms to register.
+              </span>
+            )}
           </div>
 
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || verifying || !verifyStatus?.isPreEnrolled}
+            disabled={!isFormSubmittable}
             className="btn-primary"
             style={{
               width: '100%',
@@ -874,8 +1063,8 @@ const RegisterPage = () => {
               fontSize: '15px',
               fontWeight: 700,
               justifyContent: 'center',
-              opacity: (loading || verifying || !verifyStatus?.isPreEnrolled) ? 0.6 : 1,
-              cursor: (!verifyStatus?.isPreEnrolled) ? 'not-allowed' : 'pointer'
+              opacity: isFormSubmittable ? 1 : 0.6,
+              cursor: isFormSubmittable ? 'pointer' : 'not-allowed'
             }}
           >
             {loading ? (
@@ -890,7 +1079,7 @@ const RegisterPage = () => {
               </>
             ) : (
               <>
-                <span>Continue to Email OTP Verification</span>
+                <span>Send Email Verification OTP</span>
                 <ArrowRight style={{ width: 17, height: 17 }} />
               </>
             )}
@@ -911,7 +1100,7 @@ const RegisterPage = () => {
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(2, 8, 23, 0.85)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div style={{ width: '100%', maxWidth: '460px', background: 'linear-gradient(180deg, #061938 0%, #031126 100%)', border: '1px solid rgba(55,140,255,0.35)', borderRadius: '24px', padding: '36px 32px', boxShadow: '0 25px 80px rgba(0,0,0,0.8), 0 0 40px rgba(22,119,255,0.2)', position: 'relative' }}>
 
-            {/* Mail Icon */}
+            {/* Key Icon */}
             <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(22,119,255,0.15)', border: '2px solid rgba(55,140,255,0.4)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38A7FF' }}>
               <KeyRound style={{ width: 28, height: 28 }} />
             </div>
@@ -924,6 +1113,10 @@ const RegisterPage = () => {
               <strong style={{ color: '#38A7FF' }}>{maskedEmail}</strong>
             </p>
 
+            <div style={{ background: 'rgba(56,167,255,0.08)', border: '1px solid rgba(56,167,255,0.2)', padding: '10px 14px', borderRadius: '10px', marginBottom: '20px', fontSize: '12px', color: '#AFC4DF', textAlign: 'center' }}>
+              📩 Please check your <strong>Inbox</strong> and <strong>Spam folder</strong>.
+            </div>
+
             {/* Error in modal */}
             {otpError && (
               <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.35)', color: '#F87171', padding: '10px 14px', borderRadius: '10px', marginBottom: '18px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -931,7 +1124,6 @@ const RegisterPage = () => {
                 <span>{otpError}</span>
               </div>
             )}
-
 
             {/* 6-Digit OTP Inputs */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '24px' }}>
@@ -974,11 +1166,11 @@ const RegisterPage = () => {
               {otpLoading ? (
                 <>
                   <Loader2 style={{ width: 17, height: 17, animation: 'spin 1s linear infinite' }} />
-                  <span>Verifying & Entering Portal...</span>
+                  <span>Verifying Code & Logging In...</span>
                 </>
               ) : (
                 <>
-                  <span>Verify OTP & Enter Website</span>
+                  <span>Verify OTP & Complete Registration</span>
                   <ArrowRight style={{ width: 16, height: 16 }} />
                 </>
               )}
