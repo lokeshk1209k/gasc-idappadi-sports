@@ -16,18 +16,17 @@ module.exports = async (req, res) => {
     if (typeof body === 'string') {
       try { body = JSON.parse(body); } catch (e) {}
     }
-    const { identifier: bodyId, registerNumber, email, username, password } = body || {};
-    const identifier = (bodyId || registerNumber || email || username || '').trim();
+    const { email: bodyEmail, identifier, password } = body || {};
+    const email = (bodyEmail || identifier || '').trim().toLowerCase();
 
-    if (!identifier || !password) {
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide College Register Number and Password.'
+        message: 'Please provide your registered Email Address and Password.'
       });
     }
 
-    const cleanId = identifier.toLowerCase();
-    if (cleanId === 'admin' || cleanId === 'sports_incharge' || cleanId === 'admin-sports' || cleanId === 'admin@gascidappadi.edu.in') {
+    if (email === 'admin' || email === 'sports_incharge' || email === 'admin-sports' || email === 'admin@gascidappadi.edu.in') {
       return res.status(403).json({
         success: false,
         code: 'FORBIDDEN_PORTAL',
@@ -35,39 +34,22 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Query user by register_number or email
-    let userRaw = null;
-    const isEmail = identifier.includes('@');
+    // Query user by email
+    const { data: userRaw, error: queryErr } = await supabase
+      .from('users')
+      .select('*')
+      .ilike('email', email)
+      .maybeSingle();
 
-    if (isEmail) {
-      const { data: byEmail } = await supabase
-        .from('users')
-        .select('*')
-        .ilike('email', identifier.toLowerCase())
-        .maybeSingle();
-      userRaw = byEmail;
-    } else {
-      const { data: byReg } = await supabase
-        .from('users')
-        .select('*')
-        .ilike('register_number', identifier.toUpperCase())
-        .maybeSingle();
-      userRaw = byReg;
-
-      if (!userRaw) {
-        const { data: byEmail } = await supabase
-          .from('users')
-          .select('*')
-          .ilike('email', identifier.toLowerCase())
-          .maybeSingle();
-        userRaw = byEmail;
-      }
+    if (queryErr) {
+      console.error('Supabase query error:', queryErr);
+      return res.status(500).json({ success: false, message: 'Database query error.' });
     }
 
     if (!userRaw) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid login credentials. Student account not found. Please register first.'
+        message: 'No student account found with this email address. Please click "Create Student Account" to register.'
       });
     }
 
@@ -82,16 +64,7 @@ module.exports = async (req, res) => {
     if (!userRaw.password || userRaw.role === 'roster') {
       return res.status(401).json({
         success: false,
-        message: `Student record "${userRaw.name}" (${userRaw.register_number}) is verified in College Roster, but you have not completed registration yet. Please click "Register Profile" below to create your password.`
-      });
-    }
-
-    // Verify Password
-    const isMatch = await bcrypt.compare(password, userRaw.password);
-    if (!isMatch && password !== userRaw.password) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials. Incorrect password.'
+        message: `Student record "${userRaw.name}" (${userRaw.register_number}) is in College Roster, but registration is incomplete. Please click "Create Student Account" to set your password.`
       });
     }
 
@@ -99,6 +72,21 @@ module.exports = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: 'Your student account is deactivated or suspended. Please contact Physical Directress.'
+      });
+    }
+
+    // Verify Password (support bcrypt hash and plaintext fallback)
+    let isMatch = false;
+    if (userRaw.password.startsWith('$2')) {
+      isMatch = await bcrypt.compare(password, userRaw.password);
+    } else {
+      isMatch = (password === userRaw.password);
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials. Incorrect password.'
       });
     }
 
@@ -114,7 +102,7 @@ module.exports = async (req, res) => {
       user
     });
   } catch (err) {
-    console.error('login error:', err);
+    console.error('Login handler error:', err);
     return res.status(500).json({ success: false, message: err.message || 'Internal server error' });
   }
 };

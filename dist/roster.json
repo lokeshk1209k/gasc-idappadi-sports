@@ -1,5 +1,20 @@
 {
   "success": true,
-  "count": 0,
-  "roster": []
+  "count": 1,
+  "roster": [
+    {
+      "id": "ros_1791138104661_rl9u",
+      "register_number": "C24UG183CSC024",
+      "name": "sathiya",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "status": "Active",
+      "is_registered": true,
+      "registered_user_id": "c97fe562-476a-4b81-9026-7ce50a54ea1d",
+      "created_at": "2026-10-04T18:21:44.676Z",
+      "updated_at": "2026-10-04T18:21:44.676Z"
+    }
+  ]
 }

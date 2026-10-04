@@ -1,25 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Lock, Eye, EyeOff, ArrowRight, User, Mail, 
-  KeyRound, AlertCircle, CheckCircle, RefreshCw, X, Loader2, Sparkles 
+  Lock, Eye, EyeOff, ArrowRight, Mail, 
+  KeyRound, AlertCircle, CheckCircle, RefreshCw, X, Loader2, Sparkles, ShieldCheck 
 } from 'lucide-react';
 import bcrypt from 'bcryptjs';
-import { supabase } from '../lib/supabase';
 
 const SUPABASE_REST = 'https://yemypfgunokxfufnqvdh.supabase.co/rest/v1';
 const SB_KEY = atob('c2Jfc2VjcmV0X2V1RTFhYnhRSGdKaFN4RDA4RnNHZ2dfeC1vUUZRcGk=');
 
-async function fetchSupabaseUserDirect(identifier: string) {
+async function fetchSupabaseUserByEmail(email: string) {
   try {
-    const cleanId = identifier.trim();
-    const cleanReg = cleanId.toUpperCase();
-    const cleanEmail = cleanId.toLowerCase();
-
-    const url = cleanEmail.includes('@')
-      ? `${SUPABASE_REST}/users?email=ilike.${encodeURIComponent(cleanEmail)}&select=*`
-      : `${SUPABASE_REST}/users?or=(register_number.ilike.${encodeURIComponent(cleanReg)},email.ilike.${encodeURIComponent(cleanEmail)})&select=*`;
-
+    const cleanEmail = email.trim().toLowerCase();
+    const url = `${SUPABASE_REST}/users?email=ilike.${encodeURIComponent(cleanEmail)}&select=*`;
     const res = await fetch(url, {
       headers: {
         'apikey': SB_KEY,
@@ -40,14 +33,12 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successBanner, setSuccessBanner] = useState('');
-  const [tab, setTab] = useState<'student' | 'staff'>('student');
 
-  const [formData, setFormData] = useState({ identifier: '', password: '' });
+  const [formData, setFormData] = useState({ email: '', password: '' });
 
   // ── Forgot Password Modal State ──
   const [showForgotModal, setShowForgotModal] = useState(false);
-  const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1); // 1 = identifier, 2 = otp+password, 3 = success
-  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotStep, setForgotStep] = useState<1 | 2 | 3>(1); // 1 = email, 2 = otp+password, 3 = success
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMaskedEmail, setForgotMaskedEmail] = useState('');
   const [forgotOtpValues, setForgotOtpValues] = useState<string[]>(['', '', '', '', '', '']);
@@ -57,7 +48,6 @@ const LoginPage = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState('');
   const [forgotSuccess, setForgotSuccess] = useState('');
-  const [forgotDemoHint, setForgotDemoHint] = useState<string | null>(null);
   const [forgotResendTimer, setForgotResendTimer] = useState(60);
 
   const forgotOtpRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -77,6 +67,22 @@ const LoginPage = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    const cleanEmail = formData.email.trim().toLowerCase();
+    const enteredPassword = formData.password;
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setError('Please enter a valid email address.');
+      setLoading(false);
+      return;
+    }
+
+    if (!enteredPassword) {
+      setError('Please enter your password.');
+      setLoading(false);
+      return;
+    }
+
     try {
       let loggedIn = false;
       let userData: any = null;
@@ -87,7 +93,7 @@ const LoginPage = () => {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...formData, role: tab === 'student' ? 'student' : 'staff' })
+          body: JSON.stringify({ email: cleanEmail, identifier: cleanEmail, password: enteredPassword, role: 'student' })
         });
         if (res.ok) {
           const data = await res.json();
@@ -97,16 +103,16 @@ const LoginPage = () => {
             tokenStr = data.token;
           }
         }
-      } catch (e) {
-        console.warn('API login notice, using instant direct authentication:', e);
+      } catch (apiErr) {
+        console.warn('API login notice, using direct high-speed authentication:', apiErr);
       }
 
       // 2. Direct Supabase authentication fallback
       if (!loggedIn) {
-        const user = await fetchSupabaseUserDirect(formData.identifier);
+        const user = await fetchSupabaseUserByEmail(cleanEmail);
 
         if (!user) {
-          setError('Invalid login credentials. Student account not found. Please register first.');
+          setError('No student account found with this email address. Please click "Create Student Account" below to register.');
           setLoading(false);
           return;
         }
@@ -118,7 +124,7 @@ const LoginPage = () => {
         }
 
         if (!user.password || user.role === 'roster') {
-          setError(`Student record "${user.name}" (${user.register_number}) is verified in College Roster, but you have not completed registration yet. Please click "Register Profile" below to create your password.`);
+          setError(`Student record "${user.name}" (${user.register_number}) is in College Roster, but you have not created your password yet. Please click "Create Student Account" below to complete registration.`);
           setLoading(false);
           return;
         }
@@ -133,16 +139,16 @@ const LoginPage = () => {
         let isMatch = false;
         if (user.password && user.password.startsWith('$2')) {
           try {
-            isMatch = bcrypt.compareSync(formData.password, user.password);
+            isMatch = bcrypt.compareSync(enteredPassword, user.password);
           } catch (bErr) {
             isMatch = false;
           }
         } else {
-          isMatch = (formData.password === user.password);
+          isMatch = (enteredPassword === user.password);
         }
 
         if (!isMatch) {
-          setError('Invalid credentials. Incorrect password.');
+          setError('Invalid credentials. Incorrect password. If you forgot your password, please click "Forgot Password?".');
           setLoading(false);
           return;
         }
@@ -156,7 +162,7 @@ const LoginPage = () => {
           department: user.department,
           dept: user.department,
           year: user.year,
-          section: user.section,
+          section: user.section || 'A',
           gender: user.gender,
           mobile: user.mobile || user.phone,
           phone: user.phone || user.mobile,
@@ -173,10 +179,11 @@ const LoginPage = () => {
         localStorage.setItem('gasc_auth_timestamp', Date.now().toString());
         navigate('/student/dashboard');
       } else {
-        setError('Invalid login credentials. Student account not found. Please register first.');
+        setError('Invalid login credentials. Please check your email and password.');
       }
     } catch (err: any) {
-      setError('Connection error. Please try again.');
+      console.error('Login error:', err);
+      setError('Connection error. Please check your internet connection.');
     } finally {
       setLoading(false);
     }
@@ -185,8 +192,10 @@ const LoginPage = () => {
   // ── Forgot Password Step 1: Send OTP ──
   const handleSendResetOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!forgotIdentifier.trim()) {
-      setForgotError('Please enter your College Register Number or registered Email.');
+    const cleanEmail = forgotEmail.trim().toLowerCase();
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setForgotError('Please enter a valid registered Email address.');
       return;
     }
 
@@ -194,42 +203,11 @@ const LoginPage = () => {
     setForgotError('');
 
     try {
-      const cleanId = forgotIdentifier.trim();
-      const cleanReg = cleanId.toUpperCase();
-      const cleanEmail = cleanId.toLowerCase();
+      // Find user in Supabase by email
+      const user = await fetchSupabaseUserByEmail(cleanEmail);
 
-      // Find user in Supabase
-      let user: any = null;
-      if (cleanEmail.includes('@')) {
-        const { data } = await supabase
-          .from('users')
-          .select('id, name, email, register_number')
-          .ilike('email', cleanEmail)
-          .eq('role', 'student')
-          .maybeSingle();
-        user = data;
-      } else {
-        const { data } = await supabase
-          .from('users')
-          .select('id, name, email, register_number')
-          .ilike('register_number', cleanReg)
-          .eq('role', 'student')
-          .maybeSingle();
-        user = data;
-
-        if (!user) {
-          const { data: fb } = await supabase
-            .from('users')
-            .select('id, name, email, register_number')
-            .ilike('email', cleanEmail)
-            .eq('role', 'student')
-            .maybeSingle();
-          user = fb;
-        }
-      }
-
-      if (!user || !user.email) {
-        setForgotError(`No registered student account found for "${cleanId}". Please Register first.`);
+      if (!user || user.role !== 'student' || !user.password) {
+        setForgotError(`No registered student account found for "${cleanEmail}". Please Register first.`);
         setForgotLoading(false);
         return;
       }
@@ -240,18 +218,26 @@ const LoginPage = () => {
 
       // Store in Supabase notifications for instant persistence & verification
       try {
-        await supabase.from('notifications').insert({
-          id: `otp_${user.id}_${Date.now()}`,
-          user_id: user.id,
-          title: 'PASSWORD_RESET_OTP',
-          message: JSON.stringify({ otp: genOtp, expiresAt: expTime, email: user.email }),
-          type: 'security',
-          is_read: false,
-          created_at: new Date().toISOString()
+        await fetch(`${SUPABASE_REST}/notifications`, {
+          method: 'POST',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: `otp_${user.id}_${Date.now()}`,
+            user_id: user.id,
+            title: 'PASSWORD_RESET_OTP',
+            message: JSON.stringify({ otp: genOtp, expiresAt: expTime, email: user.email }),
+            type: 'security',
+            is_read: false,
+            created_at: new Date().toISOString()
+          })
         });
       } catch (e) {}
 
-      // Send real email via send-otp endpoint if available
+      // Dispatch real email
       try {
         await fetch('/api/auth/send-otp', {
           method: 'POST',
@@ -259,15 +245,13 @@ const LoginPage = () => {
           body: JSON.stringify({
             email: user.email,
             registerNumber: user.register_number,
-            name: user.name
+            name: user.name,
+            otp: genOtp
           })
         });
       } catch (e) {}
 
-      setForgotEmail(user.email);
-      const masked = user.email.includes('@')
-        ? user.email.replace(/^(.)(.*)(@.*)$/, (_: any, a: any, b: any, c: any) => `${a}${'*'.repeat(Math.min(b.length, 5))}${c}`)
-        : user.email;
+      const masked = cleanEmail.replace(/^(.)(.*)(@.*)$/, (_, a, b, c) => `${a}${'*'.repeat(Math.min(b.length, 5))}${c}`);
       setForgotMaskedEmail(masked);
       setForgotOtpValues(['', '', '', '', '', '']);
       setForgotResendTimer(60);
@@ -279,60 +263,6 @@ const LoginPage = () => {
     } catch (err: any) {
       console.error('Forgot password error:', err);
       setForgotError('Error sending OTP. Please check your network.');
-    } finally {
-      setForgotLoading(false);
-    }
-  };
-
-  // ── Resend Reset OTP ──
-  const handleResendResetOtp = async () => {
-    if (forgotResendTimer > 0) return;
-    setForgotLoading(true);
-    setForgotError('');
-
-    try {
-      const cleanEmail = (forgotEmail || forgotIdentifier.trim()).toLowerCase();
-
-      // Query user in Supabase
-      const { data: user } = await supabase
-        .from('users')
-        .select('id, name, email, register_number')
-        .ilike('email', cleanEmail)
-        .eq('role', 'student')
-        .maybeSingle();
-
-      if (user) {
-        const genOtp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expTime = Date.now() + 10 * 60 * 1000;
-
-        try {
-          await supabase.from('notifications').insert({
-            id: `otp_${user.id}_${Date.now()}`,
-            user_id: user.id,
-            title: 'PASSWORD_RESET_OTP',
-            message: JSON.stringify({ otp: genOtp, expiresAt: expTime, email: user.email }),
-            type: 'security',
-            is_read: false,
-            created_at: new Date().toISOString()
-          });
-        } catch (e) {}
-
-        try {
-          await fetch('/api/auth/send-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: user.email,
-              registerNumber: user.register_number,
-              name: user.name
-            })
-          });
-        } catch (e) {}
-
-        setForgotResendTimer(60);
-      }
-    } catch {
-      setForgotError('Network error while resending OTP.');
     } finally {
       setForgotLoading(false);
     }
@@ -379,8 +309,8 @@ const LoginPage = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setForgotError('New password must be at least 6 characters long.');
+    if (newPassword.length < 8) {
+      setForgotError('New password must be at least 8 characters long.');
       return;
     }
 
@@ -395,25 +325,31 @@ const LoginPage = () => {
     try {
       const cleanEmail = forgotEmail.trim().toLowerCase();
 
-      // 1. Verify OTP in Supabase notifications or via API
+      // 1. Verify OTP in Supabase notifications
       let otpValid = false;
-
       try {
-        const { data: notifs } = await supabase
-          .from('notifications')
-          .select('id, message')
-          .eq('title', 'PASSWORD_RESET_OTP')
-          .eq('is_read', false)
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (notifs) {
+        const notifRes = await fetch(`${SUPABASE_REST}/notifications?title=eq.PASSWORD_RESET_OTP&is_read=eq.false&order=created_at.desc&limit=10`, {
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`
+          }
+        });
+        const notifs = await notifRes.json();
+        if (notifs && Array.isArray(notifs)) {
           for (const n of notifs) {
             try {
               const p = JSON.parse(n.message);
               if (p.email?.toLowerCase() === cleanEmail && p.otp === otp && Date.now() <= p.expiresAt) {
                 otpValid = true;
-                await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+                await fetch(`${SUPABASE_REST}/notifications?id=eq.${n.id}`, {
+                  method: 'PATCH',
+                  headers: {
+                    'apikey': SB_KEY,
+                    'Authorization': `Bearer ${SB_KEY}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ is_read: true })
+                });
                 break;
               }
             } catch (e) {}
@@ -421,36 +357,29 @@ const LoginPage = () => {
         }
       } catch (e) {}
 
-      // Fallback: Check if API verify-otp succeeds
-      if (!otpValid) {
-        try {
-          const vRes = await fetch('/api/auth/verify-otp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: cleanEmail, otp })
-          });
-          const vData = await vRes.json();
-          if (vData && vData.success) otpValid = true;
-        } catch (e) {}
-      }
-
       if (!otpValid) {
         setForgotError('Invalid or expired OTP code. Please enter the 6-digit code sent to your email.');
         setForgotLoading(false);
         return;
       }
 
-      // 2. Update password in Supabase
-      const { error: updErr } = await supabase
-        .from('users')
-        .update({
-          password: newPassword,
+      // 2. Hash new password and update in Supabase
+      const hashedPassword = bcrypt.hashSync(newPassword, 10);
+      const updRes = await fetch(`${SUPABASE_REST}/users?email=ilike.${encodeURIComponent(cleanEmail)}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SB_KEY,
+          'Authorization': `Bearer ${SB_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          password: hashedPassword,
           updated_at: new Date().toISOString()
         })
-        .ilike('email', cleanEmail);
+      });
 
-      if (updErr) {
-        setForgotError('Failed to update password: ' + updErr.message);
+      if (!updRes.ok) {
+        setForgotError('Failed to update password. Please try again.');
         setForgotLoading(false);
         return;
       }
@@ -458,9 +387,8 @@ const LoginPage = () => {
       setForgotSuccess('Your password has been updated successfully!');
       setForgotStep(3);
 
-      // Pre-fill login form with reset identifier & password
       setFormData({
-        identifier: forgotIdentifier,
+        email: forgotEmail,
         password: newPassword
       });
 
@@ -513,7 +441,7 @@ const LoginPage = () => {
               {[
                 { label: 'Sports', value: '12+' },
                 { label: 'Tournaments', value: '25' },
-                { label: 'Students', value: '500+' },
+                { label: 'Students', value: '1000+' },
               ].map(s => (
                 <div key={s.label} style={{ textAlign: 'center' }}>
                   <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 22, color: '#38A7FF', margin: 0 }}>{s.value}</p>
@@ -544,29 +472,7 @@ const LoginPage = () => {
 
           <div style={{ marginBottom: 28 }}>
             <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 26, color: '#FFFFFF', margin: '0 0 6px' }}>Welcome Back! 👋</h2>
-            <p style={{ fontSize: 14, color: '#6E86A5', margin: 0 }}>Login to your student sports portal</p>
-          </div>
-
-          {/* Tab selector */}
-          <div style={{ display: 'flex', background: 'rgba(8,27,53,0.8)', border: '1px solid rgba(55,140,255,0.20)', borderRadius: 10, padding: 4, marginBottom: 24, gap: 4 }}>
-            {(['student', 'staff'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                style={{
-                  flex: 1, padding: '9px', borderRadius: 8, fontWeight: 700, fontSize: 13,
-                  fontFamily: "'Plus Jakarta Sans',sans-serif",
-                  background: tab === t ? 'linear-gradient(135deg,#1677FF,#5B5CFF)' : 'transparent',
-                  color: tab === t ? '#FFFFFF' : '#6E86A5',
-                  border: 'none', cursor: 'pointer',
-                  boxShadow: tab === t ? '0 4px 12px rgba(22,119,255,0.30)' : 'none',
-                  transition: 'all 0.2s',
-                  textTransform: 'capitalize'
-                }}
-              >
-                {t === 'student' ? 'Student Login' : 'Staff Login'}
-              </button>
-            ))}
+            <p style={{ fontSize: 14, color: '#6E86A5', margin: 0 }}>Login with your registered Email & Password</p>
           </div>
 
           {/* Success Banner */}
@@ -579,27 +485,27 @@ const LoginPage = () => {
 
           {/* Error Banner */}
           {error && (
-            <div style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#EF4444', padding: '10px 14px', borderRadius: 10, marginBottom: 20, fontSize: 13, fontWeight: 500 }}>
+            <div style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#EF4444', padding: '10px 14px', borderRadius: 10, marginBottom: 20, fontSize: 13, fontWeight: 500, lineHeight: 1.4 }}>
               ⚠️ {error}
             </div>
           )}
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {/* Register Number */}
+            {/* Email Address */}
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#AFC4DF', marginBottom: 8, fontFamily: "'Inter',sans-serif" }}>
-                Register Number
+                Email Address
               </label>
               <div style={{ position: 'relative' }}>
-                <User style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
+                <Mail style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                 <input
-                  type="text"
+                  type="email"
                   required
                   className="input-dark"
-                  placeholder="e.g. 23UGCS101"
+                  placeholder="student@gmail.com"
                   style={{ paddingLeft: 36 }}
-                  value={formData.identifier}
-                  onChange={e => setFormData({ ...formData, identifier: e.target.value.toUpperCase() })}
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
             </div>
@@ -611,7 +517,7 @@ const LoginPage = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setForgotIdentifier(formData.identifier || '');
+                    setForgotEmail(formData.email || '');
                     setForgotError('');
                     setForgotSuccess('');
                     setForgotStep(1);
@@ -664,16 +570,16 @@ const LoginPage = () => {
             </button>
           </form>
 
-          <p style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: '#6E86A5' }}>
+          <p style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#6E86A5' }}>
             Don't have an account?{' '}
-            <Link to="/student/register" style={{ color: '#38A7FF', fontWeight: 700, textDecoration: 'none' }}>Register Profile</Link>
+            <Link to="/student/register" style={{ color: '#38A7FF', fontWeight: 700, textDecoration: 'none' }}>Create Student Account</Link>
           </p>
 
           {/* Footer */}
           <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid rgba(55,140,255,0.12)', textAlign: 'center' }}>
             <p style={{ fontSize: 11, color: '#3A5272' }}>
               Government Arts and Science College, Idappadi<br />
-              GASC Sports Portal v1.0
+              GASC Sports Portal v2.0
             </p>
           </div>
         </div>
@@ -697,14 +603,14 @@ const LoginPage = () => {
               <KeyRound style={{ width: 26, height: 26 }} />
             </div>
 
-            {/* ── STEP 1: ENTER REGISTER NUMBER / EMAIL ── */}
+            {/* ── STEP 1: ENTER REGISTERED EMAIL ── */}
             {forgotStep === 1 && (
               <form onSubmit={handleSendResetOtp}>
                 <h3 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: '20px', fontWeight: 800, color: '#FFFFFF', textAlign: 'center', margin: '0 0 6px' }}>
                   Reset Your Password
                 </h3>
                 <p style={{ fontSize: '13px', color: '#AFC4DF', textAlign: 'center', margin: '0 0 20px', lineHeight: 1.5 }}>
-                  Enter your College Register Number or registered Email to receive a 6-digit OTP verification code.
+                  Enter your registered Student Email address to receive a 6-digit OTP verification code.
                 </p>
 
                 {forgotError && (
@@ -716,18 +622,18 @@ const LoginPage = () => {
 
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
-                    College Register Number or Email
+                    Registered Email Address
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <User style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
+                    <Mail style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                     <input
-                      type="text"
+                      type="email"
                       required
                       className="input-dark"
-                      placeholder="e.g. 23UGCS101 or student@gasc.edu"
+                      placeholder="student@gmail.com"
                       style={{ paddingLeft: '38px' }}
-                      value={forgotIdentifier}
-                      onChange={e => setForgotIdentifier(e.target.value)}
+                      value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
                     />
                   </div>
                 </div>
@@ -771,7 +677,6 @@ const LoginPage = () => {
                   </div>
                 )}
 
-
                 {/* 6 OTP Boxes */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '20px' }}>
                   {forgotOtpValues.map((digit, idx) => (
@@ -804,7 +709,7 @@ const LoginPage = () => {
                 {/* New Password */}
                 <div style={{ marginBottom: '14px' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
-                    New Password (min 6 chars)
+                    New Password (min 8 chars)
                   </label>
                   <div style={{ position: 'relative' }}>
                     <Lock style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
@@ -812,8 +717,8 @@ const LoginPage = () => {
                       type={showNewPassword ? 'text' : 'password'}
                       required
                       className="input-dark"
-                      placeholder="••••••••"
-                      style={{ paddingLeft: '36px', paddingRight: '36px' }}
+                      placeholder="Min 8 characters"
+                      style={{ paddingLeft: '38px', paddingRight: '38px' }}
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                     />
@@ -822,7 +727,7 @@ const LoginPage = () => {
                       onClick={() => setShowNewPassword(!showNewPassword)}
                       style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6E86A5', cursor: 'pointer' }}
                     >
-                      {showNewPassword ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+                      {showNewPassword ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
                     </button>
                   </div>
                 </div>
@@ -838,8 +743,8 @@ const LoginPage = () => {
                       type={showNewPassword ? 'text' : 'password'}
                       required
                       className="input-dark"
-                      placeholder="••••••••"
-                      style={{ paddingLeft: '36px', paddingRight: '36px' }}
+                      placeholder="Re-enter password"
+                      style={{ paddingLeft: '38px' }}
                       value={confirmNewPassword}
                       onChange={e => setConfirmNewPassword(e.target.value)}
                     />
@@ -850,7 +755,7 @@ const LoginPage = () => {
                   type="submit"
                   disabled={forgotLoading}
                   className="btn-primary"
-                  style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700, justifyContent: 'center', marginBottom: '14px' }}
+                  style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700, justifyContent: 'center' }}
                 >
                   {forgotLoading ? (
                     <>
@@ -859,33 +764,11 @@ const LoginPage = () => {
                     </>
                   ) : (
                     <>
-                      <span>Reset Password & Complete</span>
+                      <span>Save New Password & Login</span>
                       <ArrowRight style={{ width: 16, height: 16 }} />
                     </>
                   )}
                 </button>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#6E86A5' }}>
-                  {forgotResendTimer > 0 ? (
-                    <span>Resend code in {forgotResendTimer}s</span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleResendResetOtp}
-                      style={{ background: 'none', border: 'none', color: '#38A7FF', cursor: 'pointer', fontWeight: 700, padding: 0 }}
-                    >
-                      Resend OTP
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => setForgotStep(1)}
-                    style={{ background: 'none', border: 'none', color: '#6E86A5', cursor: 'pointer', padding: 0 }}
-                  >
-                    Change Identifier
-                  </button>
-                </div>
               </form>
             )}
 
@@ -893,33 +776,30 @@ const LoginPage = () => {
             {forgotStep === 3 && (
               <div style={{ textAlign: 'center' }}>
                 <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', border: '2px solid rgba(16,185,129,0.4)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34D399' }}>
-                  <CheckCircle style={{ width: 32, height: 32 }} />
+                  <ShieldCheck style={{ width: 32, height: 32 }} />
                 </div>
-
                 <h3 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: '20px', fontWeight: 800, color: '#FFFFFF', margin: '0 0 8px' }}>
-                  Password Reset Successfully!
+                  Password Reset Complete!
                 </h3>
                 <p style={{ fontSize: '13px', color: '#AFC4DF', margin: '0 0 24px', lineHeight: 1.5 }}>
-                  {forgotSuccess || 'Your password has been changed. You can now log into your student sports account.'}
+                  {forgotSuccess}
                 </p>
-
                 <button
                   type="button"
                   onClick={() => setShowForgotModal(false)}
                   className="btn-primary"
                   style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700, justifyContent: 'center' }}
                 >
-                  Proceed to Login
+                  <span>Continue to Login</span>
+                  <ArrowRight style={{ width: 16, height: 16 }} />
                 </button>
               </div>
             )}
+
           </div>
         </div>
       )}
 
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 };
