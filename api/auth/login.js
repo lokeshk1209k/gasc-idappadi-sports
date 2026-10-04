@@ -1,7 +1,29 @@
-const { supabase, bcrypt, generateToken, toCamelCase, setCorsHeaders } = require('../_utils');
+/**
+ * GASC Sports - Student Login
+ * Self-contained serverless function
+ */
+const { createClient } = require('@supabase/supabase-js');
+
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://yemypfgunokxfufnqvdh.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  Buffer.from('c2Jfc2VjcmV0X2V1RTFhYnhRSGdKaFN4RDA4RnNHZ2dfeC1vUUZRcGk=', 'base64').toString();
+const JWT_SECRET = process.env.JWT_SECRET || 'gasc_idappadi_sports_super_secret_jwt_key_2026';
+
+function toCamelCase(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(toCamelCase);
+  const out = {};
+  for (const k of Object.keys(obj)) {
+    const ck = k.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+    out[ck] = obj[k];
+  }
+  return out;
+}
 
 module.exports = async (req, res) => {
-  setCorsHeaders(res);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -16,6 +38,7 @@ module.exports = async (req, res) => {
     if (typeof body === 'string') {
       try { body = JSON.parse(body); } catch (e) {}
     }
+
     const { email: bodyEmail, identifier, password } = body || {};
     const email = (bodyEmail || identifier || '').trim().toLowerCase();
 
@@ -34,7 +57,10 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Query user by email
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false }
+    });
+
     const { data: userRaw, error: queryErr } = await supabase
       .from('users')
       .select('*')
@@ -42,7 +68,7 @@ module.exports = async (req, res) => {
       .maybeSingle();
 
     if (queryErr) {
-      console.error('Supabase query error:', queryErr);
+      console.error('Supabase query error:', queryErr.message);
       return res.status(500).json({ success: false, message: 'Database query error.' });
     }
 
@@ -75,7 +101,8 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Verify Password (support bcrypt hash and plaintext fallback)
+    // Verify password
+    const bcrypt = require('bcryptjs');
     let isMatch = false;
     if (userRaw.password.startsWith('$2')) {
       isMatch = await bcrypt.compare(password, userRaw.password);
@@ -93,7 +120,8 @@ module.exports = async (req, res) => {
     const user = toCamelCase(userRaw);
     delete user.password;
 
-    const token = generateToken(user.id);
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '365d' });
 
     return res.status(200).json({
       success: true,
@@ -102,7 +130,7 @@ module.exports = async (req, res) => {
       user
     });
   } catch (err) {
-    console.error('Login handler error:', err);
+    console.error('Login handler error:', err.message || err);
     return res.status(500).json({ success: false, message: err.message || 'Internal server error' });
   }
 };
