@@ -1,4 +1,6 @@
 {
+  "buildCommand": "cd student-client && npm install && npm run build && cd .. && node scripts/prepare-dist.js",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/api/auth/verify-student/:regNo",
