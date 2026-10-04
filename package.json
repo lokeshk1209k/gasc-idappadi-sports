@@ -2,7 +2,7 @@
   "name": "gasc-idappadi-sports-management",
   "version": "1.0.0",
   "description": "Smart Sports Management System for Government Arts and Science College, Idappadi",
-  "main": "electron/main.js",
+  "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
     "dev": "node server/server.js",
