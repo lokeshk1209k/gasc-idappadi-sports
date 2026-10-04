@@ -309,7 +309,7 @@ const RegisterPage: React.FC = () => {
         return;
       }
 
-      // 4. Save OTP in Supabase notifications table
+      // 4. Save OTP in Supabase notifications table as audit log and fallback
       try {
         await fetch(`${SUPABASE_REST}/notifications`, {
           method: 'POST',
@@ -319,17 +319,17 @@ const RegisterPage: React.FC = () => {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            id: `otp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-            user_id: verifiedStudent?.id || `usr_${Date.now()}`,
+            id: `otp_${cleanEmail}_${Date.now()}`,
             title: 'STUDENT_REGISTRATION_OTP',
+            category: 'otp',
+            type: 'registration',
+            sender: cleanEmail,
             message: JSON.stringify({
               otp: generatedOtp,
               email: cleanEmail,
               registerNumber: verifiedStudent?.register_number,
               expiresAt: expTime
             }),
-            type: 'registration',
-            sender: 'unread',
             created_at: new Date().toISOString()
           })
         });
@@ -354,7 +354,20 @@ const RegisterPage: React.FC = () => {
 
   // ── STEP 3: Handle OTP Change & Verification ──
   const handleOtpChange = (index: number, val: string) => {
-    const digit = val.slice(-1);
+    const cleanDigits = val.replace(/\D/g, '');
+    if (cleanDigits.length > 1) {
+      // User pasted or browser autofilled multiple digits into one box
+      const newValues = [...otpValues];
+      for (let i = 0; i < cleanDigits.length && index + i < 6; i++) {
+        newValues[index + i] = cleanDigits[i];
+      }
+      setOtpValues(newValues);
+      const nextIdx = Math.min(index + cleanDigits.length, 5);
+      otpInputRefs.current[nextIdx]?.focus();
+      return;
+    }
+
+    const digit = cleanDigits.slice(-1);
     const newValues = [...otpValues];
     newValues[index] = digit;
     setOtpValues(newValues);
@@ -375,7 +388,7 @@ const RegisterPage: React.FC = () => {
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
     if (!pasted) return;
 
-    const newValues = [...otpValues];
+    const newValues = ['', '', '', '', '', ''];
     for (let i = 0; i < pasted.length; i++) {
       newValues[i] = pasted[i];
     }
@@ -386,7 +399,7 @@ const RegisterPage: React.FC = () => {
   // ── STEP 3 -> STEP 4: Complete Account Creation ──
   const handleVerifyOtpAndCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    const enteredOtp = otpValues.join('');
+    const enteredOtp = otpValues.join('').trim();
 
     if (enteredOtp.length !== 6) {
       setOtpError('Please enter all 6 digits of the verification code.');
@@ -405,24 +418,24 @@ const RegisterPage: React.FC = () => {
       const cleanEmail = email.trim().toLowerCase();
       const cleanPhone = phone.trim();
 
-      // 1. Verify OTP
+      // 1. Multi-Layer OTP Verification
       let isOtpValid = false;
 
-      // Check 1: Direct match with session OTP
-      if (expectedOtp && enteredOtp.trim() === expectedOtp.trim()) {
+      // Layer 1: Direct match with session OTP
+      if (expectedOtp && enteredOtp === expectedOtp.trim()) {
         isOtpValid = true;
       }
 
-      // Check 2: Verify via backend /api/auth/verify-otp HMAC Token
-      if (!isOtpValid && otpToken) {
+      // Layer 2: Verify via backend API /api/auth/verify-otp (HMAC + DB store)
+      if (!isOtpValid) {
         try {
           const vRes = await fetch('/api/auth/verify-otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email: cleanEmail,
-              otp: enteredOtp.trim(),
-              otpToken: otpToken
+              otp: enteredOtp,
+              otpToken: otpToken || ''
             })
           });
           if (vRes.ok) {
@@ -436,10 +449,39 @@ const RegisterPage: React.FC = () => {
         }
       }
 
+      // Layer 3: Direct Supabase notifications OTP fallback
+      if (!isOtpValid) {
+        try {
+          const sbRes = await fetch(`${SUPABASE_REST}/notifications?category=eq.otp&sender=eq.${encodeURIComponent(cleanEmail)}&order=created_at.desc&limit=5`, {
+            headers: {
+              'apikey': SB_KEY,
+              'Authorization': `Bearer ${SB_KEY}`
+            }
+          });
+          if (sbRes.ok) {
+            const rows = await sbRes.json();
+            if (Array.isArray(rows)) {
+              for (const r of rows) {
+                try {
+                  const p = typeof r.message === 'string' ? JSON.parse(r.message) : r.message;
+                  if (p && String(p.otp).trim() === enteredOtp) {
+                    const exp = p.expiresAt ? Number(p.expiresAt) : null;
+                    if (!exp || Date.now() <= exp) {
+                      isOtpValid = true;
+                      break;
+                    }
+                  }
+                } catch (e) {}
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
       if (!isOtpValid) {
         const nextAttempts = otpAttempts + 1;
         setOtpAttempts(nextAttempts);
-        setOtpError(`Invalid OTP. Please try again (${5 - nextAttempts} attempts remaining).`);
+        setOtpError(`Invalid OTP code. Please check the 6-digit code in your email and try again (${5 - nextAttempts} attempts remaining).`);
         setVerifyingOtp(false);
         return;
       }
@@ -464,18 +506,46 @@ const RegisterPage: React.FC = () => {
         updated_at: new Date().toISOString()
       };
 
+      let updatedOk = false;
       const patchRes = await fetch(`${SUPABASE_REST}/users?id=eq.${studentId}`, {
         method: 'PATCH',
         headers: {
           'apikey': SB_KEY,
           'Authorization': `Bearer ${SB_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify(updatePayload)
       });
+      if (patchRes.ok) {
+        const rows = await patchRes.json().catch(() => []);
+        if (Array.isArray(rows) && rows.length > 0) {
+          updatedOk = true;
+        }
+      }
 
-      if (!patchRes.ok) {
-        // If row didn't exist by ID, insert fresh row
+      if (!updatedOk) {
+        // Fallback: update by register_number
+        const patchRegRes = await fetch(`${SUPABASE_REST}/users?register_number=ilike.${encodeURIComponent(verifiedStudent?.register_number || '')}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(updatePayload)
+        });
+        if (patchRegRes.ok) {
+          const rows = await patchRegRes.json().catch(() => []);
+          if (Array.isArray(rows) && rows.length > 0) {
+            updatedOk = true;
+          }
+        }
+      }
+
+      if (!updatedOk) {
+        // Fallback: create fresh record
         await fetch(`${SUPABASE_REST}/users`, {
           method: 'POST',
           headers: {
@@ -490,6 +560,20 @@ const RegisterPage: React.FC = () => {
           })
         });
       }
+
+      // Also call serverless register endpoint to ensure server-side sync & auth token
+      try {
+        await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            registerNumber: verifiedStudent?.register_number,
+            email: cleanEmail,
+            password: password,
+            phone: cleanPhone
+          })
+        });
+      } catch (e) {}
 
       // 4. Set summary and move to Step 4 (Completed)
       setRegisteredSummary({
@@ -900,7 +984,7 @@ const RegisterPage: React.FC = () => {
                   value={digit}
                   onChange={e => handleOtpChange(idx, e.target.value)}
                   onKeyDown={e => handleOtpKeyDown(idx, e)}
-                  onPaste={idx === 0 ? handleOtpPaste : undefined}
+                  onPaste={handleOtpPaste}
                   style={{
                     width: '46px',
                     height: '56px',

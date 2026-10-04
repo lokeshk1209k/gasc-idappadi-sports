@@ -101,20 +101,20 @@ module.exports = async (req, res) => {
       .digest('hex');
     const otpToken = `${hash}.${expiryTime}`;
 
-    // Store in Supabase notifications as instant audit log
+    // Store in Supabase notifications as instant audit log and verification fallback
     try {
       await supabase.from('notifications').insert({
         id: `otp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        user_id: `roster_${cleanRegNo}`,
         title: 'STUDENT_REGISTRATION_OTP',
+        category: 'otp',
+        type: 'registration',
+        sender: cleanEmail,
         message: JSON.stringify({
           otp,
           email: cleanEmail,
           registerNumber: cleanRegNo,
           expiresAt: expiryTime
         }),
-        type: 'registration',
-        sender: 'unread',
         created_at: new Date().toISOString()
       });
     } catch (dbErr) {
