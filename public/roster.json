@@ -1,23 +1,9 @@
 {
   "success": true,
-  "count": 2,
+  "count": 1,
   "roster": [
     {
-      "id": "ros_1791138104661_rl9u",
-      "register_number": "C24UG183CSC024",
-      "name": "sathiya",
-      "department": "Computer Science",
-      "year": "III Year",
-      "section": "A",
-      "gender": "Male",
-      "status": "Active",
-      "is_registered": true,
-      "registered_user_id": "c97fe562-476a-4b81-9026-7ce50a54ea1d",
-      "created_at": "2026-10-04T18:21:44.676Z",
-      "updated_at": "2026-10-04T18:21:44.676Z"
-    },
-    {
-      "id": "ros_1791139415369_r6sw",
+      "id": "ros_1791141463570_634n",
       "register_number": "C24UG183CSC013",
       "name": "lokesh",
       "department": "Computer Science",
@@ -26,9 +12,9 @@
       "gender": "Male",
       "status": "Active",
       "is_registered": true,
-      "registered_user_id": "roster_C24UG183CSC013",
-      "created_at": "2026-10-04T18:43:35.369Z",
-      "updated_at": "2026-10-04T18:43:35.369Z"
+      "registered_user_id": "c97fe562-476a-4b81-9026-7ce50a54ea1d",
+      "created_at": "2026-10-04T19:17:43.570Z",
+      "updated_at": "2026-10-04T19:17:43.570Z"
     }
   ]
 }
