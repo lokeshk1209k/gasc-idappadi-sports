@@ -1,4 +1,23 @@
-const { supabase, toCamelCase } = require('../_utils');
+/**
+ * GASC Sports - Lookup Student for Equipment Issue
+ * Self-contained serverless function
+ */
+const { createClient } = require('@supabase/supabase-js');
+
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://yemypfgunokxfufnqvdh.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  Buffer.from('c2Jfc2VjcmV0X2V1RTFhYnhRSGdKaFN4RDA4RnNHZ2dfeC1vUUZRcGk=', 'base64').toString();
+
+function toCamelCase(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(toCamelCase);
+  const out = {};
+  for (const k of Object.keys(obj)) {
+    const ck = k.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+    out[ck] = obj[k];
+  }
+  return out;
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -8,16 +27,22 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const regNo = (req.query.regNo || '').trim();
+    const regNo = (req.query && (req.query.regNo || req.query.registerNumber)) || '';
     if (!regNo) {
       return res.status(400).json({ success: false, message: 'Register number is required.' });
     }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false }
+    });
+
+    const cleanReg = regNo.toUpperCase();
 
     // 1. Check users table
     const { data: userRaw } = await supabase
       .from('users')
       .select('*')
-      .or(`register_number.ilike.%${regNo}%,id.eq.${regNo}`)
+      .or(`register_number.ilike.%${cleanReg}%,id.eq.${cleanReg}`)
       .neq('role', 'admin')
       .limit(1)
       .maybeSingle();
@@ -29,7 +54,7 @@ module.exports = async (req, res) => {
       const { data: rosterRaw } = await supabase
         .from('college_student_roster')
         .select('*')
-        .ilike('register_number', `%${regNo}%`)
+        .ilike('register_number', `%${cleanReg}%`)
         .limit(1)
         .maybeSingle();
 
@@ -59,7 +84,7 @@ module.exports = async (req, res) => {
       .order('created_at', { ascending: false });
 
     const activeIssues = [];
-    const cleanReg = student.registerNumber.toLowerCase();
+    const regCheck = (student.registerNumber || cleanReg).toLowerCase();
 
     if (notifRows) {
       for (const row of notifRows) {
@@ -67,7 +92,7 @@ module.exports = async (req, res) => {
           const t = typeof row.message === 'string' ? JSON.parse(row.message) : row.message;
           if (t && t.status === 'Issued') {
             const tReg = (t.registerNumber || t.register_number || row.sender || '').toLowerCase();
-            if (tReg === cleanReg || tReg.includes(cleanReg)) {
+            if (tReg === regCheck || tReg.includes(regCheck) || regCheck.includes(tReg)) {
               activeIssues.push(toCamelCase(t));
             }
           }
