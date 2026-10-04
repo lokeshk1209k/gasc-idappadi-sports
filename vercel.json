@@ -12,7 +12,23 @@
     },
     {
       "source": "/api/equipment/lookup-student/:regNo",
-      "destination": "/api/equipment/lookup-student?regNo=:regNo"
+      "destination": "/api/equipment?action=lookup-student&regNo=:regNo"
+    },
+    {
+      "source": "/api/equipment/lookup-student",
+      "destination": "/api/equipment?action=lookup-student"
+    },
+    {
+      "source": "/api/equipment/issue",
+      "destination": "/api/equipment?action=issue"
+    },
+    {
+      "source": "/api/equipment/return",
+      "destination": "/api/equipment?action=return"
+    },
+    {
+      "source": "/api/equipment/transactions",
+      "destination": "/api/equipment?action=transactions"
     },
     {
       "source": "/((?!api/).*)",
