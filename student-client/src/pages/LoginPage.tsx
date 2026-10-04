@@ -9,10 +9,11 @@ import bcrypt from 'bcryptjs';
 const SUPABASE_REST = 'https://yemypfgunokxfufnqvdh.supabase.co/rest/v1';
 const SB_KEY = atob('c2Jfc2VjcmV0X2V1RTFhYnhRSGdKaFN4RDA4RnNHZ2dfeC1vUUZRcGk=');
 
-async function fetchSupabaseUserByEmail(email: string) {
+async function fetchSupabaseUser(identifier: string) {
   try {
-    const cleanEmail = email.trim().toLowerCase();
-    const url = `${SUPABASE_REST}/users?email=ilike.${encodeURIComponent(cleanEmail)}&select=*`;
+    const clean = identifier.trim();
+    // Search by email OR register_number (case-insensitive)
+    const url = `${SUPABASE_REST}/users?or=(email.ilike.${encodeURIComponent(clean)},register_number.ilike.${encodeURIComponent(clean)})&select=*`;
     const res = await fetch(url, {
       headers: {
         'apikey': SB_KEY,
@@ -20,7 +21,11 @@ async function fetchSupabaseUserByEmail(email: string) {
       }
     });
     const rows = await res.json();
-    return (rows && Array.isArray(rows) && rows.length > 0) ? rows[0] : null;
+    if (Array.isArray(rows) && rows.length > 0) {
+      // Prioritize active registered student account if multiple exist
+      return rows.find((u: any) => u.role === 'student' && u.password) || rows[0];
+    }
+    return null;
   } catch (e) {
     console.error('Direct Supabase fetch error:', e);
     return null;
@@ -68,11 +73,11 @@ const LoginPage = () => {
     setLoading(true);
     setError('');
 
-    const cleanEmail = formData.email.trim().toLowerCase();
+    const cleanInput = formData.email.trim();
     const enteredPassword = formData.password;
 
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setError('Please enter a valid email address.');
+    if (!cleanInput) {
+      setError('Please enter your College Register Number or registered Email Address.');
       setLoading(false);
       return;
     }
@@ -93,15 +98,24 @@ const LoginPage = () => {
         const res = await fetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, identifier: cleanEmail, password: enteredPassword, role: 'student' })
+          body: JSON.stringify({
+            identifier: cleanInput,
+            email: cleanInput,
+            registerNumber: cleanInput,
+            password: enteredPassword,
+            role: 'student'
+          })
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.success && data.user) {
-            loggedIn = true;
-            userData = data.user;
-            tokenStr = data.token;
-          }
+        const data = await res.json().catch(() => null);
+
+        if (res.ok && data && data.success && data.user) {
+          loggedIn = true;
+          userData = data.user;
+          tokenStr = data.token;
+        } else if (res.status === 401 || res.status === 403 || res.status === 400) {
+          setError(data?.message || 'Invalid credentials. Incorrect password.');
+          setLoading(false);
+          return;
         }
       } catch (apiErr) {
         console.warn('API login notice, using direct high-speed authentication:', apiErr);
@@ -109,10 +123,10 @@ const LoginPage = () => {
 
       // 2. Direct Supabase authentication fallback
       if (!loggedIn) {
-        const user = await fetchSupabaseUserByEmail(cleanEmail);
+        const user = await fetchSupabaseUser(cleanInput);
 
         if (!user) {
-          setError('No student account found with this email address. Please click "Create Student Account" below to register.');
+          setError(`No student account found for "${cleanInput}". If you haven't registered yet, please click "Create Student Account" below.`);
           setLoading(false);
           return;
         }
@@ -137,14 +151,19 @@ const LoginPage = () => {
 
         // Verify password with bcrypt or plaintext
         let isMatch = false;
-        if (user.password && user.password.startsWith('$2')) {
+        const rawPass = String(enteredPassword);
+        if (user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2y$') || user.password.startsWith('$2'))) {
           try {
-            isMatch = bcrypt.compareSync(enteredPassword, user.password);
+            isMatch = bcrypt.compareSync(rawPass, user.password);
+            if (!isMatch && rawPass.trim() !== rawPass) {
+              isMatch = bcrypt.compareSync(rawPass.trim(), user.password);
+            }
           } catch (bErr) {
             isMatch = false;
           }
-        } else {
-          isMatch = (enteredPassword === user.password);
+        }
+        if (!isMatch) {
+          isMatch = (rawPass === user.password || rawPass.trim() === user.password);
         }
 
         if (!isMatch) {
@@ -177,9 +196,10 @@ const LoginPage = () => {
         localStorage.setItem('gasc_token', tokenStr);
         localStorage.setItem('gasc_user', JSON.stringify(userData));
         localStorage.setItem('gasc_auth_timestamp', Date.now().toString());
+        window.dispatchEvent(new Event('storage'));
         navigate('/student/dashboard');
       } else {
-        setError('Invalid login credentials. Please check your email and password.');
+        setError('Invalid login credentials. Please check your Register Number / Email and password.');
       }
     } catch (err: any) {
       console.error('Login error:', err);
@@ -192,10 +212,10 @@ const LoginPage = () => {
   // ── Forgot Password Step 1: Send OTP ──
   const handleSendResetOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = forgotEmail.trim().toLowerCase();
+    const cleanInput = forgotEmail.trim();
 
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setForgotError('Please enter a valid registered Email address.');
+    if (!cleanInput) {
+      setForgotError('Please enter your registered Register Number or Email address.');
       return;
     }
 
@@ -203,11 +223,11 @@ const LoginPage = () => {
     setForgotError('');
 
     try {
-      // Find user in Supabase by email
-      const user = await fetchSupabaseUserByEmail(cleanEmail);
+      // Find user in Supabase by register number or email
+      const user = await fetchSupabaseUser(cleanInput);
 
       if (!user || user.role !== 'student' || !user.password) {
-        setForgotError(`No registered student account found for "${cleanEmail}". Please Register first.`);
+        setForgotError(`No registered student account found for "${cleanInput}". Please Register first.`);
         setForgotLoading(false);
         return;
       }
@@ -227,11 +247,11 @@ const LoginPage = () => {
           },
           body: JSON.stringify({
             id: `otp_${user.id}_${Date.now()}`,
-            user_id: user.id,
             title: 'PASSWORD_RESET_OTP',
-            message: JSON.stringify({ otp: genOtp, expiresAt: expTime, email: user.email }),
+            category: 'password_reset',
             type: 'security',
-            is_read: false,
+            sender: user.email,
+            message: JSON.stringify({ otp: genOtp, expiresAt: expTime, email: user.email, registerNumber: user.register_number }),
             created_at: new Date().toISOString()
           })
         });
@@ -328,7 +348,7 @@ const LoginPage = () => {
       // 1. Verify OTP in Supabase notifications
       let otpValid = false;
       try {
-        const notifRes = await fetch(`${SUPABASE_REST}/notifications?title=eq.PASSWORD_RESET_OTP&is_read=eq.false&order=created_at.desc&limit=10`, {
+        const notifRes = await fetch(`${SUPABASE_REST}/notifications?title=eq.PASSWORD_RESET_OTP&order=created_at.desc&limit=10`, {
           headers: {
             'apikey': SB_KEY,
             'Authorization': `Bearer ${SB_KEY}`
@@ -338,18 +358,18 @@ const LoginPage = () => {
         if (notifs && Array.isArray(notifs)) {
           for (const n of notifs) {
             try {
-              const p = JSON.parse(n.message);
-              if (p.email?.toLowerCase() === cleanEmail && p.otp === otp && Date.now() <= p.expiresAt) {
+              const p = typeof n.message === 'string' ? JSON.parse(n.message) : n.message;
+              const matchesEmail = p.email && p.email.toLowerCase() === cleanEmail;
+              const matchesReg = p.registerNumber && p.registerNumber.toUpperCase() === cleanEmail.toUpperCase();
+              if ((matchesEmail || matchesReg || n.sender?.toLowerCase() === cleanEmail) && String(p.otp).trim() === otp.trim() && Date.now() <= p.expiresAt) {
                 otpValid = true;
                 await fetch(`${SUPABASE_REST}/notifications?id=eq.${n.id}`, {
-                  method: 'PATCH',
+                  method: 'DELETE',
                   headers: {
                     'apikey': SB_KEY,
-                    'Authorization': `Bearer ${SB_KEY}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({ is_read: true })
-                });
+                    'Authorization': `Bearer ${SB_KEY}`
+                  }
+                }).catch(() => {});
                 break;
               }
             } catch (e) {}
@@ -363,25 +383,36 @@ const LoginPage = () => {
         return;
       }
 
-      // 2. Hash new password and update in Supabase
+      // 2. Hash new password and update in Supabase (by email or register_number)
       const hashedPassword = bcrypt.hashSync(newPassword, 10);
-      const updRes = await fetch(`${SUPABASE_REST}/users?email=ilike.${encodeURIComponent(cleanEmail)}`, {
+      let updRes = await fetch(`${SUPABASE_REST}/users?email=ilike.${encodeURIComponent(cleanEmail)}`, {
         method: 'PATCH',
         headers: {
           'apikey': SB_KEY,
           'Authorization': `Bearer ${SB_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify({
           password: hashedPassword,
           updated_at: new Date().toISOString()
         })
       });
-
-      if (!updRes.ok) {
-        setForgotError('Failed to update password. Please try again.');
-        setForgotLoading(false);
-        return;
+      const updData = await updRes.json().catch(() => []);
+      if (!Array.isArray(updData) || updData.length === 0) {
+        // Fallback: update by register_number
+        await fetch(`${SUPABASE_REST}/users?register_number=ilike.${encodeURIComponent(cleanEmail)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            password: hashedPassword,
+            updated_at: new Date().toISOString()
+          })
+        });
       }
 
       setForgotSuccess('Your password has been updated successfully!');
@@ -472,7 +503,7 @@ const LoginPage = () => {
 
           <div style={{ marginBottom: 28 }}>
             <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 26, color: '#FFFFFF', margin: '0 0 6px' }}>Welcome Back! 👋</h2>
-            <p style={{ fontSize: 14, color: '#6E86A5', margin: 0 }}>Login with your registered Email & Password</p>
+            <p style={{ fontSize: 14, color: '#6E86A5', margin: 0 }}>Login with your College Register Number or Email</p>
           </div>
 
           {/* Success Banner */}
@@ -491,21 +522,22 @@ const LoginPage = () => {
           )}
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {/* Email Address */}
+            {/* Register Number or Email Address */}
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#AFC4DF', marginBottom: 8, fontFamily: "'Inter',sans-serif" }}>
-                Email Address
+                College Register Number or Email Address
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                 <input
-                  type="email"
+                  type="text"
                   required
                   className="input-dark"
-                  placeholder="student@gmail.com"
+                  placeholder="e.g. C24UG183CSC024 or student@gmail.com"
                   style={{ paddingLeft: 36 }}
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -610,7 +642,7 @@ const LoginPage = () => {
                   Reset Your Password
                 </h3>
                 <p style={{ fontSize: '13px', color: '#AFC4DF', textAlign: 'center', margin: '0 0 20px', lineHeight: 1.5 }}>
-                  Enter your registered Student Email address to receive a 6-digit OTP verification code.
+                  Enter your College Register Number or registered Student Email to receive an OTP verification code.
                 </p>
 
                 {forgotError && (
@@ -622,15 +654,15 @@ const LoginPage = () => {
 
                 <div style={{ marginBottom: '20px' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
-                    Registered Email Address
+                    Register Number or Email Address
                   </label>
                   <div style={{ position: 'relative' }}>
                     <Mail style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                     <input
-                      type="email"
+                      type="text"
                       required
                       className="input-dark"
-                      placeholder="student@gmail.com"
+                      placeholder="e.g. C24UG183CSC024 or student@gmail.com"
                       style={{ paddingLeft: '38px' }}
                       value={forgotEmail}
                       onChange={e => setForgotEmail(e.target.value)}

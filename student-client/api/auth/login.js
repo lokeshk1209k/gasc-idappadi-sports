@@ -4,6 +4,8 @@
  * Supports Login with either Register Number OR Email Address
  */
 const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://yemypfgunokxfufnqvdh.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ||
@@ -63,24 +65,26 @@ module.exports = async (req, res) => {
       auth: { persistSession: false }
     });
 
-    // Match by either email OR register_number
-    const { data: userRaw, error: queryErr } = await supabase
+    // Match by either email OR register_number (case-insensitive)
+    const { data: userRows, error: queryErr } = await supabase
       .from('users')
       .select('*')
-      .or(`email.ilike.${inputIdentifier},register_number.ilike.${inputIdentifier}`)
-      .maybeSingle();
+      .or(`email.ilike.${inputIdentifier},register_number.ilike.${inputIdentifier}`);
 
     if (queryErr) {
       console.error('Supabase query error:', queryErr.message);
       return res.status(500).json({ success: false, message: 'Database query error.' });
     }
 
-    if (!userRaw) {
+    if (!userRows || userRows.length === 0) {
       return res.status(401).json({
         success: false,
         message: `No student account found for "${inputIdentifier}". If you haven't set up your password yet, please click "Create Student Account".`
       });
     }
+
+    // Prioritize active registered student account if multiple entries exist
+    const userRaw = userRows.find(u => u.role === 'student' && u.password) || userRows[0];
 
     if (userRaw.role === 'admin') {
       return res.status(403).json({
@@ -104,13 +108,16 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Verify password
-    const bcrypt = require('bcryptjs');
+    // Verify password (supports bcrypt hash and plaintext fallback)
     let isMatch = false;
+    const rawPass = String(password);
     if (userRaw.password.startsWith('$2')) {
-      isMatch = await bcrypt.compare(password, userRaw.password);
+      isMatch = await bcrypt.compare(rawPass, userRaw.password);
+      if (!isMatch && rawPass.trim() !== rawPass) {
+        isMatch = await bcrypt.compare(rawPass.trim(), userRaw.password);
+      }
     } else {
-      isMatch = (password === userRaw.password);
+      isMatch = (rawPass === userRaw.password || rawPass.trim() === userRaw.password);
     }
 
     if (!isMatch) {
@@ -123,7 +130,6 @@ module.exports = async (req, res) => {
     const user = toCamelCase(userRaw);
     delete user.password;
 
-    const jwt = require('jsonwebtoken');
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '365d' });
 
     return res.status(200).json({
