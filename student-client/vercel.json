@@ -1,14 +1,26 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "trailingSlash": false,
   "rewrites": [
-    { "source": "/api/competitions", "destination": "/competitions.json" },
-    { "source": "/api/competitions.json", "destination": "/competitions.json" },
-    { "source": "/api/sports", "destination": "/sports.json" },
-    { "source": "/api/sports.json", "destination": "/sports.json" },
-    { "source": "/admin", "destination": "/admin-dashboard.html" },
-    { "source": "/admin/", "destination": "/admin-dashboard.html" },
-    { "source": "/admin/dashboard", "destination": "/admin-dashboard.html" },
-    { "source": "/admin/login", "destination": "/admin-login.html" },
-    { "source": "/student/(.*)", "destination": "/index.html" },
+    { "source": "/api/competitions/my-applications", "destination": "/api/competitions/my-applications" },
+    { "source": "/api/competitions/:id/register", "destination": "/api/competitions/:id/register" },
+    { "source": "/api/competitions", "destination": "/api/competitions" },
+    { "source": "/api/auth/session-token", "destination": "/api/auth/session-token" },
+    { "source": "/api/auth/login", "destination": "/api/auth/login" },
+    { "source": "/api/teams/student-status", "destination": "/api/teams/student-status" },
+    { "source": "/api/notifications", "destination": "/api/notifications" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-student-id, x-register-number" }
+      ]
+    }
   ]
 }

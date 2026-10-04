@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node prepare-vercel-data.cjs",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"

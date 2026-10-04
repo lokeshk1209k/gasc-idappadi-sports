@@ -28,7 +28,14 @@ exports.getAllCompetitions = async (req, res) => {
       const item = toCamelCase(c);
       if (c.sports) item.sportId = toCamelCase(c.sports);
 
-      const sportNameStr = c.sport_name || (c.sports && c.sports.name) || c.name || '';
+      // Guarantee dual property compatibility
+      item.tournamentName = item.tournamentName || c.tournament_name || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'Collegiate Tournament';
+      item.tournament_name = item.tournamentName;
+
+      item.sportName = item.sportName || c.sport_name || (c.sports && c.sports.name) || c.name || 'General';
+      item.sport_name = item.sportName;
+
+      const sportNameStr = item.sportName || '';
       const slug = sportNameStr.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
       if (!item.bannerImage || item.bannerImage.includes('unsplash') || item.bannerImage.includes('default') || item.bannerImage === 'null' || item.bannerImage === 'undefined' || item.bannerImage.startsWith('/images/sports/')) {
         item.bannerImage = '/images/sports/tournament.png';
@@ -36,10 +43,33 @@ exports.getAllCompetitions = async (req, res) => {
       return item;
     });
 
+    const storeInstance = require('../data/localStore').storeInstance;
+    let tournaments = storeInstance.getTable('tournaments') || [];
+
+    // Ensure all tournament names from competitions exist in tournaments list
+    competitions.forEach(c => {
+      const tName = (c.tournamentName || c.tournament_name || '').trim();
+      if (tName && !tournaments.some(t => (t.name || t.tournament_name || '').toLowerCase() === tName.toLowerCase())) {
+        tournaments.push({
+          id: `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+          name: tName,
+          tournament_name: tName,
+          venue: c.venue || 'GASC Idappadi Sports Ground',
+          type: c.type || 'Inter-Department',
+          date: c.date,
+          registration_end: c.registrationEnd,
+          banner_image: c.bannerImage || '/images/sports/tournament.png',
+          status: c.status || 'Registration Open',
+          description: c.description || `Official ${tName} Tournament.`
+        });
+      }
+    });
+
     res.json({
       success: true,
       count: competitions.length,
-      competitions
+      competitions,
+      tournaments
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -202,6 +232,28 @@ exports.createCompetition = async (req, res) => {
       } else {
         table.unshift(compRecord);
       }
+      // Also register parent tournament container
+      const tournTable = storeInstance.getTable('tournaments');
+      const existingTournIdx = tournTable.findIndex(t => (t.name || t.tournament_name || '').toLowerCase() === tName.toLowerCase());
+      const tournRecord = {
+        id: existingTournIdx >= 0 ? tournTable[existingTournIdx].id : `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+        name: tName,
+        tournament_name: tName,
+        description: req.body.tournamentDescription || req.body.description || `Official ${tName} Tournament conducted by GASC Idappadi.`,
+        venue: venue || 'GASC Idappadi Sports Ground',
+        date: new Date(date).toISOString(),
+        registration_end: new Date(registrationEnd).toISOString(),
+        type: type || 'Inter-Department',
+        status: req.body.status || 'Registration Open',
+        banner_image: bannerImage,
+        created_at: new Date().toISOString()
+      };
+      if (existingTournIdx >= 0) {
+        tournTable[existingTournIdx] = { ...tournTable[existingTournIdx], ...tournRecord };
+      } else {
+        tournTable.unshift(tournRecord);
+      }
+
       storeInstance.save();
     } catch (e) {
       console.warn('localStore sync notice on createCompetition:', e.message);
@@ -288,6 +340,27 @@ exports.updateCompetition = async (req, res) => {
   }
 };
 
+function syncStaticCompetitions(comps) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const payload = JSON.stringify({ success: true, count: comps.length, competitions: comps }, null, 2);
+    const targets = [
+      path.join(__dirname, '../../dist/competitions.json'),
+      path.join(__dirname, '../../dist/api/competitions'),
+      path.join(__dirname, '../../dist/api/competitions.json'),
+      path.join(__dirname, '../../student-client/dist/competitions.json'),
+      path.join(__dirname, '../../student-client/dist/api/competitions'),
+      path.join(__dirname, '../../student-client/dist/api/competitions.json')
+    ];
+    for (const t of targets) {
+      if (fs.existsSync(path.dirname(t))) {
+        try { fs.writeFileSync(t, payload, 'utf8'); } catch (e) {}
+      }
+    }
+  } catch (err) {}
+}
+
 // @desc    Delete competition
 // @route   DELETE /api/competitions/:id
 // @access  Private/Admin
@@ -299,29 +372,71 @@ exports.deleteCompetition = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid competition ID provided.' });
     }
 
-    // Delete associated registrations first
-    await supabase.from('competition_registrations').delete().eq('competition_id', id);
+    const cleanId = String(id).trim();
 
-    // Delete in Supabase
-    await supabase.from('competitions').delete().eq('id', id);
+    // 1. Delete associated registrations first in Supabase if online
+    try {
+      await supabase.from('competition_registrations').delete().eq('competition_id', cleanId);
+      await supabase.from('competitions').delete().eq('id', cleanId);
+    } catch(e) {}
 
-    // Ensure deletion is saved in LocalStore immediately
+    // 2. Ensure deletion is saved in LocalStore immediately
     const localStore = require('../data/localStore');
     const table = localStore.storeInstance.getTable('competitions');
-    const initialLen = table.length;
-    const remaining = table.filter(c => String(c.id) !== String(id) && String(c._id) !== String(id));
+    const targetComp = table.find(c => String(c.id) === cleanId || String(c._id) === cleanId);
+    const remaining = table.filter(c => String(c.id) !== cleanId && String(c._id) !== cleanId);
     localStore.storeInstance.db['competitions'] = remaining;
+
+    // Purge related registrations from localStore
+    const regTable = localStore.storeInstance.getTable('competition_registrations') || [];
+    localStore.storeInstance.db['competition_registrations'] = regTable.filter(r => String(r.competition_id) !== cleanId);
+
+    // CRITICAL: Preserve parent tournament container in tournaments table so deleting a sport NEVER deletes the tournament!
+    if (targetComp) {
+      const tName = (targetComp.tournament_name || targetComp.tournamentName || '').trim();
+      if (tName) {
+        const tournTable = localStore.storeInstance.getTable('tournaments');
+        const exists = tournTable.some(t => (t.name || t.tournament_name || '').toLowerCase() === tName.toLowerCase());
+        if (!exists) {
+          tournTable.push({
+            id: `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+            name: tName,
+            tournament_name: tName,
+            description: targetComp.description || `Official ${tName} Tournament.`,
+            venue: targetComp.venue || 'GASC Idappadi Sports Ground',
+            date: targetComp.date || new Date().toISOString(),
+            registration_end: targetComp.registration_end || targetComp.date || new Date().toISOString(),
+            type: targetComp.type || 'Inter-Department',
+            status: targetComp.status || 'Registration Open',
+            banner_image: targetComp.banner_image || '/images/sports/tournament.png',
+            created_at: targetComp.created_at || new Date().toISOString()
+          });
+        }
+      }
+    }
     localStore.storeInstance.save();
+
+    // Sync static files
+    syncStaticCompetitions(remaining);
+
+    // 3. Delete in local SQLite database
+    try {
+      const localDB = require('../database/localDB');
+      localDB.run('DELETE FROM competitions WHERE id = ?', [cleanId]);
+      try { localDB.run('DELETE FROM registrations WHERE competition_id = ?', [cleanId]); } catch(e) {}
+      localDB.saveDB();
+    } catch (e) {}
 
     // Invalidate cache immediately
     try { invalidateCache('/api/competitions'); } catch (e) {}
 
     res.json({
       success: true,
-      message: 'Competition deleted successfully.',
-      deletedId: id
+      message: 'Competition sport deleted successfully.',
+      deletedId: cleanId
     });
   } catch (error) {
+    console.error('deleteCompetition error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -336,31 +451,64 @@ exports.deleteTournament = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Tournament name is required' });
     }
 
+    const tLower = tournamentName.trim().toLowerCase();
     const localStore = require('../data/localStore');
     const table = localStore.storeInstance.getTable('competitions');
     const deletedIds = [];
     const remaining = table.filter(c => {
-      const tName = c.tournament_name || c.tournamentName || (c.name || '').split('-')[0].trim();
-      const match = tName.toLowerCase() === tournamentName.toLowerCase() ||
-                    tName.toLowerCase().includes(tournamentName.toLowerCase()) ||
-                    tournamentName.toLowerCase().includes(tName.toLowerCase());
+      const cTName = (c.tournament_name || c.tournamentName || '').trim().toLowerCase();
+      const cName = (c.name || '').trim().toLowerCase();
+      const cPrefix = cName.includes('-') ? cName.split('-')[0].trim().toLowerCase() : cName;
+      const cId = String(c.id || c._id || '').toLowerCase();
+
+      const match = (cTName && (cTName === tLower || cTName.includes(tLower) || tLower.includes(cTName))) ||
+                    (cName && (cName === tLower || cName.includes(tLower) || tLower.includes(cName))) ||
+                    (cPrefix && (cPrefix === tLower || cPrefix.includes(tLower) || tLower.includes(cPrefix))) ||
+                    (cId === tLower);
+
       if (match) {
-        deletedIds.push(c.id);
+        deletedIds.push(String(c.id));
         return false;
       }
       return true;
     });
 
     localStore.storeInstance.db['competitions'] = remaining;
+
+    // Delete tournament from tournaments table
+    const tournTable = localStore.storeInstance.getTable('tournaments');
+    localStore.storeInstance.db['tournaments'] = tournTable.filter(t => {
+      const n = (t.name || t.tournament_name || '').toLowerCase();
+      return n !== tLower && !n.includes(tLower) && !tLower.includes(n);
+    });
+
+    // Delete registrations from localStore
+    const regTable = localStore.storeInstance.getTable('competition_registrations') || [];
+    localStore.storeInstance.db['competition_registrations'] = regTable.filter(r => !deletedIds.includes(String(r.competition_id)));
     localStore.storeInstance.save();
 
-    // Delete registrations
-    for (const dId of deletedIds) {
-      await supabase.from('competition_registrations').delete().eq('competition_id', dId);
-    }
+    // Sync static files
+    syncStaticCompetitions(remaining);
 
-    // Delete in Supabase
-    await supabase.from('competitions').delete().ilike('tournament_name', `%${tournamentName}%`);
+    // Delete in local SQLite database
+    try {
+      const localDB = require('../database/localDB');
+      try { localDB.run('DELETE FROM tournaments WHERE LOWER(name) LIKE ?', [`%${tLower}%`]); } catch(e) {}
+      try { localDB.run('DELETE FROM competitions WHERE LOWER(name) LIKE ?', [`%${tLower}%`]); } catch(e) {}
+      for (const dId of deletedIds) {
+        try { localDB.run('DELETE FROM competitions WHERE id = ?', [dId]); } catch(e) {}
+        try { localDB.run('DELETE FROM registrations WHERE competition_id = ?', [dId]); } catch(e) {}
+      }
+      localDB.saveDB();
+    } catch(e) {}
+
+    // Delete registrations & competitions in Supabase if online
+    try {
+      for (const dId of deletedIds) {
+        await supabase.from('competition_registrations').delete().eq('competition_id', dId);
+      }
+      await supabase.from('competitions').delete().ilike('tournament_name', `%${tournamentName}%`);
+    } catch(e) {}
 
     // Invalidate cache immediately
     try { invalidateCache('/api/competitions'); } catch (e) {}
@@ -371,6 +519,7 @@ exports.deleteTournament = async (req, res) => {
       deletedCount: deletedIds.length
     });
   } catch (error) {
+    console.error('deleteTournament error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
