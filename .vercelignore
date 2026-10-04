@@ -15,7 +15,6 @@ admin_stdout.log
 admin_stderr.log
 test_electron_*.log
 .vscode
-scripts
 dfd_*.html
 dfd_*.png
 test_badminton.png

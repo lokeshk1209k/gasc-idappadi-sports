@@ -1,6 +1,7 @@
 /**
  * GASC Sports - Student Login
  * Self-contained serverless function
+ * Supports Login with either Register Number OR Email Address
  */
 const { createClient } = require('@supabase/supabase-js');
 
@@ -39,17 +40,18 @@ module.exports = async (req, res) => {
       try { body = JSON.parse(body); } catch (e) {}
     }
 
-    const { email: bodyEmail, identifier, password } = body || {};
-    const email = (bodyEmail || identifier || '').trim().toLowerCase();
+    const { email: bodyEmail, identifier, registerNumber, password } = body || {};
+    const inputIdentifier = (identifier || registerNumber || bodyEmail || '').trim();
 
-    if (!email || !password) {
+    if (!inputIdentifier || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide your registered Email Address and Password.'
+        message: 'Please provide your Register Number / Email Address and Password.'
       });
     }
 
-    if (email === 'admin' || email === 'sports_incharge' || email === 'admin-sports' || email === 'admin@gascidappadi.edu.in') {
+    const lowerId = inputIdentifier.toLowerCase();
+    if (lowerId === 'admin' || lowerId === 'sports_incharge' || lowerId === 'admin-sports' || lowerId === 'admin@gascidappadi.edu.in') {
       return res.status(403).json({
         success: false,
         code: 'FORBIDDEN_PORTAL',
@@ -61,10 +63,11 @@ module.exports = async (req, res) => {
       auth: { persistSession: false }
     });
 
+    // Match by either email OR register_number
     const { data: userRaw, error: queryErr } = await supabase
       .from('users')
       .select('*')
-      .ilike('email', email)
+      .or(`email.ilike.${inputIdentifier},register_number.ilike.${inputIdentifier}`)
       .maybeSingle();
 
     if (queryErr) {
@@ -75,7 +78,7 @@ module.exports = async (req, res) => {
     if (!userRaw) {
       return res.status(401).json({
         success: false,
-        message: 'No student account found with this email address. Please click "Create Student Account" to register.'
+        message: `No student account found for "${inputIdentifier}". If you haven't set up your password yet, please click "Create Student Account".`
       });
     }
 
@@ -90,7 +93,7 @@ module.exports = async (req, res) => {
     if (!userRaw.password || userRaw.role === 'roster') {
       return res.status(401).json({
         success: false,
-        message: `Student record "${userRaw.name}" (${userRaw.register_number}) is in College Roster, but registration is incomplete. Please click "Create Student Account" to set your password.`
+        message: `Student record "${userRaw.name}" (${userRaw.register_number}) is in College Roster, but account creation is incomplete. Please click "Create Student Account" to activate.`
       });
     }
 
