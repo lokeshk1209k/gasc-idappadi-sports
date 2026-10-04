@@ -98,93 +98,90 @@ const RegisterPage: React.FC = () => {
     setVerifiedStudent(null);
 
     try {
-      // 1. Direct Supabase Query by register_number
-      const url = `${SUPABASE_REST}/users?register_number=ilike.${encodeURIComponent(cleanReg)}&select=*`;
-      const res = await fetch(url, {
-        headers: {
-          'apikey': SB_KEY,
-          'Authorization': `Bearer ${SB_KEY}`
-        }
-      });
-      const rows = await res.json();
-      let user = (rows && Array.isArray(rows) && rows.length > 0) ? rows[0] : null;
+      // 1. Primary: Verify through official backend API
+      let apiResolved = false;
+      try {
+        const apiRes = await fetch(`/api/auth/verify-student?regNo=${encodeURIComponent(cleanReg)}`);
+        const apiData = await apiRes.json();
 
-      // 2. Fallback: Check without leading zeros (e.g. CSC11 vs CSC011)
-      if (!user) {
-        const cleanNoZeros = cleanReg.replace(/0(?=[0-9]+$)/, '');
-        const url2 = `${SUPABASE_REST}/users?register_number=ilike.%${encodeURIComponent(cleanNoZeros)}%&select=*`;
-        const res2 = await fetch(url2, {
+        if (apiData && apiData.success && apiData.student) {
+          apiResolved = true;
+          setVerifiedStudent({
+            id: apiData.student.id,
+            register_number: apiData.student.registerNumber || cleanReg,
+            name: apiData.student.name,
+            department: apiData.student.department || 'Computer Science',
+            year: apiData.student.year || 'I Year',
+            section: apiData.student.section || 'A',
+            gender: apiData.student.gender || 'Male',
+            status: apiData.student.status || 'Active',
+            isRegistered: false
+          });
+          setVerifying(false);
+          return;
+        } else if (apiData && apiData.isRegistered) {
+          apiResolved = true;
+          setIsAlreadyRegistered(true);
+          setVerifyError(apiData.message || `An account already exists for Register Number (${cleanReg}). Please login.`);
+          setVerifying(false);
+          return;
+        } else if (apiData && apiData.message) {
+          apiResolved = true;
+          setVerifyError(apiData.message);
+          setVerifying(false);
+          return;
+        }
+      } catch (apiErr) {
+        console.warn('API verify notice, proceeding to cloud database verification:', apiErr);
+      }
+
+      // 2. Direct Supabase Query fallback
+      if (!apiResolved) {
+        const url = `${SUPABASE_REST}/users?register_number=ilike.${encodeURIComponent(cleanReg)}&select=*`;
+        const res = await fetch(url, {
           headers: {
             'apikey': SB_KEY,
             'Authorization': `Bearer ${SB_KEY}`
           }
         });
-        const rows2 = await res2.json();
-        user = (rows2 && Array.isArray(rows2) && rows2.length > 0) ? rows2[0] : null;
-      }
+        const rows = await res.json();
+        let user = (rows && Array.isArray(rows) && rows.length > 0) ? rows[0] : null;
 
-      // 3. Fallback: Check real-time notifications table
-      if (!user) {
-        const notifUrl = `${SUPABASE_REST}/notifications?category=eq.roster&title=ilike.%${encodeURIComponent(cleanReg)}%&select=*`;
-        const nRes = await fetch(notifUrl, {
-          headers: {
-            'apikey': SB_KEY,
-            'Authorization': `Bearer ${SB_KEY}`
-          }
-        });
-        const nRows = await nRes.json();
-        if (nRows && Array.isArray(nRows) && nRows.length > 0) {
-          const n = nRows[0];
-          let p: any = {};
-          try { p = JSON.parse(n.message); } catch (e) {}
-          user = {
-            id: `roster_${cleanReg}`,
-            register_number: p.registerNumber || n.title || cleanReg,
-            name: p.name || n.title,
-            department: p.department || n.target_type || 'Computer Science',
-            year: p.year || n.target_audience || 'I Year',
-            section: p.section || 'A',
-            gender: p.gender || n.priority || 'Male',
-            status: p.status || 'Active',
-            role: 'roster'
-          };
+        if (!user) {
+          setVerifyError('Your Register Number was not found in the official college student roster. You cannot create a Student Portal account.');
+          setVerifying(false);
+          return;
         }
-      }
 
-      if (!user) {
-        setVerifyError('Your Register Number was not found in the official college student roster. You cannot create a Student Portal account.');
-        setVerifying(false);
-        return;
-      }
+        // Check if student status is INACTIVE
+        if (user.status && user.status.toUpperCase() === 'INACTIVE') {
+          setVerifyError('Your student record is currently inactive. Please contact the Sports Administration.');
+          setVerifying(false);
+          return;
+        }
 
-      // Check if student status is INACTIVE
-      if (user.status && user.status.toUpperCase() === 'INACTIVE') {
-        setVerifyError('Your student record is currently inactive. Please contact the Sports Administration.');
-        setVerifying(false);
-        return;
-      }
+        // Check if user already completed registration
+        if (user.role === 'student' && user.password) {
+          setIsAlreadyRegistered(true);
+          setVerifyError(`An account already exists for this Register Number (${user.register_number}). Please login using your registered email and password.`);
+          setVerifying(false);
+          return;
+        }
 
-      // Check if user already completed registration
-      if (user.role === 'student' && user.password) {
-        setIsAlreadyRegistered(true);
-        setVerifyError(`An account already exists for this Register Number (${user.register_number}). Please login using your registered email and password.`);
-        setVerifying(false);
-        return;
+        // Valid eligible roster student
+        setVerifiedStudent({
+          id: user.id,
+          register_number: user.register_number || cleanReg,
+          name: user.name,
+          department: user.department || 'Computer Science',
+          year: user.year || 'I Year',
+          section: user.section || 'A',
+          gender: user.gender || 'Male',
+          status: user.status || 'Active',
+          isRegistered: false
+        });
       }
-
-      // Valid eligible roster student
-      setVerifiedStudent({
-        id: user.id,
-        register_number: user.register_number || cleanReg,
-        name: user.name,
-        department: user.department || 'Computer Science',
-        year: user.year || 'I Year',
-        section: user.section || 'A',
-        gender: user.gender || 'Male',
-        status: user.status || 'Active',
-        isRegistered: false
-      });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Roster verification error:', err);
       setVerifyError('Unable to connect to college verification server. Please check your internet connection.');
     } finally {
