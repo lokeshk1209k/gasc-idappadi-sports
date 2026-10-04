@@ -1,14 +1,36 @@
-const { supabase, toCamelCase, setCorsHeaders } = require('../_utils');
+/**
+ * GASC Sports - Verify Student Register Number
+ * Self-contained serverless function — no heavy dependency on _utils
+ */
+const { createClient } = require('@supabase/supabase-js');
+
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://yemypfgunokxfufnqvdh.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  Buffer.from('c2Jfc2VjcmV0X2V1RTFhYnhRSGdKaFN4RDA4RnNHZ2dfeC1vUUZRcGk=', 'base64').toString();
+
+function toCamelCase(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(toCamelCase);
+  const out = {};
+  for (const k of Object.keys(obj)) {
+    const ck = k.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+    out[ck] = obj[k];
+  }
+  return out;
+}
 
 module.exports = async (req, res) => {
-  setCorsHeaders(res);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   try {
-    const registerNumber = req.query.regNo || req.query.registerNumber || (req.url.split('/').pop().split('?')[0]);
+    // Parse register number from query
+    const registerNumber = (req.query && (req.query.regNo || req.query.registerNumber)) || '';
 
     if (!registerNumber || registerNumber === 'verify-student') {
       return res.status(400).json({ success: false, message: 'Register Number is required.' });
@@ -16,16 +38,21 @@ module.exports = async (req, res) => {
 
     const cleanRegNo = registerNumber.trim().toUpperCase();
 
+    // Create fresh Supabase client
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false }
+    });
+
     // Query official roster in users table
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, name, register_number, email, role, status, department, year, gender, section')
+      .select('id, name, register_number, email, role, status, department, year, gender, section, password')
       .ilike('register_number', cleanRegNo)
       .maybeSingle();
 
     if (error) {
-      console.error('Verify student db error:', error);
-      return res.status(500).json({ success: false, message: 'Database query error.' });
+      console.error('Verify student db error:', error.message);
+      return res.status(500).json({ success: false, message: 'Database query error. Please try again.' });
     }
 
     if (!user) {
@@ -56,16 +83,22 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Strip password before sending
+    const { password: _pw, ...safeUser } = user;
     return res.json({
       success: true,
       verified: true,
       isRegistered: false,
       isPreEnrolled: true,
       message: 'Register Number verified successfully.',
-      student: toCamelCase(user)
+      student: toCamelCase(safeUser)
     });
+
   } catch (err) {
-    console.error('verify-student error:', err);
-    return res.status(500).json({ success: false, message: 'Unable to verify your Register Number right now.' });
+    console.error('verify-student error:', err.message || err);
+    return res.status(500).json({
+      success: false,
+      message: 'Unable to verify your Register Number right now. Please try again.'
+    });
   }
 };

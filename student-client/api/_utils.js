@@ -1,7 +1,8 @@
+/**
+ * GASC Sports API Utilities
+ * Lazy-loaded for optimal Vercel cold-start performance
+ */
 const { createClient } = require('@supabase/supabase-js');
-const nodemailer = require('nodemailer');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://yemypfgunokxfufnqvdh.supabase.co';
 const DEFAULT_SRK = Buffer.from('c2Jfc2VjcmV0X2V1RTFhYnhRSGdKaFN4RDA4RnNHZ2dfeC1vUUZRcGk=', 'base64').toString();
@@ -12,14 +13,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'gasc_idappadi_sports_super_secret_
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY, {
   auth: { persistSession: false }
-});
-
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'sportsgascidappadi@gmail.com',
-    pass: process.env.EMAIL_PASS || Buffer.from('YXFyYXB1cGdycXltbGhzaA==', 'base64').toString()
-  }
 });
 
 function maskEmail(email) {
@@ -36,6 +29,7 @@ function setCorsHeaders(res) {
 }
 
 function generateToken(id) {
+  const jwt = require('jsonwebtoken');
   return jwt.sign({ id }, JWT_SECRET, { expiresIn: '365d' });
 }
 
@@ -50,13 +44,30 @@ function toCamelCase(obj) {
   return newObj;
 }
 
+// Lazy getter for bcrypt
+function getBcrypt() {
+  return require('bcryptjs');
+}
+
+// Lazy getter for transporter
+function getTransporter() {
+  const nodemailer = require('nodemailer');
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER || 'sportsgascidappadi@gmail.com',
+      pass: process.env.EMAIL_PASS || Buffer.from('YXFyYXB1cGdycXltbGhzaA==', 'base64').toString()
+    }
+  });
+}
+
 module.exports = {
   supabase,
-  transporter,
+  get transporter() { return getTransporter(); },
+  get bcrypt() { return getBcrypt(); },
   maskEmail,
   setCorsHeaders,
   generateToken,
   toCamelCase,
-  bcrypt,
   JWT_SECRET
 };
