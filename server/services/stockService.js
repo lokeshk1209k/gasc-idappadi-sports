@@ -114,25 +114,41 @@ class StockService {
     const issueDateStr = now.toISOString();
     const issueTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
+    const studentReg = student.registerNumber || student.register_number || student.regNo || '';
+    const studentName = student.name || student.student_name || '';
+    const studentId = student.id || student.student_id || `ros_${studentReg}`;
+
     // Create transaction record
     const newTxRecord = {
       id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      student_id: student.id,
-      student_name: student.name,
-      register_number: student.registerNumber,
+      student_id: studentId,
+      studentId: studentId,
+      student_name: studentName,
+      studentName: studentName,
+      register_number: studentReg,
+      registerNumber: studentReg,
       equipment_id: equipmentId,
+      equipmentId: equipmentId,
       equipment_name: eqRaw.name,
+      equipmentName: eqRaw.name,
       quantity: qty,
       issue_date: issueDateStr,
+      issueDate: issueDateStr,
       issue_time: issueTimeStr,
+      issueTime: issueTimeStr,
       expected_return_date: new Date(expectedReturnDate).toISOString(),
+      expectedReturnDate: new Date(expectedReturnDate).toISOString(),
       status: 'Issued',
       return_condition: 'Pending',
+      returnCondition: 'Pending',
       purpose: purpose || 'College Practice / Match',
       remarks: remarks || '',
       issued_by: issuedBy || 'Sports Incharge',
+      issuedBy: issuedBy || 'Sports Incharge',
       created_at: issueDateStr,
-      updated_at: issueDateStr
+      createdAt: issueDateStr,
+      updated_at: issueDateStr,
+      updatedAt: issueDateStr
     };
 
     let txRaw = newTxRecord;
@@ -149,14 +165,15 @@ class StockService {
 
     // Save to Supabase notifications for instant real-time student portal synchronization
     try {
-      await supabase.from('notifications').upsert({
+      const rawClient = require('../config/supabase').supabase || supabase;
+      await rawClient.from('notifications').upsert({
         id: newTxRecord.id,
         title: 'EQUIPMENT_ISSUE',
         category: 'equipment',
         type: 'equipment_transaction',
-        sender: student.registerNumber,
+        sender: studentReg,
         target_type: 'Specific Student',
-        target_audience: student.id,
+        target_audience: studentReg,
         priority: 'Normal',
         message: JSON.stringify(newTxRecord),
         created_at: issueDateStr
@@ -340,11 +357,32 @@ class StockService {
 
     // Sync return status to Supabase notifications store
     try {
-      await supabase.from('notifications').update({
-        title: 'EQUIPMENT_RETURNED',
-        message: JSON.stringify(updatedTxRaw)
-      }).eq('id', transactionId);
-    } catch (e) {}
+      const rawClient = require('../config/supabase').supabase || supabase;
+      const { data: existingNotif } = await rawClient.from('notifications').select('*').eq('id', transactionId).maybeSingle();
+      const payloadMsg = JSON.stringify({ ...toCamelCase(updatedTxRaw), ...updatedTxRaw });
+
+      if (existingNotif) {
+        await rawClient.from('notifications').update({
+          title: 'EQUIPMENT_RETURNED',
+          message: payloadMsg
+        }).eq('id', transactionId);
+      } else {
+        await rawClient.from('notifications').upsert({
+          id: transactionId,
+          title: 'EQUIPMENT_RETURNED',
+          category: 'equipment',
+          type: 'equipment_transaction',
+          sender: activeTx.register_number || activeTx.registerNumber,
+          target_type: 'Specific Student',
+          target_audience: activeTx.register_number || activeTx.registerNumber,
+          priority: 'Normal',
+          message: payloadMsg,
+          created_at: returnDateStr
+        });
+      }
+    } catch (e) {
+      console.warn('Supabase return sync notice:', e.message);
+    }
 
     return {
       transaction: toCamelCase(updatedTxRaw),

@@ -487,6 +487,19 @@
       "sender": "Sports Incharge",
       "created_at": "2026-10-04T20:45:49.338Z",
       "updated_at": "2026-10-04T20:45:49.338Z"
+    },
+    {
+      "id": "id_1791147804518_e1flz0",
+      "title": "Equipment Issued: Cosco Volleyball Super (1)",
+      "message": "You have been issued 1 unit(s) of Cosco Volleyball Super. Please return the item in good condition by 7 Oct 2026.",
+      "category": "Equipment",
+      "target_type": "Specific Student",
+      "target_id": "roster_C24UG183CSC031",
+      "target_model": "User",
+      "priority": "Normal",
+      "sender": "Sports Incharge",
+      "created_at": "2026-10-04T21:03:24.518Z",
+      "updated_at": "2026-10-04T21:03:24.518Z"
     }
   ],
   "tournaments": [
@@ -558,6 +571,25 @@
       "issued_by": "Dr. R. ANITHA",
       "created_at": "2026-10-04T20:45:48.327Z",
       "updated_at": "2026-10-04T20:45:48.327Z"
+    },
+    {
+      "id": "tx_1791147803699_smya",
+      "student_id": "roster_C24UG183CSC031",
+      "student_name": "aruna",
+      "register_number": "C24UG183CSC031",
+      "equipment_id": "eq_1791129548184_69nj",
+      "equipment_name": "Cosco Volleyball Super",
+      "quantity": 1,
+      "issue_date": "2026-10-04T21:03:23.694Z",
+      "issue_time": "02:33 am",
+      "expected_return_date": "2026-10-07T00:00:00.000Z",
+      "status": "Issued",
+      "return_condition": "Pending",
+      "purpose": "College Practice / Match",
+      "remarks": "",
+      "issued_by": "Dr. R. ANITHA",
+      "created_at": "2026-10-04T21:03:23.694Z",
+      "updated_at": "2026-10-04T21:03:23.694Z"
     }
   ],
   "competition_registrations": []

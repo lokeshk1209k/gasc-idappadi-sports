@@ -11,6 +11,10 @@
       "destination": "/api/auth/login"
     },
     {
+      "source": "/api/equipment/lookup-student/:regNo",
+      "destination": "/api/equipment/lookup-student?regNo=:regNo"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
