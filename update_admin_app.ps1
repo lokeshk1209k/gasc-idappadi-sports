@@ -26,6 +26,10 @@ foreach ($target in $targets) {
         Copy-Item -Path "$workspace\server" -Destination $appDir -Recurse -Force
         # Sync electron
         Copy-Item -Path "$workspace\electron" -Destination $appDir -Recurse -Force
+        # Sync root dist
+        if (Test-Path "$workspace\dist") {
+            Copy-Item -Path "$workspace\dist" -Destination $appDir -Recurse -Force
+        }
         # Sync student-client dist
         if (Test-Path "$workspace\student-client\dist") {
             $studentAppDst = Join-Path $appDir "student-client\dist"

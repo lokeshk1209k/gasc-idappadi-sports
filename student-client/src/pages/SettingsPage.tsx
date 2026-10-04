@@ -32,6 +32,13 @@ const Toggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 const SettingsPage = () => {
   const [activeSection, setActiveSection] = useState('account');
   const [saved, setSaved] = useState(false);
+  const [userData, setUserData] = useState({
+    name: 'Student Athlete',
+    regNo: '',
+    email: '',
+    phone: '',
+    dept: 'Computer Science'
+  });
   const [notifSettings, setNotifSettings] = useState({
     email: true,
     push: true,
@@ -42,7 +49,28 @@ const SettingsPage = () => {
   });
   const [darkMode, setDarkMode] = useState(true);
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('gasc_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        setUserData({
+          name: u.name || 'Student Athlete',
+          regNo: u.registerNumber || u.regNo || u.register_number || '',
+          email: u.email || '',
+          phone: u.phone || u.mobile || '',
+          dept: u.department || u.dept || 'Computer Science'
+        });
+      }
+    } catch (e) {}
+  }, []);
+
   const handleSave = () => {
+    try {
+      const stored = localStorage.getItem('gasc_user');
+      const u = stored ? JSON.parse(stored) : {};
+      localStorage.setItem('gasc_user', JSON.stringify({ ...u, ...userData }));
+    } catch (e) {}
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -54,15 +82,22 @@ const SettingsPage = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <h3 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: 17, color: '#FFFFFF', margin: 0 }}>Account Settings</h3>
             {[
-              { label: 'Full Name', value: 'Lokesh Krishnan', type: 'text' },
-              { label: 'Register Number', value: '23UGCS101', type: 'text' },
-              { label: 'Email Address', value: 'lokesh@gasc.edu.in', type: 'email' },
-              { label: 'Phone Number', value: '+91 98765 43210', type: 'tel' },
-              { label: 'Department', value: 'B.Sc. Computer Science', type: 'text' },
-            ].map(({ label, value, type }) => (
+              { label: 'Full Name', value: userData.name, key: 'name', type: 'text' },
+              { label: 'Register Number', value: userData.regNo, key: 'regNo', type: 'text', readOnly: true },
+              { label: 'Email Address', value: userData.email, key: 'email', type: 'email' },
+              { label: 'Phone Number', value: userData.phone, key: 'phone', type: 'tel' },
+              { label: 'Department', value: userData.dept, key: 'dept', type: 'text', readOnly: true },
+            ].map(({ label, value, key, type, readOnly }) => (
               <div key={label}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#AFC4DF', marginBottom: 8 }}>{label}</label>
-                <input type={type} className="input-dark" defaultValue={value} />
+                <input
+                  type={type}
+                  className="input-dark"
+                  value={value}
+                  readOnly={readOnly}
+                  onChange={e => setUserData({ ...userData, [key]: e.target.value })}
+                  style={{ opacity: readOnly ? 0.75 : 1, cursor: readOnly ? 'not-allowed' : 'text' }}
+                />
               </div>
             ))}
             <button onClick={handleSave} className="btn-primary" style={{ alignSelf: 'flex-start', padding: '11px 22px', fontSize: 13 }}>

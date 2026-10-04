@@ -91,16 +91,34 @@ const CompetitionsPage = () => {
   const [successRegistration, setSuccessRegistration] = useState<RegistrationItem | null>(null);
   const [registering, setRegistering] = useState(false);
 
-  // Authenticated Student Profile
-  const [studentUser, setStudentUser] = useState<any>({
-    id: 'usr_lokesh_csc013',
-    name: 'Lokesh Krishnan',
-    registerNumber: 'C24UG183CSC013',
-    department: 'Computer Science',
-    year: 'III Year',
-    gender: 'Male',
-    mobile: '+91 98421 54321',
-    email: 'c24ug183csc013@gascidappadi.edu.in'
+  // Authenticated Student Profile (strictly dynamic from localStorage / Supabase)
+  const [studentUser, setStudentUser] = useState<any>(() => {
+    try {
+      const stored = localStorage.getItem('gasc_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        return {
+          id: u.id || u._id || `usr_${(u.registerNumber || u.regNo || u.register_number || 'stu').toLowerCase()}`,
+          name: u.name || 'Student Athlete',
+          registerNumber: u.registerNumber || u.regNo || u.register_number || '',
+          department: u.department || u.dept || 'Computer Science',
+          year: u.year || 'I Year',
+          gender: u.gender || 'Male',
+          mobile: u.mobile || u.phone || '',
+          email: u.email || ''
+        };
+      }
+    } catch {}
+    return {
+      id: 'usr_student',
+      name: 'Student Athlete',
+      registerNumber: '',
+      department: 'Computer Science',
+      year: 'I Year',
+      gender: 'Male',
+      mobile: '',
+      email: ''
+    };
   });
 
   // Assigned Teams
@@ -112,90 +130,26 @@ const CompetitionsPage = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Switch student profile for Viva / Demo
-  const switchStudentProfile = (studentKey: 'lokesh' | 'ajay') => {
-    if (studentKey === 'lokesh') {
-      const u = {
-        id: 'usr_lokesh_csc013',
-        name: 'Lokesh Krishnan',
-        registerNumber: 'C24UG183CSC013',
-        department: 'Computer Science',
-        year: 'III Year',
-        gender: 'Male',
-        mobile: '+91 98421 54321',
-        email: 'c24ug183csc013@gascidappadi.edu.in'
-      };
-      setStudentUser(u);
-      localStorage.setItem('gasc_user', JSON.stringify(u));
-    } else {
-      const u = {
-        id: 'usr_cs_b_12',
-        name: 'Ajay K',
-        registerNumber: '23UGCS103',
-        department: 'Computer Science',
-        year: 'II Year',
-        gender: 'Male',
-        mobile: '+91 98421 54322',
-        email: '23ugcs103@gascidappadi.edu.in'
-      };
-      setStudentUser(u);
-      localStorage.setItem('gasc_user', JSON.stringify(u));
-    }
-    setMyRegistrations({});
-    setMyAssignedTeams([]);
-  };
-
   // ── 1. Load Student Profile & Auto-Token ────────────────────────────────────
   useEffect(() => {
     try {
       const stored = localStorage.getItem('gasc_user');
-      let token = localStorage.getItem('gasc_token') || localStorage.getItem('token');
       if (stored) {
         const u = JSON.parse(stored);
-        if (u && (u.registerNumber || u.register_number)) {
+        if (u) {
           setStudentUser({
-            id: u.id || u._id || 'usr_lokesh_csc013',
-            name: u.name || 'Lokesh Krishnan',
-            registerNumber: u.registerNumber || u.register_number || 'C24UG183CSC013',
-            department: u.department || 'Computer Science',
-            year: u.year || 'III Year',
+            id: u.id || u._id || `usr_${(u.registerNumber || u.regNo || u.register_number || 'stu').toLowerCase()}`,
+            name: u.name || 'Student Athlete',
+            registerNumber: u.registerNumber || u.regNo || u.register_number || '',
+            department: u.department || u.dept || 'Computer Science',
+            year: u.year || 'I Year',
             gender: u.gender || 'Male',
-            mobile: u.mobile || '+91 98421 54321',
-            email: u.email || 'c24ug183csc013@gascidappadi.edu.in'
+            mobile: u.mobile || u.phone || '',
+            email: u.email || ''
           });
         }
-      } else {
-        const defaultU = {
-          id: 'usr_lokesh_csc013',
-          name: 'Lokesh Krishnan',
-          registerNumber: 'C24UG183CSC013',
-          department: 'Computer Science',
-          year: 'III Year',
-          gender: 'Male',
-          mobile: '+91 98421 54321',
-          email: 'c24ug183csc013@gascidappadi.edu.in'
-        };
-        localStorage.setItem('gasc_user', JSON.stringify(defaultU));
       }
-
-      if (!token) {
-        fetch('/api/auth/session-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ registerNumber: 'C24UG183CSC013' })
-        })
-          .then(r => (r.ok && (r.headers.get('content-type') || '').includes('application/json')) ? r.json() : null)
-          .then(d => {
-            if (d && d.success && d.token) {
-              localStorage.setItem('gasc_token', d.token);
-              if (d.user) {
-                localStorage.setItem('gasc_user', JSON.stringify(d.user));
-              }
-            }
-          })
-          .catch(() => {});
-      }
-    } catch { /* use default fallback */ }
+    } catch { /* use dynamic fallback */ }
   }, []);
 
   // ── 2. Fetch Tournaments and Group Sports ──────────────────────────────────
@@ -695,31 +649,11 @@ const CompetitionsPage = () => {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              {/* Quick Profile Switcher for Viva / Demo Testing */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(11,27,58,0.7)', padding: '6px 10px', borderRadius: 12, border: '1px solid rgba(56,167,255,0.25)', fontSize: 12 }}>
-                <span style={{ color: '#6E86A5', fontWeight: 600 }}>Demo Profile:</span>
-                <button
-                  type="button"
-                  onClick={() => switchStudentProfile('lokesh')}
-                  style={{
-                    background: studentUser.registerNumber === '23CS001' ? '#0284c7' : 'transparent',
-                    color: '#FFF', border: 'none', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontWeight: 700, fontSize: 11,
-                    boxShadow: studentUser.registerNumber === '23CS001' ? '0 2px 8px rgba(2,132,199,0.5)' : 'none'
-                  }}
-                >
-                  Lokesh (23CS001 • Team Selected)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchStudentProfile('ajay')}
-                  style={{
-                    background: studentUser.registerNumber === '23CS012' ? '#ea580c' : 'transparent',
-                    color: '#FFF', border: 'none', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontWeight: 700, fontSize: 11,
-                    boxShadow: studentUser.registerNumber === '23CS012' ? '0 2px 8px rgba(234,88,12,0.5)' : 'none'
-                  }}
-                >
-                  Ajay (23CS012 • Not in Team)
-                </button>
+              {/* Active Student Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(11,27,58,0.7)', padding: '6px 14px', borderRadius: 12, border: '1px solid rgba(56,167,255,0.25)', fontSize: 13 }}>
+                <span style={{ color: '#6E86A5', fontWeight: 600 }}>Student:</span>
+                <span style={{ color: '#FFFFFF', fontWeight: 700 }}>{studentUser.name}</span>
+                <span style={{ color: '#38A7FF', fontFamily: 'monospace', fontWeight: 700 }}>({studentUser.registerNumber})</span>
               </div>
 
               <button onClick={() => setActiveTab('All')} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -513,8 +513,9 @@
                   <th>Department</th>
                   <th>Year & Section</th>
                   <th>Gender</th>
+                  <th>Status</th>
                   <th>Portal Account</th>
-                  <th class="text-center" style="min-width: 170px;">Actions</th>
+                  <th class="text-center" style="min-width: 200px;">Actions</th>
                 </tr>
               </thead>
               <tbody id="admin-roster-table">
@@ -2815,16 +2816,23 @@
               </div>
             </div>
             <div class="row g-2 mb-3">
-              <div class="col-6">
+              <div class="col-4">
                 <label class="form-label small fw-bold">Section</label>
                 <input type="text" name="section" class="form-control form-control-glass" value="A">
               </div>
-              <div class="col-6">
+              <div class="col-4">
                 <label class="form-label small fw-bold">Gender</label>
                 <select name="gender" class="form-select form-select-glass">
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="col-4">
+                <label class="form-label small fw-bold">Status *</label>
+                <select name="status" class="form-select form-select-glass">
+                  <option value="Active" selected>Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
             </div>
@@ -2895,16 +2903,23 @@
               </div>
             </div>
             <div class="row g-2 mb-3">
-              <div class="col-6">
+              <div class="col-4">
                 <label class="form-label small fw-bold text-dark">Section</label>
                 <input type="text" id="edit-roster-section" class="form-control form-control-glass" maxlength="5" style="text-transform: uppercase;">
               </div>
-              <div class="col-6">
+              <div class="col-4">
                 <label class="form-label small fw-bold text-dark">Gender *</label>
                 <select id="edit-roster-gender" class="form-select form-select-glass" required>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="col-4">
+                <label class="form-label small fw-bold text-dark">Status *</label>
+                <select id="edit-roster-status" class="form-select form-select-glass" required>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
             </div>

@@ -32,12 +32,13 @@ exports.verifyStudent = async (req, res) => {
     const cleanRegNo = registerNumber.trim().toUpperCase();
     const cleanNoZeros = cleanRegNo.replace(/0(?=[0-9]+$)/, '');
 
-    // 1. Check if user already registered an account
+    // 1. Check if user already registered a STUDENT account (not roster entries)
     let userExists = null;
     try {
       const { data: usersFound } = await supabase
         .from('users')
-        .select('id, name, register_number, email')
+        .select('id, name, register_number, email, role')
+        .eq('role', 'student')
         .or(`register_number.ilike.%${cleanRegNo}%,register_number.ilike.%${cleanNoZeros}%`);
       if (usersFound && usersFound.length > 0) {
         userExists = usersFound[0];
@@ -49,7 +50,8 @@ exports.verifyStudent = async (req, res) => {
       const localUsers = storeInstance.getTable('users') || [];
       userExists = localUsers.find(u => {
         const uReg = (u.register_number || u.registerNumber || '').toUpperCase();
-        return uReg === cleanRegNo || uReg.replace(/0(?=[0-9]+$)/, '') === cleanNoZeros;
+        const uRole = (u.role || '').toLowerCase();
+        return uRole === 'student' && (uReg === cleanRegNo || uReg.replace(/0(?=[0-9]+$)/, '') === cleanNoZeros);
       });
     }
 
@@ -126,12 +128,13 @@ exports.sendRegistrationOtp = async (req, res) => {
     const cleanEmail = email.toLowerCase().trim();
     const cleanRegNo = registerNumber.toUpperCase().trim();
 
-    // 1. Check if already registered
+    // 1. Check if already registered (only block if a real student account exists)
     const { data: regExists } = await supabase
       .from('users')
       .select('id')
       .ilike('register_number', cleanRegNo)
-      .single();
+      .eq('role', 'student')
+      .maybeSingle();
 
     if (regExists) {
       return res.status(400).json({
@@ -163,8 +166,10 @@ exports.sendRegistrationOtp = async (req, res) => {
 
     const recipientName = (rosterStudent && rosterStudent.name) || name || 'Student Athlete';
 
-    // 4. Generate 6-digit OTP & store
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // 4. Generate 6-digit OTP & store (use client-provided if valid 6-digits to stay synced)
+    const otpCode = (req.body.otp && /^\d{6}$/.test(String(req.body.otp).trim()))
+      ? String(req.body.otp).trim()
+      : Math.floor(100000 + Math.random() * 900000).toString();
     const expiryMinutes = 10;
     otpStore.saveOtp(cleanEmail, otpCode, cleanRegNo, 'registration', expiryMinutes);
 
@@ -264,14 +269,14 @@ exports.registerStudent = async (req, res) => {
       }
     }
 
-    // Check if user already exists
-    const { data: existingReg } = await supabase
+    // Check if an account already exists with this register number
+    const { data: existingUser } = await supabase
       .from('users')
-      .select('id')
+      .select('*')
       .ilike('register_number', cleanRegNo)
       .maybeSingle();
 
-    if (existingReg) {
+    if (existingUser && existingUser.role === 'student' && existingUser.password) {
       return res.status(400).json({
         success: false,
         message: `An account already exists with Register Number (${cleanRegNo}). Please Login.`
@@ -284,7 +289,7 @@ exports.registerStudent = async (req, res) => {
       .ilike('email', cleanEmail)
       .maybeSingle();
 
-    if (existingEmail) {
+    if (existingEmail && (!existingUser || String(existingEmail.id) !== String(existingUser.id))) {
       return res.status(400).json({
         success: false,
         message: `This email address (${cleanEmail}) is already in use by an active account. Please Login.`
@@ -292,38 +297,77 @@ exports.registerStudent = async (req, res) => {
     }
 
     // Check college roster if pre-enrolled
-    const { data: rosterStudent } = await supabase
-      .from('college_student_roster')
-      .select('*')
-      .ilike('register_number', cleanRegNo)
-      .single();
+    let rosterStudent = null;
+    try {
+      const { data: rData } = await supabase
+        .from('college_student_roster')
+        .select('*')
+        .ilike('register_number', cleanRegNo)
+        .maybeSingle();
+      if (rData) rosterStudent = rData;
+    } catch (e) {}
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+    const userId = existingUser ? existingUser.id : `usr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
-    // Insert user into Supabase
-    const { data: userRaw, error: userErr } = await supabase
-      .from('users')
-      .insert({
-        name: name.trim(),
-        register_number: cleanRegNo,
-        email: cleanEmail,
-        password: hashedPassword,
-        role: 'student',
-        department: department || (rosterStudent && rosterStudent.department) || 'Computer Science',
-        year: year || (rosterStudent && rosterStudent.year) || 'I Year',
-        section: section || (rosterStudent && rosterStudent.section) || 'A',
-        gender: gender || (rosterStudent && rosterStudent.gender) || 'Male',
-        dob: dob || null,
-        mobile: mobile ? mobile.trim() : null,
-        profile_photo: '/images/default-avatar.png',
-        status: 'Active'
-      })
-      .select()
-      .single();
+    let userRaw = null;
+    if (existingUser) {
+      // Upgrade existing roster entry to full student account
+      const { data: updatedUser, error: updateErr } = await supabase
+        .from('users')
+        .update({
+          name: name.trim(),
+          email: cleanEmail,
+          password: hashedPassword,
+          role: 'student',
+          department: department || existingUser.department || (rosterStudent && rosterStudent.department) || 'Computer Science',
+          year: year || existingUser.year || (rosterStudent && rosterStudent.year) || 'I Year',
+          section: section || existingUser.section || (rosterStudent && rosterStudent.section) || 'A',
+          gender: gender || existingUser.gender || (rosterStudent && rosterStudent.gender) || 'Male',
+          dob: dob || existingUser.dob || null,
+          mobile: mobile ? mobile.trim() : existingUser.mobile,
+          profile_photo: existingUser.profile_photo || '/images/default-avatar.png',
+          status: 'Active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingUser.id)
+        .select()
+        .single();
 
-    if (userErr) {
-      return res.status(400).json({ success: false, message: userErr.message });
+      if (updateErr) {
+        return res.status(400).json({ success: false, message: updateErr.message });
+      }
+      userRaw = updatedUser;
+    } else {
+      // Insert brand new student user
+      const { data: insertedUser, error: userErr } = await supabase
+        .from('users')
+        .insert({
+          id: userId,
+          name: name.trim(),
+          register_number: cleanRegNo,
+          email: cleanEmail,
+          password: hashedPassword,
+          role: 'student',
+          department: department || (rosterStudent && rosterStudent.department) || 'Computer Science',
+          year: year || (rosterStudent && rosterStudent.year) || 'I Year',
+          section: section || (rosterStudent && rosterStudent.section) || 'A',
+          gender: gender || (rosterStudent && rosterStudent.gender) || 'Male',
+          dob: dob || null,
+          mobile: mobile ? mobile.trim() : null,
+          profile_photo: '/images/default-avatar.png',
+          status: 'Active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (userErr) {
+        return res.status(400).json({ success: false, message: userErr.message });
+      }
+      userRaw = insertedUser;
     }
 
     const user = toCamelCase(userRaw);
@@ -533,26 +577,55 @@ exports.studentLogin = async (req, res) => {
     }
 
     // Query user by register_number or email
-    const { data: userRaw, error } = await supabase
-      .from('users')
-      .select('*')
-      .or(`email.ilike.${identifier},register_number.ilike.${identifier}`)
-      .limit(1)
-      .single();
+    let userRaw = null;
+    const isEmail = identifier.includes('@');
 
-    if (error || !userRaw) {
+    if (isEmail) {
+      const { data: byEmail } = await supabase
+        .from('users')
+        .select('*')
+        .ilike('email', identifier)
+        .maybeSingle();
+      userRaw = byEmail;
+    } else {
+      // Try register_number first
+      const { data: byReg } = await supabase
+        .from('users')
+        .select('*')
+        .ilike('register_number', identifier)
+        .maybeSingle();
+      userRaw = byReg;
+
+      // Fallback: try by email if not found
+      if (!userRaw) {
+        const { data: byEmail } = await supabase
+          .from('users')
+          .select('*')
+          .ilike('email', identifier)
+          .maybeSingle();
+        userRaw = byEmail;
+      }
+    }
+
+    if (!userRaw) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid login credentials. Student account not found.'
+        message: 'Invalid login credentials. Student account not found. Please register first.'
       });
     }
 
-    // Strict Role Verification: MUST be student
-    if (userRaw.role !== 'student') {
+    if (userRaw.role === 'admin') {
       return res.status(403).json({
         success: false,
         code: 'FORBIDDEN_PORTAL',
         message: 'Access denied: This portal is exclusively for Students. Admin login is prohibited here.'
+      });
+    }
+
+    if (!userRaw.password || userRaw.role === 'roster') {
+      return res.status(401).json({
+        success: false,
+        message: `Student record "${userRaw.name}" (${userRaw.register_number}) is verified in College Roster, but you have not completed registration yet. Please click "Register Profile" to create your password.`
       });
     }
 

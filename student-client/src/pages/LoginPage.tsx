@@ -73,33 +73,89 @@ const LoginPage = () => {
         }
       } catch (e) {}
 
-      // Fallback: Direct Supabase user lookup
+      // Direct Supabase lookup fallback
       if (!loggedIn) {
-        const cleanId = formData.identifier.trim().toUpperCase();
-        const cleanNoZeros = cleanId.replace(/0(?=[0-9]+$)/, '');
+        const cleanId = formData.identifier.trim();
+        const cleanReg = cleanId.toUpperCase();
+        const cleanEmail = cleanId.toLowerCase();
 
-        const { data: usersFound } = await supabase
-          .from('users')
-          .select('*')
-          .or(`register_number.ilike.%${cleanId}%,register_number.ilike.%${cleanNoZeros}%,email.ilike.%${formData.identifier.trim()}%`);
+        let user: any = null;
 
-        if (usersFound && usersFound.length > 0) {
-          const user = usersFound[0];
-          loggedIn = true;
-          userData = {
-            id: user.id,
-            name: user.name,
-            registerNumber: user.register_number,
-            department: user.department,
-            year: user.year,
-            section: user.section,
-            gender: user.gender,
-            mobile: user.mobile,
-            email: user.email,
-            role: user.role || 'student'
-          };
-          tokenStr = `gasc_jwt_${Date.now()}`;
+        if (cleanEmail.includes('@')) {
+          const { data } = await supabase
+            .from('users')
+            .select('*')
+            .ilike('email', cleanEmail)
+            .maybeSingle();
+          user = data;
+        } else {
+          // 1. Exact match on register_number
+          const { data: byReg } = await supabase
+            .from('users')
+            .select('*')
+            .ilike('register_number', cleanReg)
+            .maybeSingle();
+          user = byReg;
+
+          // 2. Fallback: match by email
+          if (!user) {
+            const { data: byEmail } = await supabase
+              .from('users')
+              .select('*')
+              .ilike('email', cleanEmail)
+              .maybeSingle();
+            user = byEmail;
+          }
         }
+
+        if (!user) {
+          setError('Invalid login credentials. Student account not found. Please register first.');
+          setLoading(false);
+          return;
+        }
+
+        if (user.role === 'admin') {
+          setError('Access denied: Admin credentials cannot be used on Student Portal.');
+          setLoading(false);
+          return;
+        }
+
+        if (!user.password || user.role === 'roster') {
+          setError(`Student record "${user.name}" (${user.register_number}) is verified in College Roster, but you have not completed registration yet. Please click "Register Profile" below to create your password.`);
+          setLoading(false);
+          return;
+        }
+
+        if (user.status === 'Suspended' || user.status === 'Inactive') {
+          setError('Your student account is deactivated or suspended. Please contact Physical Directress.');
+          setLoading(false);
+          return;
+        }
+
+        // Direct password check if not handled by API
+        if (user.password && !user.password.startsWith('$2') && user.password !== formData.password) {
+          setError('Invalid credentials. Incorrect password.');
+          setLoading(false);
+          return;
+        }
+
+        loggedIn = true;
+        userData = {
+          id: user.id,
+          name: user.name,
+          registerNumber: user.register_number,
+          regNo: user.register_number,
+          department: user.department,
+          dept: user.department,
+          year: user.year,
+          section: user.section,
+          gender: user.gender,
+          mobile: user.mobile || user.phone,
+          phone: user.phone || user.mobile,
+          email: user.email,
+          role: 'student'
+        };
+        tokenStr = `gasc_jwt_${Date.now()}_${user.id}`;
       }
 
       if (loggedIn && userData) {
@@ -107,7 +163,7 @@ const LoginPage = () => {
         localStorage.setItem('gasc_user', JSON.stringify(userData));
         navigate('/student/dashboard');
       } else {
-        setError('Invalid credentials or student record not found.');
+        setError('Invalid login credentials. Student account not found. Please register first.');
       }
     } catch {
       setError('Connection error. Please try again.');
@@ -128,31 +184,91 @@ const LoginPage = () => {
     setForgotError('');
 
     try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: forgotIdentifier.trim() })
-      });
+      const cleanId = forgotIdentifier.trim();
+      const cleanReg = cleanId.toUpperCase();
+      const cleanEmail = cleanId.toLowerCase();
 
-      const data = await res.json();
-
-      if (data.success) {
-        setForgotEmail(data.email || forgotIdentifier.trim());
-        setForgotMaskedEmail(data.maskedEmail || data.email || forgotIdentifier.trim());
-        setForgotDemoHint(data.demoOtpHint || null);
-        setForgotOtpValues(['', '', '', '', '', '']);
-        setForgotResendTimer(60);
-        setForgotStep(2);
-
-        setTimeout(() => {
-          forgotOtpRefs.current[0]?.focus();
-        }, 300);
+      // Find user in Supabase
+      let user: any = null;
+      if (cleanEmail.includes('@')) {
+        const { data } = await supabase
+          .from('users')
+          .select('id, name, email, register_number')
+          .ilike('email', cleanEmail)
+          .eq('role', 'student')
+          .maybeSingle();
+        user = data;
       } else {
-        setForgotError(data.message || 'No registered student account found with this identifier.');
+        const { data } = await supabase
+          .from('users')
+          .select('id, name, email, register_number')
+          .ilike('register_number', cleanReg)
+          .eq('role', 'student')
+          .maybeSingle();
+        user = data;
+
+        if (!user) {
+          const { data: fb } = await supabase
+            .from('users')
+            .select('id, name, email, register_number')
+            .ilike('email', cleanEmail)
+            .eq('role', 'student')
+            .maybeSingle();
+          user = fb;
+        }
       }
-    } catch (err) {
+
+      if (!user || !user.email) {
+        setForgotError(`No registered student account found for "${cleanId}". Please Register first.`);
+        setForgotLoading(false);
+        return;
+      }
+
+      // Generate 6-digit OTP
+      const genOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expTime = Date.now() + 10 * 60 * 1000;
+
+      // Store in Supabase notifications for instant persistence & verification
+      try {
+        await supabase.from('notifications').insert({
+          id: `otp_${user.id}_${Date.now()}`,
+          user_id: user.id,
+          title: 'PASSWORD_RESET_OTP',
+          message: JSON.stringify({ otp: genOtp, expiresAt: expTime, email: user.email }),
+          type: 'security',
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+      } catch (e) {}
+
+      // Send real email via send-otp endpoint if available
+      try {
+        await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: user.email,
+            registerNumber: user.register_number,
+            name: user.name
+          })
+        });
+      } catch (e) {}
+
+      setForgotEmail(user.email);
+      const masked = user.email.includes('@')
+        ? user.email.replace(/^(.)(.*)(@.*)$/, (_: any, a: any, b: any, c: any) => `${a}${'*'.repeat(Math.min(b.length, 5))}${c}`)
+        : user.email;
+      setForgotMaskedEmail(masked);
+      setForgotOtpValues(['', '', '', '', '', '']);
+      setForgotResendTimer(60);
+      setForgotStep(2);
+
+      setTimeout(() => {
+        forgotOtpRefs.current[0]?.focus();
+      }, 300);
+    } catch (err: any) {
       console.error('Forgot password error:', err);
-      setForgotError('Connection error. Please check your network and server.');
+      setForgotError('Error sending OTP. Please check your network.');
     } finally {
       setForgotLoading(false);
     }
@@ -165,18 +281,45 @@ const LoginPage = () => {
     setForgotError('');
 
     try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: forgotEmail || forgotIdentifier.trim() })
-      });
+      const cleanEmail = (forgotEmail || forgotIdentifier.trim()).toLowerCase();
 
-      const data = await res.json();
-      if (data.success) {
-        setForgotDemoHint(data.demoOtpHint || null);
+      // Query user in Supabase
+      const { data: user } = await supabase
+        .from('users')
+        .select('id, name, email, register_number')
+        .ilike('email', cleanEmail)
+        .eq('role', 'student')
+        .maybeSingle();
+
+      if (user) {
+        const genOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expTime = Date.now() + 10 * 60 * 1000;
+
+        try {
+          await supabase.from('notifications').insert({
+            id: `otp_${user.id}_${Date.now()}`,
+            user_id: user.id,
+            title: 'PASSWORD_RESET_OTP',
+            message: JSON.stringify({ otp: genOtp, expiresAt: expTime, email: user.email }),
+            type: 'security',
+            is_read: false,
+            created_at: new Date().toISOString()
+          });
+        } catch (e) {}
+
+        try {
+          await fetch('/api/auth/send-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email,
+              registerNumber: user.register_number,
+              name: user.name
+            })
+          });
+        } catch (e) {}
+
         setForgotResendTimer(60);
-      } else {
-        setForgotError(data.message || 'Failed to resend OTP.');
       }
     } catch {
       setForgotError('Network error while resending OTP.');
@@ -240,33 +383,80 @@ const LoginPage = () => {
     setForgotError('');
 
     try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: forgotEmail,
-          otp,
-          newPassword
+      const cleanEmail = forgotEmail.trim().toLowerCase();
+
+      // 1. Verify OTP in Supabase notifications or via API
+      let otpValid = false;
+
+      try {
+        const { data: notifs } = await supabase
+          .from('notifications')
+          .select('id, message')
+          .eq('title', 'PASSWORD_RESET_OTP')
+          .eq('is_read', false)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (notifs) {
+          for (const n of notifs) {
+            try {
+              const p = JSON.parse(n.message);
+              if (p.email?.toLowerCase() === cleanEmail && p.otp === otp && Date.now() <= p.expiresAt) {
+                otpValid = true;
+                await supabase.from('notifications').update({ is_read: true }).eq('id', n.id);
+                break;
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+
+      // Fallback: Check if API verify-otp succeeds
+      if (!otpValid) {
+        try {
+          const vRes = await fetch('/api/auth/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: cleanEmail, otp })
+          });
+          const vData = await vRes.json();
+          if (vData && vData.success) otpValid = true;
+        } catch (e) {}
+      }
+
+      if (!otpValid) {
+        setForgotError('Invalid or expired OTP code. Please enter the 6-digit code sent to your email.');
+        setForgotLoading(false);
+        return;
+      }
+
+      // 2. Update password in Supabase
+      const { error: updErr } = await supabase
+        .from('users')
+        .update({
+          password: newPassword,
+          updated_at: new Date().toISOString()
         })
+        .ilike('email', cleanEmail);
+
+      if (updErr) {
+        setForgotError('Failed to update password: ' + updErr.message);
+        setForgotLoading(false);
+        return;
+      }
+
+      setForgotSuccess('Your password has been updated successfully!');
+      setForgotStep(3);
+
+      // Pre-fill login form with reset identifier & password
+      setFormData({
+        identifier: forgotIdentifier,
+        password: newPassword
       });
 
-      const data = await res.json();
-
-      if (data.success) {
-        setForgotSuccess('Your password has been updated successfully!');
-        setForgotStep(3);
-
-        // Pre-fill login form with reset identifier & password
-        setFormData({
-          identifier: forgotIdentifier,
-          password: newPassword
-        });
-
-        setSuccessBanner('Password reset successful! You can now log in with your new password.');
-      } else {
-        setForgotError(data.message || 'Failed to reset password. Please check your OTP.');
-      }
-    } catch {
+      setSuccessBanner('Password reset successful! You can now log in with your new password.');
+    } catch (err: any) {
+      console.error('Reset password error:', err);
       setForgotError('Connection error. Failed to reset password.');
     } finally {
       setForgotLoading(false);

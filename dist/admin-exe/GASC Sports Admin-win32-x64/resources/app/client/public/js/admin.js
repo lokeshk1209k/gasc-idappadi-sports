@@ -4731,7 +4731,12 @@ function renderRosterTable(students) {
   }
 
   tbody.innerHTML = students.map((s, idx) => {
-    const statusBadge = s.isRegistered 
+    const isInactive = (s.status && s.status.toUpperCase() === 'INACTIVE');
+    const rosterStatusBadge = isInactive
+      ? '<span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 px-2 py-1 fw-bold"><i class="bi bi-x-circle-fill text-danger me-1"></i> INACTIVE</span>'
+      : '<span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-2 py-1 fw-bold"><i class="bi bi-check-circle-fill text-success me-1"></i> ACTIVE</span>';
+
+    const portalBadge = s.isRegistered 
       ? '<span class="badge bg-success bg-opacity-25 text-dark border border-success border-opacity-60 px-2 py-1 fw-bold" style="color: #000000 !important;"><i class="bi bi-check-circle-fill text-success me-1"></i> Registered Athlete</span>'
       : '<span class="badge bg-warning bg-opacity-25 text-dark border border-warning border-opacity-60 px-2 py-1 fw-bold" style="color: #000000 !important;"><i class="bi bi-clock-history text-warning me-1"></i> Not Registered Yet</span>';
 
@@ -4740,6 +4745,10 @@ function renderRosterTable(students) {
       : (s.gender === 'Male' ? '<span class="badge bg-primary bg-opacity-15 text-dark border border-primary border-opacity-30 fw-semibold" style="color: #000000 !important;"><i class="bi bi-gender-male text-primary me-1"></i>Male</span>' : '<span class="badge bg-secondary bg-opacity-15 text-dark" style="color: #000000 !important;">Other</span>');
 
     const studentId = s.id || s._id;
+    const toggleBtn = isInactive
+      ? `<button type="button" onclick="toggleRosterStudentStatus('${studentId}', 'Active')" class="btn btn-sm btn-success me-1 px-2 py-1 fw-bold shadow-sm" title="Activate Student for Portal Registration"><i class="bi bi-check-lg me-1"></i>Activate</button>`
+      : `<button type="button" onclick="toggleRosterStudentStatus('${studentId}', 'Inactive')" class="btn btn-sm btn-warning me-1 px-2 py-1 fw-bold shadow-sm text-dark" title="Deactivate Student (Block Registration)"><i class="bi bi-slash-circle me-1"></i>Deactivate</button>`;
+
     return `
       <tr>
         <td class="text-muted small">${idx + 1}</td>
@@ -4758,8 +4767,10 @@ function renderRosterTable(students) {
           <small class="text-muted">Section: ${s.section || 'A'}</small>
         </td>
         <td>${genderIcon}</td>
-        <td>${statusBadge}</td>
+        <td>${rosterStatusBadge}</td>
+        <td>${portalBadge}</td>
         <td class="text-center text-nowrap">
+          ${toggleBtn}
           <button type="button" onclick="openEditRosterModal('${studentId}')" class="btn btn-sm btn-primary me-1 px-2 py-1 fw-bold shadow-sm" title="Edit Student">
             <i class="bi bi-pencil-square me-1"></i>Edit
           </button>
@@ -4770,6 +4781,20 @@ function renderRosterTable(students) {
       </tr>
     `;
   }).join('');
+}
+
+async function toggleRosterStudentStatus(id, newStatus) {
+  const student = allRosterCache.find(s => (s.id === id || s._id === id));
+  const studentName = student ? student.name : 'this student';
+  const studentRegNo = student ? student.registerNumber : '';
+
+  try {
+    const res = await apiRequest(`/roster/${id}/status`, 'PATCH', { status: newStatus });
+    showToast(res.message || `Student ${studentName} (${studentRegNo}) status updated to ${newStatus}.`, 'success', 'Status Changed');
+    await loadAdminRoster();
+  } catch (err) {
+    showToast(err.message || 'Failed to change student status.', 'error', 'Error');
+  }
 }
 
 async function handleRosterExcelUpload(event) {
@@ -4817,7 +4842,8 @@ async function submitManualStudentAdd(event) {
     department: formData.get('department'),
     year: formData.get('year'),
     section: formData.get('section'),
-    gender: formData.get('gender')
+    gender: formData.get('gender'),
+    status: formData.get('status') || 'Active'
   };
 
   try {
@@ -4869,6 +4895,10 @@ function openEditRosterModal(id) {
   document.getElementById('edit-roster-year').value = student.year || 'I Year';
   document.getElementById('edit-roster-section').value = student.section || 'A';
   document.getElementById('edit-roster-gender').value = student.gender || 'Male';
+  const statusEl = document.getElementById('edit-roster-status');
+  if (statusEl) {
+    statusEl.value = (student.status && student.status.toUpperCase() === 'INACTIVE') ? 'Inactive' : 'Active';
+  }
 
   const modalEl = document.getElementById('editRosterStudentModal');
   if (modalEl) {
@@ -4888,7 +4918,8 @@ async function submitEditRosterStudent(event) {
     department: document.getElementById('edit-roster-dept').value,
     year: document.getElementById('edit-roster-year').value,
     section: document.getElementById('edit-roster-section').value.trim().toUpperCase() || 'A',
-    gender: document.getElementById('edit-roster-gender').value
+    gender: document.getElementById('edit-roster-gender').value,
+    status: document.getElementById('edit-roster-status')?.value || 'Active'
   };
 
   try {

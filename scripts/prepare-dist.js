@@ -4,10 +4,11 @@ const path = require('path');
 const rootDir = path.join(__dirname, '..');
 const srcDir = path.join(rootDir, 'client/public');
 const studentDistDir = path.join(rootDir, 'student-client/dist');
+const rootPublicDir = path.join(rootDir, 'public');
 const rootDistDir = path.join(rootDir, 'dist');
 const localDbFile = path.join(rootDir, 'server/data/local_db.json');
 
-[studentDistDir, rootDistDir].forEach(dir => {
+[studentDistDir, rootDistDir, rootPublicDir].forEach(dir => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
@@ -33,11 +34,12 @@ function copyRecursiveSync(src, dest, skipFiles = []) {
   }
 }
 
-console.log('[prepare-dist] 1. Copying Vite build artifacts to root dist...');
+console.log('[prepare-dist] 1. Copying Vite build artifacts to root dist & public...');
 copyRecursiveSync(studentDistDir, rootDistDir);
+copyRecursiveSync(studentDistDir, rootPublicDir);
 
-console.log('[prepare-dist] 2. Merging client/public assets to root dist and student-client/dist...');
-[rootDistDir, studentDistDir].forEach(targetDir => {
+console.log('[prepare-dist] 2. Merging client/public assets to root dist, public, and student-client/dist...');
+[rootDistDir, rootPublicDir, studentDistDir].forEach(targetDir => {
   copyRecursiveSync(path.join(srcDir, 'css'), path.join(targetDir, 'css'));
   copyRecursiveSync(path.join(srcDir, 'js'), path.join(targetDir, 'js'));
   copyRecursiveSync(path.join(srcDir, 'uploads'), path.join(targetDir, 'uploads'));

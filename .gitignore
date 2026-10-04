@@ -36,3 +36,5 @@ scripts/e2e_production_verification.js
 scripts/test_reg_verify.js
 production_supabase_setup.sql
 student-client/.env*
+
+.vercel

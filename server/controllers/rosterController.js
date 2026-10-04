@@ -356,12 +356,13 @@ exports.getRosterStudents = async (req, res) => {
 // @access  Private (Admin only)
 exports.addSingleStudent = async (req, res) => {
   try {
-    const { registerNumber, name, department, year, section, gender } = req.body;
+    const { registerNumber, name, department, year, section, gender, status } = req.body;
     if (!registerNumber || !name) {
       return res.status(400).json({ success: false, message: 'Register Number and Student Name are required.' });
     }
 
     const cleanRegNo = registerNumber.trim().toUpperCase();
+    const studentStatus = (status && status.toUpperCase() === 'INACTIVE') ? 'Inactive' : 'Active';
     let localRoster = storeInstance.getTable('college_student_roster') || [];
 
     if (localRoster.some(r => (r.register_number || '').toUpperCase() === cleanRegNo)) {
@@ -386,6 +387,7 @@ exports.addSingleStudent = async (req, res) => {
       year: year || 'I Year',
       section: section ? section.trim().toUpperCase() : 'A',
       gender: gender || 'Male',
+      status: studentStatus,
       is_registered: !!userExists,
       registered_user_id: userExists ? userExists.id : null,
       created_at: new Date().toISOString(),
@@ -408,7 +410,7 @@ exports.addSingleStudent = async (req, res) => {
         year: newRecord.year,
         section: newRecord.section,
         gender: newRecord.gender,
-        status: 'Pending Registration',
+        status: studentStatus === 'Inactive' ? 'Inactive' : (userExists ? 'Active' : 'Pending Registration'),
         created_at: new Date().toISOString()
       };
       await supabase.from('users').upsert(rosterUser, { onConflict: 'register_number' });
@@ -430,6 +432,7 @@ exports.addSingleStudent = async (req, res) => {
           year: newRecord.year,
           section: newRecord.section,
           gender: newRecord.gender,
+          status: studentStatus,
           isRegistered: !!newRecord.is_registered
         })
       };
@@ -502,7 +505,7 @@ exports.deleteStudent = async (req, res) => {
 exports.updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
-    const { registerNumber, name, department, year, section, gender } = req.body;
+    const { registerNumber, name, department, year, section, gender, status } = req.body;
 
     let localRoster = storeInstance.getTable('college_student_roster') || [];
     const idx = localRoster.findIndex(r => r.id === id || r.register_number === id);
@@ -517,14 +520,25 @@ exports.updateStudent = async (req, res) => {
     if (year) localRoster[idx].year = year;
     if (section !== undefined) localRoster[idx].section = section.trim().toUpperCase() || 'A';
     if (gender) localRoster[idx].gender = gender;
+    if (status !== undefined) localRoster[idx].status = status.toUpperCase() === 'INACTIVE' ? 'Inactive' : 'Active';
     localRoster[idx].updated_at = new Date().toISOString();
 
     storeInstance.save();
 
     try {
+      const reg = localRoster[idx].register_number;
+      const curStatus = localRoster[idx].status || 'Active';
+      await supabase.from('users').update({
+        status: curStatus === 'Inactive' ? 'Inactive' : 'Active',
+        name: localRoster[idx].name,
+        department: localRoster[idx].department,
+        year: localRoster[idx].year,
+        gender: localRoster[idx].gender
+      }).eq('register_number', reg);
+
       const notifRecord = {
-        id: `roster_${localRoster[idx].register_number}`,
-        title: localRoster[idx].register_number,
+        id: `roster_${reg}`,
+        title: reg,
         category: 'roster',
         type: 'roster_student',
         target_type: localRoster[idx].department || 'Computer Science',
@@ -532,12 +546,13 @@ exports.updateStudent = async (req, res) => {
         priority: localRoster[idx].gender || 'Male',
         sender: localRoster[idx].is_registered ? 'registered' : 'unregistered',
         message: JSON.stringify({
-          registerNumber: localRoster[idx].register_number,
+          registerNumber: reg,
           name: localRoster[idx].name,
           department: localRoster[idx].department,
           year: localRoster[idx].year,
           section: localRoster[idx].section,
           gender: localRoster[idx].gender,
+          status: curStatus,
           isRegistered: !!localRoster[idx].is_registered
         })
       };
@@ -547,6 +562,72 @@ exports.updateStudent = async (req, res) => {
     res.json({
       success: true,
       message: `Student "${localRoster[idx].name}" (${localRoster[idx].register_number}) updated successfully!`,
+      student: toCamelCase(localRoster[idx])
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Toggle student Active/Inactive status
+// @route   PUT /api/roster/:id/status or PATCH /api/roster/:id/status
+// @access  Private (Admin only)
+exports.toggleStudentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    let localRoster = storeInstance.getTable('college_student_roster') || [];
+    const idx = localRoster.findIndex(r => r.id === id || r.register_number === id);
+
+    if (idx === -1) {
+      return res.status(404).json({ success: false, message: 'Student not found in roster.' });
+    }
+
+    const newStatus = status 
+      ? (status.toUpperCase() === 'INACTIVE' ? 'Inactive' : 'Active')
+      : ((localRoster[idx].status || 'Active') === 'Active' ? 'Inactive' : 'Active');
+
+    localRoster[idx].status = newStatus;
+    localRoster[idx].updated_at = new Date().toISOString();
+    storeInstance.save();
+
+    const reg = localRoster[idx].register_number;
+
+    // Real-time Supabase sync
+    try {
+      await supabase.from('users').update({
+        status: newStatus
+      }).eq('register_number', reg);
+
+      const notifRecord = {
+        id: `roster_${reg}`,
+        title: reg,
+        category: 'roster',
+        type: 'roster_student',
+        target_type: localRoster[idx].department || 'Computer Science',
+        target_audience: localRoster[idx].year || 'I Year',
+        priority: localRoster[idx].gender || 'Male',
+        sender: localRoster[idx].is_registered ? 'registered' : 'unregistered',
+        message: JSON.stringify({
+          registerNumber: reg,
+          name: localRoster[idx].name,
+          department: localRoster[idx].department,
+          year: localRoster[idx].year,
+          section: localRoster[idx].section,
+          gender: localRoster[idx].gender,
+          status: newStatus,
+          isRegistered: !!localRoster[idx].is_registered
+        })
+      };
+      await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('Status toggle Supabase sync error:', e);
+    }
+
+    res.json({
+      success: true,
+      message: `Student "${localRoster[idx].name}" (${reg}) status changed to ${newStatus.toUpperCase()}`,
       student: toCamelCase(localRoster[idx])
     });
   } catch (error) {

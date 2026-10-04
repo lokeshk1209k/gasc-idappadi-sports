@@ -58,16 +58,33 @@ const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Load user from localStorage
+  // Load user from localStorage dynamically on route change or storage event
   useEffect(() => {
-    const stored = localStorage.getItem('gasc_user');
-    if (stored) {
-      try {
-        const u = JSON.parse(stored);
-        setUser(u);
-      } catch { /* ignore */ }
-    }
-  }, []);
+    const checkUser = () => {
+      const stored = localStorage.getItem('gasc_user');
+      if (stored) {
+        try {
+          const u = JSON.parse(stored);
+          setUser({
+            name: u.name || 'Student Athlete',
+            regNo: u.registerNumber || u.regNo || u.register_number || '',
+            dept: u.department || u.dept || 'Computer Science',
+            year: u.year || 'I Year',
+            email: u.email || '',
+            phone: u.phone || u.mobile || ''
+          });
+        } catch { /* ignore */ }
+      }
+    };
+
+    checkUser();
+    window.addEventListener('storage', checkUser);
+    window.addEventListener('focus', checkUser);
+    return () => {
+      window.removeEventListener('storage', checkUser);
+      window.removeEventListener('focus', checkUser);
+    };
+  }, [location.pathname]);
 
   const logout = () => {
     localStorage.removeItem('gasc_token');
@@ -88,9 +105,15 @@ const MainLayout = () => {
     );
   }
 
-  const displayName = user?.name || 'Lokesh Krishnan';
-  const displayInitials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-  const displayDept = user?.dept || 'B.Sc. Computer Science';
+  const displayName = user?.name || 'Student Athlete';
+  const displayInitials = (displayName || 'ST')
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'ST';
+  const displayDept = user?.dept || 'GASC Idappadi';
 
   return (
     <AuthContext.Provider value={{ user, setUser, logout }}>

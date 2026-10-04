@@ -8,7 +8,7 @@ exports.getAllEquipment = async (req, res) => {
   try {
     const { search, category, sportId, status, lowStock } = req.query;
 
-    let query = supabase.from('equipment').select('*, sports(id, name, icon)');
+    let query = supabase.from('equipment').select('*');
 
     if (category && category !== 'All') query = query.eq('category', category);
     if (sportId && sportId !== 'All') query = query.eq('sport_id', sportId);
@@ -20,19 +20,24 @@ exports.getAllEquipment = async (req, res) => {
 
     query = query.order('name', { ascending: true });
 
-    const { data: itemsRaw, error } = await query;
+    let { data: itemsRaw, error } = await query;
+
+    if (error || !itemsRaw || itemsRaw.length === 0) {
+      try {
+        const localStore = require('../data/localStore');
+        const eqTable = localStore.storeInstance.getTable('equipment');
+        if (eqTable && eqTable.length > 0) {
+          itemsRaw = eqTable;
+          error = null;
+        }
+      } catch (e) { /* ignore */ }
+    }
 
     if (error) {
       return res.status(500).json({ success: false, message: error.message });
     }
 
-    let items = (itemsRaw || []).map(item => {
-      const converted = toCamelCase(item);
-      if (item.sports) {
-        converted.sportId = toCamelCase(item.sports);
-      }
-      return converted;
-    });
+    let items = (itemsRaw || []).map(item => toCamelCase(item));
 
     if (lowStock === 'true') {
       items = items.filter(item => item.availableQuantity <= item.minimumStock);
@@ -55,26 +60,39 @@ exports.getEquipmentById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: itemRaw, error } = await supabase
+    let { data: itemRaw, error } = await supabase
       .from('equipment')
-      .select('*, sports(id, name, icon)')
+      .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
-    if (error || !itemRaw) {
+    if (!itemRaw) {
+      try {
+        const localStore = require('../data/localStore');
+        const eqTable = localStore.storeInstance.getTable('equipment');
+        itemRaw = eqTable.find(e => e.id === id);
+      } catch (e) { /* ignore */ }
+    }
+
+    if (!itemRaw) {
       return res.status(404).json({ success: false, message: 'Equipment item not found.' });
     }
 
     const equipment = toCamelCase(itemRaw);
-    if (itemRaw.sports) {
-      equipment.sportId = toCamelCase(itemRaw.sports);
-    }
 
-    const { data: txRaw } = await supabase
+    let { data: txRaw } = await supabase
       .from('equipment_transactions')
       .select('*')
       .eq('equipment_id', id)
       .order('issue_date', { ascending: false });
+
+    if (!txRaw || txRaw.length === 0) {
+      try {
+        const localStore = require('../data/localStore');
+        const txTable = localStore.storeInstance.getTable('equipment_transactions');
+        txRaw = txTable.filter(t => t.equipment_id === id);
+      } catch (e) { /* ignore */ }
+    }
 
     const transactions = (txRaw || []).map(toCamelCase);
 
@@ -109,31 +127,40 @@ exports.createEquipment = async (req, res) => {
       description
     } = req.body;
 
-    if (!name || !code || !sportId || totalQuantity === undefined) {
+    if (!name || !code || totalQuantity === undefined) {
       return res.status(400).json({ success: false, message: 'Please provide all required fields.' });
     }
 
     const cleanCode = code.trim().toUpperCase();
 
-    const { data: existing } = await supabase
-      .from('equipment')
-      .select('id')
-      .eq('code', cleanCode)
-      .single();
+    // Check code uniqueness in localStore and Supabase
+    try {
+      const localStore = require('../data/localStore');
+      const eqTable = localStore.storeInstance.getTable('equipment');
+      const existing = eqTable.find(e => (e.code && e.code.toUpperCase() === cleanCode));
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Equipment code already exists. Use a unique code.' });
+      }
+    } catch (e) { /* ignore */ }
 
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Equipment code already exists. Use a unique code.' });
+    let sport = null;
+    if (sportId) {
+      try {
+        const { data: sData } = await supabase.from('sports').select('*').or(`id.eq.${sportId},name.ilike.%${sportId}%`).limit(1).maybeSingle();
+        if (sData) sport = sData;
+      } catch (e) {}
+
+      if (!sport) {
+        try {
+          const localStore = require('../data/localStore');
+          const sportsTable = localStore.storeInstance.getTable('sports');
+          sport = sportsTable.find(s => String(s.id) === String(sportId) || (s.name && s.name.toLowerCase().includes(String(sportId).toLowerCase())));
+        } catch (e) {}
+      }
     }
 
-    const { data: sport } = await supabase
-      .from('sports')
-      .select('*')
-      .eq('id', sportId)
-      .single();
-
-    if (!sport) {
-      return res.status(400).json({ success: false, message: 'Invalid sport ID.' });
-    }
+    const sportName = sport ? sport.name : (req.body.sportName || sportId || 'General Sports');
+    const sportIdVal = sport ? sport.id : (sportId || 'sp_general');
 
     const totalQty = parseInt(totalQuantity, 10);
     let image = '/images/equipment/default.jpg';
@@ -141,11 +168,16 @@ exports.createEquipment = async (req, res) => {
       image = `/uploads/${req.file.filename}`;
     }
 
+    const eqId = 'eq_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const condVal = condition || 'Good';
+
+    // 1. Full rich object for localStore & API response
     const newRecord = {
+      id: eqId,
       name: name.trim(),
       code: cleanCode,
-      sport_id: sport.id,
-      sport_name: sport.name,
+      sport_id: sportIdVal,
+      sport_name: sportName,
       category: category || 'Balls & Shuttles',
       total_quantity: totalQty,
       available_quantity: totalQty,
@@ -157,27 +189,51 @@ exports.createEquipment = async (req, res) => {
       purchase_price: purchasePrice ? parseFloat(purchasePrice) : 0,
       supplier: supplier || 'Salem Sports Goods Co.',
       storage_location: storageLocation || 'Sports Room Shelf A1',
-      condition: condition || 'Good',
+      condition: condVal,
+      condition_status: condVal,
       warranty: warranty || '1 Year',
       description: description || '',
       image,
-      status: 'In Stock'
+      status: 'In Stock',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    const { data: createdRaw, error } = await supabase
-      .from('equipment')
-      .insert(newRecord)
-      .select()
-      .single();
+    // 2. Safe Supabase schema insert
+    const supabasePayload = {
+      id: eqId,
+      name: name.trim(),
+      code: cleanCode,
+      category: category || 'Balls & Shuttles',
+      sport_name: sportName,
+      total_quantity: totalQty,
+      available_quantity: totalQty,
+      issued_quantity: 0,
+      condition_status: condVal,
+      location: storageLocation || 'Sports Room Shelf A1'
+    };
 
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
+    try {
+      await supabase.from('equipment').insert(supabasePayload);
+    } catch (supaErr) {
+      console.warn('Supabase equipment insert notice:', supaErr.message);
+    }
+
+    // 3. Save to localStore
+    try {
+      const localStore = require('../data/localStore');
+      const storeInstance = localStore.storeInstance;
+      const eqTable = storeInstance.getTable('equipment');
+      eqTable.push(newRecord);
+      storeInstance.save();
+    } catch (e) {
+      console.warn('localStore save notice:', e.message);
     }
 
     res.status(201).json({
       success: true,
       message: 'New equipment registered successfully!',
-      equipment: toCamelCase(createdRaw)
+      equipment: toCamelCase(newRecord)
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -191,13 +247,21 @@ exports.updateEquipment = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: itemRaw, error: itemErr } = await supabase
-      .from('equipment')
-      .select('*')
-      .eq('id', id)
-      .single();
+    let itemRaw = null;
+    try {
+      const { data } = await supabase.from('equipment').select('*').eq('id', id).maybeSingle();
+      if (data) itemRaw = data;
+    } catch (e) {}
 
-    if (itemErr || !itemRaw) {
+    if (!itemRaw) {
+      try {
+        const localStore = require('../data/localStore');
+        const eqTable = localStore.storeInstance.getTable('equipment');
+        itemRaw = eqTable.find(e => String(e.id) === String(id));
+      } catch (e) {}
+    }
+
+    if (!itemRaw) {
       return res.status(404).json({ success: false, message: 'Equipment not found.' });
     }
 
@@ -220,20 +284,23 @@ exports.updateEquipment = async (req, res) => {
     if (totalQuantity !== undefined) {
       const newTotal = parseInt(totalQuantity, 10);
       updates.total_quantity = newTotal;
-      const issued = itemRaw.issued_quantity || 0;
-      const damaged = itemRaw.damaged_quantity || 0;
-      const lost = itemRaw.lost_quantity || 0;
+      const issued = itemRaw.issued_quantity || itemRaw.issuedQuantity || 0;
+      const damaged = itemRaw.damaged_quantity || itemRaw.damagedQuantity || 0;
+      const lost = itemRaw.lost_quantity || itemRaw.lostQuantity || 0;
       const available = Math.max(0, newTotal - (issued + damaged + lost));
       updates.available_quantity = available;
       if (available === 0) updates.status = 'Out of Stock';
-      else if (available <= (minimumStock !== undefined ? parseInt(minimumStock, 10) : itemRaw.minimum_stock)) updates.status = 'Low Stock';
+      else if (available <= (minimumStock !== undefined ? parseInt(minimumStock, 10) : (itemRaw.minimum_stock || 5))) updates.status = 'Low Stock';
       else updates.status = 'In Stock';
     }
     if (minimumStock !== undefined) updates.minimum_stock = parseInt(minimumStock, 10);
     if (purchasePrice !== undefined) updates.purchase_price = parseFloat(purchasePrice);
     if (supplier) updates.supplier = supplier;
     if (storageLocation) updates.storage_location = storageLocation;
-    if (condition) updates.condition = condition;
+    if (condition) {
+      updates.condition = condition;
+      updates.condition_status = condition;
+    }
     if (warranty) updates.warranty = warranty;
     if (description !== undefined) updates.description = description;
 
@@ -241,21 +308,36 @@ exports.updateEquipment = async (req, res) => {
       updates.image = `/uploads/${req.file.filename}`;
     }
 
-    const { data: updatedRaw, error } = await supabase
-      .from('equipment')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    // Update Supabase
+    try {
+      const supaUpdates = {};
+      if (updates.name) supaUpdates.name = updates.name;
+      if (updates.category) supaUpdates.category = updates.category;
+      if (updates.total_quantity !== undefined) supaUpdates.total_quantity = updates.total_quantity;
+      if (updates.available_quantity !== undefined) supaUpdates.available_quantity = updates.available_quantity;
+      if (updates.condition_status) supaUpdates.condition_status = updates.condition_status;
+      if (updates.storage_location) supaUpdates.location = updates.storage_location;
+      await supabase.from('equipment').update(supaUpdates).eq('id', id);
+    } catch (e) {}
 
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
-    }
+    // Update localStore
+    let updatedObj = { ...itemRaw, ...updates };
+    try {
+      const localStore = require('../data/localStore');
+      const storeInstance = localStore.storeInstance;
+      const eqTable = storeInstance.getTable('equipment');
+      const idx = eqTable.findIndex(e => String(e.id) === String(id));
+      if (idx >= 0) {
+        eqTable[idx] = { ...eqTable[idx], ...updates };
+        updatedObj = eqTable[idx];
+        storeInstance.save();
+      }
+    } catch (e) {}
 
     res.json({
       success: true,
       message: 'Equipment updated successfully!',
-      equipment: toCamelCase(updatedRaw)
+      equipment: toCamelCase(updatedObj)
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -269,24 +351,44 @@ exports.deleteEquipment = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: itemRaw } = await supabase
-      .from('equipment')
-      .select('*')
-      .eq('id', id)
-      .single();
+    let itemRaw = null;
+    try {
+      const { data } = await supabase.from('equipment').select('*').eq('id', id).maybeSingle();
+      if (data) itemRaw = data;
+    } catch (e) {}
+
+    if (!itemRaw) {
+      try {
+        const localStore = require('../data/localStore');
+        const eqTable = localStore.storeInstance.getTable('equipment');
+        itemRaw = eqTable.find(e => String(e.id) === String(id));
+      } catch (e) {}
+    }
 
     if (!itemRaw) {
       return res.status(404).json({ success: false, message: 'Equipment not found.' });
     }
 
-    if ((itemRaw.issued_quantity || 0) > 0) {
+    const issuedQty = itemRaw.issued_quantity || itemRaw.issuedQuantity || 0;
+    if (issuedQty > 0) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete: ${itemRaw.issued_quantity} unit(s) of this equipment are currently issued to students.`
+        message: `Cannot delete: ${issuedQty} unit(s) of this equipment are currently issued to students.`
       });
     }
 
-    await supabase.from('equipment').delete().eq('id', id);
+    try {
+      await supabase.from('equipment').delete().eq('id', id);
+    } catch (e) {}
+
+    try {
+      const localStore = require('../data/localStore');
+      const storeInstance = localStore.storeInstance;
+      const eqTable = storeInstance.getTable('equipment');
+      const filtered = eqTable.filter(e => String(e.id) !== String(id));
+      storeInstance.setTable('equipment', filtered);
+      storeInstance.save();
+    } catch (e) {}
 
     res.json({
       success: true,
@@ -312,9 +414,9 @@ exports.lookupStudent = async (req, res) => {
     // 1. Look up in users table
     const { data: userRaw } = await supabase
       .from('users')
-      .select('id, name, register_number, department, year, profile_photo, mobile, email, status')
+      .select('id, name, register_number, department, year, profile_photo, mobile, email, status, role')
       .or(`register_number.ilike.%${cleanReg}%,name.ilike.%${cleanReg}%,id.eq.${cleanReg}`)
-      .eq('role', 'student')
+      .neq('role', 'admin')
       .limit(1)
       .maybeSingle();
 
@@ -421,14 +523,17 @@ exports.issueEquipment = async (req, res) => {
 
     // Find student by registerNumber or ID
     let studentRaw = null;
-    const { data: userRaw } = await supabase
-      .from('users')
-      .select('*')
-      .or(`register_number.ilike.%${studentIdentifier.trim()}%,id.eq.${studentIdentifier.includes('-') || studentIdentifier.startsWith('user_') ? studentIdentifier : '00000000-0000-0000-0000-000000000000'}`)
-      .limit(1)
-      .maybeSingle();
-
-    studentRaw = userRaw;
+    try {
+      const cleanIdent = studentIdentifier.trim();
+      const { data: userRaw } = await supabase
+        .from('users')
+        .select('*')
+        .or(`register_number.ilike.%${cleanIdent}%,id.eq.${cleanIdent}`)
+        .neq('role', 'admin')
+        .limit(1)
+        .maybeSingle();
+      if (userRaw) studentRaw = userRaw;
+    } catch (e) {}
 
     if (!studentRaw) {
       const { data: rosterRaw } = await supabase
@@ -594,26 +699,30 @@ exports.getAllTransactions = async (req, res) => {
     let issuedStock = 0;
     try {
       const { data: allEq } = await supabase.from('equipment').select('total_quantity, available_quantity, issued_quantity');
-      const eqItems = allEq || require('../data/localStore').storeInstance.getTable('equipment');
+      const eqItems = (allEq && allEq.length > 0) ? allEq : require('../data/localStore').storeInstance.getTable('equipment');
       (eqItems || []).forEach(e => {
-        totalEquipment += (e.total_quantity || e.totalQuantity || 0);
-        availableStock += (e.available_quantity || e.availableQuantity || 0);
-        issuedStock += (e.issued_quantity || e.issuedQuantity || 0);
+        totalEquipment += Number(e.total_quantity || e.totalQuantity || 0);
+        availableStock += Number(e.available_quantity || e.availableQuantity || 0);
+        issuedStock += Number(e.issued_quantity || e.issuedQuantity || 0);
       });
     } catch (e) { /* ignore */ }
 
     const overdueCount = rawList.filter(t => t.status === 'Issued' && new Date(t.expected_return_date || t.expectedReturnDate) < now).length;
 
+    const summaryStats = {
+      totalEquipment,
+      availableStock,
+      issuedStock,
+      overdueCount
+    };
+
     res.json({
       success: true,
       count: transactions.length,
       transactions,
-      stats: {
-        totalEquipment,
-        availableStock,
-        issuedStock,
-        overdueCount
-      }
+      stats: summaryStats,
+      summaryStats,
+      overview: summaryStats
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

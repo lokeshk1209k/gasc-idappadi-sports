@@ -8,6 +8,8 @@ router.post('/upload', verifyToken, requireAdmin, upload.single('file'), rosterC
 router.get('/', verifyToken, requireAdmin, rosterController.getRosterStudents);
 router.get('/template', verifyToken, requireAdmin, rosterController.downloadTemplate);
 router.post('/manual', verifyToken, requireAdmin, rosterController.addSingleStudent);
+router.put('/:id/status', verifyToken, requireAdmin, rosterController.toggleStudentStatus);
+router.patch('/:id/status', verifyToken, requireAdmin, rosterController.toggleStudentStatus);
 router.put('/:id', verifyToken, requireAdmin, rosterController.updateStudent);
 router.delete('/:id', verifyToken, requireAdmin, rosterController.deleteStudent);
 

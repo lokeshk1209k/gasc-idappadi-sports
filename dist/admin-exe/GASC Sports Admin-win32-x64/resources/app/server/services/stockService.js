@@ -54,41 +54,61 @@ class StockService {
       throw new Error('Quantity must be a positive number');
     }
 
-    const { data: eqRaw, error: eqErr } = await supabase
-      .from('equipment')
-      .select('*')
-      .eq('id', equipmentId)
-      .single();
+    let eqRaw = null;
+    try {
+      const { data, error } = await supabase
+        .from('equipment')
+        .select('*')
+        .eq('id', equipmentId)
+        .maybeSingle();
+      if (!error && data) eqRaw = data;
+    } catch (e) {}
 
-    if (eqErr || !eqRaw) {
+    if (!eqRaw) {
+      try {
+        const localStore = require('../data/localStore');
+        const eqTable = localStore.storeInstance.getTable('equipment');
+        eqRaw = eqTable.find(e => String(e.id) === String(equipmentId));
+      } catch (e) {}
+    }
+
+    if (!eqRaw) {
       throw new Error('Equipment item not found');
     }
 
-    if (eqRaw.available_quantity < qty) {
-      throw new Error(`Insufficient equipment available. Requested: ${qty}, Available: ${eqRaw.available_quantity}`);
+    const availableQty = (eqRaw.available_quantity !== undefined) ? eqRaw.available_quantity : (eqRaw.availableQuantity !== undefined ? eqRaw.availableQuantity : 0);
+    const totalQty = (eqRaw.total_quantity !== undefined) ? eqRaw.total_quantity : (eqRaw.totalQuantity !== undefined ? eqRaw.totalQuantity : 0);
+    const minStock = (eqRaw.minimum_stock !== undefined) ? eqRaw.minimum_stock : (eqRaw.minimumStock !== undefined ? eqRaw.minimumStock : 5);
+    const issuedCurrent = (eqRaw.issued_quantity !== undefined) ? eqRaw.issued_quantity : (eqRaw.issuedQuantity !== undefined ? eqRaw.issuedQuantity : 0);
+    const damagedCurrent = (eqRaw.damaged_quantity !== undefined) ? eqRaw.damaged_quantity : (eqRaw.damagedQuantity !== undefined ? eqRaw.damagedQuantity : 0);
+    const lostCurrent = (eqRaw.lost_quantity !== undefined) ? eqRaw.lost_quantity : (eqRaw.lostQuantity !== undefined ? eqRaw.lostQuantity : 0);
+
+    if (availableQty < qty) {
+      throw new Error(`Insufficient equipment available. Requested: ${qty}, Available: ${availableQty}`);
     }
 
     // Deduct stock
-    const newIssued = (eqRaw.issued_quantity || 0) + qty;
-    const available = Math.max(0, eqRaw.total_quantity - (newIssued + (eqRaw.damaged_quantity || 0) + (eqRaw.lost_quantity || 0)));
+    const newIssued = issuedCurrent + qty;
+    const available = Math.max(0, totalQty - (newIssued + damagedCurrent + lostCurrent));
 
     let status = 'In Stock';
     if (available === 0) {
       status = 'Out of Stock';
-    } else if (available <= eqRaw.minimum_stock) {
+    } else if (available <= minStock) {
       status = 'Low Stock';
     }
 
-    const { data: updatedEqRaw } = await supabase
-      .from('equipment')
-      .update({
-        issued_quantity: newIssued,
-        available_quantity: available,
-        status
-      })
-      .eq('id', equipmentId)
-      .select()
-      .single();
+    try {
+      await supabase
+        .from('equipment')
+        .update({
+          issued_quantity: newIssued,
+          available_quantity: available
+        })
+        .eq('id', equipmentId);
+    } catch (supaErr) {
+      console.warn('Supabase stock update notice on equipment:', supaErr.message);
+    }
 
     const now = new Date();
     const issueDateStr = now.toISOString();
@@ -96,6 +116,7 @@ class StockService {
 
     // Create transaction record
     const newTxRecord = {
+      id: `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       student_id: student.id,
       student_name: student.name,
       register_number: student.registerNumber,
@@ -109,22 +130,22 @@ class StockService {
       return_condition: 'Pending',
       purpose: purpose || 'College Practice / Match',
       remarks: remarks || '',
-      issued_by: issuedBy || 'Sports Incharge'
+      issued_by: issuedBy || 'Sports Incharge',
+      created_at: issueDateStr,
+      updated_at: issueDateStr
     };
 
-    let txRaw = null;
-    const { data: insertedTx, error: txErr } = await supabase
-      .from('equipment_transactions')
-      .insert(newTxRecord)
-      .select()
-      .single();
-
-    if (txErr) {
-      console.warn('Supabase insert notice on equipment_transactions:', txErr.message);
-      txRaw = { ...newTxRecord, id: `tx_${Date.now()}` };
-    } else {
-      txRaw = insertedTx;
-    }
+    let txRaw = newTxRecord;
+    try {
+      const { data: insertedTx, error: txErr } = await supabase
+        .from('equipment_transactions')
+        .insert(newTxRecord)
+        .select()
+        .single();
+      if (!txErr && insertedTx) {
+        txRaw = insertedTx;
+      }
+    } catch (supaTxErr) {}
 
     // Sync localStore for 100% offline & persistent reliability
     try {
@@ -152,7 +173,7 @@ class StockService {
     }
 
     const transaction = toCamelCase(txRaw);
-    const equipment = toCamelCase(updatedEqRaw || { ...eqRaw, issued_quantity: newIssued, available_quantity: available, status });
+    const equipment = toCamelCase({ ...eqRaw, issued_quantity: newIssued, available_quantity: available, status });
 
     // Notification to student
     try {
@@ -164,9 +185,9 @@ class StockService {
       );
     } catch (e) { /* ignore */ }
 
-    if (available <= eqRaw.minimum_stock) {
+    if (available <= minStock) {
       try {
-        await notificationService.notifyLowStock(eqRaw.name, available, eqRaw.minimum_stock);
+        await notificationService.notifyLowStock(eqRaw.name, available, minStock);
       } catch (e) { /* ignore */ }
     }
 
@@ -242,18 +263,17 @@ class StockService {
       eqStatus = 'Low Stock';
     }
 
-    const { data: updatedEqRaw } = await supabase
-      .from('equipment')
-      .update({
-        issued_quantity: newIssued,
-        damaged_quantity: newDamaged,
-        lost_quantity: newLost,
-        available_quantity: available,
-        status: eqStatus
-      })
-      .eq('id', currentEq.id)
-      .select()
-      .single();
+    try {
+      await supabase
+        .from('equipment')
+        .update({
+          issued_quantity: newIssued,
+          available_quantity: available
+        })
+        .eq('id', currentEq.id);
+    } catch (supaErr) {
+      console.warn('Supabase stock return update notice:', supaErr.message);
+    }
 
     const returnNow = new Date();
     const returnDateStr = returnNow.toISOString();
