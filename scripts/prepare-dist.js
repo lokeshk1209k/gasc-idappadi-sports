@@ -113,6 +113,35 @@ console.log('[prepare-dist] 2. Merging client/public assets to root dist and stu
       console.warn('[prepare-dist] Could not export data payload:', e.message);
     }
   }
+
+  // Create static route fallbacks for SPA paths (bulletproof 404 prevention on Vercel)
+  const indexHtmlPath = path.join(targetDir, 'index.html');
+  if (fs.existsSync(indexHtmlPath)) {
+    const indexHtml = fs.readFileSync(indexHtmlPath, 'utf8');
+    fs.writeFileSync(path.join(targetDir, '404.html'), indexHtml, 'utf8');
+
+    const spaRoutes = [
+      'student/register',
+      'student/login',
+      'student/dashboard',
+      'student/competitions',
+      'student/tournaments',
+      'student/sports',
+      'student/profile',
+      'student/equipment',
+      'student/gallery',
+      'student/notifications',
+      'student/settings'
+    ];
+
+    spaRoutes.forEach(r => {
+      const routeDir = path.join(targetDir, r);
+      if (!fs.existsSync(routeDir)) {
+        fs.mkdirSync(routeDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(routeDir, 'index.html'), indexHtml, 'utf8');
+    });
+  }
 });
 
 console.log('[prepare-dist] ✅ Both dist and student-client/dist are ready for deployment!');
