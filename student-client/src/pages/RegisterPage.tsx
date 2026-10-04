@@ -47,6 +47,7 @@ const RegisterPage: React.FC = () => {
 
   // Step 3: OTP Verification
   const [otpValues, setOtpValues] = useState<string[]>(['', '', '', '', '', '']);
+  const [expectedOtp, setExpectedOtp] = useState<string>('');
   const [otpToken, setOtpToken] = useState<string | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -286,6 +287,7 @@ const RegisterPage: React.FC = () => {
       // 2. Generate 6-digit OTP
       const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
       const expTime = Date.now() + 10 * 60 * 1000;
+      setExpectedOtp(generatedOtp);
 
       // 3. Dispatch Email via API and check status
       const otpRes = await fetch('/api/auth/send-otp', {
@@ -406,31 +408,32 @@ const RegisterPage: React.FC = () => {
       // 1. Verify OTP
       let isOtpValid = false;
 
-      if (otpToken && otpToken.includes(enteredOtp)) {
+      // Check 1: Direct match with session OTP
+      if (expectedOtp && enteredOtp.trim() === expectedOtp.trim()) {
         isOtpValid = true;
       }
 
-      if (!isOtpValid) {
+      // Check 2: Verify via backend /api/auth/verify-otp HMAC Token
+      if (!isOtpValid && otpToken) {
         try {
-          const notifRes = await fetch(`${SUPABASE_REST}/notifications?title=eq.STUDENT_REGISTRATION_OTP&order=created_at.desc&limit=10`, {
-            headers: {
-              'apikey': SB_KEY,
-              'Authorization': `Bearer ${SB_KEY}`
-            }
+          const vRes = await fetch('/api/auth/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: cleanEmail,
+              otp: enteredOtp.trim(),
+              otpToken: otpToken
+            })
           });
-          const notifs = await notifRes.json();
-          if (notifs && Array.isArray(notifs)) {
-            for (const n of notifs) {
-              try {
-                const p = JSON.parse(n.message);
-                if (p.email?.toLowerCase() === cleanEmail && p.otp === enteredOtp && Date.now() <= p.expiresAt) {
-                  isOtpValid = true;
-                  break;
-                }
-              } catch (e) {}
+          if (vRes.ok) {
+            const vData = await vRes.json();
+            if (vData && vData.success) {
+              isOtpValid = true;
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn('API verify-otp notice:', e);
+        }
       }
 
       if (!isOtpValid) {
