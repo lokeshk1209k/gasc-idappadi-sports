@@ -170,7 +170,8 @@
   async function pollStatus() {
     try {
       const r = await fetch("/api/sync/status");
-      const data = await r.json();
+      let data = await r.json();
+      if (!data || typeof data !== "object") data = {};
       if (typeof navigator !== "undefined" && typeof navigator.onLine === "boolean") {
         // Laptop network state is absolute ground truth
         data.isOnline = navigator.onLine;
@@ -229,6 +230,7 @@
     if (IS_ELECTRON && ipcRenderer) {
       // Listen for IPC messages from main process
       ipcRenderer.on("sync:status", (event, data) => {
+        if (!data || typeof data !== "object") data = {};
         if (typeof navigator !== "undefined" && typeof navigator.onLine === "boolean") {
           data.isOnline = navigator.onLine;
         }
@@ -239,7 +241,8 @@
       });
       // Request current status from backend
       ipcRenderer.invoke("sync:getStatus").then((data) => {
-        if (data && typeof navigator !== "undefined" && typeof navigator.onLine === "boolean") {
+        if (!data || typeof data !== "object") data = {};
+        if (typeof navigator !== "undefined" && typeof navigator.onLine === "boolean") {
           data.isOnline = navigator.onLine;
         }
         applyStatus(data);
