@@ -35,28 +35,32 @@ const DashboardPage = () => {
     const fetchEvents = async () => {
       try {
         let res = await fetch('/api/competitions');
-        if (!res.ok) {
-          res = await fetch('/competitions.json');
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.competitions || data.data || (Array.isArray(data) ? data : []);
+          if (Array.isArray(list)) {
+            setEvents(list.slice(0, 4));
+          }
         }
-        const data = await res.json();
-        const list = data.competitions || data.data || (Array.isArray(data) ? data : []);
-        if (Array.isArray(list) && list.length > 0) {
-          setEvents(list.slice(0, 4));
-        }
-      } catch { /* use fallback */ }
+      } catch { /* keep existing */ }
       setLoading(false);
     };
+
     fetchEvents();
+    const interval = setInterval(fetchEvents, 3000);
+    window.addEventListener('storage', fetchEvents);
+    window.addEventListener('gasc_tournaments_updated', fetchEvents);
+    window.addEventListener('focus', fetchEvents);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', fetchEvents);
+      window.removeEventListener('gasc_tournaments_updated', fetchEvents);
+      window.removeEventListener('focus', fetchEvents);
+    };
   }, []);
 
-  const fallbackEvents = [
-    { _id: '1', name: 'Cricket Championship', date: 'Oct 12, 2026', venue: 'GASC Ground', sport: 'Cricket', status: 'Open' },
-    { _id: '2', name: 'Badminton Tournament', date: 'Oct 14, 2026', venue: 'Indoor Stadium', sport: 'Badminton', status: 'Open' },
-    { _id: '3', name: 'Football League', date: 'Oct 18, 2026', venue: 'College Ground', sport: 'Football', status: 'Open' },
-    { _id: '4', name: 'Athletics Meet 2026', date: 'Oct 20, 2026', venue: 'Sports Complex', sport: 'Athletics', status: 'Upcoming' },
-  ];
-
-  const displayEvents = events.length > 0 ? events : fallbackEvents;
+  const displayEvents = events;
 
   const sportEmoji: Record<string, string> = {
     Cricket: '🏏', Badminton: '🏸', Football: '⚽', Basketball: '🏀',
@@ -164,47 +168,56 @@ const DashboardPage = () => {
                 <div key={i} style={{ height: 60, borderRadius: 10, background: 'rgba(55,140,255,0.06)', backgroundImage: 'linear-gradient(90deg, rgba(55,140,255,0.06) 25%, rgba(55,140,255,0.12) 50%, rgba(55,140,255,0.06) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
               ))}
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {displayEvents.map((ev: any) => (
-                <div
-                  key={ev._id || ev.id}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, background: 'rgba(8,27,53,0.5)', border: '1px solid rgba(55,140,255,0.10)', transition: 'all 0.2s', cursor: 'pointer' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(55,140,255,0.35)'; (e.currentTarget as HTMLElement).style.background = 'rgba(22,119,255,0.06)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(55,140,255,0.10)'; (e.currentTarget as HTMLElement).style.background = 'rgba(8,27,53,0.5)'; }}
-                >
-                  {/* Sport emoji */}
-                  <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(22,119,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-                    {sportEmoji[ev.sport] || sportEmoji[ev.sportName] || '🏅'}
-                  </div>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: 13, color: '#FFFFFF', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {ev.name || ev.title}
-                    </p>
-                    <div style={{ display: 'flex', gap: 10, fontSize: 11, color: '#6E86A5' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <Clock style={{ width: 11, height: 11 }} />
-                        {ev.date || ev.startDate || 'TBD'}
-                      </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <MapPin style={{ width: 11, height: 11 }} />
-                        {ev.venue || 'GASC Campus'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <Link
-                    to="/student/tournaments"
-                    className="btn-outline"
-                    style={{ padding: '6px 12px', fontSize: 11, flexShrink: 0 }}
-                  >
-                    Register
-                  </Link>
-                </div>
-              ))}
+          ) : displayEvents.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px 10px', color: '#6E86A5', fontSize: 13 }}>
+              No upcoming sports events at the moment.
             </div>
-          )}
+          ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {displayEvents.map((ev: any) => {
+                  const sName = ev.sportName || ev.sport || ev.name || '';
+                  const dStr = ev.date ? (ev.date.includes('T') ? new Date(ev.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ev.date) : 'TBD';
+                  return (
+                    <div
+                      key={ev._id || ev.id}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, background: 'rgba(8,27,53,0.5)', border: '1px solid rgba(55,140,255,0.10)', transition: 'all 0.2s', cursor: 'pointer' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(55,140,255,0.35)'; (e.currentTarget as HTMLElement).style.background = 'rgba(22,119,255,0.06)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(55,140,255,0.10)'; (e.currentTarget as HTMLElement).style.background = 'rgba(8,27,53,0.5)'; }}
+                    >
+                      {/* Sport emoji */}
+                      <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(22,119,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                        {sportEmoji[sName] || sportEmoji[ev.name] || '🏅'}
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: 13, color: '#FFFFFF', margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {ev.name || ev.title}
+                        </p>
+                        <div style={{ display: 'flex', gap: 10, fontSize: 11, color: '#6E86A5' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <Clock style={{ width: 11, height: 11 }} />
+                            {dStr}
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <MapPin style={{ width: 11, height: 11 }} />
+                            {ev.venue || 'GASC Campus'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Link
+                        to="/student/tournaments"
+                        className="btn-outline"
+                        style={{ padding: '6px 12px', fontSize: 11, flexShrink: 0 }}
+                      >
+                        Register
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          }
         </div>
       </div>
 

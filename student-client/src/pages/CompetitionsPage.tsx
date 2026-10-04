@@ -58,59 +58,6 @@ interface Tournament {
   sports: SportCompetition[];
 }
 
-const DEFAULT_SPORTS: SportCompetition[] = [
-  { id: 'spark_cricket', name: 'Men\'s Cricket Championship', sportName: 'Cricket', type: 'Team Event', date: '2026-10-12', registrationEnd: '2026-10-08', venue: 'College Main Ground', maxParticipants: 60, currentRegistrations: 14, status: 'Registration Open', description: 'Inter-department T20 Cricket championship.' },
-  { id: 'spark_football', name: 'Inter-Dept Football League', sportName: 'Football', type: 'Team Event', date: '2026-10-13', registrationEnd: '2026-10-09', venue: 'Football Field', maxParticipants: 48, currentRegistrations: 22, status: 'Registration Open', description: '11-a-side football tournament.' },
-  { id: 'spark_volleyball', name: 'Volleyball Rolling Trophy', sportName: 'Volleyball', type: 'Team Event', date: '2026-10-14', registrationEnd: '2026-10-10', venue: 'Volleyball Court', maxParticipants: 36, currentRegistrations: 18, status: 'Registration Open', description: 'Annual volleyball championship.' },
-  { id: 'spark_basketball', name: 'Basketball Championship', sportName: 'Basketball', type: 'Team Event', date: '2026-10-14', registrationEnd: '2026-10-10', venue: 'Basketball Court', maxParticipants: 40, currentRegistrations: 12, status: 'Registration Open', description: 'Full court 5v5 tournament.' },
-  { id: 'spark_badminton', name: 'Badminton Singles & Doubles', sportName: 'Badminton', type: 'Individual Event', date: '2026-10-11', registrationEnd: '2026-10-07', venue: 'Indoor Stadium Court 1', maxParticipants: 32, currentRegistrations: 16, status: 'Registration Open', description: 'Badminton singles and doubles competition.' },
-  { id: 'spark_kabaddi', name: 'Kabaddi State Selection', sportName: 'Kabaddi', type: 'Team Event', date: '2026-10-15', registrationEnd: '2026-10-11', venue: 'Kabaddi Mud Mat', maxParticipants: 40, currentRegistrations: 28, status: 'Registration Open', description: 'Inter-department Kabaddi tournament.' },
-  { id: 'spark_athletics', name: '100m Track Sprint', sportName: 'Athletics', type: 'Individual Event', date: '2026-10-10', registrationEnd: '2026-10-06', venue: '400m Track Field', maxParticipants: 24, currentRegistrations: 8, status: 'Registration Open', description: '100m track sprint event.' },
-  { id: 'spark_handball', name: 'Handball Championship', sportName: 'Handball', type: 'Team Event', date: '2026-10-15', registrationEnd: '2026-10-11', venue: 'Outdoor Handball Court', maxParticipants: 30, currentRegistrations: 10, status: 'Registration Open', description: 'Handball team event.' },
-  { id: 'spark_throwball', name: 'Women\'s Throwball Cup', sportName: 'Throwball', type: 'Team Event', date: '2026-10-12', registrationEnd: '2026-10-08', venue: 'Throwball Court', maxParticipants: 36, currentRegistrations: 15, status: 'Registration Open', description: 'Inter-department women throwball tournament.' },
-  { id: 'spark_tennis', name: 'Lawn Tennis Singles', sportName: 'Tennis', type: 'Individual Event', date: '2026-10-13', registrationEnd: '2026-10-09', venue: 'Lawn Tennis Court', maxParticipants: 16, currentRegistrations: 6, status: 'Registration Open', description: 'Lawn tennis singles competition.' },
-];
-
-const DEFAULT_TOURNAMENT: Tournament = {
-  id: 'tour_spark_2026',
-  tournamentName: 'SPARK 2026',
-  description: 'Annual College Sports Fest featuring 10 major sports competitions.',
-  startDate: '2026-10-10',
-  endDate: '2026-10-15',
-  venue: 'GASC Idappadi Sports Complex',
-  bannerImage: '/images/sports/tournament.png',
-  status: 'Registration Open',
-  sports: DEFAULT_SPORTS
-};
-
-const FLASH_TOURNAMENT: Tournament = {
-  id: 'tour_flash',
-  tournamentName: 'FLASH',
-  description: 'Inter-College Kabaddi Tournament and Zonal State Selection Trials.',
-  startDate: '2026-10-14',
-  endDate: '2026-10-18',
-  venue: 'GASC Idappadi Sports Ground',
-  bannerImage: '/images/sports/kabaddi.png',
-  status: 'Registration Open',
-  sports: [
-    {
-      id: 'id_1791026219551_yosjs8',
-      name: 'Kabaddi',
-      sportName: 'Kabaddi',
-      type: 'Team Event',
-      date: 'Oct 14, 2026',
-      startTime: '09:00 AM',
-      endTime: '05:00 PM',
-      registrationEnd: 'Oct 10, 2026',
-      venue: 'GASC Idappadi Sports Ground',
-      maxParticipants: 40,
-      currentRegistrations: 12,
-      status: 'Registration Open',
-      description: 'Zonal collegiate Kabaddi tournament with team selection.'
-    }
-  ]
-};
-
 const sportEmoji: Record<string, string> = {
   Cricket: '🏏', Football: '⚽', Volleyball: '🏐', Basketball: '🏀',
   Badminton: '🏸', Kabaddi: '🤼', Athletics: '🏃', Handball: '🤾',
@@ -118,56 +65,13 @@ const sportEmoji: Record<string, string> = {
 };
 
 const getStoredTournaments = (): Tournament[] => {
-  const baseMap: Record<string, Tournament> = {
-    'FLASH': { ...FLASH_TOURNAMENT, sports: [...FLASH_TOURNAMENT.sports] },
-    'SPARK 2026': { ...DEFAULT_TOURNAMENT, sports: [...DEFAULT_TOURNAMENT.sports] }
-  };
-
   try {
-    const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-    if (Array.isArray(custom) && custom.length > 0) {
-      custom.forEach((c: any, idx: number) => {
-        const tName = c.tournamentName || c.tournament_name || (c.name || '').split('-')[0].trim() || 'Collegiate Tournament';
-        const sName = c.sportName || c.name || 'General';
-        const sportItem: SportCompetition = {
-          id: String(c.id || c._id || `custom_sp_${idx}`),
-          name: c.name || `${sName} Event`,
-          sportName: sName,
-          type: (c.type && c.type.includes('Team')) ? 'Team Event' : 'Individual Event',
-          date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 15, 2026',
-          startTime: c.startTime || '09:00 AM',
-          endTime: c.endTime || '05:00 PM',
-          registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
-          venue: c.venue || 'GASC Idappadi Sports Ground',
-          maxParticipants: Number(c.maxParticipants) || 50,
-          currentRegistrations: c.currentRegistrations || 0,
-          status: c.status || 'Registration Open',
-          description: c.description || `${sName} competition inside ${tName}.`
-        };
-
-        if (baseMap[tName]) {
-          const already = baseMap[tName].sports.some(s => s.id === sportItem.id || s.name === sportItem.name);
-          if (!already) {
-            baseMap[tName].sports.unshift(sportItem);
-          }
-        } else {
-          baseMap[tName] = {
-            id: c.tournamentId || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
-            tournamentName: tName,
-            description: c.description || `Annual collegiate ${tName} event.`,
-            startDate: c.date ? String(c.date).split('T')[0] : '2026-10-15',
-            endDate: c.registrationEnd ? String(c.registrationEnd).split('T')[0] : '2026-10-20',
-            venue: c.venue || 'GASC Idappadi Sports Ground',
-            bannerImage: c.bannerImage || '/images/sports/tournament.png',
-            status: c.status || 'Registration Open',
-            sports: [sportItem]
-          };
-        }
-      });
+    const cached = JSON.parse(localStorage.getItem('gasc_tournaments_cache') || '[]');
+    if (Array.isArray(cached) && cached.length > 0) {
+      return cached;
     }
   } catch {}
-
-  return Object.values(baseMap);
+  return [];
 };
 
 const CompetitionsPage = () => {
@@ -294,39 +198,47 @@ const CompetitionsPage = () => {
   }, []);
 
   // ── 2. Fetch Tournaments and Group Sports ──────────────────────────────────
+  // ── 2. Fetch Tournaments and Group Sports ──────────────────────────────────
   const fetchTournaments = async () => {
     try {
       let rawList: any[] = [];
+      let apiTournaments: any[] = [];
       try {
         const res = await fetch('/api/competitions');
         const cType = res.headers.get('content-type') || '';
         if (res.ok && cType.includes('application/json')) {
           const data = await res.json();
           rawList = data.competitions || data.data || (Array.isArray(data) ? data : []);
-        } else {
-          throw new Error('Static fallback needed');
+          apiTournaments = data.tournaments || [];
         }
-      } catch {
-        try {
-          const fRes = await fetch('/competitions.json');
-          const fData = await fRes.json();
-          rawList = fData.competitions || [];
-        } catch {}
+      } catch (err) {
+        console.warn('API fetch competitions notice:', err);
       }
 
-      // Merge with custom tournaments from localStorage
-      try {
-        const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-        if (Array.isArray(custom) && custom.length > 0) {
-          rawList = [...custom, ...rawList];
-        }
-      } catch {}
-
-      if (rawList.length > 0) {
+      if (rawList.length > 0 || apiTournaments.length > 0) {
         const groupMap: Record<string, Tournament> = {};
 
+        // 1. Register parent tournaments first so deleting a sport NEVER deletes the tournament
+        apiTournaments.forEach((t: any) => {
+          const tName = (t.name || t.tournament_name || t.tournamentName || '').trim();
+          if (tName) {
+            groupMap[tName] = {
+              id: t.id || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+              tournamentName: tName,
+              description: t.description || `Official ${tName} Tournament featuring collegiate sports competitions.`,
+              startDate: t.date ? new Date(t.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
+              endDate: (t.registration_end || t.registrationEnd) ? new Date(t.registration_end || t.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 20, 2026',
+              venue: t.venue || 'GASC Idappadi Sports Ground',
+              bannerImage: t.banner_image || t.bannerImage || '/images/sports/tournament.png',
+              status: t.status || 'Registration Open',
+              sports: []
+            };
+          }
+        });
+
+        // 2. Put competitions inside their parent tournament
         rawList.forEach((c: any) => {
-          const tName = c.tournamentName || c.tournament_name || (c.name || '').split('-')[0].trim() || 'SPARK 2026';
+          const tName = (c.tournamentName || c.tournament_name || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'Collegiate Tournament').trim();
           const tId = c.tournamentId || c.tournament_id || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
           const sName = c.sportName || c.sport_name || (c.sportId?.name) || c.name || 'General';
 
@@ -334,11 +246,11 @@ const CompetitionsPage = () => {
             groupMap[tName] = {
               id: tId,
               tournamentName: tName,
-              description: c.description || 'Annual College Sports Tournament with multiple sports competitions.',
-              startDate: c.date ? new Date(c.date).toISOString().split('T')[0] : '2026-10-10',
-              endDate: c.registrationEnd ? new Date(c.registrationEnd).toISOString().split('T')[0] : '2026-10-15',
-              venue: c.venue || 'GASC Idappadi Sports Complex',
-              bannerImage: c.bannerImage || '/images/sports/tournament.png',
+              description: c.tournamentDescription || c.description || `Official ${tName} Tournament featuring collegiate sports competitions.`,
+              startDate: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
+              endDate: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 20, 2026',
+              venue: c.venue || 'GASC Idappadi Sports Ground',
+              bannerImage: c.tournamentBanner || c.bannerImage || '/images/sports/tournament.png',
               status: c.status || 'Registration Open',
               sports: []
             };
@@ -353,28 +265,38 @@ const CompetitionsPage = () => {
               sportName: sName,
               type: c.type && c.type.includes('Team') ? 'Team Event' : 'Individual Event',
               date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
-              startTime: c.startTime || '09:00 AM',
-              endTime: c.endTime || '05:00 PM',
+              startTime: c.startTime || c.start_time || '09:00 AM',
+              endTime: c.endTime || c.end_time || '05:00 PM',
               registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 08, 2026',
               venue: c.venue || groupMap[tName].venue,
-              maxParticipants: c.maxParticipants || 50,
-              currentRegistrations: c.currentRegistrations || 0,
+              maxParticipants: Number(c.maxParticipants || c.max_participants) || 50,
+              currentRegistrations: Number(c.currentRegistrations || c.current_registrations) || 0,
               status: c.status || 'Registration Open',
               description: c.description || `${sName} competition inside ${tName}.`
             });
           }
         });
 
-        // Ensure FLASH and SPARK 2026 are always present
-        if (!groupMap['FLASH']) groupMap['FLASH'] = FLASH_TOURNAMENT;
-        if (!groupMap['SPARK 2026']) groupMap['SPARK 2026'] = DEFAULT_TOURNAMENT;
+        const list = Object.values(groupMap);
+        setTournaments(list);
+        try {
+          localStorage.setItem('gasc_tournaments_cache', JSON.stringify(list));
+        } catch {}
 
-        setTournaments(Object.values(groupMap));
+        // Keep activeTournament synchronized with latest data
+        setActiveTournament(prev => {
+          if (!prev) return null;
+          return list.find(t => t.id === prev.id || t.tournamentName.toLowerCase() === prev.tournamentName.toLowerCase()) || null;
+        });
       } else {
-        setTournaments(getStoredTournaments());
+        setTournaments([]);
+        try {
+          localStorage.setItem('gasc_tournaments_cache', '[]');
+        } catch {}
+        setActiveTournament(null);
       }
     } catch {
-      setTournaments(getStoredTournaments());
+      // Leave existing tournaments if temporary network error
     } finally {
       setLoading(false);
     }
@@ -427,7 +349,7 @@ const CompetitionsPage = () => {
         const map: Record<string, RegistrationItem> = {};
         data.registrations.forEach((r: any) => {
           const compId = String(r.competitionId?.id || r.competitionId?._id || r.competition_id || r.competitionId || r.id);
-          const tName = r.competitionId?.tournamentName || r.competitionId?.tournament_name || r.tournamentName || 'SPARK 2026';
+          const tName = r.competitionId?.tournamentName || r.competitionId?.tournament_name || r.tournamentName || 'Collegiate Tournament';
           const sName = r.competitionId?.sportName || r.competitionId?.sport_name || r.sportName || 'Sports Event';
           const sKey = sName.toLowerCase().trim();
           const tInfo = teamStatusMap[sKey];
@@ -436,7 +358,7 @@ const CompetitionsPage = () => {
 
           map[compId] = {
             id: String(r.id || r._id),
-            registrationCode: r.registrationCode || r.registration_code || `SPARK26-${sName.substring(0, 3).toUpperCase()}-REG`,
+            registrationCode: r.registrationCode || r.registration_code || `REG-${sName.substring(0, 3).toUpperCase()}`,
             tournamentName: tName,
             sportName: sName,
             status: r.status === 'Approved' ? 'Approved' : (r.status === 'Rejected' ? 'Rejected' : 'Registered'),
@@ -460,20 +382,29 @@ const CompetitionsPage = () => {
     pollRef.current = setInterval(() => {
       fetchTournaments();
       fetchMyRegistrations();
-    }, 4000);
+    }, 2500);
 
     const handleStorageUpdate = (e: StorageEvent) => {
-      if (e.key === 'gasc_custom_tournaments') {
+      if (e.key === 'gasc_custom_tournaments' || e.key === 'gasc_tournaments_cache') {
         fetchTournaments();
       }
     };
+    const handleFocus = () => {
+      fetchTournaments();
+      fetchMyRegistrations();
+    };
+
     window.addEventListener('storage', handleStorageUpdate);
     window.addEventListener('gasc_tournaments_updated', fetchTournaments);
+    window.addEventListener('gasc_registration_created', fetchMyRegistrations);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       window.removeEventListener('storage', handleStorageUpdate);
       window.removeEventListener('gasc_tournaments_updated', fetchTournaments);
+      window.removeEventListener('gasc_registration_created', fetchMyRegistrations);
+      window.removeEventListener('focus', handleFocus);
     };
   }, [studentUser.registerNumber, studentUser.id]);
 
@@ -947,89 +878,97 @@ const CompetitionsPage = () => {
           </div>
 
           {/* Grid of Sports Glass Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 20 }}>
-            {activeTournament.sports
-              .filter(s => s.name.toLowerCase().includes(searchSport.toLowerCase()) || s.sportName.toLowerCase().includes(searchSport.toLowerCase()))
-              .map((s, idx) => {
-                const reg = myRegistrations[s.id];
-                const isRegistered = !!reg;
+          {activeTournament.sports.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6E86A5', background: 'rgba(11,27,58,0.4)', borderRadius: 20, border: '1px solid rgba(55,140,255,0.15)' }}>
+              <Trophy style={{ width: 48, height: 48, margin: '0 auto 12px', opacity: 0.4, color: '#38A7FF' }} />
+              <h3 style={{ color: '#FFF', fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No Sports Disciplines Listed Yet</h3>
+              <p style={{ fontSize: 13, margin: '0 auto', maxWidth: 460 }}>Competitions for {activeTournament.tournamentName} are being scheduled. Check back soon for registration openings!</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 20 }}>
+              {activeTournament.sports
+                .filter(s => s.name.toLowerCase().includes(searchSport.toLowerCase()) || s.sportName.toLowerCase().includes(searchSport.toLowerCase()))
+                .map((s, idx) => {
+                  const reg = myRegistrations[s.id];
+                  const isRegistered = !!reg;
 
-                return (
-                  <div
-                    key={s.id || idx}
-                    className="glass-card animate-fade-up"
-                    style={{
-                      padding: 20, borderRadius: 20,
-                      border: isRegistered ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(55,140,255,0.2)',
-                      background: isRegistered ? 'linear-gradient(135deg, rgba(15,81,50,0.2) 0%, rgba(6,18,37,0.9) 100%)' : 'rgba(11,27,58,0.6)',
-                      display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.3)', transition: 'all 0.3s ease'
-                    }}
-                  >
-                    <div>
-                      {/* Card Header: Emoji & Type Badge */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                        <div style={{ fontSize: 32, width: 48, height: 48, borderRadius: 14, background: 'rgba(56,167,255,0.12)', border: '1px solid rgba(56,167,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {sportEmoji[s.sportName] || '🏅'}
-                        </div>
-                        <span className={`badge ${s.type.includes('Team') ? 'badge-purple' : 'badge-blue'}`}>
-                          {s.type}
-                        </span>
-                      </div>
-
-                      <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', margin: '0 0 6px' }}>
-                        {s.name}
-                      </h3>
-                      <div style={{ fontSize: 12, color: '#38A7FF', fontWeight: 600, marginBottom: 12 }}>
-                        {s.sportName} Discipline
-                      </div>
-
-                      {/* Event Details */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#AFC4DF', marginBottom: 16 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Calendar style={{ width: 13, height: 13, color: '#38A7FF' }} />
-                          <span style={{ color: '#6E86A5' }}>Date:</span> {s.date}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <MapPin style={{ width: 13, height: 13, color: '#38A7FF' }} />
-                          <span style={{ color: '#6E86A5' }}>Venue:</span> {s.venue}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Clock style={{ width: 13, height: 13, color: '#FF8A50' }} />
-                          <span style={{ color: '#6E86A5' }}>Deadline:</span> {s.registrationEnd}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Action Button */}
-                    <div style={{ paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                      {isRegistered ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#4ade80', background: 'rgba(34,197,94,0.15)', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(34,197,94,0.3)' }}>
-                            <CheckCircle style={{ width: 15, height: 15 }} /> ✓ Already Registered
+                  return (
+                    <div
+                      key={s.id || idx}
+                      className="glass-card animate-fade-up"
+                      style={{
+                        padding: 20, borderRadius: 20,
+                        border: isRegistered ? '1px solid rgba(34,197,94,0.4)' : '1px solid rgba(55,140,255,0.2)',
+                        background: isRegistered ? 'linear-gradient(135deg, rgba(15,81,50,0.2) 0%, rgba(6,18,37,0.9) 100%)' : 'rgba(11,27,58,0.6)',
+                        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)', transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <div>
+                        {/* Card Header: Emoji & Type Badge */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                          <div style={{ fontSize: 32, width: 48, height: 48, borderRadius: 14, background: 'rgba(56,167,255,0.12)', border: '1px solid rgba(56,167,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {sportEmoji[s.sportName] || '🏅'}
                           </div>
-                          <button
-                            onClick={() => setActiveTab('Mine')}
-                            className="btn btn-outline"
-                            style={{ width: '100%', fontSize: 12, padding: '7px' }}
-                          >
-                            View Registration
-                          </button>
+                          <span className={`badge ${s.type.includes('Team') ? 'badge-purple' : 'badge-blue'}`}>
+                            {s.type}
+                          </span>
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => { setSelectedSport(s); setShowConfirmModal(true); }}
-                          className="btn btn-primary"
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
-                        >
-                          Select Sport <ArrowRight style={{ width: 14, height: 14 }} />
-                        </button>
-                      )}
+
+                        <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', margin: '0 0 6px' }}>
+                          {s.name}
+                        </h3>
+                        <div style={{ fontSize: 12, color: '#38A7FF', fontWeight: 600, marginBottom: 12 }}>
+                          {s.sportName} Discipline
+                        </div>
+
+                        {/* Event Details */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: '#AFC4DF', marginBottom: 16 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Calendar style={{ width: 13, height: 13, color: '#38A7FF' }} />
+                            <span style={{ color: '#6E86A5' }}>Date:</span> {s.date}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <MapPin style={{ width: 13, height: 13, color: '#38A7FF' }} />
+                            <span style={{ color: '#6E86A5' }}>Venue:</span> {s.venue}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Clock style={{ width: 13, height: 13, color: '#FF8A50' }} />
+                            <span style={{ color: '#6E86A5' }}>Deadline:</span> {s.registrationEnd}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <div style={{ paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                        {isRegistered ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#4ade80', background: 'rgba(34,197,94,0.15)', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(34,197,94,0.3)' }}>
+                              <CheckCircle style={{ width: 15, height: 15 }} /> ✓ Already Registered
+                            </div>
+                            <button
+                              onClick={() => setActiveTab('Mine')}
+                              className="btn btn-outline"
+                              style={{ width: '100%', fontSize: 12, padding: '7px' }}
+                            >
+                              View Registration
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setSelectedSport(s); setShowConfirmModal(true); }}
+                            className="btn btn-primary"
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
+                          >
+                            Select Sport <ArrowRight style={{ width: 14, height: 14 }} />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-          </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       ) : (
         /* ── VIEW 3: MAIN TOURNAMENTS DIRECTORY VIEW ────────────────────────── */
@@ -1061,12 +1000,17 @@ const CompetitionsPage = () => {
             </button>
           </div>
 
-          {/* Grid of Parent Tournaments */}
           {loading ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 24 }}>
               {[1, 2, 3].map(i => (
                 <div key={i} style={{ height: 320, borderRadius: 22, background: 'rgba(55,140,255,0.05)', animation: 'shimmer 1.5s infinite' }} />
               ))}
+            </div>
+          ) : filteredTournaments.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6E86A5', background: 'rgba(11,27,58,0.4)', borderRadius: 20, border: '1px solid rgba(55,140,255,0.15)' }}>
+              <Trophy style={{ width: 48, height: 48, margin: '0 auto 12px', opacity: 0.4, color: '#38A7FF' }} />
+              <h3 style={{ color: '#FFF', fontSize: 18, fontWeight: 700, marginBottom: 6 }}>No Tournaments Available</h3>
+              <p style={{ fontSize: 13, margin: 0 }}>There are currently no tournaments published by the Sports Incharge. Any new tournament created in the Admin Portal will appear here in real-time.</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 24 }}>
