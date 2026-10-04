@@ -98,7 +98,7 @@ const RegisterPage: React.FC = () => {
     setVerifiedStudent(null);
 
     try {
-      // Query Supabase directly with service key
+      // 1. Direct Supabase Query by register_number
       const url = `${SUPABASE_REST}/users?register_number=ilike.${encodeURIComponent(cleanReg)}&select=*`;
       const res = await fetch(url, {
         headers: {
@@ -107,7 +107,49 @@ const RegisterPage: React.FC = () => {
         }
       });
       const rows = await res.json();
-      const user = (rows && Array.isArray(rows) && rows.length > 0) ? rows[0] : null;
+      let user = (rows && Array.isArray(rows) && rows.length > 0) ? rows[0] : null;
+
+      // 2. Fallback: Check without leading zeros (e.g. CSC11 vs CSC011)
+      if (!user) {
+        const cleanNoZeros = cleanReg.replace(/0(?=[0-9]+$)/, '');
+        const url2 = `${SUPABASE_REST}/users?register_number=ilike.%${encodeURIComponent(cleanNoZeros)}%&select=*`;
+        const res2 = await fetch(url2, {
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`
+          }
+        });
+        const rows2 = await res2.json();
+        user = (rows2 && Array.isArray(rows2) && rows2.length > 0) ? rows2[0] : null;
+      }
+
+      // 3. Fallback: Check real-time notifications table
+      if (!user) {
+        const notifUrl = `${SUPABASE_REST}/notifications?category=eq.roster&title=ilike.%${encodeURIComponent(cleanReg)}%&select=*`;
+        const nRes = await fetch(notifUrl, {
+          headers: {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`
+          }
+        });
+        const nRows = await nRes.json();
+        if (nRows && Array.isArray(nRows) && nRows.length > 0) {
+          const n = nRows[0];
+          let p: any = {};
+          try { p = JSON.parse(n.message); } catch (e) {}
+          user = {
+            id: `roster_${cleanReg}`,
+            register_number: p.registerNumber || n.title || cleanReg,
+            name: p.name || n.title,
+            department: p.department || n.target_type || 'Computer Science',
+            year: p.year || n.target_audience || 'I Year',
+            section: p.section || 'A',
+            gender: p.gender || n.priority || 'Male',
+            status: p.status || 'Active',
+            role: 'roster'
+          };
+        }
+      }
 
       if (!user) {
         setVerifyError('Your Register Number was not found in the official college student roster. You cannot create a Student Portal account.');

@@ -110,15 +110,17 @@ exports.uploadExcelRoster = async (req, res) => {
         continue;
       }
 
-      // Check if user has already created a login account
+      // Check if user has already created a real login account
       let userExists = null;
       try {
         const { data: u } = await supabase
           .from('users')
-          .select('id')
+          .select('id, role, password')
           .ilike('register_number', student.register_number)
           .maybeSingle();
-        userExists = u;
+        if (u && u.role === 'student' && u.password) {
+          userExists = u;
+        }
       } catch (e) {}
 
       const cleanReg = student.register_number.toUpperCase();
@@ -162,7 +164,7 @@ exports.uploadExcelRoster = async (req, res) => {
             status: 'Pending Registration',
             created_at: new Date().toISOString()
           };
-          await supabase.from('users').upsert(rosterUser, { onConflict: 'register_number' });
+          await supabase.from('users').upsert(rosterUser);
         }
 
         // Real-time sync to notifications table (100% accessible to student-client via anon key)
@@ -373,10 +375,12 @@ exports.addSingleStudent = async (req, res) => {
     try {
       const { data: u } = await supabase
         .from('users')
-        .select('id')
+        .select('id, role, password')
         .ilike('register_number', cleanRegNo)
         .maybeSingle();
-      userExists = u;
+      if (u && u.role === 'student' && u.password) {
+        userExists = u;
+      }
     } catch (e) {}
 
     const newRecord = {
@@ -410,10 +414,10 @@ exports.addSingleStudent = async (req, res) => {
         year: newRecord.year,
         section: newRecord.section,
         gender: newRecord.gender,
-        status: studentStatus === 'Inactive' ? 'Inactive' : (userExists ? 'Active' : 'Pending Registration'),
+        status: studentStatus === 'Inactive' ? 'Inactive' : 'Pending Registration',
         created_at: new Date().toISOString()
       };
-      await supabase.from('users').upsert(rosterUser, { onConflict: 'register_number' });
+      await supabase.from('users').upsert(rosterUser);
 
       // Real-time sync to notifications table (100% accessible to student-client via anon key)
       const notifRecord = {

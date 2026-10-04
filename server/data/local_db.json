@@ -14,6 +14,20 @@
       "registered_user_id": "c97fe562-476a-4b81-9026-7ce50a54ea1d",
       "created_at": "2026-10-04T18:21:44.676Z",
       "updated_at": "2026-10-04T18:21:44.676Z"
+    },
+    {
+      "id": "ros_1791139415369_r6sw",
+      "register_number": "C24UG183CSC013",
+      "name": "lokesh",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "status": "Active",
+      "is_registered": true,
+      "registered_user_id": "roster_C24UG183CSC013",
+      "created_at": "2026-10-04T18:43:35.369Z",
+      "updated_at": "2026-10-04T18:43:35.369Z"
     }
   ],
   "users": [
@@ -50,6 +64,71 @@
       "status": "Active",
       "created_at": "2026-10-04T18:21:45.842Z",
       "updated_at": "2026-10-04T18:21:46.634Z"
+    },
+    {
+      "id": "c97fe562-476a-4b81-9026-7ce50a54ea1d",
+      "name": "sathiya",
+      "register_number": "C24UG183CSC024",
+      "email": "c24ug183csc024@gascidappadi.edu.in",
+      "password": "$2a$10$7uuR2cXAN9spnFT1LGtP5.PDuYWYEoI.LZ1H04wz/c3cDMlGSxsFm",
+      "role": "student",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "mobile": "+91 98421 54321",
+      "profile_photo": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80",
+      "status": "Active",
+      "created_at": "2026-10-04T18:43:00.398Z",
+      "updated_at": "2026-10-04T18:43:01.322Z"
+    },
+    {
+      "id": "c97fe562-476a-4b81-9026-7ce50a54ea1d",
+      "name": "sathiya",
+      "register_number": "C24UG183CSC024",
+      "email": "c24ug183csc024@gascidappadi.edu.in",
+      "password": "$2a$10$0yDshD52WAT.UVxmLM4VquBrj3G5jct0abHLJMpE2wGMsg7hxF7PW",
+      "role": "student",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "mobile": "+91 98421 54321",
+      "profile_photo": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80",
+      "status": "Active",
+      "created_at": "2026-10-04T18:43:33.810Z",
+      "updated_at": "2026-10-04T18:43:34.614Z"
+    },
+    {
+      "id": "roster_C24UG183CSC013",
+      "name": "lokesh",
+      "register_number": "C24UG183CSC013",
+      "email": "c24ug183csc013@roster.internal",
+      "role": "roster",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "status": "Active",
+      "created_at": "2026-10-04T18:43:35.403Z",
+      "updated_at": "2026-10-04T18:43:35.772Z"
+    },
+    {
+      "id": "c97fe562-476a-4b81-9026-7ce50a54ea1d",
+      "name": "lokesh",
+      "register_number": "C24UG183CSC013",
+      "email": "c24ug183csc013@gascidappadi.edu.in",
+      "password": "$2a$10$T5xJYKV1h5nBC2KZXTVw9e.qZyD6Vsl5cvOCBSc.cO.HpBYF9QtZ.",
+      "role": "student",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "mobile": "+91 98421 54321",
+      "profile_photo": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80",
+      "status": "Active",
+      "created_at": "2026-10-04T18:43:37.036Z",
+      "updated_at": "2026-10-04T18:43:37.835Z"
     }
   ],
   "equipment": [],
@@ -66,6 +145,19 @@
       "message": "{\"registerNumber\":\"C24UG183CSC024\",\"name\":\"sathiya\",\"department\":\"Computer Science\",\"year\":\"III Year\",\"section\":\"A\",\"gender\":\"Male\",\"status\":\"Active\",\"isRegistered\":true}",
       "created_at": "2026-10-04T18:21:45.385Z",
       "updated_at": "2026-10-04T18:21:45.385Z"
+    },
+    {
+      "id": "roster_C24UG183CSC013",
+      "title": "C24UG183CSC013",
+      "category": "roster",
+      "type": "roster_student",
+      "target_type": "Computer Science",
+      "target_audience": "III Year",
+      "priority": "Male",
+      "sender": "registered",
+      "message": "{\"registerNumber\":\"C24UG183CSC013\",\"name\":\"lokesh\",\"department\":\"Computer Science\",\"year\":\"III Year\",\"section\":\"A\",\"gender\":\"Male\",\"status\":\"Active\",\"isRegistered\":true}",
+      "created_at": "2026-10-04T18:43:36.134Z",
+      "updated_at": "2026-10-04T18:43:36.134Z"
     }
   ]
 }
