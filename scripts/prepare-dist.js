@@ -34,12 +34,20 @@ function copyRecursiveSync(src, dest, skipFiles = []) {
   }
 }
 
-console.log('[prepare-dist] 1. Copying Vite build artifacts to root dist & public...');
+console.log('[prepare-dist] 1. Copying Vite build artifacts to root dist, public, and client/public...');
 copyRecursiveSync(studentDistDir, rootDistDir);
 copyRecursiveSync(studentDistDir, rootPublicDir);
+copyRecursiveSync(studentDistDir, srcDir);
 
-console.log('[prepare-dist] 2. Merging client/public assets to root dist, public, and student-client/dist...');
-[rootDistDir, rootPublicDir, studentDistDir].forEach(targetDir => {
+// Copy index.html and 404.html to root directory as well
+const rootIndex = path.join(studentDistDir, 'index.html');
+if (fs.existsSync(rootIndex)) {
+  fs.copyFileSync(rootIndex, path.join(rootDir, 'index.html'));
+  fs.copyFileSync(rootIndex, path.join(rootDir, '404.html'));
+}
+
+console.log('[prepare-dist] 2. Merging assets across all target directories...');
+[rootDistDir, rootPublicDir, studentDistDir, srcDir].forEach(targetDir => {
   copyRecursiveSync(path.join(srcDir, 'css'), path.join(targetDir, 'css'));
   copyRecursiveSync(path.join(srcDir, 'js'), path.join(targetDir, 'js'));
   copyRecursiveSync(path.join(srcDir, 'uploads'), path.join(targetDir, 'uploads'));
@@ -108,6 +116,13 @@ console.log('[prepare-dist] 2. Merging client/public assets to root dist, public
       }, null, 2);
 
       fs.writeFileSync(path.join(targetDir, 'roster.json'), rosterPayload, 'utf8');
+
+      // Export build timestamp and diagnostic info
+      fs.writeFileSync(path.join(targetDir, 'build-info.json'), JSON.stringify({
+        buildTime: new Date().toISOString(),
+        version: '1.0.1',
+        nodeVersion: process.version
+      }, null, 2), 'utf8');
 
       console.log(`[prepare-dist] 🏆 Exported ${(db.competitions || []).length} tournaments to competitions.json`);
       console.log(`[prepare-dist] 📋 Exported ${rosterList.length} students to roster.json`);
