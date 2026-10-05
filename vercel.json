@@ -35,6 +35,14 @@
       "destination": "/api/equipment?action=my-equipment"
     },
     {
+      "source": "/api/gallery",
+      "destination": "/api/gallery"
+    },
+    {
+      "source": "/api/gallery/:id",
+      "destination": "/api/gallery?id=:id"
+    },
+    {
       "source": "/:match*",
       "destination": "/index.html"
     }

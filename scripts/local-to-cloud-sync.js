@@ -58,6 +58,33 @@ async function syncLocalDbToCloud() {
           console.log(`⚡ [AutoSync] Synced from ${path.basename(path.dirname(dbPath))} to Cloud: ${t.id} - ${t.equipment_name || t.equipmentName} (${t.status}) to ${regNo}`);
         }
       }
+
+      // Also sync gallery photos to Supabase notifications cloud bus
+      const gallery = db.gallery || [];
+      for (const g of gallery) {
+        const gKey = `gal_${g.id}_${g.image}`;
+        if (lastSyncedState[g.id] === gKey) {
+          continue;
+        }
+
+        const { error: gErr } = await supabase.from('notifications').upsert({
+          id: g.id,
+          title: 'NEW_GALLERY_PHOTO',
+          category: 'gallery',
+          type: 'gallery_update',
+          sender: 'admin',
+          target_type: 'All Students',
+          target_audience: 'ALL',
+          priority: 'Normal',
+          message: JSON.stringify(g),
+          created_at: g.created_at || g.createdAt || new Date().toISOString()
+        });
+
+        if (!gErr) {
+          lastSyncedState[g.id] = gKey;
+          console.log(`⚡ [AutoSync] Synced Gallery Photo to Cloud: ${g.id} - ${g.title}`);
+        }
+      }
     } catch (err) {
       // quiet retry
     }

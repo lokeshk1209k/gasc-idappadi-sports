@@ -3,6 +3,7 @@ import {
   Image as ImageIcon, Search, Calendar, RefreshCw, X, Download,
   Maximize2, Sparkles
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface PhotoItem {
   id: string;
@@ -48,10 +49,81 @@ const GalleryPage = () => {
   const fetchPhotos = async () => {
     try {
       setRefreshing(true);
-      const res = await fetch('/api/gallery');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.gallery)) {
-        setPhotos(data.gallery);
+      let loadedPhotos: PhotoItem[] = [];
+
+      // 1. Fetch directly from Supabase Cloud notifications bus (category = gallery)
+      try {
+        const { data: cloudNotifs } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('category', 'gallery')
+          .order('created_at', { ascending: false });
+
+        if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
+          for (const item of cloudNotifs) {
+            try {
+              const parsed = typeof item.message === 'string' ? JSON.parse(item.message) : item.message;
+              if (parsed && parsed.image) {
+                loadedPhotos.push({
+                  id: String(parsed.id || item.id),
+                  title: parsed.title || 'Sports Moment',
+                  description: parsed.description || '',
+                  image: parsed.image,
+                  date: parsed.date || (item.created_at ? item.created_at.split('T')[0] : ''),
+                  createdAt: parsed.created_at || item.created_at
+                });
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase notifications gallery fetch notice:', err);
+      }
+
+      // 2. Fetch from /api/gallery (Vercel serverless / Express server)
+      try {
+        const res = await fetch('/api/gallery');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.gallery)) {
+            for (const g of data.gallery) {
+              if (!loadedPhotos.some(p => p.id === String(g.id))) {
+                loadedPhotos.push({
+                  id: String(g.id),
+                  title: g.title,
+                  description: g.description,
+                  image: g.image,
+                  date: g.date,
+                  createdAt: g.createdAt || g.created_at
+                });
+              }
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 3. Fallback to /gallery.json if still empty
+      if (loadedPhotos.length === 0) {
+        try {
+          const fRes = await fetch('/gallery.json');
+          if (fRes.ok) {
+            const fData = await fRes.json();
+            if (fData.success && Array.isArray(fData.gallery)) {
+              loadedPhotos = fData.gallery.map((g: any) => ({
+                id: String(g.id),
+                title: g.title,
+                description: g.description,
+                image: g.image,
+                date: g.date,
+                createdAt: g.createdAt || g.created_at
+              }));
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (loadedPhotos.length > 0) {
+        setPhotos(loadedPhotos);
       }
     } catch (err) {
       console.error('Failed to load photos:', err);
@@ -63,6 +135,29 @@ const GalleryPage = () => {
 
   useEffect(() => {
     fetchPhotos();
+
+    // Instant Realtime Subscription from Supabase Cloud (Sub-second sync when admin uploads)
+    const channel = supabase
+      .channel('student-gallery-realtime-subsecond-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        (payload: any) => {
+          if (payload && payload.new && payload.new.category === 'gallery') {
+            console.log('⚡ Realtime photo event received from Admin! Refreshing gallery...');
+            fetchPhotos();
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('⚡ Realtime gallery sync active for students!');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const filteredPhotos = photos.filter(p => {

@@ -175,7 +175,15 @@ class ResilientQuery {
       const res = await Promise.race([query, timeoutPromise]);
       if (res && res.error) {
         const msg = String(res.error.message || '');
-        if (msg.includes('fetch failed') || msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('timeout')) {
+        if (
+          msg.includes('fetch failed') ||
+          msg.includes('ENOTFOUND') ||
+          msg.includes('ECONNREFUSED') ||
+          msg.includes('timeout') ||
+          msg.includes('schema cache') ||
+          msg.includes('does not exist') ||
+          msg.includes('PGRST205')
+        ) {
           console.warn(`[SupabaseHelper] Cloud query failed (${msg}), falling back to localStore for table: ${this.table}`);
           return this.executeLocal();
         }

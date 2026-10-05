@@ -117,6 +117,16 @@ console.log('[prepare-dist] 2. Merging assets across all target directories...')
 
       fs.writeFileSync(path.join(targetDir, 'roster.json'), rosterPayload, 'utf8');
 
+      // Export gallery photos for instant client-side rendering
+      const galleryList = db.gallery || [];
+      const galleryPayload = JSON.stringify({
+        success: true,
+        count: galleryList.length,
+        gallery: galleryList
+      }, null, 2);
+
+      fs.writeFileSync(path.join(targetDir, 'gallery.json'), galleryPayload, 'utf8');
+
       // Export build timestamp and diagnostic info
       fs.writeFileSync(path.join(targetDir, 'build-info.json'), JSON.stringify({
         buildTime: new Date().toISOString(),
@@ -126,6 +136,7 @@ console.log('[prepare-dist] 2. Merging assets across all target directories...')
 
       console.log(`[prepare-dist] 🏆 Exported ${(db.competitions || []).length} tournaments to competitions.json`);
       console.log(`[prepare-dist] 📋 Exported ${rosterList.length} students to roster.json`);
+      console.log(`[prepare-dist] 📸 Exported ${galleryList.length} photos to gallery.json`);
     } catch (e) {
       console.warn('[prepare-dist] Could not export data payload:', e.message);
     }
