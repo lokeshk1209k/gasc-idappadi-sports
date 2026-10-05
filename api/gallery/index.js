@@ -1,7 +1,9 @@
 /**
  * GASC Sports - Gallery Universal API Router for Vercel
  * Handles:
- * - GET  /api/gallery -> List all sports gallery moments from Supabase notifications cloud bus or static fallback
+ * - GET    /api/gallery      -> List all sports gallery moments from Supabase notifications cloud bus or static fallback
+ * - DELETE /api/gallery/:id  -> Delete a gallery photo and broadcast sub-second sync to all students
+ * - POST   /api/gallery      -> Add new gallery photo from cloud
  */
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
@@ -24,8 +26,8 @@ function toCamelCase(obj) {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-portal-type');
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
 
   if (req.method === 'OPTIONS') {
@@ -36,6 +38,49 @@ module.exports = async (req, res) => {
     auth: { persistSession: false }
   });
 
+  const rawUrl = req.url || '';
+  const parsedUrl = new URL(rawUrl, 'http://localhost');
+  const query = req.query || {};
+
+  // ──────── DELETE GALLERY PHOTO ────────
+  if (req.method === 'DELETE') {
+    let id = query.id || parsedUrl.searchParams.get('id');
+    if (!id) {
+      const parts = parsedUrl.pathname.split('/').filter(Boolean);
+      id = parts[parts.length - 1];
+    }
+
+    if (id && id !== 'gallery') {
+      try {
+        // Delete from Supabase notifications
+        await supabase.from('notifications').delete().eq('id', id);
+        try {
+          await supabase.from('gallery').delete().eq('id', id);
+        } catch (e) {}
+
+        // Instant Realtime Broadcast to student clients
+        try {
+          const ch = supabase.channel('student-gallery-realtime-subsecond-sync');
+          ch.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              ch.send({
+                type: 'broadcast',
+                event: 'photo_deleted',
+                payload: { id: id }
+              }).catch(() => {});
+            }
+          });
+        } catch (e) {}
+
+        return res.status(200).json({ success: true, message: 'Photo removed from gallery.' });
+      } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+      }
+    }
+    return res.status(400).json({ success: false, message: 'Photo ID is required for deletion.' });
+  }
+
+  // ──────── GET ALL GALLERY PHOTOS ────────
   try {
     let items = [];
 
@@ -82,7 +127,6 @@ module.exports = async (req, res) => {
     }
 
     // 3. Optional query filters
-    const query = req.query || {};
     const category = query.category;
     const sportId = query.sportId;
 

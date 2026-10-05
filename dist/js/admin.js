@@ -3262,15 +3262,39 @@ async function loadAdminGallery() {
       return;
     }
     container.innerHTML = res.gallery.map(g => `
-      <div class="col-md-4 mb-3">
-        <div class="glass-card overflow-hidden h-100">
-          <img src="${g.image || '/images/sports/tournament.jpg'}" class="w-100" style="height: 180px; object-fit: cover;" onerror="this.onerror=null;this.src='/images/sports/tournament.jpg';">
+      <div class="col-md-4 mb-3" id="gallery-card-${g.id || g._id}">
+        <div class="glass-card overflow-hidden h-100 position-relative shadow-sm" style="border: 1px solid rgba(55,140,255,0.2);">
+          <div class="position-relative overflow-hidden" style="height: 190px;">
+            <img src="${g.image || '/images/sports/tournament.jpg'}" class="w-100 h-100" style="object-fit: cover; transition: transform 0.3s;" onerror="this.onerror=null;this.src='/images/sports/tournament.jpg';">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 rounded-circle p-2 shadow" 
+              style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 5;"
+              title="Delete Photo"
+              onclick="deleteGalleryItem('${g.id || g._id}', '${(g.title || 'Photo').replace(/'/g, "\\'")}')">
+              <i class="bi bi-trash3-fill fs-6"></i>
+            </button>
+          </div>
           <div class="p-3 d-flex flex-column">
-            <span class="badge badge-glass-primary mb-1 align-self-start">${g.category || 'Sports'}</span>
-            <h6 class="fw-bold mb-1">${g.title}</h6>
-            <div class="mt-auto pt-2 border-top d-flex justify-content-between align-items-center">
-              <small class="text-muted">${formatDate(g.date)}</small>
-              <button class="btn btn-sm btn-outline-danger" onclick="deleteGalleryItem('${g.id || g._id}')"><i class="bi bi-trash"></i></button>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="badge badge-glass-primary">${g.category || 'Sports'}</span>
+              ${g.sportName ? `<span class="badge bg-secondary" style="font-size: 11px;">${g.sportName}</span>` : ''}
+            </div>
+            <h6 class="fw-bold mb-1 text-white">${g.title}</h6>
+            ${g.description ? `<p class="text-muted small mb-2 text-truncate" title="${g.description}">${g.description}</p>` : ''}
+            <div class="mt-auto pt-2 border-top border-secondary-subtle d-flex justify-content-between align-items-center">
+              <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>${formatDate(g.date || g.createdAt)}</small>
+              <div class="d-flex gap-2">
+                <a href="${g.image}" target="_blank" class="btn btn-sm btn-outline-info px-2 py-1" title="View Full Image">
+                  <i class="bi bi-box-arrow-up-right"></i>
+                </a>
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-danger px-2 py-1 d-flex align-items-center gap-1 shadow-sm fw-semibold" 
+                  onclick="deleteGalleryItem('${g.id || g._id}', '${(g.title || 'Photo').replace(/'/g, "\\'")}')">
+                  <i class="bi bi-trash3-fill"></i> Delete
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3292,26 +3316,36 @@ async function submitCreateGallery(event) {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Uploading...';
 
     const res = await apiRequest('/gallery', 'POST', formData, true);
-    showToast(res.message, 'success');
+    showToast(res.message || 'Photo added to sports gallery successfully!', 'success');
     form.reset();
-    bootstrap.Modal.getInstance(document.getElementById('addGalleryModal')).hide();
+    const modalEl = document.getElementById('addGalleryModal');
+    if (modalEl) {
+      const modalInst = bootstrap.Modal.getInstance(modalEl);
+      if (modalInst) modalInst.hide();
+    }
     loadAdminGallery();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Upload failed', 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Upload Photo';
   }
 }
 
-async function deleteGalleryItem(id) {
-  if (!confirm('Remove photo from sports gallery?')) return;
+async function deleteGalleryItem(id, title = 'Photo') {
+  if (!confirm(`Are you sure you want to delete "${title}" from the sports gallery?\n\nThis will remove the photo instantly from both the Admin Portal and Student Portal.`)) return;
   try {
+    const cardEl = document.getElementById(`gallery-card-${id}`);
+    if (cardEl) {
+      cardEl.style.opacity = '0.4';
+      cardEl.style.pointerEvents = 'none';
+    }
     await apiRequest(`/gallery/${id}`, 'DELETE');
-    showToast('Photo removed.', 'info');
+    showToast(`"${title}" deleted successfully.`, 'info');
     loadAdminGallery();
   } catch (err) {
-    showToast(err.message, 'error');
+    showToast(err.message || 'Failed to delete photo', 'error');
+    loadAdminGallery();
   }
 }
 

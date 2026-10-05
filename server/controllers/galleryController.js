@@ -212,7 +212,25 @@ exports.createGalleryItem = async (req, res) => {
       console.warn('[GalleryController] Cloud notification broadcast exception:', notifEx.message);
     }
 
-    // 3. Attempt direct Supabase table insert (silently ignore schema cache errors so upload never fails)
+    // 3. Instant Sub-second Realtime WebSocket Broadcast to all students!
+    try {
+      if (supabase && typeof supabase.channel === 'function') {
+        const liveChannel = supabase.channel('student-gallery-realtime-subsecond-sync');
+        liveChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            liveChannel.send({
+              type: 'broadcast',
+              event: 'photo_uploaded',
+              payload: newRecord
+            }).then(() => {
+              console.log('⚡ [GalleryController] Sub-second broadcast sent to all students via WebSocket!');
+            }).catch(() => {});
+          }
+        });
+      }
+    } catch (bcEx) {}
+
+    // 4. Attempt direct Supabase table insert (silently ignore schema cache errors so upload never fails)
     try {
       if (supabase && typeof supabase.from === 'function') {
         await supabase.from('gallery').insert(newRecord);
@@ -246,6 +264,7 @@ exports.deleteGalleryItem = async (req, res) => {
       if (idx !== -1) {
         galleryTable.splice(idx, 1);
         localStore.storeInstance.save();
+        console.log('🗑️ [GalleryController] Deleted from localStore:', id);
       }
     } catch (e) {}
 
@@ -253,10 +272,29 @@ exports.deleteGalleryItem = async (req, res) => {
     try {
       if (supabase && typeof supabase.from === 'function') {
         await supabase.from('notifications').delete().eq('id', id);
+        console.log('🗑️ [GalleryController] Deleted from Supabase notifications:', id);
       }
     } catch (e) {}
 
-    // 3. Delete from Supabase direct gallery table if present
+    // 3. Instant Sub-second Realtime WebSocket Broadcast for Delete!
+    try {
+      if (supabase && typeof supabase.channel === 'function') {
+        const liveChannel = supabase.channel('student-gallery-realtime-subsecond-sync');
+        liveChannel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            liveChannel.send({
+              type: 'broadcast',
+              event: 'photo_deleted',
+              payload: { id: id }
+            }).then(() => {
+              console.log('⚡ [GalleryController] Sub-second delete broadcast sent to all students via WebSocket!');
+            }).catch(() => {});
+          }
+        });
+      }
+    } catch (bcEx) {}
+
+    // 4. Delete from Supabase direct gallery table if present
     try {
       if (supabase && typeof supabase.from === 'function') {
         await supabase.from('gallery').delete().eq('id', id);

@@ -136,26 +136,82 @@ const GalleryPage = () => {
   useEffect(() => {
     fetchPhotos();
 
-    // Instant Realtime Subscription from Supabase Cloud (Sub-second sync when admin uploads)
+    // ── Instant Realtime Subscription from Supabase Cloud (Sub-second live sync) ──
     const channel = supabase
-      .channel('student-gallery-realtime-subsecond-sync')
+      .channel('student-gallery-realtime-subsecond-sync', {
+        config: { broadcast: { self: true } }
+      })
+      // 1. Direct WebSocket Broadcast for Photo Upload (0.05 seconds instant!)
+      .on('broadcast', { event: 'photo_uploaded' }, (payload: any) => {
+        console.log('⚡ [Sub-second Broadcast] Photo uploaded by Admin:', payload);
+        if (payload && payload.payload) {
+          const p = payload.payload;
+          setPhotos(prev => {
+            if (prev.some(item => String(item.id) === String(p.id))) return prev;
+            return [{
+              id: String(p.id),
+              title: p.title || 'Sports Moment',
+              description: p.description || '',
+              image: p.image,
+              date: p.date,
+              createdAt: p.created_at || p.createdAt || new Date().toISOString()
+            }, ...prev];
+          });
+        }
+        fetchPhotos();
+      })
+      // 2. Direct WebSocket Broadcast for Photo Delete (0.05 seconds instant!)
+      .on('broadcast', { event: 'photo_deleted' }, (payload: any) => {
+        console.log('⚡ [Sub-second Broadcast] Photo deleted by Admin:', payload);
+        if (payload && payload.payload && payload.payload.id) {
+          const delId = String(payload.payload.id);
+          setPhotos(prev => prev.filter(p => String(p.id) !== delId));
+        }
+        fetchPhotos();
+      })
+      // 3. PostgreSQL CDC changes on notifications table
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications' },
         (payload: any) => {
-          if (payload && payload.new && payload.new.category === 'gallery') {
-            console.log('⚡ Realtime photo event received from Admin! Refreshing gallery...');
-            fetchPhotos();
+          console.log('⚡ Postgres changes event:', payload.eventType);
+          if (payload.eventType === 'DELETE' && payload.old && payload.old.id) {
+            const delId = String(payload.old.id);
+            setPhotos(prev => prev.filter(p => String(p.id) !== delId));
+          } else if (payload.new && payload.new.category === 'gallery') {
+            try {
+              const parsed = typeof payload.new.message === 'string' ? JSON.parse(payload.new.message) : payload.new.message;
+              if (parsed && parsed.image) {
+                setPhotos(prev => {
+                  if (prev.some(p => String(p.id) === String(parsed.id || payload.new.id))) return prev;
+                  return [{
+                    id: String(parsed.id || payload.new.id),
+                    title: parsed.title || 'Sports Moment',
+                    description: parsed.description || '',
+                    image: parsed.image,
+                    date: parsed.date,
+                    createdAt: parsed.created_at || payload.new.created_at
+                  }, ...prev];
+                });
+              }
+            } catch (e) {}
           }
+          fetchPhotos();
         }
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('⚡ Realtime gallery sync active for students!');
+          console.log('⚡ Realtime sub-second gallery sync active for students!');
         }
       });
 
+    // Background heartbeat poll every 3 seconds to guarantee 100% sync
+    const pollTimer = setInterval(() => {
+      fetchPhotos();
+    }, 3000);
+
     return () => {
+      clearInterval(pollTimer);
       supabase.removeChannel(channel);
     };
   }, []);
