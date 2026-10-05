@@ -9,7 +9,7 @@
       "destination": "/api/auth/login"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/:match*",
       "destination": "/index.html"
     }
   ]
