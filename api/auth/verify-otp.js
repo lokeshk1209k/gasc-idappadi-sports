@@ -82,21 +82,13 @@ module.exports = async (req, res) => {
       console.warn('Database OTP fallback warning:', dbErr.message);
     }
 
-    // ── Check 3: Check in-memory store if running locally ──
-    try {
-      const { otpStore } = require('../../server/controllers/authController');
-      if (otpStore) {
-        const result = otpStore.verifyOtp(cleanEmail, cleanOtp, 'registration');
-        if (result && result.success) {
-          return res.status(200).json({ success: true, message: 'Email verified successfully!' });
-        }
-      }
-    } catch (e) {}
-
+    // If neither HMAC token nor Supabase record matched:
     return res.status(400).json({
       success: false,
       message: 'Invalid OTP code. Please check your email and enter the 6-digit code correctly.'
     });
+
+
   } catch (err) {
     console.error('verify-otp handler error:', err);
     return res.status(500).json({ success: false, message: err.message || 'Verification error' });

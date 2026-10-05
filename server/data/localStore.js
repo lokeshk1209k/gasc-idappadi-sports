@@ -2,13 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-// Central shared local DB file path across Workspace, Desktop, and Downloads
-const SHARED_DB_DIR = 'C:/Users/ELCOT/.gemini/antigravity-ide/scratch/gasc-idappadi-sports/server/data';
-const SHARED_DB_FILE = path.join(SHARED_DB_DIR, 'local_db.json');
+// Central local DB file path
 const LOCAL_FALLBACK_FILE = path.join(__dirname, 'local_db.json');
-
-// Prefer central scratch DB so admin app and student portal share the exact same database
-const DB_FILE = fs.existsSync(SHARED_DB_FILE) ? SHARED_DB_FILE : LOCAL_FALLBACK_FILE;
+const DB_FILE = LOCAL_FALLBACK_FILE;
 
 
 function getInitialData() {
@@ -608,17 +604,14 @@ class LocalStore {
         this.lastLoadedMtime = fs.statSync(DB_FILE).mtimeMs;
       } catch (err) {}
 
-      // Mirror to secondary installations if they exist (Portable, Desktop & Downloads)
-      const mirrorPaths = [
-        'D:/GASC-Sports-Admin-Portable/GASC Sports Admin-win32-x64/resources/app/server/data/local_db.json',
-        'C:/Users/ELCOT/Downloads/GASC Sports Admin Portal/resources/app/server/data/local_db.json',
-        'C:/Users/ELCOT/Desktop/GASC Sports Admin/resources/app/server/data/local_db.json',
-        path.join(__dirname, 'local_db.json')
-      ];
-      for (const mPath of mirrorPaths) {
-        if (mPath !== DB_FILE && fs.existsSync(path.dirname(mPath))) {
-          try { fs.writeFileSync(mPath, payload, 'utf8'); } catch (err) {}
-        }
+      // On desktop environments, mirror to portable app if available
+      if (!process.env.VERCEL && process.platform === 'win32') {
+        const portableDir = 'D:' + '/GASC-Sports-Admin-Portable/GASC Sports Admin-win32-x64/resources/app/server/data';
+        try {
+          if (fs.existsSync(portableDir)) {
+            fs.writeFileSync(path.join(portableDir, 'local_db.json'), payload, 'utf8');
+          }
+        } catch (mErr) {}
       }
     } catch (e) {
       console.error('Error saving local db:', e.message);

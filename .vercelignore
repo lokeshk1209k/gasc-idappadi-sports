@@ -3,7 +3,8 @@ client/node_modules
 student-client/node_modules
 android-student-app/node_modules
 electron/node_modules
-dist
+dist/admin-exe
+dist/admin-portable
 electron
 android-student-app
 *.log
