@@ -1,6 +1,7 @@
 {
   "buildCommand": "node scripts/prepare-dist.js",
   "outputDirectory": "dist",
+  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/api/auth/verify-student/:regNo",
@@ -35,7 +36,7 @@
       "destination": "/api/equipment?action=my-equipment"
     },
     {
-      "source": "/((?!api/|assets/|images/|css/|js/|uploads/|.*\\.[a-zA-Z0-9]+).*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
