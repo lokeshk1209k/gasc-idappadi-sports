@@ -35,7 +35,7 @@
       "destination": "/api/equipment?action=my-equipment"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|assets/|images/|css/|js/|uploads/|.*\\.[a-zA-Z0-9]+).*)",
       "destination": "/index.html"
     }
   ]
