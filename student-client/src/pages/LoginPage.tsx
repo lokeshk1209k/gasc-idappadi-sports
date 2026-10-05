@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Lock, Eye, EyeOff, ArrowRight, Mail, 
-  KeyRound, AlertCircle, CheckCircle, RefreshCw, X, Loader2, Sparkles, ShieldCheck 
+  KeyRound, AlertCircle, CheckCircle, RefreshCw, X, Loader2, Sparkles, ShieldCheck,
+  Trophy, Zap, Award, Flame, Activity, Shield, ChevronRight
 } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 
@@ -434,82 +435,198 @@ const LoginPage = () => {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#020817', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', minHeight: '100vh', background: '#020617', display: 'flex', overflow: 'hidden', fontFamily: "'Inter', sans-serif" }}>
 
-      {/* ── LEFT PANEL — Hero Image ── */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'flex-end' }} className="hidden lg:flex">
+      {/* ── AMBIENT SPORTS GLOW ORBS & STADIUM GRID (BACKGROUND) ── */}
+      <div style={{ position: 'absolute', top: '-12%', left: '15%', width: '520px', height: '520px', background: 'radial-gradient(circle, rgba(0, 163, 255, 0.18) 0%, transparent 70%)', filter: 'blur(90px)', pointerEvents: 'none', zIndex: 1 }} />
+      <div style={{ position: 'absolute', bottom: '-8%', right: '5%', width: '480px', height: '480px', background: 'radial-gradient(circle, rgba(255, 106, 33, 0.15) 0%, transparent 70%)', filter: 'blur(95px)', pointerEvents: 'none', zIndex: 1 }} />
+      <div style={{ position: 'absolute', top: '35%', left: '42%', width: '380px', height: '380px', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 1 }} />
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(56, 167, 255, 0.08) 1px, transparent 1px)', backgroundSize: '36px 36px', pointerEvents: 'none', opacity: 0.65, zIndex: 1 }} />
+
+      {/* ── LEFT PANEL — CHAMPIONSHIP HERO ARENA (DESKTOP) ── */}
+      <div 
+        className="hidden lg:flex" 
+        style={{ 
+          flex: 1.15, 
+          position: 'relative', 
+          overflow: 'hidden', 
+          flexDirection: 'column', 
+          justifyContent: 'space-between', 
+          padding: '48px 56px', 
+          zIndex: 2 
+        }}
+      >
+        {/* Background Athletic Hero Image */}
         <img
           src="/images/login-hero.jpg"
-          alt="GASC Sports"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
+          alt="GASC Sports Arena"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 20%', zIndex: 0 }}
         />
 
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, rgba(2,8,23,0.40) 0%, rgba(2,8,23,0.10) 50%, rgba(2,8,23,0.70) 100%)' }} />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(2,8,23,0.90) 0%, rgba(2,8,23,0.20) 50%, transparent 80%)' }} />
+        {/* Cinematic Multi-Layer Dark Vignettes */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(2, 6, 23, 0.85) 0%, rgba(2, 6, 23, 0.45) 45%, rgba(2, 6, 23, 0.92) 100%)', zIndex: 1 }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #020617 0%, rgba(2, 6, 23, 0.40) 40%, transparent 75%)', zIndex: 1 }} />
+        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '120px', background: 'linear-gradient(to right, transparent, #020617)', zIndex: 1 }} />
 
-        <div style={{ position: 'relative', zIndex: 10, padding: '0 48px 52px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
-            <div style={{ width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(55,140,255,0.50)', background: 'rgba(22,119,255,0.15)' }}>
+        {/* ── Top Header Badge ── */}
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(7, 25, 51, 0.65)', backdropFilter: 'blur(16px)', border: '1px solid rgba(56, 167, 255, 0.35)', padding: '8px 18px', borderRadius: 999, boxShadow: '0 8px 30px rgba(0,0,0,0.4), 0 0 20px rgba(22,119,255,0.15)' }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', border: '2px solid #38A7FF', background: '#031126', flexShrink: 0 }}>
               <img src="/images/college-logo.jpg" alt="GASC" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).src = '/images/college-logo.png'; }} />
             </div>
             <div>
-              <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 16, color: '#FFFFFF', margin: 0 }}>GASC SPORTS</p>
-              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', margin: 0 }}>Student Portal</p>
+              <p style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 13, color: '#FFFFFF', margin: 0, letterSpacing: '0.04em' }}>
+                GOVT ARTS & SCIENCE COLLEGE
+              </p>
+              <p style={{ fontSize: 11, color: '#38A7FF', margin: 0, fontWeight: 600 }}>
+                Idappadi • Sports Council
+              </p>
             </div>
           </div>
 
-          <div>
-            <h1 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 900, fontSize: 52, color: '#FFFFFF', lineHeight: 1.05, margin: 0 }}>
-              YOUR<br />
-              <span style={{ color: '#38A7FF' }}>SPORTS</span><br />
-              JOURNEY<br />
-              <span style={{ color: '#FF6A21' }}>STARTS HERE</span>
-            </h1>
-            <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.65)', marginTop: 16, fontFamily: "'Inter',sans-serif" }}>
-              Compete • Connect • Achieve
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)', padding: '6px 14px', borderRadius: 999 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 10px #34D399', display: 'inline-block' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#34D399', letterSpacing: '0.05em' }}>PORTAL ACTIVE</span>
+          </div>
+        </div>
 
-            <div style={{ display: 'flex', gap: 20, marginTop: 28 }}>
-              {[
-                { label: 'Sports', value: '12+' },
-                { label: 'Tournaments', value: '25' },
-                { label: 'Students', value: '1000+' },
-              ].map(s => (
-                <div key={s.label} style={{ textAlign: 'center' }}>
-                  <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 22, color: '#38A7FF', margin: 0 }}>{s.value}</p>
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', margin: 0, fontWeight: 500 }}>{s.label}</p>
-                </div>
-              ))}
-            </div>
+        {/* ── Center / Hero Typography & Stats ── */}
+        <div style={{ position: 'relative', zIndex: 2, margin: 'auto 0 20px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(90deg, rgba(22, 119, 255, 0.25) 0%, rgba(255, 106, 33, 0.20) 100%)', border: '1px solid rgba(56, 167, 255, 0.40)', padding: '7px 16px', borderRadius: 999, marginBottom: 20 }}>
+            <Flame style={{ width: 15, height: 15, color: '#FF7A18' }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Official Student Athlete Portal
+            </span>
           </div>
 
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', marginTop: 28, fontFamily: "'Inter',sans-serif" }}>
-            Government Arts and Science College, Idappadi
+          <h1 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 900, fontSize: 'clamp(40px, 4.5vw, 56px)', lineHeight: 1.05, margin: 0, color: '#FFFFFF', letterSpacing: '-0.03em' }}>
+            UNLEASH YOUR<br />
+            <span style={{ background: 'linear-gradient(135deg, #38A7FF 0%, #22D3EE 60%, #FFFFFF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textShadow: '0 0 40px rgba(56,167,255,0.4)' }}>
+              ATHLETIC PROWESS.
+            </span><br />
+            <span style={{ background: 'linear-gradient(135deg, #FF6A21 0%, #FFA048 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              CHASE THE GLORY.
+            </span>
+          </h1>
+
+          <p style={{ fontSize: 15, color: '#AFC4DF', marginTop: 18, maxWidth: 520, lineHeight: 1.6, fontWeight: 400 }}>
+            Register for inter-college tournaments, track your issued sports equipment in real-time, view live match draws, and elevate your college sports journey.
           </p>
+
+          {/* ── 4 Live Athletic Metric Capsules ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginTop: 32 }}>
+            {[
+              { icon: <Zap style={{ width: 18, height: 18, color: '#38A7FF' }} />, title: 'Sub-Second', desc: 'Real-Time Sync', accent: '#38A7FF' },
+              { icon: <Trophy style={{ width: 18, height: 18, color: '#FFA048' }} />, title: '25+ Events', desc: 'Tournaments', accent: '#FF6A21' },
+              { icon: <Activity style={{ width: 18, height: 18, color: '#34D399' }} />, title: '20+ Sports', desc: 'Indoor & Outdoor', accent: '#34D399' },
+              { icon: <ShieldCheck style={{ width: 18, height: 18, color: '#C084FC' }} />, title: 'Verified Pass', desc: 'College Roster', accent: '#A855F7' }
+            ].map((card, i) => (
+              <div 
+                key={i} 
+                style={{ 
+                  background: 'rgba(8, 27, 53, 0.55)', 
+                  backdropFilter: 'blur(16px)', 
+                  border: '1px solid rgba(56, 167, 255, 0.20)', 
+                  borderRadius: 14, 
+                  padding: '14px 16px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                  transition: 'all 0.25s ease'
+                }}
+              >
+                <div style={{ marginBottom: 6 }}>{card.icon}</div>
+                <p style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 15, color: '#FFFFFF', margin: 0 }}>{card.title}</p>
+                <p style={{ fontSize: 11, color: '#8BA6C8', margin: '2px 0 0', fontWeight: 500 }}>{card.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Sports Ticker Badges ── */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 26 }}>
+            {['🏏 Cricket', '🏐 Volleyball', '🤼 Kabaddi', '🏃 Athletics', '🏸 Badminton', '⚽ Football', '♟️ Chess', '🏓 Table Tennis'].map(s => (
+              <span 
+                key={s} 
+                style={{ 
+                  fontSize: 11, 
+                  fontWeight: 600, 
+                  color: '#AFC4DF', 
+                  background: 'rgba(15, 38, 70, 0.55)', 
+                  border: '1px solid rgba(56, 167, 255, 0.18)', 
+                  borderRadius: 999, 
+                  padding: '4px 12px',
+                  backdropFilter: 'blur(8px)'
+                }}
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Bottom Quote / Tagline ── */}
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(56, 167, 255, 0.15)', paddingTop: 18 }}>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', margin: 0, fontStyle: 'italic' }}>
+            "Discipline • Dedication • Sportsmanship in Every Arena"
+          </p>
+          <span style={{ fontSize: 11, color: '#38A7FF', fontWeight: 600 }}>GASC Idappadi Sports Portal v2.0</span>
         </div>
       </div>
 
-      {/* ── RIGHT PANEL — Login Form ── */}
-      <div style={{ width: '100%', maxWidth: 460, background: 'linear-gradient(180deg, #031126 0%, #020817 100%)', borderLeft: '1px solid rgba(55,140,255,0.15)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 40px', position: 'relative', overflowY: 'auto' }}>
+      {/* ── RIGHT PANEL — FLOATING GLASSMORPHISM LOGIN CARD ── */}
+      <div 
+        style={{ 
+          width: '100%', 
+          maxWidth: '520px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          padding: '32px 24px', 
+          position: 'relative', 
+          zIndex: 2, 
+          overflowY: 'auto' 
+        }}
+      >
+        {/* The Luxury Frosted Glass Container */}
+        <div 
+          style={{ 
+            width: '100%', 
+            maxWidth: '430px', 
+            background: 'rgba(6, 21, 46, 0.68)', 
+            backdropFilter: 'blur(28px) saturate(190%)', 
+            WebkitBackdropFilter: 'blur(28px) saturate(190%)', 
+            border: '1px solid rgba(56, 167, 255, 0.28)', 
+            borderRadius: 24, 
+            padding: '38px 32px 32px', 
+            boxShadow: '0 25px 80px -10px rgba(0, 0, 0, 0.85), 0 0 45px rgba(22, 119, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.18)', 
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          {/* Top Multi-Color Energy Glow Line */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #1677FF 0%, #00F0FF 45%, #FF6A21 80%, #FFB703 100%)' }} />
 
-        {/* Top logo for mobile */}
-        <div className="lg:hidden" style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(55,140,255,0.40)', background: 'rgba(22,119,255,0.10)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/images/college-logo.jpg" alt="GASC" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).src = '/images/college-logo.png'; }} />
-          </div>
-          <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 20, color: '#FFFFFF', margin: 0 }}>GASC SPORTS</h2>
-        </div>
+          {/* College Crest on Mobile / Top Branding */}
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(56, 167, 255, 0.6)', background: '#031126', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 25px rgba(22, 119, 255, 0.35)' }}>
+              <img src="/images/college-logo.jpg" alt="GASC" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).src = '/images/college-logo.png'; }} />
+            </div>
 
-        <div style={{ width: '100%', maxWidth: 380 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(22, 119, 255, 0.12)', border: '1px solid rgba(56, 167, 255, 0.35)', padding: '4px 12px', borderRadius: 999, marginBottom: 8 }}>
+              <Sparkles style={{ width: 13, height: 13, color: '#38A7FF' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#38A7FF', letterSpacing: '0.05em' }}>STUDENT ATHLETE LOGIN</span>
+            </div>
 
-          <div style={{ marginBottom: 28 }}>
-            <h2 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 26, color: '#FFFFFF', margin: '0 0 6px' }}>Welcome Back! 👋</h2>
-            <p style={{ fontSize: 14, color: '#6E86A5', margin: 0 }}>Login with your College Register Number or Email</p>
+            <h2 style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: 800, fontSize: 25, color: '#FFFFFF', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
+              Welcome Back! 👋
+            </h2>
+            <p style={{ fontSize: 13, color: '#8BA6C8', margin: 0, lineHeight: 1.4 }}>
+              Enter your Register Number or Email to access your sports account.
+            </p>
           </div>
 
           {/* Success Banner */}
           {successBanner && (
-            <div style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.35)', color: '#34D399', padding: '10px 14px', borderRadius: 10, marginBottom: 20, fontSize: 13, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.40)', color: '#34D399', padding: '11px 14px', borderRadius: 12, marginBottom: 18, fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 9 }}>
               <CheckCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
               <span>{successBanner}</span>
             </div>
@@ -517,36 +634,59 @@ const LoginPage = () => {
 
           {/* Error Banner */}
           {error && (
-            <div style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.30)', color: '#EF4444', padding: '10px 14px', borderRadius: 10, marginBottom: 20, fontSize: 13, fontWeight: 500, lineHeight: 1.4 }}>
-              ⚠️ {error}
+            <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.35)', color: '#F87171', padding: '11px 14px', borderRadius: 12, marginBottom: 18, fontSize: 12.5, fontWeight: 600, lineHeight: 1.45, display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+              <AlertCircle style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1, color: '#EF4444' }} />
+              <span>{error}</span>
             </div>
           )}
 
+          {/* ── Form Section ── */}
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {/* Register Number or Email Address */}
+
+            {/* Input 1: Register Number or Email */}
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#AFC4DF', marginBottom: 8, fontFamily: "'Inter',sans-serif" }}>
-                College Register Number or Email Address
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#AFC4DF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Register No / Email
+                </label>
+                <span style={{ fontSize: 10.5, color: '#38A7FF', fontWeight: 600 }}>Universal Login</span>
+              </div>
+
               <div style={{ position: 'relative' }}>
-                <Mail style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
+                <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28, borderRadius: 8, background: 'rgba(56, 167, 255, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                  <Mail style={{ width: 15, height: 15, color: '#38A7FF' }} />
+                </div>
                 <input
                   type="text"
                   required
                   className="input-dark"
-                  placeholder="e.g. C24UG183CSC024 or student@gmail.com"
-                  style={{ paddingLeft: 36 }}
+                  placeholder="e.g. C24UG183CSC031 or name@gmail.com"
+                  style={{ 
+                    paddingLeft: 48, 
+                    paddingRight: 14, 
+                    height: 48, 
+                    borderRadius: 12, 
+                    fontSize: 13.5, 
+                    background: 'rgba(8, 27, 53, 0.65)', 
+                    border: '1px solid rgba(56, 167, 255, 0.25)', 
+                    color: '#FFFFFF' 
+                  }}
                   value={formData.email}
                   onChange={e => setFormData({ ...formData, email: e.target.value })}
                   autoComplete="username"
                 />
               </div>
+              <p style={{ fontSize: 11, color: '#6E86A5', margin: '6px 0 0 2px' }}>
+                💡 Tip: You can type either your College Register No or registered Email
+              </p>
             </div>
 
-            {/* Password */}
+            {/* Input 2: Password */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: '#AFC4DF', fontFamily: "'Inter',sans-serif" }}>Password</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#AFC4DF', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Password
+                </label>
                 <button
                   type="button"
                   onClick={() => {
@@ -556,83 +696,206 @@ const LoginPage = () => {
                     setForgotStep(1);
                     setShowForgotModal(true);
                   }}
-                  style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#38A7FF', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    padding: 0, 
+                    fontSize: 12, 
+                    color: '#38A7FF', 
+                    fontWeight: 700, 
+                    cursor: 'pointer', 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: 4 
+                  }}
                 >
-                  Forgot Password?
+                  <KeyRound style={{ width: 12, height: 12 }} />
+                  <span>Forgot Password?</span>
                 </button>
               </div>
+
               <div style={{ position: 'relative' }}>
-                <Lock style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
+                <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 28, height: 28, borderRadius: 8, background: 'rgba(56, 167, 255, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                  <Lock style={{ width: 15, height: 15, color: '#38A7FF' }} />
+                </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   className="input-dark"
-                  placeholder="Enter your password"
-                  style={{ paddingLeft: 36, paddingRight: 42 }}
+                  placeholder="Enter your student password"
+                  style={{ 
+                    paddingLeft: 48, 
+                    paddingRight: 44, 
+                    height: 48, 
+                    borderRadius: 12, 
+                    fontSize: 13.5, 
+                    background: 'rgba(8, 27, 53, 0.65)', 
+                    border: '1px solid rgba(56, 167, 255, 0.25)', 
+                    color: '#FFFFFF' 
+                  }}
                   value={formData.password}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6E86A5', cursor: 'pointer' }}
+                  style={{ 
+                    position: 'absolute', 
+                    right: 12, 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    background: 'none', 
+                    border: 'none', 
+                    color: '#6E86A5', 
+                    cursor: 'pointer', 
+                    padding: 4, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    transition: 'color 0.2s ease'
+                  }}
                 >
-                  {showPassword ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
+                  {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
                 </button>
               </div>
             </div>
 
-            {/* Remember me */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <input type="checkbox" defaultChecked style={{ accentColor: '#1677FF', width: 15, height: 15 }} />
-              <span style={{ fontSize: 13, color: '#6E86A5' }}>Remember me</span>
-            </label>
+            {/* Remember Me & SSL Badge */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+                <input 
+                  type="checkbox" 
+                  defaultChecked 
+                  style={{ accentColor: '#1677FF', width: 16, height: 16, borderRadius: 4 }} 
+                />
+                <span style={{ fontSize: 12.5, color: '#8BA6C8', fontWeight: 500 }}>Remember my login</span>
+              </label>
 
-            {/* Submit */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#6E86A5', fontSize: 11 }}>
+                <Shield style={{ width: 12, height: 12, color: '#38A7FF' }} />
+                <span>256-Bit Encrypted</span>
+              </div>
+            </div>
+
+            {/* High-Impact Login Button */}
             <button
               type="submit"
               disabled={loading}
               className="btn-primary"
-              style={{ padding: '13px 20px', fontSize: 14, marginTop: 4, justifyContent: 'center' }}
+              style={{ 
+                height: 48, 
+                fontSize: 14.5, 
+                fontWeight: 800, 
+                borderRadius: 12, 
+                marginTop: 6, 
+                justifyContent: 'center', 
+                gap: 8, 
+                background: 'linear-gradient(135deg, #1677FF 0%, #2563EB 50%, #FF6A21 100%)', 
+                border: '1px solid rgba(255, 255, 255, 0.25)', 
+                boxShadow: '0 8px 30px rgba(22, 119, 255, 0.45), 0 0 20px rgba(255, 106, 33, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+                letterSpacing: '0.02em',
+                transition: 'all 0.25s ease'
+              }}
             >
               {loading ? (
-                <div style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#FFF', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                <>
+                  <Loader2 style={{ width: 18, height: 18, animation: 'spin 1s linear infinite' }} />
+                  <span>Verifying Credentials...</span>
+                </>
               ) : (
-                <>Login <ArrowRight style={{ width: 16, height: 16 }} /></>
+                <>
+                  <span>Sign In to Dashboard</span>
+                  <ArrowRight style={{ width: 17, height: 17 }} />
+                </>
               )}
             </button>
           </form>
 
-          <p style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#6E86A5' }}>
-            Don't have an account?{' '}
-            <Link to="/student/register" style={{ color: '#38A7FF', fontWeight: 700, textDecoration: 'none' }}>Create Student Account</Link>
-          </p>
+          {/* ── Don't have an account? Callout ── */}
+          <div 
+            style={{ 
+              marginTop: 24, 
+              padding: '14px 16px', 
+              background: 'rgba(8, 27, 53, 0.45)', 
+              border: '1px solid rgba(56, 167, 255, 0.20)', 
+              borderRadius: 14, 
+              textAlign: 'center' 
+            }}
+          >
+            <p style={{ fontSize: 13, color: '#8BA6C8', margin: '0 0 6px' }}>
+              Are you a new student at GASC Idappadi?
+            </p>
+            <Link 
+              to="/student/register" 
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: 6, 
+                color: '#38A7FF', 
+                fontWeight: 700, 
+                fontSize: 13.5, 
+                textDecoration: 'none' 
+              }}
+            >
+              <span>Create Student Account</span>
+              <ChevronRight style={{ width: 15, height: 15 }} />
+            </Link>
+          </div>
 
-          {/* Footer */}
-          <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid rgba(55,140,255,0.12)', textAlign: 'center' }}>
-            <p style={{ fontSize: 11, color: '#3A5272' }}>
+          {/* Footer Accreditation */}
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <p style={{ fontSize: 11, color: '#4B678A', margin: 0, lineHeight: 1.4 }}>
               Government Arts and Science College, Idappadi<br />
-              GASC Sports Portal v2.0
+              Physical Education Department • Salem District
             </p>
           </div>
+
         </div>
       </div>
 
-      {/* ── FORGOT PASSWORD MODAL ── */}
+      {/* ── FORGOT PASSWORD MODAL — ULTRA FROSTED GLASS ── */}
       {showForgotModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(2, 8, 23, 0.85)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div style={{ width: '100%', maxWidth: '440px', background: 'linear-gradient(180deg, #061938 0%, #031126 100%)', border: '1px solid rgba(55,140,255,0.35)', borderRadius: '24px', padding: '36px 32px', boxShadow: '0 25px 80px rgba(0,0,0,0.8), 0 0 40px rgba(22,119,255,0.2)', position: 'relative' }}>
-
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(2, 6, 23, 0.88)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div 
+            style={{ 
+              width: '100%', 
+              maxWidth: '460px', 
+              background: 'rgba(7, 24, 53, 0.85)', 
+              backdropFilter: 'blur(28px)', 
+              border: '1px solid rgba(56, 167, 255, 0.35)', 
+              borderRadius: '24px', 
+              padding: '36px 32px', 
+              boxShadow: '0 30px 90px rgba(0,0,0,0.85), 0 0 50px rgba(22, 119, 255, 0.25)', 
+              position: 'relative' 
+            }}
+          >
             {/* Close Button */}
             <button
               onClick={() => setShowForgotModal(false)}
-              style={{ position: 'absolute', top: 18, right: 18, background: 'none', border: 'none', color: '#6E86A5', cursor: 'pointer', padding: 4 }}
+              style={{ position: 'absolute', top: 18, right: 18, background: 'rgba(56,167,255,0.1)', border: '1px solid rgba(56,167,255,0.2)', borderRadius: '50%', color: '#8BA6C8', cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <X style={{ width: 20, height: 20 }} />
+              <X style={{ width: 18, height: 18 }} />
             </button>
 
+            {/* Stepper Progress Pill */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20 }}>
+              {[
+                { num: 1, label: 'Identity' },
+                { num: 2, label: 'OTP' },
+                { num: 3, label: 'Done' }
+              ].map(s => (
+                <div key={s.num} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: forgotStep >= s.num ? '#1677FF' : 'rgba(56,167,255,0.15)', border: `1px solid ${forgotStep >= s.num ? '#38A7FF' : 'rgba(56,167,255,0.3)'}`, color: '#FFF', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {s.num}
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: forgotStep >= s.num ? '#FFFFFF' : '#6E86A5' }}>{s.label}</span>
+                  {s.num < 3 && <div style={{ width: 20, height: 1, background: forgotStep > s.num ? '#38A7FF' : 'rgba(56,167,255,0.2)' }} />}
+                </div>
+              ))}
+            </div>
+
             {/* Icon */}
-            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(22,119,255,0.15)', border: '2px solid rgba(55,140,255,0.4)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38A7FF' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(22,119,255,0.15)', border: '2px solid rgba(56,167,255,0.4)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38A7FF', boxShadow: '0 0 25px rgba(22,119,255,0.3)' }}>
               <KeyRound style={{ width: 26, height: 26 }} />
             </div>
 
@@ -647,24 +910,24 @@ const LoginPage = () => {
                 </p>
 
                 {forgotError && (
-                  <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#F87171', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#F87171', padding: '10px 14px', borderRadius: '12px', marginBottom: '16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
                     <span>{forgotError}</span>
                   </div>
                 )}
 
                 <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
-                    Register Number or Email Address
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#AFC4DF', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Register Number or Email
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <Mail style={{ width: 16, height: 16, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
+                    <Mail style={{ width: 16, height: 16, position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                     <input
                       type="text"
                       required
                       className="input-dark"
-                      placeholder="e.g. C24UG183CSC024 or student@gmail.com"
-                      style={{ paddingLeft: '38px' }}
+                      placeholder="e.g. C24UG183CSC031 or student@gmail.com"
+                      style={{ paddingLeft: '42px', height: 46, borderRadius: 12, background: 'rgba(8,27,53,0.7)' }}
                       value={forgotEmail}
                       onChange={e => setForgotEmail(e.target.value)}
                     />
@@ -675,7 +938,7 @@ const LoginPage = () => {
                   type="submit"
                   disabled={forgotLoading}
                   className="btn-primary"
-                  style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700, justifyContent: 'center' }}
+                  style={{ width: '100%', height: 46, fontSize: '14px', fontWeight: 800, justifyContent: 'center', borderRadius: 12, background: 'linear-gradient(135deg, #1677FF 0%, #FF6A21 100%)' }}
                 >
                   {forgotLoading ? (
                     <>
@@ -704,13 +967,13 @@ const LoginPage = () => {
                 </p>
 
                 {forgotError && (
-                  <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#F87171', padding: '10px 14px', borderRadius: '10px', marginBottom: '16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#F87171', padding: '10px 14px', borderRadius: '12px', marginBottom: '16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
                     <span>{forgotError}</span>
                   </div>
                 )}
 
-                {/* 6 OTP Boxes */}
+                {/* 6 OTP Boxes with glowing active borders */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '20px' }}>
                   {forgotOtpValues.map((digit, idx) => (
                     <input
@@ -724,16 +987,17 @@ const LoginPage = () => {
                       onKeyDown={e => handleForgotOtpKeyDown(idx, e)}
                       onPaste={idx === 0 ? handleForgotOtpPaste : undefined}
                       style={{
-                        width: '44px',
-                        height: '52px',
+                        width: '46px',
+                        height: '54px',
                         background: 'rgba(8,27,53,0.85)',
-                        border: digit ? '2px solid #38A7FF' : '1px solid rgba(55,140,255,0.25)',
-                        borderRadius: '10px',
+                        border: digit ? '2px solid #38A7FF' : '1px solid rgba(56,167,255,0.30)',
+                        borderRadius: '12px',
                         color: '#FFFFFF',
-                        fontSize: '20px',
+                        fontSize: '22px',
                         fontWeight: 800,
                         textAlign: 'center',
-                        outline: 'none'
+                        outline: 'none',
+                        boxShadow: digit ? '0 0 15px rgba(56,167,255,0.35)' : 'none'
                       }}
                     />
                   ))}
@@ -741,43 +1005,43 @@ const LoginPage = () => {
 
                 {/* New Password */}
                 <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#AFC4DF', marginBottom: '6px' }}>
                     New Password (min 8 chars)
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <Lock style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
+                    <Lock style={{ width: 15, height: 15, position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                     <input
                       type={showNewPassword ? 'text' : 'password'}
                       required
                       className="input-dark"
                       placeholder="Min 8 characters"
-                      style={{ paddingLeft: '38px', paddingRight: '38px' }}
+                      style={{ paddingLeft: '42px', paddingRight: '42px', height: 46, borderRadius: 12, background: 'rgba(8,27,53,0.7)' }}
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6E86A5', cursor: 'pointer' }}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#8BA6C8', cursor: 'pointer' }}
                     >
-                      {showNewPassword ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
+                      {showNewPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
                     </button>
                   </div>
                 </div>
 
                 {/* Confirm Password */}
                 <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#AFC4DF', marginBottom: '6px' }}>
                     Confirm New Password
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <Lock style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
+                    <Lock style={{ width: 15, height: 15, position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
                     <input
                       type={showNewPassword ? 'text' : 'password'}
                       required
                       className="input-dark"
                       placeholder="Re-enter password"
-                      style={{ paddingLeft: '38px' }}
+                      style={{ paddingLeft: '42px', height: 46, borderRadius: 12, background: 'rgba(8,27,53,0.7)' }}
                       value={confirmNewPassword}
                       onChange={e => setConfirmNewPassword(e.target.value)}
                     />
@@ -788,7 +1052,7 @@ const LoginPage = () => {
                   type="submit"
                   disabled={forgotLoading}
                   className="btn-primary"
-                  style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700, justifyContent: 'center' }}
+                  style={{ width: '100%', height: 46, fontSize: '14px', fontWeight: 800, justifyContent: 'center', borderRadius: 12, background: 'linear-gradient(135deg, #1677FF 0%, #FF6A21 100%)' }}
                 >
                   {forgotLoading ? (
                     <>
@@ -808,8 +1072,8 @@ const LoginPage = () => {
             {/* ── STEP 3: SUCCESS ── */}
             {forgotStep === 3 && (
               <div style={{ textAlign: 'center' }}>
-                <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', border: '2px solid rgba(16,185,129,0.4)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34D399' }}>
-                  <ShieldCheck style={{ width: 32, height: 32 }} />
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', border: '2px solid rgba(16,185,129,0.4)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34D399', boxShadow: '0 0 30px rgba(16,185,129,0.3)' }}>
+                  <ShieldCheck style={{ width: 34, height: 34 }} />
                 </div>
                 <h3 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontSize: '20px', fontWeight: 800, color: '#FFFFFF', margin: '0 0 8px' }}>
                   Password Reset Complete!
@@ -821,7 +1085,7 @@ const LoginPage = () => {
                   type="button"
                   onClick={() => setShowForgotModal(false)}
                   className="btn-primary"
-                  style={{ width: '100%', padding: '12px', fontSize: '14px', fontWeight: 700, justifyContent: 'center' }}
+                  style={{ width: '100%', height: 46, fontSize: '14px', fontWeight: 800, justifyContent: 'center', borderRadius: 12, background: 'linear-gradient(135deg, #1677FF 0%, #34D399 100%)' }}
                 >
                   <span>Continue to Login</span>
                   <ArrowRight style={{ width: 16, height: 16 }} />

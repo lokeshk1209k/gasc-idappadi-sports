@@ -1,6 +1,6 @@
 {
   "success": true,
-  "count": 2,
+  "count": 3,
   "roster": [
     {
       "id": "ros_1791143969487_o0rr",
@@ -29,6 +29,20 @@
       "registered_user_id": null,
       "created_at": "2026-10-04T20:41:51.382Z",
       "updated_at": "2026-10-04T20:42:09.073Z"
+    },
+    {
+      "id": "ros_1791209123774_f69w",
+      "register_number": "C24UG183CSC048",
+      "name": "THARANI S",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Female",
+      "status": "Active",
+      "is_registered": false,
+      "registered_user_id": null,
+      "created_at": "2026-10-05T14:05:23.789Z",
+      "updated_at": "2026-10-05T14:05:23.789Z"
     }
   ]
 }

@@ -28,6 +28,20 @@
       "registered_user_id": null,
       "created_at": "2026-10-04T20:41:51.382Z",
       "updated_at": "2026-10-04T20:42:09.073Z"
+    },
+    {
+      "id": "ros_1791209123774_f69w",
+      "register_number": "C24UG183CSC048",
+      "name": "THARANI S",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Female",
+      "status": "Active",
+      "is_registered": false,
+      "registered_user_id": null,
+      "created_at": "2026-10-05T14:05:23.789Z",
+      "updated_at": "2026-10-05T14:05:23.789Z"
     }
   ],
   "users": [
@@ -432,6 +446,20 @@
       "status": "Active",
       "created_at": "2026-10-04T20:41:51.416Z",
       "updated_at": "2026-10-04T20:42:09.450Z"
+    },
+    {
+      "id": "roster_C24UG183CSC048",
+      "name": "THARANI S",
+      "register_number": "C24UG183CSC048",
+      "email": "c24ug183csc048@roster.internal",
+      "role": "roster",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Female",
+      "status": "Pending Registration",
+      "created_at": "2026-10-05T14:05:23.818Z",
+      "updated_at": "2026-10-05T14:05:25.235Z"
     }
   ],
   "equipment": [
@@ -568,6 +596,45 @@
       "sender": "Sports Incharge",
       "created_at": "2026-10-04T21:30:28.480Z",
       "updated_at": "2026-10-04T21:30:28.480Z"
+    },
+    {
+      "id": "id_1791150485721_xk9a5o",
+      "title": "Equipment Issued: Cosco Volleyball Super (1)",
+      "message": "You have been issued 1 unit(s) of Cosco Volleyball Super. Please return the item in good condition by 7 Oct 2026.",
+      "category": "Equipment",
+      "target_type": "Specific Student",
+      "target_id": "roster_C24UG183CSC031",
+      "target_model": "User",
+      "priority": "Normal",
+      "sender": "Sports Incharge",
+      "created_at": "2026-10-04T21:48:05.721Z",
+      "updated_at": "2026-10-04T21:48:05.721Z"
+    },
+    {
+      "id": "roster_C24UG183CSC048",
+      "title": "C24UG183CSC048",
+      "category": "roster",
+      "type": "roster_student",
+      "target_type": "Computer Science",
+      "target_audience": "III Year",
+      "priority": "Female",
+      "sender": "unregistered",
+      "message": "{\"registerNumber\":\"C24UG183CSC048\",\"name\":\"THARANI S\",\"department\":\"Computer Science\",\"year\":\"III Year\",\"section\":\"A\",\"gender\":\"Female\",\"status\":\"Active\",\"isRegistered\":false}",
+      "created_at": "2026-10-05T14:05:26.187Z",
+      "updated_at": "2026-10-05T14:05:26.187Z"
+    },
+    {
+      "id": "id_1791212245159_d2gc8u",
+      "title": "Competition Application Approved: Badminton",
+      "message": "Congratulations! Your registration for \"Badminton\" has been approved by Sports Incharge. Check the team roster and practice schedule.",
+      "category": "Competition",
+      "target_type": "Specific Student",
+      "target_id": "roster_C24UG183CSC048",
+      "target_model": "User",
+      "priority": "High",
+      "sender": "Sports Incharge",
+      "created_at": "2026-10-05T14:57:25.160Z",
+      "updated_at": "2026-10-05T14:57:25.160Z"
     }
   ],
   "tournaments": [
@@ -713,6 +780,25 @@
       "issued_by": "Dr. R. ANITHA",
       "created_at": "2026-10-04T21:30:27.152Z",
       "updated_at": "2026-10-04T21:30:27.152Z"
+    },
+    {
+      "id": "tx_1791150484132_f01l",
+      "student_id": "roster_C24UG183CSC031",
+      "student_name": "aruna",
+      "register_number": "C24UG183CSC031",
+      "equipment_id": "eq_1791129548184_69nj",
+      "equipment_name": "Cosco Volleyball Super",
+      "quantity": 1,
+      "issue_date": "2026-10-04T21:48:04.126Z",
+      "issue_time": "03:18 am",
+      "expected_return_date": "2026-10-07T00:00:00.000Z",
+      "status": "Issued",
+      "return_condition": "Pending",
+      "purpose": "College Practice / Match",
+      "remarks": "",
+      "issued_by": "Dr. R. ANITHA",
+      "created_at": "2026-10-04T21:48:04.126Z",
+      "updated_at": "2026-10-04T21:48:04.126Z"
     }
   ],
   "competition_registrations": []
