@@ -385,6 +385,90 @@ module.exports = async (req, res) => {
       });
     }
 
+    // ──────── ACTION: MY-EQUIPMENT (STUDENT SPECIFIC) ────────
+    if (action === 'my-equipment' || rawUrl.includes('my-equipment')) {
+      const regNo = (
+        query.registerNumber ||
+        query.studentId ||
+        query.regNo ||
+        parsedUrl.searchParams.get('registerNumber') ||
+        parsedUrl.searchParams.get('studentId') ||
+        parsedUrl.searchParams.get('regNo') ||
+        req.headers['x-register-number'] ||
+        req.headers['x-student-id'] ||
+        ''
+      ).trim();
+
+      if (!regNo) {
+        return res.status(400).json({ success: false, message: 'Register Number is required.' });
+      }
+
+      const { data: rows } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('category', 'equipment')
+        .order('created_at', { ascending: false });
+
+      const transactions = [];
+      const cleanReg = regNo.toLowerCase();
+
+      if (rows && rows.length > 0) {
+        for (const r of rows) {
+          try {
+            const t = typeof r.message === 'string' ? JSON.parse(r.message) : r.message;
+            if (!t) continue;
+            const sender = (r.sender || '').toLowerCase();
+            const target = (r.target_audience || '').toLowerCase();
+            const tReg = (t.registerNumber || t.regNo || t.register_number || '').toLowerCase();
+            const tStudentId = (t.studentId || '').toString().toLowerCase();
+
+            if (
+              sender === cleanReg ||
+              target.includes(cleanReg) ||
+              tReg === cleanReg ||
+              tStudentId === cleanReg
+            ) {
+              transactions.push(t);
+            }
+          } catch (e) {}
+        }
+      }
+
+      const now = new Date();
+      const activeIssued = [];
+      const history = [];
+
+      transactions.forEach(t => {
+        const item = toCamelCase(t);
+        const isPastExpected = item.status === 'Issued' && new Date(item.expectedReturnDate) < now;
+        item.isOverdue = isPastExpected;
+        if (isPastExpected) {
+          const diffMs = now.getTime() - new Date(item.expectedReturnDate).getTime();
+          item.daysOverdue = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+        } else {
+          item.daysOverdue = 0;
+        }
+
+        if (item.status === 'Issued') {
+          activeIssued.push(item);
+        } else {
+          history.push(item);
+        }
+      });
+
+      return res.status(200).json({
+        success: true,
+        count: transactions.length,
+        activeIssued,
+        history,
+        stats: {
+          currentlyIssued: activeIssued.length,
+          returned: history.length,
+          overdue: activeIssued.filter(i => i.isOverdue).length
+        }
+      });
+    }
+
     // ──────── DEFAULT: GET ALL EQUIPMENT ────────
     const { data, error } = await supabase
       .from('equipment')

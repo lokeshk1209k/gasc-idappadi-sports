@@ -31,6 +31,10 @@
       "destination": "/api/equipment?action=transactions"
     },
     {
+      "source": "/api/equipment/my-equipment",
+      "destination": "/api/equipment?action=my-equipment"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
