@@ -86,6 +86,39 @@ const MainLayout = () => {
     };
   }, [location.pathname]);
 
+  // Universal button click ripple effect
+  useEffect(() => {
+    const handleGlobalRipple = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest(
+        'button, .btn-primary, .btn-outline, .btn-orange, .nav-item, .btn-interactive-ripple, a.btn-primary, a.btn-outline, .filter-tab'
+      ) as HTMLElement | null;
+      if (!target) return;
+
+      const rect = target.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      const diameter = Math.max(rect.width, rect.height) * 2;
+      const x = e.clientX - rect.left - diameter / 2;
+      const y = e.clientY - rect.top - diameter / 2;
+
+      ripple.style.width = `${diameter}px`;
+      ripple.style.height = `${diameter}px`;
+      ripple.style.left = `${x}px`;
+      ripple.style.top = `${y}px`;
+      ripple.className = 'click-ripple';
+
+      if (getComputedStyle(target).position === 'static') {
+        target.style.position = 'relative';
+      }
+      target.style.overflow = 'hidden';
+
+      target.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+    };
+
+    document.addEventListener('click', handleGlobalRipple);
+    return () => document.removeEventListener('click', handleGlobalRipple);
+  }, []);
+
   const logout = () => {
     localStorage.removeItem('gasc_token');
     localStorage.removeItem('gasc_user');
@@ -247,10 +280,18 @@ const MainLayout = () => {
             </button>
 
             {/* Page breadcrumb */}
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#AFC4DF', fontFamily: 'Inter,sans-serif' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'Inter,sans-serif' }}>
                 {NAV_ITEMS.find(n => location.pathname.startsWith(n.path))?.label || 'Portal'}
               </span>
+
+              {/* Live Sports Season Pill */}
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full" style={{ background: 'var(--accent-subtle)', border: '1px solid var(--accent-border)' }}>
+                <span className="beacon-dot" />
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent-secondary)', letterSpacing: '0.04em' }}>
+                  SEASON 2026 ACTIVE
+                </span>
+              </div>
             </div>
 
             {/* Search */}
@@ -357,9 +398,14 @@ const MainLayout = () => {
             </div>
           </header>
 
+          {/* Top route sweep neon progress bar */}
+          <div key={`nav-progress-${location.pathname}`} className="top-nav-progress" />
+
           {/* ── PAGE CONTENT ── */}
-          <main className="page-content bg-grid">
-            <Outlet />
+          <main className="page-content bg-grid" style={{ position: 'relative' }}>
+            <div key={location.pathname} className="page-transition-wrapper">
+              <Outlet />
+            </div>
           </main>
         </div>
 

@@ -242,7 +242,7 @@ const GalleryPage = () => {
               </span>
             </div>
             <h1 className="section-title" style={{ fontSize: 28 }}>
-              SPORTS <span style={{ color: '#38A7FF' }}>PHOTOS</span>
+              SPORTS <span style={{ color: 'var(--accent-secondary)' }}>PHOTOS</span>
             </h1>
             <p className="section-subtitle">
               All sports, tournaments, and athletic moments at GASC Idappadi with date, month, and year records.

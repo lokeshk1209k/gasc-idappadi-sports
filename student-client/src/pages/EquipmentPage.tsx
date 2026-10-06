@@ -414,11 +414,13 @@ const EquipmentPage = () => {
       <div className="flex items-center gap-2 border-b border-white/10 pb-2">
         <button
           onClick={() => setActiveTab('issued')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'issued'
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all btn-interactive-ripple"
+          style={{
+            background: activeTab === 'issued' ? 'var(--accent-gradient)' : 'transparent',
+            border: activeTab === 'issued' ? '1px solid var(--accent-border)' : '1px solid transparent',
+            color: activeTab === 'issued' ? '#FFFFFF' : 'var(--text-muted)',
+            boxShadow: activeTab === 'issued' ? '0 4px 16px var(--accent-glow)' : 'none'
+          }}
         >
           <Package className="w-4 h-4" />
           <span>Currently Issued</span>
@@ -431,11 +433,13 @@ const EquipmentPage = () => {
 
         <button
           onClick={() => setActiveTab('history')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'history'
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/20'
-              : 'text-slate-400 hover:text-white hover:bg-white/5'
-          }`}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all btn-interactive-ripple"
+          style={{
+            background: activeTab === 'history' ? 'var(--accent-gradient)' : 'transparent',
+            border: activeTab === 'history' ? '1px solid var(--accent-border)' : '1px solid transparent',
+            color: activeTab === 'history' ? '#FFFFFF' : 'var(--text-muted)',
+            boxShadow: activeTab === 'history' ? '0 4px 16px var(--accent-glow)' : 'none'
+          }}
         >
           <Clock className="w-4 h-4" />
           <span>Equipment History</span>
