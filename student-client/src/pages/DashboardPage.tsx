@@ -1,737 +1,918 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
-  Trophy, Calendar, Medal, Dumbbell, ArrowRight, Clock,
-  MapPin, ChevronRight, Star, Zap, Users, Image, Sparkles,
-  Package, ShieldCheck
+  Trophy, Calendar, Dumbbell, ArrowRight, Clock,
+  MapPin, ChevronRight, ChevronLeft, Zap, Users,
+  Award, Megaphone, Flame, Settings, User, CheckCircle2,
+  Sparkles, ExternalLink, Activity
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
-// ── Sample data ───────────────────────────────────────────────────────────────
-const STATS = [
-  { label: 'Sports Available', value: 12, sub: '+3 new disciplines', icon: Dumbbell, color: 'blue', gradient: 'linear-gradient(135deg,rgba(22,119,255,0.22),rgba(22,119,255,0.06))' },
-  { label: 'Upcoming Events', value: 25, sub: 'Registration open', icon: Calendar, color: 'purple', gradient: 'linear-gradient(135deg,rgba(139,92,246,0.22),rgba(139,92,246,0.06))' },
-  { label: 'Registered Tournaments', value: 8, sub: 'Active college entries', icon: Trophy, color: 'orange', gradient: 'linear-gradient(135deg,rgba(255,106,33,0.22),rgba(255,106,33,0.06))' },
-  { label: 'Medals / Honors', value: 4, sub: 'State & Zonal titles', icon: Medal, color: 'cyan', gradient: 'linear-gradient(135deg,rgba(6,182,212,0.22),rgba(6,182,212,0.06))' },
+// ── Hero Slides Data ─────────────────────────────────────────────────────────
+const HERO_SLIDES = [
+  {
+    badge: 'GASC SPORTS',
+    titleLine1: 'YOUR SPORTS JOURNEY',
+    titleLine2: 'STARTS HERE',
+    subtitle: 'Compete • Connect • Achieve',
+    sideTagline: ['Stronger', 'Faster', 'Together'],
+    ctaText: 'Explore Tournaments',
+    ctaLink: '/student/tournaments',
+    image: '/images/hero-banner.jpg',
+  },
+  {
+    badge: 'INTER-COLLEGE CHAMPIONSHIP',
+    titleLine1: 'CHAMPIONS ARE MADE',
+    titleLine2: 'ON THIS FIELD',
+    subtitle: 'Represent GASC Idappadi • Aim For Gold',
+    sideTagline: ['Dedication', 'Teamwork', 'Victory'],
+    ctaText: 'Register Now',
+    ctaLink: '/student/tournaments',
+    image: '/images/login-hero.jpg',
+  },
+  {
+    badge: 'EQUIPMENT & GEAR',
+    titleLine1: 'GEAR UP FOR',
+    titleLine2: 'PEAK PERFORMANCE',
+    subtitle: 'High-Quality Sports Equipment Available',
+    sideTagline: ['Train Hard', 'Play Fair', 'Rise Up'],
+    ctaText: 'Check Equipment',
+    ctaLink: '/student/equipment',
+    image: '/images/hero-banner.jpg',
+  },
+  {
+    badge: 'COLLEGE SPORTS FEST 2026',
+    titleLine1: 'CELEBRATE ATHLETIC',
+    titleLine2: 'EXCELLENCE TOGETHER',
+    subtitle: '20+ Sports Disciplines • 50+ Medals',
+    sideTagline: ['Courage', 'Passion', 'Glory'],
+    ctaText: 'View Sports',
+    ctaLink: '/student/sports',
+    image: '/images/login-hero.jpg',
+  }
 ];
 
-const QUICK_ACTIONS = [
-  { icon: Dumbbell, label: 'Sports Tournaments', desc: 'Register for upcoming events', path: '/student/tournaments', color: '#1677FF' },
-  { icon: Package, label: 'Equipment Portal', desc: 'Track issued kits & gear', path: '/student/equipment', color: '#8B5CF6' },
-  { icon: Trophy, label: 'College Sports', desc: 'Explore sports disciplines', path: '/student/sports', color: '#FF6A21' },
-  { icon: Image, label: 'Athletic Moments', desc: 'High-res photos & gallery', path: '/student/gallery', color: '#06B6D4' },
+// ── Static/Fallback Data matching reference image ────────────────────────────
+const DEFAULT_TOURNAMENTS = [
+  {
+    id: 'spark-2026',
+    name: 'SPARK 2026',
+    sport: 'Cricket',
+    date: 'Jan 15 - Jan 20, 2026',
+    venue: 'College Ground, Idappadi',
+    status: 'Registration Open',
+    badgeColor: 'emerald',
+    image: '/images/sports/cricket.jpg'
+  },
+  {
+    id: 'annual-meet-2026',
+    name: 'Annual Sports Meet 2026',
+    sport: 'Basketball | Boys',
+    date: 'Feb 10 - Feb 15, 2026',
+    venue: 'College Ground, Idappadi',
+    status: 'Upcoming',
+    badgeColor: 'purple',
+    image: '/images/sports/basketball.jpg'
+  },
+  {
+    id: 'track-field-2026',
+    name: 'Track & Field Championship',
+    sport: 'Athletics | All Genders',
+    date: 'Mar 5 - Mar 7, 2026',
+    venue: 'College Ground, Idappadi',
+    status: 'Registration Closed',
+    badgeColor: 'rose',
+    image: '/images/sports/running.jpg'
+  }
 ];
 
-const RECENT_ACTIVITY = [
-  { text: 'You registered for Inter-College Cricket Championship', time: '2 hours ago', type: 'blue' },
-  { text: 'Your team qualified for Badminton Zonal Championship match', time: '1 day ago', type: 'green' },
-  { text: 'New equipment issue policy announced by PE Department', time: '2 days ago', type: 'orange' },
-  { text: 'Official certificate issued for Annual Athletics Meet', time: '3 days ago', type: 'purple' },
+const ANNOUNCEMENTS = [
+  {
+    id: 1,
+    title: 'SPARK 2026 Registration Open',
+    desc: 'Register now and be a part of the biggest college sports carnival...',
+    date: 'Dec 20, 2025',
+    color: '#EF4444' // Red dot
+  },
+  {
+    id: 2,
+    title: 'Annual Sports Meet Schedule Released',
+    desc: 'Check the event schedule, ground allocations and reporting times...',
+    date: 'Dec 15, 2025',
+    color: '#10B981' // Green dot
+  },
+  {
+    id: 3,
+    title: 'Team Selection Camp',
+    desc: 'Cricket & volleyball selection camp trials scheduled on ground...',
+    date: 'Dec 10, 2025',
+    color: '#F59E0B' // Amber dot
+  }
 ];
 
-const LIVE_ANNOUNCEMENTS = [
-  '🏆 Inter-Collegiate Cricket Championship Registrations Now Open',
-  '🏸 Badminton Singles & Doubles Trials: Friday 9:00 AM @ Indoor Stadium',
-  '🥇 Annual Athletic Meet: Check Rules & Equipment Schedules',
-  '📦 Sports Kit Return Due: Return issued equipment before 4:30 PM on game days',
-  '⚽ Football League Selection Camp: Registration closing this weekend',
+const RECENT_ACTIVITIES = [
+  {
+    id: 1,
+    title: 'Tournament Registration',
+    detail: 'SPARK 2026',
+    time: '2 days ago',
+    iconColor: '#38A7FF',
+    dotColor: '#00B4D8'
+  },
+  {
+    id: 2,
+    title: 'Team Update',
+    detail: 'B.Sc CS Cricket Team',
+    time: '3 days ago',
+    iconColor: '#10B981',
+    dotColor: '#059669'
+  },
+  {
+    id: 3,
+    title: 'Profile Updated',
+    detail: 'Personal Details',
+    time: '5 days ago',
+    iconColor: '#A78BFA',
+    dotColor: '#7C3AED'
+  }
+];
+
+const SPORTS_HIGHLIGHTS = [
+  { name: 'Cricket', icon: '🏏', bg: 'rgba(56, 167, 255, 0.12)', border: 'rgba(56, 167, 255, 0.35)' },
+  { name: 'Football', icon: '⚽', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.35)' },
+  { name: 'Basketball', icon: '🏀', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.35)' },
+  { name: 'Volleyball', icon: '🏐', bg: 'rgba(236, 72, 153, 0.12)', border: 'rgba(236, 72, 153, 0.35)' },
+  { name: 'Athletics', icon: '👟', bg: 'rgba(167, 139, 250, 0.12)', border: 'rgba(167, 139, 250, 0.35)' },
 ];
 
 const DashboardPage = () => {
-  const [events, setEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [studentUser, setStudentUser] = useState<any>(null);
+  const [tournaments, setTournaments] = useState(DEFAULT_TOURNAMENTS);
+  const [stats, setStats] = useState({
+    totalTournaments: 12,
+    sportsAvailable: 20,
+    myRegistrations: 3,
+    myTeam: 1
+  });
+  const [selectedTournament, setSelectedTournament] = useState<any>(null);
 
+  // Auto-rotate hero carousel
   useEffect(() => {
-    // Load student user info
-    try {
-      const stored = localStorage.getItem('gasc_user');
-      if (stored) {
-        setStudentUser(JSON.parse(stored));
-      }
-    } catch {
-      /* ignore */
-    }
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
 
-    const fetchEvents = async () => {
-      // 1. Direct Supabase query
+  // Load student profile & live database counts
+  useEffect(() => {
+    const loadProfileAndCounts = async () => {
       try {
-        const { data: supaEvents } = await supabase
+        const stored = localStorage.getItem('gasc_user');
+        if (stored) {
+          const u = JSON.parse(stored);
+          setStudentUser(u);
+
+          // Fetch fresh student info & registrations from Supabase
+          const regNo = u.registerNumber || u.regNo || u.register_number;
+          if (regNo) {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('*')
+              .ilike('register_number', regNo)
+              .maybeSingle();
+
+            if (userData) {
+              setStudentUser((prev: any) => ({ ...prev, ...userData }));
+            }
+
+            // Count registrations
+            const { count: regCount } = await supabase
+              .from('registrations')
+              .select('*', { count: 'exact', head: true })
+              .ilike('register_number', regNo);
+
+            if (regCount !== null && regCount > 0) {
+              setStats(prev => ({ ...prev, myRegistrations: regCount }));
+            }
+          }
+        }
+      } catch (e) {
+        /* ignore */
+      }
+
+      // Fetch live competitions from Supabase
+      try {
+        const { data: supaCompetitions } = await supabase
           .from('competitions')
           .select('*')
           .order('date', { ascending: true })
-          .limit(4);
-        if (supaEvents && supaEvents.length > 0) {
-          setEvents(supaEvents);
-          setLoading(false);
-          return;
-        }
-      } catch (err) {}
+          .limit(3);
 
-      // 2. Fallback to API
-      try {
-        let res = await fetch('/api/competitions');
-        if (res.ok) {
-          const data = await res.json();
-          const list = data.competitions || data.data || (Array.isArray(data) ? data : []);
-          if (Array.isArray(list)) {
-            setEvents(list.slice(0, 4));
-          }
+        if (supaCompetitions && supaCompetitions.length > 0) {
+          const mapped = supaCompetitions.map((c, idx) => ({
+            id: c.id || `supa-${idx}`,
+            name: c.name || c.title || 'College Championship',
+            sport: c.sport || 'Sports',
+            date: c.date ? new Date(c.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Upcoming',
+            venue: c.venue || 'College Ground, Idappadi',
+            status: c.status || (idx === 0 ? 'Registration Open' : 'Upcoming'),
+            badgeColor: idx === 0 ? 'emerald' : idx === 1 ? 'purple' : 'rose',
+            image: c.image || (c.sport?.toLowerCase().includes('cricket') ? '/images/sports/cricket.jpg' : c.sport?.toLowerCase().includes('basketball') ? '/images/sports/basketball.jpg' : '/images/sports/running.jpg')
+          }));
+          setTournaments(mapped);
+          setStats(prev => ({ ...prev, totalTournaments: Math.max(12, supaCompetitions.length) }));
         }
-      } catch { /* keep existing */ }
-      setLoading(false);
+      } catch (e) {
+        /* keep default */
+      }
     };
 
-    fetchEvents();
-    const interval = setInterval(fetchEvents, 3000);
-
-    // Supabase Realtime for instant dashboard event updates
-    const channel = supabase
-      .channel('dashboard_realtime_events')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'competitions' }, () => {
-        fetchEvents();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournaments' }, () => {
-        fetchEvents();
-      })
-      .subscribe();
-
-    window.addEventListener('storage', fetchEvents);
-    window.addEventListener('gasc_tournaments_updated', fetchEvents);
-    window.addEventListener('focus', fetchEvents);
-
-    return () => {
-      clearInterval(interval);
-      supabase.removeChannel(channel);
-      window.removeEventListener('storage', fetchEvents);
-      window.removeEventListener('gasc_tournaments_updated', fetchEvents);
-      window.removeEventListener('focus', fetchEvents);
-    };
+    loadProfileAndCounts();
   }, []);
 
-  const displayEvents = events;
+  const studentName = studentUser?.name || 'Arun Kumar S';
+  const studentRegNo = studentUser?.registerNumber || studentUser?.regNo || studentUser?.register_number || 'C24UG183CSC011';
+  const studentDept = studentUser?.department || studentUser?.dept || 'B.Sc Computer Science';
+  const studentYear = studentUser?.year || 'III Year';
+  const studentGender = studentUser?.gender || 'Male';
 
-  const sportEmoji: Record<string, string> = {
-    Cricket: '🏏', Badminton: '🏸', Football: '⚽', Basketball: '🏀',
-    Athletics: '🏃', Volleyball: '🏐', 'Table Tennis': '🏓', Chess: '♟️', Carrom: '🎯'
-  };
+  // Format department short name (e.g. B.Sc Computer Science -> B.Sc CS)
+  const shortDept = studentDept.toLowerCase().includes('computer science')
+    ? 'B.Sc CS'
+    : studentDept.length > 12
+    ? studentDept.split(' ').slice(0, 2).join(' ')
+    : studentDept;
 
-  const studentName = studentUser?.name || 'Student Athlete';
-  const regNo = studentUser?.registerNumber || studentUser?.regNo || studentUser?.register_number || 'C24UG183CSC014';
-  const dept = studentUser?.department || studentUser?.dept || 'Computer Science';
+  const slide = HERO_SLIDES[currentSlide];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div className="w-full flex flex-col gap-6 max-w-[1500px] mx-auto pb-10">
+      
+      {/* ══════════════════════════════════════════════════════════════
+          TOP ROW: HERO CAROUSEL (LEFT 2/3) + PROFILE WIDGET (RIGHT 1/3)
+         ══════════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
 
-      {/* ══ CINEMATIC ATHLETE HERO ARENA ══════════════════════════════════════════════════ */}
-      <div
-        className="gasc-card stagger-1"
-        style={{
-          position: 'relative',
-          borderRadius: 24,
-          overflow: 'hidden',
-          padding: 0,
-          border: '1px solid var(--accent-border)',
-          boxShadow: '0 20px 50px var(--accent-glow), 0 10px 30px rgba(0,0,0,0.5)',
-          background: 'var(--bg-card-solid)',
-          minHeight: 380,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-        }}
-      >
-        {/* Background Athletic Image with Cinematic Dual Gradient */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: `linear-gradient(90deg, rgba(2, 8, 23, 0.94) 0%, rgba(2, 8, 23, 0.82) 48%, rgba(2, 8, 23, 0.40) 100%), url('/images/hero-banner.jpg')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center right',
-            zIndex: 1,
-          }}
-        />
+        {/* ── HERO BANNER CAROUSEL (lg:col-span-8) ── */}
+        <div className="lg:col-span-8 relative rounded-2xl overflow-hidden min-h-[300px] md:min-h-[340px] flex flex-col justify-between p-6 sm:p-7 border border-blue-400/25 shadow-2xl transition-all duration-500">
+          
+          {/* Dynamic Background Image with Depth Gradient Overlay */}
+          <div
+            className="absolute inset-0 bg-cover bg-center transition-all duration-700 scale-105"
+            style={{
+              backgroundImage: `url(${slide.image})`,
+              filter: 'brightness(0.85) contrast(1.15)'
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/95 via-[#020817]/75 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#020817] via-transparent to-black/30" />
+          
+          {/* Neon flare radial accents */}
+          <div className="absolute top-0 right-1/4 w-80 h-80 rounded-full bg-blue-500/15 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-10 w-96 h-40 rounded-full bg-cyan-500/15 blur-2xl pointer-events-none" />
 
-        {/* Ambient Glow Orbs */}
-        <div
-          style={{
-            position: 'absolute',
-            top: -40,
-            right: 40,
-            width: 220,
-            height: 220,
-            borderRadius: '50%',
-            background: 'var(--accent-primary)',
-            filter: 'blur(80px)',
-            opacity: 0.35,
-            zIndex: 2,
-            pointerEvents: 'none',
-          }}
-        />
+          {/* 1. Header with Student Greeting matching reference image */}
+          <div className="relative z-10 flex items-center gap-3 animate-fade-in">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 border-2 border-cyan-400/40 p-0.5 shadow-lg flex items-center justify-center font-black text-white text-sm">
+              {studentName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'AK'}
+            </div>
+            <div>
+              <div className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
+                Welcome back,
+              </div>
+              <div className="text-white font-extrabold text-base tracking-tight flex items-center gap-1.5">
+                <span>{studentName}</span>
+                <span className="text-amber-400">👋</span>
+              </div>
+              <div className="text-[11px] text-cyan-300 font-medium">
+                {studentDept} <span className="opacity-50">|</span> {studentYear} <span className="opacity-50">|</span> <span className="font-mono text-cyan-200">{studentRegNo}</span>
+              </div>
+            </div>
+          </div>
 
-        {/* Hero Top Content */}
-        <div style={{ position: 'relative', zIndex: 10, padding: '32px 32px 20px' }}>
-          {/* Athlete Identity Meta Bar */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 14px',
-                borderRadius: 20,
-                background: 'rgba(2, 8, 23, 0.75)',
-                border: '1px solid var(--accent-border)',
-                backdropFilter: 'blur(12px)',
-              }}
-            >
-              <span className="beacon-dot" />
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent-secondary)', letterSpacing: '0.04em' }}>
-                LIVE ATHLETIC ARENA 2026
+          {/* 2. Main Title Typography & CTA Button */}
+          <div className="relative z-10 my-4 max-w-xl">
+            {/* Pill Badge */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/25 border border-cyan-400/40 backdrop-blur-md mb-2 shadow-lg shadow-cyan-500/10">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
+              <span className="text-xs font-black tracking-wider text-cyan-200 uppercase">
+                {slide.badge}
               </span>
             </div>
 
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                borderRadius: 20,
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(12px)',
-                fontSize: 12,
-                color: '#AFC4DF',
-                fontWeight: 600,
-              }}
-            >
-              <ShieldCheck style={{ width: 14, height: 14, color: '#4ADE80' }} />
-              <span>REG NO: <strong style={{ color: '#FFFFFF' }}>{regNo}</strong> • {dept}</span>
+            {/* Massive Headline */}
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-none drop-shadow-md">
+              <span>{slide.titleLine1}</span><br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-400 to-indigo-300 drop-shadow-[0_0_20px_rgba(34,211,238,0.5)]">
+                {slide.titleLine2}
+              </span>
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-xs sm:text-sm text-slate-300 font-medium mt-1.5 tracking-wide">
+              {slide.subtitle}
+            </p>
+
+            {/* Explore Tournaments Button */}
+            <div className="mt-4">
+              <Link
+                to={slide.ctaLink}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-slate-950 font-bold text-xs sm:text-sm shadow-xl shadow-cyan-500/20 hover:scale-105 active:scale-95 transition-all duration-200 hover:bg-cyan-50"
+              >
+                <span>{slide.ctaText}</span>
+                <ArrowRight className="w-4 h-4 text-blue-600" />
+              </Link>
             </div>
           </div>
 
-          {/* Main Title & Slogan */}
-          <div style={{ maxWidth: 640 }}>
-            <h1
-              style={{
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontWeight: 900,
-                fontSize: 'clamp(28px, 4vw, 42px)',
-                color: '#FFFFFF',
-                lineHeight: 1.15,
-                margin: '0 0 10px',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              WELCOME BACK,<br />
-              <span className="gradient-text-shimmer">{studentName.toUpperCase()}</span>
-            </h1>
-            <p
-              style={{
-                fontSize: 14,
-                color: '#AFC4DF',
-                margin: '0 0 24px',
-                lineHeight: 1.6,
-                fontWeight: 400,
-                maxWidth: 540,
-              }}
-            >
-              Train hard, represent GASC Idappadi with honor, and chase championship glory. Explore active tournament registrations and track your athletic achievements.
-            </p>
+          {/* 3. Floating Stylized Tagline on Right (Hidden on small mobile) */}
+          <div className="absolute right-8 top-1/2 -translate-y-1/2 z-10 hidden sm:flex flex-col items-end pointer-events-none text-right opacity-85">
+            <span className="italic font-black text-xl md:text-2xl text-cyan-300/90 tracking-wide drop-shadow-lg leading-tight font-jakarta">
+              {slide.sideTagline[0]}
+            </span>
+            <span className="italic font-black text-xl md:text-2xl text-blue-300/90 tracking-wide drop-shadow-lg leading-tight font-jakarta">
+              {slide.sideTagline[1]}
+            </span>
+            <span className="italic font-black text-xl md:text-2xl text-indigo-300/90 tracking-wide drop-shadow-lg leading-tight font-jakarta">
+              {slide.sideTagline[2]}
+            </span>
           </div>
 
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-            <Link
-              to="/student/tournaments"
-              className="btn-primary btn-interactive-ripple"
-              style={{ padding: '12px 24px', fontSize: 13, gap: 8, boxShadow: '0 6px 24px var(--accent-glow)' }}
+          {/* 4. Carousel Arrows & Pagination Dots */}
+          <div className="relative z-10 flex items-center justify-between pt-2">
+            {/* Left / Right Arrow Controls */}
+            <button
+              onClick={() => setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)}
+              className="w-7 h-7 rounded-full bg-black/40 hover:bg-black/70 border border-white/20 text-white flex items-center justify-center backdrop-blur-md transition-all active:scale-90"
+              title="Previous Slide"
             >
-              <Trophy style={{ width: 16, height: 16 }} />
-              Browse Tournaments
-              <ArrowRight style={{ width: 15, height: 15 }} />
-            </Link>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
 
-            <Link
-              to="/student/sports"
-              className="btn-outline btn-interactive-ripple"
-              style={{ padding: '11px 20px', fontSize: 13, gap: 8 }}
-            >
-              <Dumbbell style={{ width: 15, height: 15 }} />
-              Explore Sports
-            </Link>
+            {/* Pagination Dots */}
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10">
+              {HERO_SLIDES.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentSlide(idx)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentSlide ? 'w-5 bg-cyan-400 shadow-md shadow-cyan-400/80' : 'w-1.5 bg-slate-500 hover:bg-slate-300'}`}
+                  title={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
 
-            <Link
-              to="/student/equipment"
-              className="btn-outline btn-interactive-ripple"
-              style={{ padding: '11px 20px', fontSize: 13, gap: 8 }}
+            <button
+              onClick={() => setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)}
+              className="w-7 h-7 rounded-full bg-black/40 hover:bg-black/70 border border-white/20 text-white flex items-center justify-center backdrop-blur-md transition-all active:scale-90"
+              title="Next Slide"
             >
-              <Package style={{ width: 15, height: 15 }} />
-              My Equipment
-            </Link>
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* Live Sports Ticker Marquee along Bottom Edge */}
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 10,
-            background: 'rgba(2, 8, 23, 0.85)',
-            borderTop: '1px solid var(--accent-border)',
-            backdropFilter: 'blur(16px)',
-            padding: '10px 0',
-            overflow: 'hidden',
-          }}
-        >
-          <div className="ticker-marquee-track">
-            {[...LIVE_ANNOUNCEMENTS, ...LIVE_ANNOUNCEMENTS].map((item, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '0 24px',
-                  whiteSpace: 'nowrap',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: idx % 2 === 0 ? 'var(--text-primary)' : 'var(--accent-secondary)',
-                }}
+        {/* ── TOP RIGHT: STUDENT PROFILE CARD (lg:col-span-4) ── */}
+        <div className="lg:col-span-4 glass-panel-deep p-5 flex flex-col justify-between relative overflow-hidden transition-all duration-300 hover:border-blue-400/40">
+          
+          {/* Subtle Ambient Light */}
+          <div className="absolute top-0 right-0 w-44 h-44 rounded-full bg-blue-600/10 blur-2xl pointer-events-none" />
+
+          {/* Header row: Avatar, Online Badge, Name, RegNo, Settings Gear */}
+          <div className="relative z-10 flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 p-0.5 border border-cyan-400/40 shadow-xl flex items-center justify-center text-white font-black text-xl">
+                  {studentName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'AK'}
+                </div>
+                {/* Online pulse indicator */}
+                <div className="absolute -bottom-1 -right-1 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#020817] border border-emerald-400/40 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[9px] font-bold text-emerald-400">Online</span>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-extrabold text-white text-base leading-tight">
+                  {studentName}
+                </h3>
+                <p className="text-xs text-cyan-300 font-mono font-semibold mt-0.5">
+                  {studentRegNo}
+                </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-[11px] text-slate-300 font-medium">Verified Student</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Settings button linking to settings */}
+            <Link
+              to="/student/settings"
+              className="p-2 rounded-xl bg-slate-800/60 hover:bg-slate-700/80 border border-blue-400/20 text-slate-300 hover:text-white transition-all active:scale-90"
+              title="Profile Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-gradient-to-r from-transparent via-blue-400/20 to-transparent my-4 relative z-10" />
+
+          {/* 3 Stat Chips matching image: Department, Year, Gender */}
+          <div className="grid grid-cols-3 gap-2 relative z-10">
+            {/* Department Chip */}
+            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-blue-400/15 text-center flex flex-col items-center justify-center">
+              <Activity className="w-4 h-4 text-cyan-400 mb-1" />
+              <span className="font-extrabold text-white text-xs leading-tight line-clamp-1">{shortDept}</span>
+              <span className="text-[10px] text-slate-400 mt-0.5">Department</span>
+            </div>
+
+            {/* Year Chip */}
+            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-blue-400/15 text-center flex flex-col items-center justify-center">
+              <Award className="w-4 h-4 text-indigo-400 mb-1" />
+              <span className="font-extrabold text-white text-xs leading-tight">{studentYear}</span>
+              <span className="text-[10px] text-slate-400 mt-0.5">Year</span>
+            </div>
+
+            {/* Gender Chip */}
+            <div className="p-2.5 rounded-xl bg-slate-900/60 border border-blue-400/15 text-center flex flex-col items-center justify-center">
+              <User className="w-4 h-4 text-purple-400 mb-1" />
+              <span className="font-extrabold text-white text-xs leading-tight">{studentGender}</span>
+              <span className="text-[10px] text-slate-400 mt-0.5">Gender</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECOND ROW: 4 STAT CARDS (LEFT 2/3) + QUICK ACTIONS (RIGHT 1/3)
+         ══════════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+
+        {/* ── 4 GRADIENT GLASS STAT CARDS (lg:col-span-8) ── */}
+        <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3.5 items-stretch">
+          
+          {/* Stat 1: Total Tournaments (Electric Blue) */}
+          <Link
+            to="/student/tournaments"
+            className="stat-glass-blue rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <Trophy className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] text-cyan-200 font-bold bg-white/10 px-2 py-0.5 rounded-full">Active</span>
+            </div>
+            <div className="mt-3">
+              <div className="text-[11px] font-semibold text-blue-100">Total Tournaments</div>
+              <div className="text-2xl font-black text-white mt-0.5 font-jakarta">{stats.totalTournaments}</div>
+              <div className="text-[10px] text-cyan-300 font-medium mt-0.5">+2 this month</div>
+            </div>
+          </Link>
+
+          {/* Stat 2: Sports Available (Emerald Green) */}
+          <Link
+            to="/student/sports"
+            className="stat-glass-green rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <Dumbbell className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] text-emerald-200 font-bold bg-white/10 px-2 py-0.5 rounded-full">College</span>
+            </div>
+            <div className="mt-3">
+              <div className="text-[11px] font-semibold text-emerald-100">Sports Available</div>
+              <div className="text-2xl font-black text-white mt-0.5 font-jakarta">{stats.sportsAvailable}</div>
+              <div className="text-[10px] text-emerald-200 font-medium mt-0.5">+3 new</div>
+            </div>
+          </Link>
+
+          {/* Stat 3: My Registrations (Hot Pink / Magenta) */}
+          <Link
+            to="/student/competitions"
+            className="stat-glass-pink rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] text-pink-200 font-bold bg-white/10 px-2 py-0.5 rounded-full">Joined</span>
+            </div>
+            <div className="mt-3">
+              <div className="text-[11px] font-semibold text-pink-100">My Registrations</div>
+              <div className="text-2xl font-black text-white mt-0.5 font-jakarta">{stats.myRegistrations}</div>
+              <div className="text-[10px] text-pink-200 font-bold mt-0.5 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                <span>View Details</span>
+                <ChevronRight className="w-3 h-3" />
+              </div>
+            </div>
+          </Link>
+
+          {/* Stat 4: My Team (Golden Amber) */}
+          <Link
+            to="/student/tournaments"
+            className="stat-glass-amber rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl cursor-pointer group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-10 h-10 rounded-full bg-white/20 border border-white/30 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                <Award className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] text-amber-200 font-bold bg-white/10 px-2 py-0.5 rounded-full">Roster</span>
+            </div>
+            <div className="mt-3">
+              <div className="text-[11px] font-semibold text-amber-100">My Team</div>
+              <div className="text-2xl font-black text-white mt-0.5 font-jakarta">{stats.myTeam}</div>
+              <div className="text-[10px] text-amber-200 font-bold mt-0.5 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                <span>View Team</span>
+                <ChevronRight className="w-3 h-3" />
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        {/* ── QUICK ACTIONS (lg:col-span-4) ── */}
+        <div className="lg:col-span-4 glass-panel-deep p-5 flex flex-col justify-between">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-4 h-4 text-cyan-400" />
+            <h2 className="font-extrabold text-white text-sm tracking-wide">Quick Actions</h2>
+          </div>
+
+          {/* 2x2 Colorful Rounded Buttons */}
+          <div className="grid grid-cols-2 gap-2.5">
+            {/* 1. Register for Tournament (Blue) */}
+            <Link
+              to="/student/tournaments"
+              className="action-btn-blue p-3 rounded-xl flex items-center gap-2.5 text-white transition-all hover:scale-105 active:scale-95 shadow-md"
+            >
+              <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Trophy className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[11px] font-bold leading-tight">Register for Tournament</span>
+            </Link>
+
+            {/* 2. View My Registrations (Green) */}
+            <Link
+              to="/student/competitions"
+              className="action-btn-green p-3 rounded-xl flex items-center gap-2.5 text-white transition-all hover:scale-105 active:scale-95 shadow-md"
+            >
+              <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Award className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[11px] font-bold leading-tight">View My Registrations</span>
+            </Link>
+
+            {/* 3. My Team (Purple) */}
+            <Link
+              to="/student/tournaments"
+              className="action-btn-purple p-3 rounded-xl flex items-center gap-2.5 text-white transition-all hover:scale-105 active:scale-95 shadow-md"
+            >
+              <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Users className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[11px] font-bold leading-tight">My Team</span>
+            </Link>
+
+            {/* 4. Update Profile (Orange) */}
+            <Link
+              to="/student/profile"
+              className="action-btn-orange p-3 rounded-xl flex items-center gap-2.5 text-white transition-all hover:scale-105 active:scale-95 shadow-md"
+            >
+              <div className="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[11px] font-bold leading-tight">Update Profile</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          THIRD ROW: UPCOMING TOURNAMENTS (LEFT 2/3) + ANNOUNCEMENTS (RIGHT 1/3)
+         ══════════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+
+        {/* ── UPCOMING TOURNAMENTS SECTION (lg:col-span-8) ── */}
+        <div className="lg:col-span-8 glass-panel-deep p-5 flex flex-col justify-between">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-cyan-400" />
+              <h2 className="font-extrabold text-white text-sm sm:text-base tracking-wide">
+                Upcoming Tournaments
+              </h2>
+            </div>
+            <Link
+              to="/student/tournaments"
+              className="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1 transition-colors"
+            >
+              <span>View All</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* 3 Tournament Cards in a row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            {tournaments.map((t) => {
+              const isOpen = t.status.toLowerCase().includes('open');
+              const isUpcoming = t.status.toLowerCase().includes('upcoming');
+              const badgeClass = isOpen
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                : isUpcoming
+                ? 'bg-indigo-500/20 text-indigo-300 border-indigo-400/40'
+                : 'bg-rose-500/20 text-rose-300 border-rose-400/40';
+
+              return (
+                <div
+                  key={t.id}
+                  className="rounded-xl overflow-hidden border border-blue-400/20 bg-slate-900/60 hover:bg-slate-900/80 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40 flex flex-col group shadow-lg"
+                >
+                  {/* Image with status badge */}
+                  <div className="relative h-28 w-full overflow-hidden bg-slate-950">
+                    <img
+                      src={t.image}
+                      alt={t.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/images/hero-banner.jpg';
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-transparent" />
+                    <span className={`absolute top-2.5 right-2.5 text-[9.5px] font-extrabold px-2 py-0.5 rounded-full border backdrop-blur-md shadow-sm ${badgeClass}`}>
+                      {t.status}
+                    </span>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-3.5 flex flex-col justify-between flex-1">
+                    <div>
+                      <h3 className="font-extrabold text-white text-xs sm:text-sm leading-tight group-hover:text-cyan-300 transition-colors">
+                        {t.name}
+                      </h3>
+                      
+                      <div className="mt-2 space-y-1 text-[11px] text-slate-300">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+                          <span className="truncate">{t.date}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+                          <span className="truncate">{t.venue}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Dumbbell className="w-3 h-3 text-cyan-400 flex-shrink-0" />
+                          <span className="truncate font-semibold text-slate-200">{t.sport}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* View Details Button */}
+                    <button
+                      onClick={() => setSelectedTournament(t)}
+                      className="mt-3 w-full py-1.5 px-3 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 border border-blue-400/30 text-cyan-200 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                    >
+                      <span>View Details</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── LATEST ANNOUNCEMENTS & MATCH CHEER BANNER (lg:col-span-4) ── */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          
+          {/* Latest Announcements Glass Box */}
+          <div className="glass-panel-deep p-5 flex flex-col justify-between flex-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Megaphone className="w-4 h-4 text-cyan-400" />
+                <h2 className="font-extrabold text-white text-sm tracking-wide">
+                  Latest Announcements
+                </h2>
+              </div>
+              <Link
+                to="/student/notifications"
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1"
               >
-                <span>{item}</span>
-                <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 6px' }}>•</span>
+                <span>View All</span>
+                <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+
+            {/* List of 3 Announcements */}
+            <div className="space-y-3">
+              {ANNOUNCEMENTS.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-2.5 rounded-xl bg-slate-900/50 border border-blue-400/10 hover:border-blue-400/30 transition-all flex items-start gap-3"
+                >
+                  {/* Colored Bullet Dot */}
+                  <div
+                    className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 shadow-md"
+                    style={{ backgroundColor: item.color, boxShadow: `0 0 8px ${item.color}` }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <h4 className="font-bold text-white text-xs leading-snug truncate">
+                        {item.title}
+                      </h4>
+                      <span className="text-[10px] text-slate-400 font-medium flex-shrink-0">
+                        {item.date}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-1">
+                      {item.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Cheer Match Banner matching image bottom-right */}
+          <div className="cheer-banner-gradient p-4 rounded-2xl relative overflow-hidden flex items-center justify-between gap-4 border border-amber-400/30 shadow-xl group cursor-pointer"
+            onClick={() => navigate('/student/tournaments')}
+          >
+            {/* Glowing Golden Trophy */}
+            <div className="w-12 h-12 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform">
+              <Trophy className="w-7 h-7 text-amber-300 drop-shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
+            </div>
+
+            <div className="flex-1">
+              <div className="text-amber-300 font-black text-sm italic font-jakarta tracking-wide">
+                Good Luck
+              </div>
+              <div className="text-white font-extrabold text-xs tracking-tight">
+                For Your Next Match!
+              </div>
+            </div>
+
+            {/* Runner silhouette silhouette */}
+            <div className="w-14 h-14 opacity-40 flex-shrink-0 group-hover:opacity-75 transition-opacity">
+              <svg viewBox="0 0 100 100" fill="none" className="w-full h-full stroke-amber-400">
+                <circle cx="70" cy="20" r="8" fill="#FBBF24" />
+                <path d="M65 30 L50 48 L32 44 L20 58" strokeWidth="4" strokeLinecap="round" />
+                <path d="M50 48 L65 62 L85 55" strokeWidth="4" strokeLinecap="round" />
+                <path d="M56 54 L44 72 L54 94" strokeWidth="4" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════
+          BOTTOM ROW: MY RECENT ACTIVITY (LEFT) + SPORTS HIGHLIGHTS (RIGHT)
+         ══════════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        
+        {/* ── MY RECENT ACTIVITY (lg:col-span-6) ── */}
+        <div className="lg:col-span-6 glass-panel-deep p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-cyan-400" />
+              <h2 className="font-extrabold text-white text-sm tracking-wide">
+                My Recent Activity
+              </h2>
+            </div>
+            <Link
+              to="/student/profile"
+              className="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1"
+            >
+              <span>View All</span>
+              <ChevronRight className="w-3 h-3" />
+            </Link>
+          </div>
+
+          <div className="space-y-2.5">
+            {RECENT_ACTIVITIES.map((act) => (
+              <div
+                key={act.id}
+                className="p-2.5 rounded-xl bg-slate-900/50 border border-blue-400/10 flex items-center justify-between gap-3 hover:border-blue-400/30 transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: act.iconColor, boxShadow: `0 0 8px ${act.iconColor}` }}
+                  />
+                  <div>
+                    <span className="font-bold text-white text-xs">{act.title}</span>
+                    <span className="text-[11px] text-cyan-300 ml-2 font-medium">{act.detail}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium whitespace-nowrap">
+                  {act.time}
+                </span>
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* ══ STAT CARDS ══════════════════════════════════════════════════════ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16 }}>
-        {STATS.map(({ label, value, sub, icon: Icon, color, gradient }, idx) => (
-          <div
-            key={label}
-            className={`stat-card ${color} interactive-hover-card stagger-${(idx % 4) + 1}`}
-            style={{
-              background: gradient,
-              border: '1px solid var(--border-glass)',
-              cursor: 'pointer',
-            }}
-          >
-            {/* Icon Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <div
-                style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: 14,
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
-                }}
-              >
-                <Icon
-                  style={{
-                    width: 22,
-                    height: 22,
-                    color: color === 'blue' ? 'var(--accent-secondary)' : color === 'purple' ? '#a78bfa' : color === 'orange' ? '#FF8A50' : '#22D3EE'
-                  }}
-                />
-              </div>
-              <Sparkles style={{ width: 14, height: 14, color: 'rgba(255,255,255,0.2)' }} />
-            </div>
-
-            {/* Value Counter */}
-            <div
-              style={{
-                fontFamily: "'Plus Jakarta Sans',sans-serif",
-                fontWeight: 900,
-                fontSize: 38,
-                color: 'var(--text-primary)',
-                lineHeight: 1,
-                marginBottom: 6,
-                letterSpacing: '-0.02em',
-              }}
-            >
-              {String(value).padStart(2, '0')}
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 8 }}>
-              {label}
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: color === 'blue' ? 'var(--accent-secondary)' : color === 'purple' ? '#a78bfa' : color === 'orange' ? '#FF8A50' : '#22D3EE',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
-              {sub}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ══ MIDDLE ROW: QUICK ACTIONS + UPCOMING EVENTS ══════════════════ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
-
-        {/* Quick Actions */}
-        <div className="gasc-card stagger-2" style={{ padding: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div>
-              <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 2px', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
-                Quick Actions
+        {/* ── SPORTS HIGHLIGHTS (lg:col-span-6) ── */}
+        <div className="lg:col-span-6 glass-panel-deep p-5 flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Flame className="w-4 h-4 text-amber-400" />
+              <h2 className="font-extrabold text-white text-sm tracking-wide">
+                Sports Highlights
               </h2>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Instant portals for student athletes</p>
             </div>
-            <Zap style={{ width: 18, height: 18, color: 'var(--accent-secondary)' }} />
+            <Link
+              to="/student/sports"
+              className="text-xs text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1"
+            >
+              <span>View All</span>
+              <ChevronRight className="w-3 h-3" />
+            </Link>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {QUICK_ACTIONS.map(({ icon: Icon, label, desc, path, color }) => (
+          {/* 5 Circular Glass Sports Pills */}
+          <div className="grid grid-cols-5 gap-2 pt-1">
+            {SPORTS_HIGHLIGHTS.map((sp) => (
               <Link
-                key={label}
-                to={path}
-                className="interactive-hover-card btn-interactive-ripple"
-                style={{
-                  textDecoration: 'none',
-                  padding: 16,
-                  borderRadius: 14,
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-glass)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                  cursor: 'pointer',
-                }}
+                key={sp.name}
+                to="/student/sports"
+                className="flex flex-col items-center justify-center p-2.5 rounded-2xl transition-all duration-300 hover:scale-105 active:scale-95 group text-center"
+                style={{ background: sp.bg, border: `1px solid ${sp.border}` }}
               >
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 12,
-                    background: `${color}20`,
-                    border: `1px solid ${color}40`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: `0 4px 12px ${color}30`,
-                  }}
-                >
-                  <Icon style={{ width: 20, height: 20, color }} />
-                </div>
-                <div>
-                  <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: 13, color: 'var(--text-primary)', margin: '0 0 3px' }}>
-                    {label}
-                  </p>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, lineHeight: 1.3 }}>
-                    {desc}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--accent-secondary)' }}>
-                  <span>Launch</span>
-                  <ChevronRight style={{ width: 13, height: 13 }} />
-                </div>
+                <span className="text-2xl group-hover:scale-125 transition-transform duration-300">
+                  {sp.icon}
+                </span>
+                <span className="text-[11px] font-extrabold text-white mt-1.5 leading-tight">
+                  {sp.name}
+                </span>
               </Link>
             ))}
           </div>
         </div>
-
-        {/* Upcoming Events */}
-        <div className="gasc-card stagger-2" style={{ padding: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <div>
-              <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 2px', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
-                Upcoming Tournaments
-              </h2>
-              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Registered and college fixtures</p>
-            </div>
-            <Link to="/student/tournaments" style={{ fontSize: 12, color: 'var(--accent-secondary)', textDecoration: 'none', fontWeight: 700 }}>
-              View All →
-            </Link>
-          </div>
-
-          {loading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[1, 2, 3].map(i => (
-                <div
-                  key={i}
-                  style={{
-                    height: 64,
-                    borderRadius: 12,
-                    background: 'var(--bg-input)',
-                    backgroundImage: 'linear-gradient(90deg, rgba(55,140,255,0.06) 25%, rgba(55,140,255,0.14) 50%, rgba(55,140,255,0.06) 75%)',
-                    backgroundSize: '200% 100%',
-                    animation: 'shimmer 1.5s infinite'
-                  }}
-                />
-              ))}
-            </div>
-          ) : displayEvents.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px 14px', color: 'var(--text-muted)', fontSize: 13 }}>
-              No upcoming sports events right now. Check back soon!
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {displayEvents.map((ev: any) => {
-                const sName = ev.sportName || ev.sport || ev.name || '';
-                const dStr = ev.date
-                  ? (ev.date.includes('T') ? new Date(ev.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ev.date)
-                  : 'TBD';
-                return (
-                  <div
-                    key={ev._id || ev.id}
-                    className="interactive-hover-card btn-interactive-ripple"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 14,
-                      padding: '12px 16px',
-                      borderRadius: 14,
-                      background: 'var(--bg-input)',
-                      border: '1px solid var(--border-glass)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {/* Sport Emoji / Icon Badge */}
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 12,
-                        background: 'var(--accent-subtle)',
-                        border: '1px solid var(--accent-border)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 22,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {sportEmoji[sName] || sportEmoji[ev.name] || '🏅'}
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p
-                        style={{
-                          fontFamily: "'Plus Jakarta Sans',sans-serif",
-                          fontWeight: 700,
-                          fontSize: 13,
-                          color: 'var(--text-primary)',
-                          margin: '0 0 4px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {ev.name || ev.title}
-                      </p>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 11, color: 'var(--text-muted)' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Clock style={{ width: 12, height: 12, color: 'var(--accent-secondary)' }} />
-                          {dStr}
-                        </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <MapPin style={{ width: 12, height: 12 }} />
-                          {ev.venue || 'GASC Idappadi Grounds'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <Link
-                      to="/student/tournaments"
-                      className="btn-outline btn-interactive-ripple"
-                      style={{ padding: '6px 14px', fontSize: 11, flexShrink: 0 }}
-                    >
-                      Enter Event
-                    </Link>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* ══ BOTTOM ROW: RECENT ACTIVITY + READY TO COMPETE ══════════════ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+      {/* ── INTERACTIVE TOURNAMENT DETAILS MODAL ── */}
+      {selectedTournament && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="relative w-full max-w-md rounded-2xl glass-panel-deep border border-blue-400/40 p-6 shadow-2xl overflow-hidden">
+            <div className="relative h-40 -mx-6 -mt-6 mb-4 overflow-hidden bg-slate-950">
+              <img
+                src={selectedTournament.image}
+                alt={selectedTournament.name}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a1830] via-transparent to-transparent" />
+              <button
+                onClick={() => setSelectedTournament(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/90"
+              >
+                ✕
+              </button>
+            </div>
 
-        {/* Recent Activity Timeline */}
-        <div className="gasc-card stagger-3" style={{ padding: 24 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 20px', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
-            Recent Activity & Milestones
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {RECENT_ACTIVITY.map((item, i) => (
-              <div key={i} className="timeline-item" style={{ paddingLeft: 28 }}>
-                <div
-                  className="timeline-dot"
-                  style={{
-                    borderColor: item.type === 'blue' ? 'var(--accent-secondary)' : item.type === 'green' ? '#4ade80' : item.type === 'orange' ? '#FF8A50' : '#a78bfa'
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: item.type === 'blue' ? 'var(--accent-secondary)' : item.type === 'green' ? '#4ade80' : item.type === 'orange' ? '#FF8A50' : '#a78bfa'
-                    }}
-                  />
-                </div>
-                <div
-                  style={{
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-glass)',
-                    borderRadius: 12,
-                    padding: '12px 16px',
-                  }}
-                >
-                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 4px', fontWeight: 600 }}>
-                    {item.text}
-                  </p>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Clock style={{ width: 12, height: 12 }} />
-                    {item.time}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Ready to Compete Mega CTA */}
-        <div
-          className="gasc-card stagger-3"
-          style={{
-            padding: 32,
-            background: 'linear-gradient(135deg, rgba(13,40,74,0.9) 0%, rgba(7,27,53,0.95) 100%)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            position: 'relative',
-            overflow: 'hidden',
-            border: '1px solid var(--accent-border)',
-            boxShadow: '0 16px 44px var(--accent-glow)',
-          }}
-        >
-          {/* Decorative Glow Orbs */}
-          <div
-            style={{
-              position: 'absolute',
-              top: -40,
-              right: -30,
-              width: 200,
-              height: 200,
-              borderRadius: '50%',
-              background: 'var(--accent-primary)',
-              filter: 'blur(50px)',
-              opacity: 0.35,
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: -40,
-              left: 20,
-              width: 140,
-              height: 140,
-              borderRadius: '50%',
-              background: '#FF6A21',
-              filter: 'blur(40px)',
-              opacity: 0.20,
-              pointerEvents: 'none',
-            }}
-          />
-
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <span
-              className="badge"
-              style={{
-                background: 'var(--accent-subtle)',
-                color: 'var(--accent-secondary)',
-                border: '1px solid var(--accent-border)',
-                marginBottom: 16,
-                padding: '4px 12px',
-                fontSize: 11,
-              }}
-            >
-              🏆 REGISTRATIONS OPEN
-            </span>
-            <h3
-              style={{
-                fontFamily: "'Plus Jakarta Sans',sans-serif",
-                fontWeight: 900,
-                fontSize: 32,
-                color: '#FFFFFF',
-                lineHeight: 1.1,
-                margin: '0 0 12px',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Ready to<br />
-              <span style={{ color: '#FF6A21' }}>Compete & Win?</span>
+            <h3 className="text-xl font-extrabold text-white leading-tight">
+              {selectedTournament.name}
             </h3>
-            <p style={{ fontSize: 13, color: '#AFC4DF', margin: '0 0 24px', lineHeight: 1.6, maxWidth: 420 }}>
-              Step onto the college stadium, wear the GASC Idappadi colors, and make your department proud in upcoming inter-collegiate leagues.
+            <p className="text-xs text-cyan-300 font-semibold mt-1">
+              {selectedTournament.sport}
             </p>
-          </div>
 
-          <div style={{ position: 'relative', zIndex: 2, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Link
-              to="/student/tournaments"
-              className="btn-primary btn-interactive-ripple"
-              style={{ padding: '12px 22px', fontSize: 13 }}
-            >
-              View Tournaments <ArrowRight style={{ width: 15, height: 15 }} />
-            </Link>
-            <Link
-              to="/student/sports"
-              className="btn-outline btn-interactive-ripple"
-              style={{ padding: '11px 20px', fontSize: 13 }}
-            >
-              Explore Sports
-            </Link>
-          </div>
-
-          {/* Quick Department Athletic Counters */}
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              display: 'flex',
-              gap: 28,
-              marginTop: 28,
-              paddingTop: 20,
-              borderTop: '1px solid var(--border-glass)',
-              width: '100%',
-            }}
-          >
-            {[
-              { v: '12', l: 'Disciplines' },
-              { v: '25+', l: 'Active Events' },
-              { v: '500+', l: 'Athletes Enrolled' }
-            ].map(s => (
-              <div key={s.l}>
-                <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 22, color: 'var(--accent-secondary)', margin: '0 0 2px' }}>
-                  {s.v}
-                </p>
-                <p style={{ fontSize: 11, color: '#6E86A5', margin: 0, fontWeight: 500 }}>{s.l}</p>
+            <div className="mt-4 space-y-2 text-xs text-slate-300">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-cyan-400" />
+                <span><strong>Date:</strong> {selectedTournament.date}</span>
               </div>
-            ))}
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-cyan-400" />
+                <span><strong>Venue:</strong> {selectedTournament.venue}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Award className="w-4 h-4 text-cyan-400" />
+                <span><strong>Status:</strong> {selectedTournament.status}</span>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <Link
+                to="/student/tournaments"
+                onClick={() => setSelectedTournament(null)}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs text-center shadow-lg transition-all"
+              >
+                Register / View Matches
+              </Link>
+              <button
+                onClick={() => setSelectedTournament(null)}
+                className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
     </div>
   );
 };
