@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
 import MainLayout from './layouts/MainLayout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -14,9 +15,10 @@ import EquipmentPage from './pages/EquipmentPage';
 // GASC Student Portal v2026.10.4
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<MainLayout />}>
+    <ThemeProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<MainLayout />}>
           {/* Default: redirect to dashboard */}
           <Route index element={<Navigate to="/student/dashboard" replace />} />
 
@@ -45,7 +47,8 @@ function App() {
           <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
         </Route>
       </Routes>
-    </Router>
+      </Router>
+    </ThemeProvider>
   );
 }
 

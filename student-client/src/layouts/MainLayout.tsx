@@ -133,25 +133,25 @@ const MainLayout = () => {
           className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}
         >
           {/* Brand */}
-          <div style={{ padding: '20px 16px 14px', borderBottom: '1px solid rgba(55,140,255,0.12)' }}>
+          <div style={{ padding: '20px 16px 14px', borderBottom: '1px solid var(--border-glass)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: collapsed ? '0' : '10px', justifyContent: collapsed ? 'center' : 'flex-start', overflow: 'hidden' }}>
-              <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(22,119,255,0.15)', border: '2px solid rgba(55,140,255,0.40)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+              <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--accent-subtle)', border: '2px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
                 <img
                   src="/images/college-logo.jpg"
                   alt="GASC"
                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).src = '';
-                    (e.currentTarget.parentElement as HTMLElement).innerHTML = '<span style="color:#38A7FF;font-weight:900;font-size:13px;font-family:Plus Jakarta Sans,sans-serif">G</span>';
+                    (e.currentTarget.parentElement as HTMLElement).innerHTML = '<span style="color:var(--accent-secondary);font-weight:900;font-size:13px;font-family:Plus Jakarta Sans,sans-serif">G</span>';
                   }}
                 />
               </div>
               {!collapsed && (
                 <div style={{ overflow: 'hidden' }}>
-                  <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 15, color: '#FFFFFF', whiteSpace: 'nowrap', lineHeight: 1.1 }}>
+                  <div style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: 15, color: 'var(--text-primary)', whiteSpace: 'nowrap', lineHeight: 1.1 }}>
                     GASC SPORTS
                   </div>
-                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 10, color: '#6E86A5', fontWeight: 500, marginTop: 2, whiteSpace: 'nowrap' }}>
+                  <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, marginTop: 2, whiteSpace: 'nowrap' }}>
                     Student Portal
                   </div>
                 </div>
@@ -172,10 +172,10 @@ const MainLayout = () => {
                   title={collapsed ? label : ''}
                   style={{ justifyContent: collapsed ? 'center' : 'flex-start' }}
                 >
-                  <Icon className={`nav-icon ${isActive ? 'text-[#38A7FF]' : ''}`} style={{ width: 18, height: 18, flexShrink: 0 }} />
+                  <Icon className={`nav-icon ${isActive ? 'text-accent' : ''}`} style={{ width: 18, height: 18, flexShrink: 0 }} />
                   {!collapsed && <span>{label}</span>}
                   {isActive && !collapsed && (
-                    <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#38A7FF', flexShrink: 0 }} />
+                    <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)', flexShrink: 0 }} />
                   )}
                 </Link>
               );
@@ -275,30 +275,30 @@ const MainLayout = () => {
 
               {/* Notification Dropdown */}
               {showNotifs && (
-                <div className="animate-fade-in" style={{ position: 'absolute', top: 48, right: 0, width: 340, background: '#071B35', border: '1px solid rgba(55,140,255,0.25)', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.5)', zIndex: 200, overflow: 'hidden' }}>
-                  <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(55,140,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="animate-fade-in" style={{ position: 'absolute', top: 48, right: 0, width: 340, background: 'var(--bg-card-solid)', border: '1px solid var(--border-glass-strong)', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.5)', zIndex: 200, overflow: 'hidden' }}>
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-glass)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Bell style={{ width: 16, height: 16, color: '#38A7FF' }} />
-                      <span style={{ fontWeight: 700, fontSize: 14, color: '#FFFFFF', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>Notifications</span>
+                      <Bell style={{ width: 16, height: 16, color: 'var(--accent-secondary)' }} />
+                      <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>Notifications</span>
                       <span className="badge badge-orange" style={{ fontSize: 10, padding: '2px 8px' }}>3 New</span>
                     </div>
-                    <button onClick={() => setShowNotifs(false)} style={{ color: '#6E86A5', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    <button onClick={() => setShowNotifs(false)} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
                       <X style={{ width: 16, height: 16 }} />
                     </button>
                   </div>
                   <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                     {NOTIFICATIONS.map(n => (
-                      <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(55,140,255,0.08)', display: 'flex', gap: 12, alignItems: 'flex-start', background: n.unread ? 'rgba(22,119,255,0.04)' : 'transparent', cursor: 'pointer', transition: 'background 0.2s' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: n.type === 'blue' ? '#38A7FF' : n.type === 'green' ? '#4ade80' : n.type === 'orange' ? '#FF8A50' : '#a78bfa', boxShadow: n.unread ? `0 0 8px currentColor` : 'none' }} />
+                      <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-glass)', display: 'flex', gap: 12, alignItems: 'flex-start', background: n.unread ? 'var(--accent-subtle)' : 'transparent', cursor: 'pointer', transition: 'background 0.2s' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: n.type === 'blue' ? 'var(--accent-secondary)' : n.type === 'green' ? '#4ade80' : n.type === 'orange' ? '#FF8A50' : '#a78bfa', boxShadow: n.unread ? `0 0 8px currentColor` : 'none' }} />
                         <div>
-                          <p style={{ fontSize: 13, fontWeight: n.unread ? 600 : 400, color: n.unread ? '#FFFFFF' : '#AFC4DF', margin: 0 }}>{n.title}</p>
-                          <p style={{ fontSize: 11, color: '#6E86A5', margin: '3px 0 0' }}>{n.time}</p>
+                          <p style={{ fontSize: 13, fontWeight: n.unread ? 600 : 400, color: n.unread ? 'var(--text-primary)' : 'var(--text-secondary)', margin: 0 }}>{n.title}</p>
+                          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{n.time}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div style={{ padding: '10px 16px', textAlign: 'center' }}>
-                    <Link to="/student/notifications" onClick={() => setShowNotifs(false)} style={{ fontSize: 13, color: '#38A7FF', fontWeight: 600, textDecoration: 'none' }}>View All →</Link>
+                    <Link to="/student/notifications" onClick={() => setShowNotifs(false)} style={{ fontSize: 13, color: 'var(--accent-secondary)', fontWeight: 600, textDecoration: 'none' }}>View All →</Link>
                   </div>
                 </div>
               )}
@@ -308,16 +308,16 @@ const MainLayout = () => {
             <div style={{ position: 'relative' }}>
               <button
                 onClick={() => { setShowProfile(!showProfile); setShowNotifs(false); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px 6px 6px', borderRadius: 10, background: 'rgba(8,27,53,0.8)', border: '1px solid rgba(55,140,255,0.20)', cursor: 'pointer', transition: 'all 0.2s' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 12px 6px 6px', borderRadius: 10, background: 'var(--bg-card)', border: '1px solid var(--border-glass)', cursor: 'pointer', transition: 'all 0.2s' }}
               >
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#1677FF,#6C4CFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12, color: '#FFFFFF', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-gradient)', boxShadow: '0 2px 10px var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 12, color: '#FFFFFF', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
                   {displayInitials}
                 </div>
                 <div style={{ textAlign: 'left' }} className="hidden sm:block">
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', margin: 0, lineHeight: 1.2 }}>{displayName.split(' ')[0]}</p>
-                  <p style={{ fontSize: 10, color: '#6E86A5', margin: 0 }}>Student</p>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>{displayName.split(' ')[0]}</p>
+                  <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: 0 }}>Student</p>
                 </div>
-                <ChevronRight style={{ width: 14, height: 14, color: '#6E86A5', transform: showProfile ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+                <ChevronRight style={{ width: 14, height: 14, color: 'var(--text-muted)', transform: showProfile ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
               </button>
 
               {/* Profile Dropdown */}

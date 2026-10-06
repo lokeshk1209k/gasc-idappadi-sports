@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { User, Lock, Bell, Moon, Shield, LogOut, ChevronRight, Save, Check, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { User, Lock, Bell, Moon, Sun, Shield, LogOut, ChevronRight, Save, Check, Eye, EyeOff, AlertCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '../layouts/MainLayout';
+import { useTheme } from '../context/ThemeContext';
 import { supabase } from '../lib/supabase';
 
 const SECTIONS = [
@@ -16,10 +17,10 @@ const Toggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
     onClick={() => onChange(!value)}
     style={{
       width: 44, height: 24, borderRadius: 12,
-      background: value ? 'linear-gradient(135deg,#1677FF,#5B5CFF)' : 'rgba(55,140,255,0.15)',
-      border: `1px solid ${value ? 'rgba(22,119,255,0.50)' : 'rgba(55,140,255,0.25)'}`,
+      background: value ? 'var(--accent-gradient)' : 'rgba(100,116,139,0.25)',
+      border: `1px solid ${value ? 'var(--accent-border)' : 'rgba(100,116,139,0.30)'}`,
       position: 'relative', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0,
-      boxShadow: value ? '0 2px 8px rgba(22,119,255,0.30)' : 'none'
+      boxShadow: value ? '0 2px 10px var(--accent-glow)' : 'none'
     }}
   >
     <div style={{
@@ -33,9 +34,16 @@ const Toggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
 
 const SettingsPage = () => {
   const { logout } = useAuth();
+  const { darkMode, setDarkMode, accentColor, setAccentColor, presets, currentPreset } = useTheme();
   const [activeSection, setActiveSection] = useState('account');
   const [saved, setSaved] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  };
 
   // User Profile Data
   const [userData, setUserData] = useState({
@@ -64,9 +72,7 @@ const SettingsPage = () => {
     news: true,
   });
 
-  // Appearance & Privacy
-  const [darkMode, setDarkMode] = useState(true);
-  const [accentColor, setAccentColor] = useState('#1677FF');
+  // Privacy Settings
   const [privacySettings, setPrivacySettings] = useState({
     showProfile: true,
     showTimeline: true,
@@ -89,9 +95,6 @@ const SettingsPage = () => {
 
       const storedNotifs = localStorage.getItem('gasc_notifs_settings');
       if (storedNotifs) setNotifSettings(JSON.parse(storedNotifs));
-
-      const storedAccent = localStorage.getItem('gasc_accent_color');
-      if (storedAccent) setAccentColor(storedAccent);
 
       const storedPrivacy = localStorage.getItem('gasc_privacy_settings');
       if (storedPrivacy) setPrivacySettings(JSON.parse(storedPrivacy));
@@ -368,47 +371,209 @@ const SettingsPage = () => {
 
       case 'appearance':
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div>
-              <h3 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: 18, color: '#FFFFFF', margin: '0 0 4px' }}>
-                Appearance
+              <h3 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: 18, color: 'var(--text-primary)', margin: '0 0 4px' }}>
+                Appearance & Visual Theme
               </h3>
-              <p style={{ fontSize: 13, color: '#6E86A5', margin: 0 }}>
-                Customize how the student sports portal looks on your screen.
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+                Customize colors, contrast, and theme mode for your student athlete portal.
               </p>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', background: 'rgba(8,27,53,0.5)', border: '1px solid rgba(55,140,255,0.10)', borderRadius: 12 }}>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#FFFFFF', margin: '0 0 2px' }}>Dark Navy Mode</p>
-                <p style={{ fontSize: 12, color: '#6E86A5', margin: 0 }}>High contrast dark theme tailored for sports</p>
+            {/* Mode selection cards */}
+            <div>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Display Mode
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
+                {/* Dark Navy Mode Card */}
+                <div
+                  onClick={() => {
+                    setDarkMode(true);
+                    triggerToast('🌙 Dark Navy Mode Activated');
+                  }}
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: 14,
+                    background: darkMode ? 'var(--accent-subtle)' : 'var(--bg-input)',
+                    border: `2px solid ${darkMode ? 'var(--accent-primary)' : 'var(--border-glass)'}`,
+                    boxShadow: darkMode ? '0 0 24px var(--accent-glow)' : 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    transform: darkMode ? 'scale(1.02)' : 'scale(1)',
+                  }}
+                >
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 12,
+                    background: '#031126', border: '1px solid rgba(55,140,255,0.4)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 20
+                  }}>
+                    🌙
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Dark Navy</p>
+                      {darkMode && (
+                        <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Check style={{ width: 13, height: 13, color: '#FFFFFF', strokeWidth: 3 }} />
+                        </div>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>Deep cyber sports contrast</p>
+                  </div>
+                </div>
+
+                {/* Clean Light Mode Card */}
+                <div
+                  onClick={() => {
+                    setDarkMode(false);
+                    triggerToast('☀️ Clean Light Mode Activated');
+                  }}
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: 14,
+                    background: !darkMode ? 'var(--accent-subtle)' : 'var(--bg-input)',
+                    border: `2px solid ${!darkMode ? 'var(--accent-primary)' : 'var(--border-glass)'}`,
+                    boxShadow: !darkMode ? '0 0 24px var(--accent-glow)' : 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    transform: !darkMode ? 'scale(1.02)' : 'scale(1)',
+                  }}
+                >
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 12,
+                    background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.12)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 20
+                  }}>
+                    ☀️
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Clean Light</p>
+                      {!darkMode && (
+                        <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Check style={{ width: 13, height: 13, color: '#FFFFFF', strokeWidth: 3 }} />
+                        </div>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>Crisp athletic daytime theme</p>
+                  </div>
+                </div>
               </div>
-              <Toggle value={darkMode} onChange={setDarkMode} />
             </div>
 
+            {/* Portal Accent Color */}
             <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#AFC4DF', marginBottom: 12 }}>Portal Accent Color</p>
-              <div style={{ display: 'flex', gap: 14 }}>
-                {[
-                  { color: '#1677FF', name: 'Electric Blue' },
-                  { color: '#6C4CFF', name: 'Royal Purple' },
-                  { color: '#FF6A21', name: 'Bright Orange' },
-                  { color: '#22D3EE', name: 'Cyan Glow' }
-                ].map(({ color, name }) => (
-                  <div
-                    key={color}
-                    onClick={() => updateAccent(color)}
-                    title={name}
-                    style={{
-                      width: 38, height: 38, borderRadius: '50%',
-                      background: color, cursor: 'pointer',
-                      border: accentColor === color ? '3px solid #FFFFFF' : '3px solid transparent',
-                      boxShadow: `0 0 14px ${color}60`,
-                      transition: 'all 0.2s',
-                      transform: accentColor === color ? 'scale(1.15)' : 'scale(1)'
-                    }}
-                  />
-                ))}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Portal Accent Color
+                </p>
+                <span className="badge" style={{ background: 'var(--accent-subtle)', color: 'var(--accent-secondary)', border: '1px solid var(--accent-border)' }}>
+                  Selected: {currentPreset.name}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+                {presets.map(p => {
+                  const isSelected = accentColor.toLowerCase() === p.color.toLowerCase();
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        setAccentColor(p.color);
+                        triggerToast(`🎨 Applied ${p.name} Accent`);
+                      }}
+                      style={{
+                        padding: '12px 10px',
+                        borderRadius: 14,
+                        background: isSelected ? 'var(--accent-subtle)' : 'var(--bg-input)',
+                        border: `1.5px solid ${isSelected ? p.color : 'var(--border-glass)'}`,
+                        boxShadow: isSelected ? `0 0 18px ${p.color}60` : 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 8,
+                        transform: isSelected ? 'scale(1.04)' : 'scale(1)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: '50%',
+                          background: `linear-gradient(135deg, ${p.color} 0%, ${p.gradientEnd} 100%)`,
+                          boxShadow: `0 4px 16px ${p.color}75`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#FFFFFF',
+                          border: isSelected ? '2.5px solid #FFFFFF' : '2.5px solid transparent',
+                        }}
+                      >
+                        {isSelected && <Check style={{ width: 18, height: 18, strokeWidth: 3 }} />}
+                      </div>
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: isSelected ? 700 : 500,
+                        color: isSelected ? 'var(--text-primary)' : 'var(--text-muted)',
+                        textAlign: 'center',
+                        lineHeight: 1.2
+                      }}>
+                        {p.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Interactive Preview Box */}
+            <div
+              style={{
+                padding: '18px 20px',
+                borderRadius: 16,
+                background: 'var(--bg-input)',
+                border: '1px solid var(--accent-border)',
+                boxShadow: '0 8px 30px var(--accent-glow)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                position: 'relative',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles style={{ width: 16, height: 16, color: 'var(--accent-secondary)' }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Live Portal Preview
+                  </span>
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Updates instantly across all pages
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                <button type="button" className="btn-primary" style={{ fontSize: 12, padding: '8px 16px' }}>
+                  Primary Action Button
+                </button>
+                <button type="button" className="btn-outline" style={{ fontSize: 12, padding: '8px 16px' }}>
+                  Outline Button
+                </button>
+                <span className="badge" style={{ background: 'var(--accent-subtle)', color: 'var(--accent-secondary)', border: '1px solid var(--accent-border)', padding: '5px 12px', fontSize: 12 }}>
+                  ★ Athlete Certified
+                </span>
               </div>
             </div>
           </div>
@@ -470,12 +635,40 @@ const SettingsPage = () => {
   };
 
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
+      {/* Floating Theme Toast Notification */}
+      {toastMsg && (
+        <div
+          className="animate-fade-in"
+          style={{
+            position: 'fixed',
+            top: 80,
+            right: 28,
+            zIndex: 9999,
+            padding: '12px 20px',
+            borderRadius: 14,
+            background: 'var(--bg-card-solid)',
+            border: '1.5px solid var(--accent-border)',
+            boxShadow: '0 12px 36px var(--accent-glow)',
+            color: 'var(--text-primary)',
+            fontSize: 13,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            backdropFilter: 'blur(16px)',
+          }}
+        >
+          <Sparkles style={{ width: 18, height: 18, color: 'var(--accent-secondary)' }} />
+          <span>{toastMsg}</span>
+        </div>
+      )}
+
       <div style={{ marginBottom: 24 }}>
         <h1 className="section-title" style={{ fontSize: 28 }}>
-          <span style={{ color: '#38A7FF' }}>SETTINGS</span>
+          <span style={{ color: 'var(--accent-secondary)' }}>SETTINGS</span>
         </h1>
-        <p className="section-subtitle">Manage your account preferences and security.</p>
+        <p className="section-subtitle">Manage your account preferences, themes, and security.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, alignItems: 'start' }}>
@@ -489,18 +682,18 @@ const SettingsPage = () => {
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                 padding: '11px 14px', borderRadius: 10, marginBottom: 4,
-                background: activeSection === id ? 'rgba(22,119,255,0.18)' : 'transparent',
-                border: `1px solid ${activeSection === id ? 'rgba(55,140,255,0.35)' : 'transparent'}`,
-                color: activeSection === id ? '#FFFFFF' : '#6E86A5',
+                background: activeSection === id ? 'var(--accent-subtle)' : 'transparent',
+                border: `1px solid ${activeSection === id ? 'var(--accent-border)' : 'transparent'}`,
+                color: activeSection === id ? 'var(--text-primary)' : 'var(--text-muted)',
                 cursor: 'pointer', transition: 'all 0.2s', fontSize: 13, fontWeight: 600,
                 textAlign: 'left'
               }}
-              onMouseEnter={e => { if (activeSection !== id) (e.currentTarget as HTMLElement).style.background = 'rgba(22,119,255,0.07)'; }}
+              onMouseEnter={e => { if (activeSection !== id) (e.currentTarget as HTMLElement).style.background = 'var(--accent-subtle)'; }}
               onMouseLeave={e => { if (activeSection !== id) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
             >
-              <Icon style={{ width: 16, height: 16, flexShrink: 0 }} />
+              <Icon style={{ width: 16, height: 16, flexShrink: 0, color: activeSection === id ? 'var(--accent-secondary)' : undefined }} />
               {label}
-              {activeSection === id && <ChevronRight style={{ width: 14, height: 14, marginLeft: 'auto' }} />}
+              {activeSection === id && <ChevronRight style={{ width: 14, height: 14, marginLeft: 'auto', color: 'var(--accent-secondary)' }} />}
             </button>
           ))}
 
