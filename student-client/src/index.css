@@ -741,3 +741,139 @@ button:active, .btn-primary:active, .btn-orange:active, .btn-outline:active, .fi
     padding: 16px !important;
   }
 }
+
+/* ====================================================================
+   ADVANCED AUTH & LOGIN ANIMATIONS & VISUAL EFFECTS
+   ==================================================================== */
+
+@keyframes loginCardEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes heroContentReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ambientGlowOrb1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translate(40px, -35px) scale(1.15);
+    opacity: 0.70;
+  }
+}
+
+@keyframes ambientGlowOrb2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1.1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(-35px, 30px) scale(0.9);
+    opacity: 0.60;
+  }
+}
+
+@keyframes pulseBorderRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(56, 167, 255, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(56, 167, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(56, 167, 255, 0);
+  }
+}
+
+@keyframes shimmerGlow {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes rippleEffect {
+  0% {
+    transform: scale(0);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes shakeErrorNotice {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+@keyframes floatBadge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-login-card {
+  animation: loginCardEnter 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-hero-reveal {
+  animation: heroContentReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-shake {
+  animation: shakeErrorNotice 0.45s ease-in-out;
+}
+
+.animate-pulse-ring {
+  animation: pulseBorderRing 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-float-badge {
+  animation: floatBadge 3.6s ease-in-out infinite;
+}
+
+.btn-interactive-ripple {
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+.btn-interactive-ripple .click-ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: rippleEffect 0.6s linear;
+  background-color: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+
+.gradient-text-shimmer {
+  background: linear-gradient(90deg, #FFFFFF 0%, #38A7FF 45%, #60A5FA 55%, #FFFFFF 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shimmerGlow 4s linear infinite;
+}
+

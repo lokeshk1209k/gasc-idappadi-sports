@@ -24,59 +24,62 @@ const maskEmail = (email) => {
 // @access  Public
 exports.verifyStudent = async (req, res) => {
   try {
-    const { registerNumber } = req.params;
-    if (!registerNumber) {
+    const rawInput = (req.params && req.params.registerNumber) || (req.query && (req.query.regNo || req.query.registerNumber || req.query.identifier)) || '';
+    if (!rawInput) {
       return res.status(400).json({ success: false, message: 'Register Number is required.' });
     }
 
-    const cleanRegNo = registerNumber.trim().toUpperCase();
+    const cleanRegNo = rawInput.trim().toUpperCase();
     const cleanNoZeros = cleanRegNo.replace(/0(?=[0-9]+$)/, '');
 
-    // 1. Check if user already registered a STUDENT account (not roster entries)
-    let userExists = null;
+    // 1. Check if user already registered an ACTIVE STUDENT account WITH PASSWORD
+    let registeredUser = null;
     try {
       const { data: usersFound } = await supabase
         .from('users')
-        .select('id, name, register_number, email, role')
-        .eq('role', 'student')
+        .select('id, name, register_number, email, role, password, status, department, year, section, gender')
         .or(`register_number.ilike.%${cleanRegNo}%,register_number.ilike.%${cleanNoZeros}%`);
       if (usersFound && usersFound.length > 0) {
-        userExists = usersFound[0];
+        registeredUser = usersFound.find(u => u.role === 'student' && u.password);
       }
     } catch (e) {}
 
-    if (!userExists) {
+    if (!registeredUser) {
       const { storeInstance } = require('../data/localStore');
       const localUsers = storeInstance.getTable('users') || [];
-      userExists = localUsers.find(u => {
+      registeredUser = localUsers.find(u => {
         const uReg = (u.register_number || u.registerNumber || '').toUpperCase();
         const uRole = (u.role || '').toLowerCase();
-        return uRole === 'student' && (uReg === cleanRegNo || uReg.replace(/0(?=[0-9]+$)/, '') === cleanNoZeros);
+        return uRole === 'student' && u.password && (uReg === cleanRegNo || uReg.replace(/0(?=[0-9]+$)/, '') === cleanNoZeros);
       });
     }
 
-    if (userExists) {
+    if (registeredUser) {
       return res.json({
         success: false,
         isRegistered: true,
-        message: `Student "${userExists.name}" (${userExists.register_number || cleanRegNo}) already exists! Please proceed to Login.`
+        message: `Student "${registeredUser.name}" (${registeredUser.register_number || cleanRegNo}) has already created an account! Please proceed to Login.`
       });
     }
 
     // 2. Check if student is pre-enrolled in college roster
     let rosterStudent = null;
+
+    // Check 2A: Supabase users table (roster records or students without password yet)
     try {
-      const { data: rosterFound } = await supabase
-        .from('college_student_roster')
+      const { data: supUsers } = await supabase
+        .from('users')
         .select('*')
         .or(`register_number.ilike.%${cleanRegNo}%,register_number.ilike.%${cleanNoZeros}%`);
-      if (rosterFound && rosterFound.length > 0) {
-        rosterStudent = rosterFound[0];
+      if (supUsers && supUsers.length > 0) {
+        rosterStudent = supUsers.find(u => u.role === 'roster' || !u.password || u.status === 'Pending Registration') || supUsers[0];
       }
     } catch (e) {}
 
+    // Check 2B: LocalStore college_student_roster
     if (!rosterStudent) {
       const { storeInstance } = require('../data/localStore');
+      storeInstance.checkReload();
       const localRoster = storeInstance.getTable('college_student_roster') || [];
       rosterStudent = localRoster.find(r => {
         const rReg = (r.register_number || r.registerNumber || '').toUpperCase();
@@ -84,18 +87,36 @@ exports.verifyStudent = async (req, res) => {
       });
     }
 
+    // Check 2C: LocalStore users table
+    if (!rosterStudent) {
+      const { storeInstance } = require('../data/localStore');
+      const localUsers = storeInstance.getTable('users') || [];
+      rosterStudent = localUsers.find(u => {
+        const uReg = (u.register_number || u.registerNumber || '').toUpperCase();
+        return uReg === cleanRegNo || uReg.replace(/0(?=[0-9]+$)/, '') === cleanNoZeros;
+      });
+    }
+
     if (rosterStudent) {
+      if (rosterStudent.status && rosterStudent.status.toUpperCase() === 'INACTIVE') {
+        return res.status(403).json({
+          success: false,
+          isInactive: true,
+          message: 'Your student record is currently inactive. Please contact the Sports Administration.'
+        });
+      }
+
       return res.json({
         success: true,
         isRegistered: false,
         isPreEnrolled: true,
-        message: `Official GASC Record Verified: ${rosterStudent.name} (${rosterStudent.department} - ${rosterStudent.year})`,
+        message: `Official GASC Record Verified: ${rosterStudent.name} (${rosterStudent.department || 'Sports'} - ${rosterStudent.year || 'Student'})`,
         student: toCamelCase(rosterStudent)
       });
     }
 
-    // 3. Register number not in College Student Roster -> Registration NOT allowed!
-    return res.status(403).json({
+    // 3. Register number not found anywhere
+    return res.status(404).json({
       success: false,
       isRegistered: false,
       isPreEnrolled: false,

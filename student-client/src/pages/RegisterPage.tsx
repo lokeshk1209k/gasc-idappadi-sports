@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   User, Mail, Lock, Phone, ArrowRight, ArrowLeft, CheckCircle2,
   AlertCircle, ShieldCheck, RefreshCw, Eye, EyeOff, Loader2,
-  Building2, GraduationCap, Users, KeyRound, Sparkles
+  Building2, GraduationCap, Users, KeyRound, Sparkles, Trophy, Medal, Flame, Activity, Check, X
 } from 'lucide-react';
 import bcrypt from 'bcryptjs';
 
@@ -21,6 +21,16 @@ interface VerifiedStudentData {
   status: string;
   isRegistered?: boolean;
 }
+
+const FEATURED_SPORTS = [
+  { name: 'Athletics & Track', icon: '🏃', color: '#38A7FF' },
+  { name: 'Cricket', icon: '🏏', color: '#FF6A21' },
+  { name: 'Football', icon: '⚽', color: '#10B981' },
+  { name: 'Badminton', icon: '🏸', color: '#A855F7' },
+  { name: 'Silambam', icon: '🥋', color: '#F59E0B' },
+  { name: 'Kabaddi', icon: '🤼', color: '#EC4899' },
+  { name: 'Volleyball', icon: '🏐', color: '#06B6D4' }
+];
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -62,6 +72,16 @@ const RegisterPage: React.FC = () => {
     email: string;
   } | null>(null);
 
+  // Hero ticker rotation
+  const [sportIndex, setSportIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSportIndex(prev => (prev + 1) % FEATURED_SPORTS.length);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, []);
+
   // Resend Timer Effect
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -73,13 +93,36 @@ const RegisterPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [currentStep, resendTimer]);
 
+  // Click Ripple Effect
+  const triggerRipple = (e: React.MouseEvent<HTMLElement>) => {
+    const button = e.currentTarget;
+    const circle = document.createElement('span');
+    const diameter = Math.max(button.clientWidth, button.clientHeight);
+    const radius = diameter / 2;
+
+    const rect = button.getBoundingClientRect();
+    circle.style.width = circle.style.height = `${diameter}px`;
+    circle.style.left = `${e.clientX - rect.left - radius}px`;
+    circle.style.top = `${e.clientY - rect.top - radius}px`;
+    circle.classList.add('click-ripple');
+
+    const ripple = button.getElementsByClassName('click-ripple')[0];
+    if (ripple) {
+      ripple.remove();
+    }
+    button.appendChild(circle);
+
+    setTimeout(() => {
+      circle.remove();
+    }, 600);
+  };
+
   // ── Password Validation Indicators ──
   const passwordChecks = {
     length: password.length >= 8,
     hasUpper: /[A-Z]/.test(password),
     hasLower: /[a-z]/.test(password),
     hasNumber: /[0-9]/.test(password),
-    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
   };
   const isPasswordValid = passwordChecks.length && passwordChecks.hasUpper && passwordChecks.hasLower && passwordChecks.hasNumber;
 
@@ -101,9 +144,12 @@ const RegisterPage: React.FC = () => {
     try {
       let resolved = false;
 
-      // Tier 1: Backend Serverless API
+      // Tier 1: Backend Serverless API (Supports both query param and route param)
       try {
-        const apiRes = await fetch(`/api/auth/verify-student?regNo=${encodeURIComponent(cleanReg)}`);
+        let apiRes = await fetch(`/api/auth/verify-student?regNo=${encodeURIComponent(cleanReg)}`);
+        if (!apiRes.ok) {
+          apiRes = await fetch(`/api/auth/verify-student/${encodeURIComponent(cleanReg)}`);
+        }
         if (apiRes.ok) {
           const apiData = await apiRes.json();
           if (apiData && apiData.success && apiData.student) {
@@ -127,18 +173,15 @@ const RegisterPage: React.FC = () => {
             setVerifyError(apiData.message || `An account already exists for Register Number (${cleanReg}). Please login.`);
             setVerifying(false);
             return;
-          } else if (apiData && apiData.message) {
-            resolved = true;
+          } else if (apiData && apiData.message && !apiData.success) {
             setVerifyError(apiData.message);
-            setVerifying(false);
-            return;
           }
         }
       } catch (apiErr) {
         console.warn('API verify fallback notice:', apiErr);
       }
 
-      // Tier 2: Direct Supabase Cloud Query
+      // Tier 2: Direct Supabase Cloud Query (users table)
       if (!resolved) {
         try {
           const url = `${SUPABASE_REST}/users?register_number=ilike.${encodeURIComponent(cleanReg)}&select=*`;
@@ -152,7 +195,6 @@ const RegisterPage: React.FC = () => {
             const rows = await res.json();
             if (Array.isArray(rows) && rows.length > 0) {
               const user = rows[0];
-              resolved = true;
 
               if (user.status && user.status.toUpperCase() === 'INACTIVE') {
                 setVerifyError('Your student record is currently inactive. Please contact the Sports Administration.');
@@ -167,6 +209,7 @@ const RegisterPage: React.FC = () => {
                 return;
               }
 
+              resolved = true;
               setVerifiedStudent({
                 id: user.id,
                 register_number: user.register_number || cleanReg,
@@ -220,6 +263,42 @@ const RegisterPage: React.FC = () => {
         }
       }
 
+      // Tier 4: Supabase Roster Notifications Fallback
+      if (!resolved) {
+        try {
+          const notifUrl = `${SUPABASE_REST}/notifications?category=eq.roster&or=(id.eq.roster_${encodeURIComponent(cleanReg)},title.ilike.${encodeURIComponent(cleanReg)})&select=*`;
+          const notifRes = await fetch(notifUrl, {
+            headers: {
+              'apikey': SB_KEY,
+              'Authorization': `Bearer ${SB_KEY}`
+            }
+          });
+          if (notifRes.ok) {
+            const notifs = await notifRes.json();
+            if (Array.isArray(notifs) && notifs.length > 0) {
+              const n = notifs[0];
+              const p = typeof n.message === 'string' ? JSON.parse(n.message) : n.message;
+              if (p && (p.name || n.title)) {
+                resolved = true;
+                setVerifiedStudent({
+                  id: `roster_${cleanReg}`,
+                  register_number: p.registerNumber || cleanReg,
+                  name: p.name || 'Student Athlete',
+                  department: p.department || n.target_type || 'Computer Science',
+                  year: p.year || n.target_audience || 'I Year',
+                  section: p.section || 'A',
+                  gender: p.gender || n.priority || 'Male',
+                  status: p.status || 'Active',
+                  isRegistered: false
+                });
+                setVerifying(false);
+                return;
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
       if (!resolved) {
         setVerifyError('Your Register Number was not found in the official college student roster. You cannot create a Student Portal account.');
       }
@@ -262,7 +341,7 @@ const RegisterPage: React.FC = () => {
     setSendingOtp(true);
 
     try {
-      // 1. Strict Unique Email Check against Supabase (ore email id exist aga kudathu)
+      // 1. Strict Unique Email Check against Supabase
       const emailCheckUrl = `${SUPABASE_REST}/users?email=ilike.${encodeURIComponent(cleanEmail)}&select=id,name,register_number,email`;
       const emailRes = await fetch(emailCheckUrl, {
         headers: {
@@ -289,7 +368,7 @@ const RegisterPage: React.FC = () => {
       const expTime = Date.now() + 10 * 60 * 1000;
       setExpectedOtp(generatedOtp);
 
-      // 3. Dispatch Email via API and check status
+      // 3. Dispatch Email via API
       const otpRes = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -309,7 +388,7 @@ const RegisterPage: React.FC = () => {
         return;
       }
 
-      // 4. Save OTP in Supabase notifications table as audit log and fallback
+      // 4. Save OTP in Supabase notifications table
       try {
         await fetch(`${SUPABASE_REST}/notifications`, {
           method: 'POST',
@@ -356,7 +435,6 @@ const RegisterPage: React.FC = () => {
   const handleOtpChange = (index: number, val: string) => {
     const cleanDigits = val.replace(/\D/g, '');
     if (cleanDigits.length > 1) {
-      // User pasted or browser autofilled multiple digits into one box
       const newValues = [...otpValues];
       for (let i = 0; i < cleanDigits.length && index + i < 6; i++) {
         newValues[index + i] = cleanDigits[i];
@@ -426,7 +504,7 @@ const RegisterPage: React.FC = () => {
         isOtpValid = true;
       }
 
-      // Layer 2: Verify via backend API /api/auth/verify-otp (HMAC + DB store)
+      // Layer 2: Verify via backend API /api/auth/verify-otp
       if (!isOtpValid) {
         try {
           const vRes = await fetch('/api/auth/verify-otp', {
@@ -449,7 +527,7 @@ const RegisterPage: React.FC = () => {
         }
       }
 
-      // Layer 3: Direct Supabase notifications OTP fallback
+      // Layer 3: Direct Supabase notifications fallback
       if (!isOtpValid) {
         try {
           const sbRes = await fetch(`${SUPABASE_REST}/notifications?category=eq.otp&sender=eq.${encodeURIComponent(cleanEmail)}&order=created_at.desc&limit=5`, {
@@ -525,7 +603,6 @@ const RegisterPage: React.FC = () => {
       }
 
       if (!updatedOk) {
-        // Fallback: update by register_number
         const patchRegRes = await fetch(`${SUPABASE_REST}/users?register_number=ilike.${encodeURIComponent(verifiedStudent?.register_number || '')}`, {
           method: 'PATCH',
           headers: {
@@ -545,7 +622,6 @@ const RegisterPage: React.FC = () => {
       }
 
       if (!updatedOk) {
-        // Fallback: create fresh record
         await fetch(`${SUPABASE_REST}/users`, {
           method: 'POST',
           headers: {
@@ -561,7 +637,7 @@ const RegisterPage: React.FC = () => {
         });
       }
 
-      // Also call serverless register endpoint to ensure server-side sync & auth token
+      // Also call serverless register endpoint to ensure server-side sync
       try {
         await fetch('/api/auth/register', {
           method: 'POST',
@@ -591,519 +667,801 @@ const RegisterPage: React.FC = () => {
     }
   };
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'radial-gradient(circle at 50% 10%, #061938 0%, #020817 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '30px 20px', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      <div style={{ width: '100%', maxWidth: '580px', background: 'rgba(8, 27, 53, 0.85)', backdropFilter: 'blur(20px)', border: '1px solid rgba(55, 140, 255, 0.25)', borderRadius: '24px', padding: '40px 36px', boxShadow: '0 25px 80px rgba(0,0,0,0.8), 0 0 40px rgba(22,119,255,0.15)', position: 'relative' }}>
+  const currentSport = FEATURED_SPORTS[sportIndex];
 
-        {/* College Header */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', border: '2px solid rgba(55,140,255,0.5)', background: 'rgba(22,119,255,0.15)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/images/college-logo.jpg" alt="GASC" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.currentTarget as HTMLImageElement).src = '/images/college-logo.png'; }} />
+  return (
+    <div className="relative min-h-screen w-full flex overflow-hidden bg-[#020817] text-white select-none">
+      
+      {/* ── AMBIENT GLOWING ORBS IN BACKGROUND ── */}
+      <div 
+        className="pointer-events-none absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full blur-[130px] opacity-40 z-0"
+        style={{
+          background: 'radial-gradient(circle, rgba(22, 119, 255, 0.55) 0%, rgba(56, 167, 255, 0.15) 60%, transparent 80%)',
+          animation: 'ambientGlowOrb1 12s ease-in-out infinite'
+        }}
+      />
+      <div 
+        className="pointer-events-none absolute bottom-0 right-1/3 w-[550px] h-[550px] rounded-full blur-[140px] opacity-35 z-0"
+        style={{
+          background: 'radial-gradient(circle, rgba(108, 76, 255, 0.45) 0%, rgba(255, 106, 33, 0.20) 70%, transparent 80%)',
+          animation: 'ambientGlowOrb2 15s ease-in-out infinite'
+        }}
+      />
+
+      {/* Grid Pattern Mesh Overlay */}
+      <div 
+        className="pointer-events-none absolute inset-0 z-0 opacity-15"
+        style={{
+          backgroundImage: `radial-gradient(rgba(56, 167, 255, 0.3) 1px, transparent 1px)`,
+          backgroundSize: '36px 36px'
+        }}
+      />
+
+      {/* ── LEFT PANEL: CINEMATIC SPORTS HERO EXPERIENCE ── */}
+      <div className="hidden lg:flex flex-1 relative overflow-hidden flex-col justify-between p-12 z-10">
+        
+        {/* Background Image with layered gradient overlays */}
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <img
+            src="/images/login-hero.jpg"
+            alt="GASC Sports Athletes"
+            className="w-full h-full object-cover object-center scale-105 transition-transform duration-1000 ease-out hover:scale-100 filter brightness-90 contrast-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/90 via-[#020817]/65 to-[#020817]/95" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#020817] via-[#020817]/35 to-transparent" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,#020817_90%)]" />
+        </div>
+
+        {/* Top Header Badge */}
+        <div className="relative z-10 animate-hero-reveal flex items-center justify-between">
+          <div className="flex items-center gap-3.5 group cursor-pointer">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-blue-400/40 bg-blue-950/60 p-1 shadow-[0_0_25px_rgba(56,167,255,0.35)] transition-all duration-300 group-hover:border-blue-400 group-hover:scale-105">
+                <img 
+                  src="/images/college-logo.jpg" 
+                  alt="GASC Idappadi" 
+                  className="w-full h-full object-contain rounded-xl"
+                  onError={e => { (e.currentTarget as HTMLImageElement).src = '/images/college-logo.png'; }}
+                />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[#020817] flex items-center justify-center animate-pulse">
+                <div className="w-1.5 h-1.5 bg-white rounded-full" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-lg tracking-wider text-white font-['Plus_Jakarta_Sans']">
+                  GASC SPORTS
+                </span>
+                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full">
+                  Registration
+                </span>
+              </div>
+              <p className="text-xs text-blue-200/70 font-medium tracking-wide">
+                Govt. Arts & Science College, Idappadi
+              </p>
+            </div>
           </div>
-          <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#FFFFFF', margin: '0 0 4px', letterSpacing: '0.5px' }}>
-            GASC IDAPPADI SPORTS
+
+          {/* Dynamic Sports Ticker Chip */}
+          <div className="hidden xl:flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/[0.06] backdrop-blur-md border border-white/10 shadow-lg animate-float-badge">
+            <span className="text-lg">{currentSport.icon}</span>
+            <div className="text-xs">
+              <span className="text-gray-400 block text-[10px] uppercase font-semibold">Active Category</span>
+              <span className="font-bold text-white tracking-wide transition-all duration-300" style={{ color: currentSport.color }}>
+                {currentSport.name}
+              </span>
+            </div>
+            <Activity className="w-3.5 h-3.5 text-blue-400 animate-pulse ml-1" />
+          </div>
+        </div>
+
+        {/* Center Motivational Headline & Step Roadmap */}
+        <div className="relative z-10 my-auto py-8 max-w-xl animate-hero-reveal">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/25 mb-5 backdrop-blur-sm">
+            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            <span className="text-xs font-semibold text-blue-300 uppercase tracking-widest">
+              Join The Official Sports Roster
+            </span>
+          </div>
+
+          <h1 className="text-4xl xl:text-5xl font-black leading-[1.12] tracking-tight font-['Plus_Jakarta_Sans'] text-white">
+            BECOME A <br />
+            <span className="gradient-text-shimmer">COLLEGE CHAMPION</span> <br />
+            TODAY.
           </h1>
-          <p style={{ fontSize: '13px', color: '#6E86A5', margin: 0 }}>
+
+          <p className="mt-4 text-sm text-slate-300/85 leading-relaxed font-normal max-w-lg">
+            Complete your fast 4-step registration to access university tournaments, sports equipment booking, athletic tracking, and official certificates.
+          </p>
+
+          {/* Registration 4-Step Visual Roadmap */}
+          <div className="mt-7 space-y-3">
+            {[
+              { num: '01', title: 'Roster Verification', desc: 'Automatic validation with College Admission records' },
+              { num: '02', title: 'Profile Setup', desc: 'Create your unique student credentials and password' },
+              { num: '03', title: 'Email OTP Verification', desc: 'Secure high-speed OTP email validation' },
+              { num: '04', title: 'Athlete Dashboard Access', desc: 'Instant access to tournaments & equipment vault' }
+            ].map((st, i) => {
+              const active = currentStep === (i + 1);
+              const done = currentStep > (i + 1);
+              return (
+                <div 
+                  key={i}
+                  className={`flex items-center gap-3.5 p-3 rounded-2xl transition-all duration-300 border ${
+                    active 
+                      ? 'bg-blue-600/20 border-blue-400/50 shadow-lg shadow-blue-600/20 translate-x-1.5' 
+                      : done 
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
+                      : 'bg-white/[0.03] border-white/5 opacity-60'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black font-mono flex-shrink-0 ${
+                    done 
+                      ? 'bg-emerald-500 text-white' 
+                      : active 
+                      ? 'bg-blue-500 text-white shadow-md shadow-blue-500/40' 
+                      : 'bg-white/10 text-slate-400'
+                  }`}>
+                    {done ? '✓' : st.num}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white tracking-wide">{st.title}</h4>
+                    <p className="text-[11px] text-slate-400">{st.desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Quick Stats Capsules */}
+          <div className="grid grid-cols-3 gap-3 mt-7 pt-6 border-t border-white/10">
+            {[
+              { val: '1000+', label: 'Athletes Enrolled', icon: Flame, color: '#FF6A21' },
+              { val: '12+', label: 'Sports Disciplines', icon: Trophy, color: '#38A7FF' },
+              { val: '100%', label: 'Verified Records', icon: ShieldCheck, color: '#10B981' }
+            ].map((stat, idx) => {
+              const IconComp = stat.icon;
+              return (
+                <div 
+                  key={idx} 
+                  className="p-3 rounded-2xl bg-white/[0.03] backdrop-blur-md border border-white/[0.08] hover:border-white/20 transition-all duration-200"
+                >
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-xl font-black font-['Plus_Jakarta_Sans']" style={{ color: stat.color }}>
+                      {stat.val}
+                    </span>
+                    <IconComp className="w-3.5 h-3.5 opacity-60" style={{ color: stat.color }} />
+                  </div>
+                  <p className="text-[10px] font-medium text-slate-400">
+                    {stat.label}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Bottom Hero Footer */}
+        <div className="relative z-10 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-white/[0.06]">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping" />
             Official Student Sports Portal Registration
+          </span>
+          <span className="font-mono text-[11px] opacity-70">
+            Department of Physical Education
+          </span>
+        </div>
+      </div>
+
+      {/* ── RIGHT PANEL: ULTRA-GLASSMORPHIC REGISTRATION HUB ── */}
+      <div className="w-full lg:w-[500px] xl:w-[560px] flex-shrink-0 relative flex flex-col justify-center items-center p-6 sm:p-10 z-10 overflow-y-auto min-h-screen">
+        
+        {/* Mobile Header / College Brand */}
+        <div className="lg:hidden w-full max-w-sm mb-6 text-center animate-hero-reveal">
+          <div className="inline-block relative mb-3">
+            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-blue-400/50 bg-blue-950/80 p-1 shadow-[0_0_25px_rgba(56,167,255,0.35)] mx-auto">
+              <img 
+                src="/images/college-logo.jpg" 
+                alt="GASC Idappadi" 
+                className="w-full h-full object-contain rounded-xl"
+                onError={e => { (e.currentTarget as HTMLImageElement).src = '/images/college-logo.png'; }}
+              />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[#020817]" />
+          </div>
+          <h2 className="text-xl font-extrabold text-white font-['Plus_Jakarta_Sans'] tracking-wide">
+            GASC SPORTS REGISTRATION
+          </h2>
+          <p className="text-xs text-blue-300/80 mt-0.5">
+            Government Arts & Science College, Idappadi
           </p>
         </div>
 
-        {/* Progress Stepper */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', position: 'relative' }}>
-          <div style={{ position: 'absolute', top: '16px', left: '20px', right: '20px', height: '2px', background: 'rgba(55,140,255,0.2)', zIndex: 1 }} />
-          <div style={{ position: 'absolute', top: '16px', left: '20px', width: `${((currentStep - 1) / 3) * 100}%`, height: '2px', background: 'linear-gradient(90deg, #1677FF, #38A7FF)', zIndex: 2, transition: 'width 0.4s ease' }} />
+        {/* Glassmorphic Auth Card Container */}
+        <div className="w-full max-w-lg animate-login-card my-auto">
+          
+          <div className="relative rounded-3xl p-7 sm:p-9 bg-slate-900/60 backdrop-blur-2xl border border-white/[0.14] shadow-[0_20px_70px_rgba(0,0,0,0.65),0_0_30px_rgba(22,119,255,0.15)] overflow-hidden">
+            
+            {/* Radiant glow accent bar */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-orange-500 opacity-90" />
 
-          {[
-            { step: 1, label: 'Roster' },
-            { step: 2, label: 'Details' },
-            { step: 3, label: 'Email OTP' },
-            { step: 4, label: 'Done' }
-          ].map(s => {
-            const isDone = currentStep > s.step;
-            const isCurrent = currentStep === s.step;
-            return (
-              <div key={s.step} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 3 }}>
-                <div style={{
-                  width: '34px',
-                  height: '34px',
-                  borderRadius: '50%',
-                  background: isDone ? '#10B981' : isCurrent ? 'linear-gradient(135deg, #1677FF, #38A7FF)' : '#081B35',
-                  border: isDone ? '2px solid #10B981' : isCurrent ? '2px solid #38A7FF' : '2px solid rgba(55,140,255,0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#FFFFFF',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  boxShadow: isCurrent ? '0 0 16px rgba(56,167,255,0.5)' : 'none',
-                  transition: 'all 0.3s'
-                }}>
-                  {isDone ? '✓' : s.step}
-                </div>
-                <span style={{ fontSize: '11px', fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#38A7FF' : isDone ? '#10B981' : '#6E86A5', marginTop: '6px' }}>
-                  {s.label}
-                </span>
+            {/* Subtle glass reflection sheen */}
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Mode Switcher Pill (Sign In vs Register) */}
+            <div className="flex p-1 mb-6 rounded-2xl bg-white/[0.05] border border-white/10 backdrop-blur-md">
+              <Link
+                to="/student/login"
+                onClick={triggerRipple}
+                className="flex-1 py-2 px-3 text-center rounded-xl text-slate-400 hover:text-white font-semibold text-xs transition-all duration-200 hover:bg-white/[0.04] flex items-center justify-center gap-1 btn-interactive-ripple"
+              >
+                <span>Student Login</span>
+              </Link>
+              <div className="flex-1 py-2 px-3 text-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center justify-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+                <span>New Registration</span>
               </div>
-            );
-          })}
-        </div>
-
-        {/* ── STEP 1: REGISTER NUMBER VERIFICATION ── */}
-        {currentStep === 1 && (
-          <div>
-            <div style={{ marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#FFFFFF', margin: '0 0 6px' }}>
-                Verify College Register Number
-              </h2>
-              <p style={{ fontSize: '13px', color: '#AFC4DF', margin: 0, lineHeight: 1.5 }}>
-                Enter your official College Register Number to verify your pre-enrolled record against the Official Student Roster.
-              </p>
             </div>
 
-            {verifyError && (
-              <div style={{ background: isAlreadyRegistered ? 'rgba(56,167,255,0.12)' : 'rgba(239,68,68,0.12)', border: isAlreadyRegistered ? '1px solid rgba(56,167,255,0.35)' : '1px solid rgba(239,68,68,0.35)', color: isAlreadyRegistered ? '#38A7FF' : '#F87171', padding: '14px 16px', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', lineHeight: 1.5 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <AlertCircle style={{ width: 18, height: 18, flexShrink: 0, marginTop: 2 }} />
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 600 }}>{verifyError}</p>
-                    {isAlreadyRegistered && (
+            {/* Modern Animated Stepper Indicator */}
+            <div className="mb-7 px-2">
+              <div className="flex items-center justify-between relative">
+                
+                {/* Stepper Connecting Background Line */}
+                <div className="absolute top-4 left-4 right-4 h-0.5 bg-white/10 z-0" />
+                <div 
+                  className="absolute top-4 left-4 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 z-0 transition-all duration-500"
+                  style={{ width: `${((currentStep - 1) / 3) * 90}%` }}
+                />
+
+                {[
+                  { step: 1, label: 'Roster' },
+                  { step: 2, label: 'Details' },
+                  { step: 3, label: 'OTP' },
+                  { step: 4, label: 'Done' }
+                ].map(s => {
+                  const isDone = currentStep > s.step;
+                  const isCurrent = currentStep === s.step;
+                  return (
+                    <div key={s.step} className="flex flex-col items-center relative z-10">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                        isDone 
+                          ? 'bg-emerald-500 text-white border-2 border-emerald-400 shadow-md shadow-emerald-500/30 scale-100' 
+                          : isCurrent 
+                          ? 'bg-blue-600 text-white border-2 border-blue-400 shadow-[0_0_15px_rgba(56,167,255,0.6)] scale-110' 
+                          : 'bg-slate-900 text-slate-400 border border-white/20'
+                      }`}>
+                        {isDone ? '✓' : s.step}
+                      </div>
+                      <span className={`text-[11px] font-semibold mt-1.5 transition-colors ${
+                        isCurrent ? 'text-blue-300' : isDone ? 'text-emerald-400' : 'text-slate-400'
+                      }`}>
+                        {s.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── STEP 1: REGISTER NUMBER VERIFICATION ── */}
+            {currentStep === 1 && (
+              <div className="animate-hero-reveal">
+                <div className="mb-5">
+                  <h2 className="text-xl sm:text-2xl font-black text-white font-['Plus_Jakarta_Sans'] tracking-tight mb-1">
+                    Verify College Register Number
+                  </h2>
+                  <p className="text-xs text-slate-300/80 leading-relaxed">
+                    Enter your official Register Number to verify that you are pre-enrolled in the Sports College Roster.
+                  </p>
+                </div>
+
+                {verifyError && (
+                  <div className={`mb-5 p-3.5 rounded-2xl text-xs font-medium flex items-start gap-2.5 shadow-lg ${
+                    isAlreadyRegistered 
+                      ? 'bg-blue-500/15 border border-blue-500/35 text-blue-200' 
+                      : 'bg-rose-500/15 border border-rose-500/35 text-rose-300 animate-shake'
+                  }`}>
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-semibold">{isAlreadyRegistered ? 'Existing Account' : 'Verification Alert'}</p>
+                      <p className="opacity-90 leading-relaxed mt-0.5">{verifyError}</p>
+                      {isAlreadyRegistered && (
+                        <button
+                          type="button"
+                          onClick={(e) => { triggerRipple(e); navigate('/student/login'); }}
+                          className="mt-2.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1 btn-interactive-ripple"
+                        >
+                          <span>Go to Login Page</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {!verifiedStudent ? (
+                  <form onSubmit={handleVerifyRoster} className="space-y-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 flex items-center justify-between mb-2">
+                        <span className="flex items-center gap-1.5">
+                          <span>College Register Number</span>
+                          <span className="text-rose-400 font-bold">*</span>
+                        </span>
+                        <span className="text-[10px] text-blue-400 font-mono">Case-Insensitive</span>
+                      </label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-400 group-focus-within:text-blue-300 transition-colors">
+                          <User className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={inputRegNo}
+                          onChange={e => setInputRegNo(e.target.value.toUpperCase())}
+                          placeholder="e.g. C24UG183CSC011"
+                          className="w-full pl-10 pr-4 py-3 bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/15 focus:border-blue-400/80 rounded-xl text-white placeholder-slate-400 text-xs sm:text-sm font-semibold tracking-wider uppercase outline-none transition-all duration-200 shadow-inner focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1.5">
+                        * Must match your university register number in official college records.
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={verifying}
+                      onClick={triggerRipple}
+                      className="w-full relative mt-2 py-3.5 px-6 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] transition-all duration-200 shadow-[0_8px_25px_rgba(37,99,235,0.45)] hover:shadow-[0_10px_35px_rgba(37,99,235,0.65)] border border-white/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed btn-interactive-ripple"
+                    >
+                      {verifying ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-white" />
+                          <span>Checking Official College Roster...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Verify Register Number</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="space-y-5 animate-hero-reveal">
+                    
+                    {/* Official Verified Athlete Badge Card */}
+                    <div className="rounded-2xl p-4 sm:p-5 bg-gradient-to-br from-emerald-500/15 via-slate-900/80 to-blue-500/10 border border-emerald-500/35 shadow-lg shadow-emerald-950/30">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs mb-3">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Student Record Verified in College Roster</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/5">
+                          <span className="text-[10px] text-slate-400 block font-medium">Student Name</span>
+                          <strong className="text-white text-sm font-bold tracking-wide">{verifiedStudent.name}</strong>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/5">
+                          <span className="text-[10px] text-slate-400 block font-medium">Register Number</span>
+                          <strong className="text-blue-300 text-sm font-bold font-mono">{verifiedStudent.register_number}</strong>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/5">
+                          <span className="text-[10px] text-slate-400 block font-medium">Department</span>
+                          <span className="text-slate-200 font-semibold">{verifiedStudent.department}</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white/[0.04] border border-white/5">
+                          <span className="text-[10px] text-slate-400 block font-medium">Academic Year</span>
+                          <span className="text-slate-200 font-semibold">{verifiedStudent.year} • Sec {verifiedStudent.section}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2.5">
                       <button
                         type="button"
-                        onClick={() => navigate('/student/login')}
-                        style={{ marginTop: '10px', background: 'linear-gradient(135deg, #1677FF, #38A7FF)', color: '#FFF', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                        onClick={(e) => {
+                          triggerRipple(e);
+                          setVerifiedStudent(null);
+                          setInputRegNo('');
+                        }}
+                        className="flex-1 py-3 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.10] text-slate-300 font-semibold text-xs border border-white/10 transition-colors btn-interactive-ripple"
                       >
-                        Go to Login Page →
+                        Change Number
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          triggerRipple(e);
+                          setCurrentStep(2);
+                        }}
+                        className="flex-[1.5] py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-600/35 border border-white/20 flex items-center justify-center gap-1.5 btn-interactive-ripple"
+                      >
+                        <span>Continue Registration</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
                   </div>
-                </div>
+                )}
               </div>
             )}
 
-            {!verifiedStudent ? (
-              <form onSubmit={handleVerifyRoster}>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#AFC4DF', marginBottom: '8px' }}>
-                    College Register Number
+            {/* ── STEP 2: STUDENT DETAILS & ACCOUNT CREATION ── */}
+            {currentStep === 2 && (
+              <form onSubmit={handleSendOtp} className="space-y-4 animate-hero-reveal">
+                <div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      triggerRipple(e);
+                      setCurrentStep(1);
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-400 hover:text-blue-300 mb-2 focus:outline-none"
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    <span>Back to Roster Check</span>
+                  </button>
+                  <h2 className="text-xl sm:text-2xl font-black text-white font-['Plus_Jakarta_Sans'] tracking-tight mb-1">
+                    Set Up Your Password
+                  </h2>
+                  <p className="text-xs text-slate-300/80 leading-relaxed">
+                    Configure your official student email and secret password for secure logins.
+                  </p>
+                </div>
+
+                {/* Verified Mini Banner */}
+                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-400/25 flex items-center justify-between">
+                  <div className="text-xs">
+                    <span className="text-[10px] text-slate-400 block font-semibold uppercase">Registering for</span>
+                    <strong className="text-white text-xs">{verifiedStudent?.name}</strong>{' '}
+                    <span className="text-blue-300 text-[11px] font-mono">({verifiedStudent?.register_number})</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    ✓ Verified
+                  </span>
+                </div>
+
+                {formError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/35 text-rose-300 text-xs font-medium flex items-start gap-2 shadow-lg animate-shake">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
+                    <span className="leading-relaxed">{formError}</span>
+                  </div>
+                )}
+
+                {/* Email Field */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 mb-1.5">
+                    <span>Personal Student Email Address</span>
+                    <span className="text-rose-400 font-bold">*</span>
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <User style={{ width: 16, height: 16, position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-400">
+                      <Mail className="w-4 h-4" />
+                    </div>
                     <input
-                      type="text"
+                      type="email"
                       required
-                      placeholder="e.g. C24UG183CSC011"
-                      className="input-dark"
-                      style={{ paddingLeft: '40px', fontSize: '15px', textTransform: 'uppercase' }}
-                      value={inputRegNo}
-                      onChange={e => setInputRegNo(e.target.value.toUpperCase())}
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="student@gmail.com"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/15 focus:border-blue-400/80 rounded-xl text-white placeholder-slate-400 text-xs sm:text-sm font-medium outline-none transition-all"
                     />
                   </div>
-                  <p style={{ fontSize: '11px', color: '#6E86A5', marginTop: '6px' }}>
-                    * Must be pre-enrolled in the Sports Admin Roster.
-                  </p>
+                </div>
+
+                {/* Mobile Number */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 mb-1.5">
+                    <span>Mobile Phone Number</span>
+                    <span className="text-rose-400 font-bold">*</span>
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-400">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      placeholder="10-digit mobile number"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/15 focus:border-blue-400/80 rounded-xl text-white placeholder-slate-400 text-xs sm:text-sm font-medium outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Password Field */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 mb-1.5">
+                    <span>Create Password (Min 8 characters)</span>
+                    <span className="text-rose-400 font-bold">*</span>
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="Min 8 characters, Upper, Lower & Number"
+                      className="w-full pl-10 pr-10 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/15 focus:border-blue-400/80 rounded-xl text-white placeholder-slate-400 text-xs sm:text-sm font-medium outline-none transition-all"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {/* Password requirement chips */}
+                  <div className="grid grid-cols-2 gap-1.5 mt-2">
+                    {[
+                      { label: '8+ Characters', valid: passwordChecks.length },
+                      { label: 'Uppercase (A-Z)', valid: passwordChecks.hasUpper },
+                      { label: 'Lowercase (a-z)', valid: passwordChecks.hasLower },
+                      { label: 'Number (0-9)', valid: passwordChecks.hasNumber }
+                    ].map(ch => (
+                      <div 
+                        key={ch.label} 
+                        className={`flex items-center gap-1.5 text-[10px] font-medium transition-colors ${
+                          ch.valid ? 'text-emerald-400' : 'text-slate-400'
+                        }`}
+                      >
+                        <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold ${
+                          ch.valid ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-slate-400'
+                        }`}>
+                          {ch.valid ? '✓' : '•'}
+                        </span>
+                        <span>{ch.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 mb-1.5">
+                    <span>Confirm Password</span>
+                    <span className="text-rose-400 font-bold">*</span>
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      className="w-full pl-10 pr-10 py-2.5 bg-white/[0.04] hover:bg-white/[0.07] focus:bg-white/[0.09] border border-white/15 focus:border-blue-400/80 rounded-xl text-white placeholder-slate-400 text-xs sm:text-sm font-medium outline-none transition-all"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={verifying}
-                  className="btn-primary"
-                  style={{ width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700, justifyContent: 'center' }}
+                  disabled={sendingOtp}
+                  onClick={triggerRipple}
+                  className="w-full relative mt-3 py-3.5 px-6 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] transition-all duration-200 shadow-[0_8px_25px_rgba(37,99,235,0.45)] border border-white/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed btn-interactive-ripple"
                 >
-                  {verifying ? (
+                  {sendingOtp ? (
                     <>
-                      <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-                      <span>Verifying with College Roster...</span>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Sending Email Verification OTP...</span>
                     </>
                   ) : (
                     <>
-                      <span>Verify Register Number</span>
-                      <ArrowRight style={{ width: 16, height: 16 }} />
+                      <span>Send Email OTP Code</span>
+                      <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
               </form>
-            ) : (
-              <div>
-                {/* Verified Card */}
-                <div style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: '16px', padding: '20px', marginBottom: '24px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '16px', color: '#34D399', fontWeight: 700, fontSize: '14px' }}>
-                    <CheckCircle2 style={{ width: 20, height: 20 }} />
-                    <span>✓ Register Number Verified in Official Roster</span>
-                  </div>
+            )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
-                    <div>
-                      <span style={{ fontSize: '11px', color: '#6E86A5', display: 'block' }}>Student Name</span>
-                      <strong style={{ fontSize: '14px', color: '#FFFFFF' }}>{verifiedStudent.name}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', color: '#6E86A5', display: 'block' }}>Register Number</span>
-                      <strong style={{ fontSize: '14px', color: '#38A7FF' }}>{verifiedStudent.register_number}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', color: '#6E86A5', display: 'block' }}>Department</span>
-                      <span style={{ fontSize: '13px', color: '#AFC4DF' }}>{verifiedStudent.department}</span>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', color: '#6E86A5', display: 'block' }}>Year & Gender</span>
-                      <span style={{ fontSize: '13px', color: '#AFC4DF' }}>{verifiedStudent.year} • {verifiedStudent.gender}</span>
-                    </div>
+            {/* ── STEP 3: EMAIL OTP VERIFICATION ── */}
+            {currentStep === 3 && (
+              <form onSubmit={handleVerifyOtpAndCreateAccount} className="space-y-4 animate-hero-reveal">
+                <div className="text-center">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-500/15 border border-blue-400/30 flex items-center justify-center text-blue-400 mx-auto mb-3 shadow-[0_0_20px_rgba(56,167,255,0.25)]">
+                    <KeyRound className="w-7 h-7" />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white font-['Plus_Jakarta_Sans'] tracking-tight mb-1">
+                    Verify Your Email Address
+                  </h2>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    A 6-digit confirmation code was dispatched to:<br />
+                    <strong className="text-blue-300 font-mono text-sm">{email}</strong>
+                  </p>
+                </div>
+
+                {/* Spam/Junk folder prompt */}
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-400/25 flex items-start gap-2.5 text-xs text-amber-200/90 leading-relaxed">
+                  <Mail className="w-4 h-4 flex-shrink-0 text-amber-400 mt-0.5" />
+                  <div>
+                    Didn't receive the email in your inbox? Please check your <strong className="text-amber-300">Spam / Junk</strong> folder.
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
+                {otpError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/35 text-rose-300 text-xs font-medium flex items-center gap-2 shadow-lg animate-shake">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+                    <span>{otpError}</span>
+                  </div>
+                )}
+
+                {/* 6 OTP Boxes */}
+                <div className="flex justify-center gap-2 sm:gap-2.5 py-1">
+                  {otpValues.map((digit, idx) => (
+                    <input
+                      key={idx}
+                      ref={el => { otpInputRefs.current[idx] = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => handleOtpChange(idx, e.target.value)}
+                      onKeyDown={e => handleOtpKeyDown(idx, e)}
+                      onPaste={handleOtpPaste}
+                      className={`w-11 sm:w-12 h-14 sm:h-16 bg-white/[0.06] border ${
+                        digit 
+                          ? 'border-blue-400 shadow-[0_0_15px_rgba(56,167,255,0.5)] scale-105' 
+                          : 'border-white/20'
+                      } rounded-xl text-white text-2xl font-black text-center outline-none transition-all focus:border-blue-400 focus:scale-105`}
+                    />
+                  ))}
+                </div>
+
+                {/* Resend Button & Timer */}
+                <div className="text-center pt-1">
+                  {resendTimer > 0 ? (
+                    <span className="text-xs text-slate-400 font-mono">
+                      Resend code available in <strong className="text-blue-400">{resendTimer}s</strong>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={sendingOtp}
+                      className="text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 mx-auto focus:outline-none"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Resend Verification Code</span>
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={verifyingOtp}
+                  onClick={triggerRipple}
+                  className="w-full relative py-3.5 px-6 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] transition-all duration-200 shadow-[0_8px_25px_rgba(16,185,129,0.45)] border border-white/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed btn-interactive-ripple"
+                >
+                  {verifyingOtp ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Verifying & Activating Account...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Complete Account Setup</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+
+                <div className="text-center">
                   <button
                     type="button"
-                    onClick={() => { setVerifiedStudent(null); setInputRegNo(''); }}
-                    style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(55,140,255,0.2)', color: '#AFC4DF', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                    onClick={() => { setCurrentStep(2); setOtpError(null); }}
+                    className="text-xs text-slate-400 hover:text-slate-300 underline focus:outline-none"
                   >
-                    Change Number
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(2)}
-                    className="btn-primary"
-                    style={{ flex: 2, padding: '12px', fontSize: '14px', fontWeight: 700, justifyContent: 'center' }}
-                  >
-                    <span>Continue Registration</span>
-                    <ArrowRight style={{ width: 16, height: 16 }} />
+                    Wrong email address? Change Email
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── STEP 2: STUDENT DETAILS & ACCOUNT CREATION ── */}
-        {currentStep === 2 && (
-          <form onSubmit={handleSendOtp}>
-            <div style={{ marginBottom: '20px' }}>
-              <button
-                type="button"
-                onClick={() => setCurrentStep(1)}
-                style={{ background: 'none', border: 'none', color: '#38A7FF', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', padding: 0, marginBottom: '10px' }}
-              >
-                <ArrowLeft style={{ width: 14, height: 14 }} />
-                <span>Back to Roster Check</span>
-              </button>
-              <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#FFFFFF', margin: '0 0 4px' }}>
-                Account Credentials
-              </h2>
-              <p style={{ fontSize: '13px', color: '#AFC4DF', margin: 0 }}>
-                Set up your personal student login credentials.
-              </p>
-            </div>
-
-            {/* Read-Only Official Information Banner */}
-            <div style={{ background: 'rgba(8,27,53,0.9)', border: '1px solid rgba(55,140,255,0.2)', borderRadius: '14px', padding: '14px 18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '11px', color: '#6E86A5' }}>Official Student Profile</p>
-                <p style={{ margin: '2px 0 0', fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>{verifiedStudent?.name}</p>
-                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#38A7FF' }}>{verifiedStudent?.register_number} • {verifiedStudent?.department}</p>
-              </div>
-              <div style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#34D399', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '8px' }}>
-                ✓ Official
-              </div>
-            </div>
-
-            {formError && (
-              <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#F87171', padding: '12px 14px', borderRadius: '10px', marginBottom: '18px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
-                <span>{formError}</span>
-              </div>
+              </form>
             )}
 
-            {/* Email Address */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
-                Personal Email Address (Used for Login) *
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Mail style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
-                <input
-                  type="email"
-                  required
-                  placeholder="student@gmail.com"
-                  className="input-dark"
-                  style={{ paddingLeft: '36px' }}
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
-              </div>
-            </div>
+            {/* ── STEP 4: REGISTRATION COMPLETED ── */}
+            {currentStep === 4 && registeredSummary && (
+              <div className="text-center py-2 animate-hero-reveal space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border-2 border-emerald-400/40 text-emerald-400 flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(16,185,129,0.35)] animate-bounce">
+                  <ShieldCheck className="w-9 h-9" />
+                </div>
 
-            {/* Phone Number */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
-                Mobile Number *
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Phone style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
-                <input
-                  type="tel"
-                  required
-                  placeholder="9876543210"
-                  className="input-dark"
-                  style={{ paddingLeft: '36px' }}
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                />
-              </div>
-            </div>
+                <div>
+                  <h2 className="text-2xl font-black text-white font-['Plus_Jakarta_Sans'] tracking-tight mb-1">
+                    Registration Complete! 🎉
+                  </h2>
+                  <p className="text-xs text-slate-300">
+                    Your official athlete account has been registered in the GASC Sports Portal.
+                  </p>
+                </div>
 
-            {/* Password */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
-                Create Password (Min 8 characters) *
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Lock style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder="Enter strong password"
-                  className="input-dark"
-                  style={{ paddingLeft: '36px', paddingRight: '40px' }}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6E86A5', cursor: 'pointer' }}
-                >
-                  {showPassword ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
-                </button>
-              </div>
-
-              {/* Password Requirements */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', marginTop: '10px' }}>
-                {[
-                  { label: '8+ characters', valid: passwordChecks.length },
-                  { label: 'Uppercase letter (A-Z)', valid: passwordChecks.hasUpper },
-                  { label: 'Lowercase letter (a-z)', valid: passwordChecks.hasLower },
-                  { label: 'Number (0-9)', valid: passwordChecks.hasNumber }
-                ].map(r => (
-                  <div key={r.label} style={{ fontSize: '11px', color: r.valid ? '#34D399' : '#6E86A5', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span>{r.valid ? '✓' : '•'}</span>
-                    <span>{r.label}</span>
+                {/* Athlete Pass Card */}
+                <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 text-left text-xs space-y-2">
+                  <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                    <span className="text-slate-400">Athlete Name</span>
+                    <strong className="text-white font-bold">{registeredSummary.name}</strong>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                    <span className="text-slate-400">Register Number</span>
+                    <strong className="text-blue-300 font-mono">{registeredSummary.registerNumber}</strong>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Account Login Email</span>
+                    <strong className="text-emerald-400">{registeredSummary.email}</strong>
+                  </div>
+                </div>
 
-            {/* Confirm Password */}
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#AFC4DF', marginBottom: '6px' }}>
-                Confirm Password *
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Lock style={{ width: 15, height: 15, position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#38A7FF' }} />
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  required
-                  placeholder="Re-enter password"
-                  className="input-dark"
-                  style={{ paddingLeft: '36px', paddingRight: '40px' }}
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                />
+                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-400/20 text-xs text-blue-200/90 leading-relaxed">
+                  🔑 You can now sign in anytime using your Register Number or Email.
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6E86A5', cursor: 'pointer' }}
-                >
-                  {showConfirmPassword ? <EyeOff style={{ width: 15, height: 15 }} /> : <Eye style={{ width: 15, height: 15 }} />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={sendingOtp}
-              className="btn-primary"
-              style={{ width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700, justifyContent: 'center' }}
-            >
-              {sendingOtp ? (
-                <>
-                  <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-                  <span>Sending Email Verification Code...</span>
-                </>
-              ) : (
-                <>
-                  <span>Send Email OTP Code</span>
-                  <ArrowRight style={{ width: 16, height: 16 }} />
-                </>
-              )}
-            </button>
-          </form>
-        )}
-
-        {/* ── STEP 3: EMAIL OTP VERIFICATION ── */}
-        {currentStep === 3 && (
-          <form onSubmit={handleVerifyOtpAndCreateAccount}>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(22,119,255,0.15)', border: '2px solid rgba(55,140,255,0.4)', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38A7FF' }}>
-                <KeyRound style={{ width: 24, height: 24 }} />
-              </div>
-              <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#FFFFFF', margin: '0 0 6px' }}>
-                Verify Your Email Address
-              </h2>
-              <p style={{ fontSize: '13px', color: '#AFC4DF', margin: 0, lineHeight: 1.5 }}>
-                A 6-digit verification code has been dispatched to<br />
-                <strong style={{ color: '#38A7FF' }}>{email}</strong>
-              </p>
-            </div>
-
-            {/* Spam notice banner */}
-            <div style={{ background: 'rgba(56,167,255,0.08)', border: '1px solid rgba(56,167,255,0.25)', borderRadius: '12px', padding: '12px 14px', marginBottom: '20px', textAlign: 'left' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <Mail style={{ width: 17, height: 17, color: '#38A7FF', flexShrink: 0, marginTop: 2 }} />
-                <div style={{ fontSize: '12px', color: '#CBD5E1', lineHeight: 1.5 }}>
-                  Didn't see the email? Please check your <strong style={{ color: '#FBBF24' }}>Spam / Junk</strong> or <strong>Promotions</strong> folder. It usually arrives within 10-30 seconds.
-                </div>
-              </div>
-            </div>
-
-            {otpError && (
-              <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#F87171', padding: '12px 14px', borderRadius: '10px', marginBottom: '18px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
-                <span>{otpError}</span>
-              </div>
-            )}
-
-            {/* 6 OTP Boxes */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '24px' }}>
-              {otpValues.map((digit, idx) => (
-                <input
-                  key={idx}
-                  ref={el => { otpInputRefs.current[idx] = el; }}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={e => handleOtpChange(idx, e.target.value)}
-                  onKeyDown={e => handleOtpKeyDown(idx, e)}
-                  onPaste={handleOtpPaste}
-                  style={{
-                    width: '46px',
-                    height: '56px',
-                    background: 'rgba(8,27,53,0.9)',
-                    border: digit ? '2px solid #38A7FF' : '1px solid rgba(55,140,255,0.3)',
-                    borderRadius: '12px',
-                    color: '#FFFFFF',
-                    fontSize: '22px',
-                    fontWeight: 800,
-                    textAlign: 'center',
-                    outline: 'none',
-                    boxShadow: digit ? '0 0 12px rgba(56,167,255,0.3)' : 'none'
+                  onClick={(e) => {
+                    triggerRipple(e);
+                    navigate('/student/login');
                   }}
-                />
-              ))}
-            </div>
-
-            <button
-              type="submit"
-              disabled={verifyingOtp}
-              className="btn-primary"
-              style={{ width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700, justifyContent: 'center', marginBottom: '18px' }}
-            >
-              {verifyingOtp ? (
-                <>
-                  <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
-                  <span>Verifying & Creating Account...</span>
-                </>
-              ) : (
-                <>
-                  <span>Verify OTP & Create Account</span>
-                  <ArrowRight style={{ width: 16, height: 16 }} />
-                </>
-              )}
-            </button>
-
-            {/* Resend button & Change Email link */}
-            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {resendTimer > 0 ? (
-                <span style={{ fontSize: '12px', color: '#6E86A5' }}>
-                  Resend OTP in <strong>{resendTimer}s</strong>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  style={{ background: 'none', border: 'none', color: '#38A7FF', fontSize: '13px', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                  className="w-full py-3.5 px-6 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all shadow-[0_8px_25px_rgba(37,99,235,0.45)] border border-white/20 flex items-center justify-center gap-2 btn-interactive-ripple cursor-pointer"
                 >
-                  Resend OTP Code
+                  <span>Proceed to Student Login</span>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => { setCurrentStep(2); setOtpError(null); }}
-                style={{ background: 'none', border: 'none', color: '#6E86A5', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                Wrong email address? Change Email
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* ── STEP 4: REGISTRATION COMPLETED ── */}
-        {currentStep === 4 && registeredSummary && (
-          <div style={{ textAlign: 'center', padding: '10px 0' }}>
-            <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'rgba(16,185,129,0.15)', border: '2px solid rgba(16,185,129,0.4)', margin: '0 auto 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34D399' }}>
-              <ShieldCheck style={{ width: 36, height: 36 }} />
-            </div>
-
-            <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#FFFFFF', margin: '0 0 8px' }}>
-              Registration Successful! 🎉
-            </h2>
-            <p style={{ fontSize: '14px', color: '#AFC4DF', margin: '0 0 24px', lineHeight: 1.5 }}>
-              Your GASC Sports Portal account has been created successfully.
-            </p>
-
-            {/* Summary Card */}
-            <div style={{ background: 'rgba(8,27,53,0.95)', border: '1px solid rgba(55,140,255,0.25)', borderRadius: '16px', padding: '20px', textAlign: 'left', marginBottom: '28px' }}>
-              <div style={{ marginBottom: '12px' }}>
-                <span style={{ fontSize: '11px', color: '#6E86A5', display: 'block' }}>Student Name</span>
-                <strong style={{ fontSize: '15px', color: '#FFFFFF' }}>{registeredSummary.name}</strong>
               </div>
-              <div style={{ marginBottom: '12px' }}>
-                <span style={{ fontSize: '11px', color: '#6E86A5', display: 'block' }}>College Register Number</span>
-                <strong style={{ fontSize: '14px', color: '#38A7FF' }}>{registeredSummary.registerNumber}</strong>
-              </div>
-              <div>
-                <span style={{ fontSize: '11px', color: '#6E86A5', display: 'block' }}>Login Email Address</span>
-                <strong style={{ fontSize: '14px', color: '#34D399' }}>{registeredSummary.email}</strong>
-              </div>
-            </div>
+            )}
 
-            <div style={{ background: 'rgba(56,167,255,0.10)', border: '1px solid rgba(56,167,255,0.25)', borderRadius: '12px', padding: '12px 16px', marginBottom: '24px', fontSize: '13px', color: '#AFC4DF' }}>
-              🔑 You can now login anytime using your <strong>registered Email address and Password</strong>.
-            </div>
+            {/* Footer Sign-in redirection */}
+            {currentStep < 4 && (
+              <div className="mt-6 pt-4 border-t border-white/[0.08] text-center">
+                <p className="text-xs text-slate-400">
+                  Already have an account?{' '}
+                  <Link
+                    to="/student/login"
+                    onClick={triggerRipple}
+                    className="font-bold text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-1 hover:underline ml-1"
+                  >
+                    Login with Email / Reg No
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </p>
+              </div>
+            )}
 
-            <button
-              type="button"
-              onClick={() => navigate('/student/login')}
-              className="btn-primary"
-              style={{ width: '100%', padding: '14px', fontSize: '15px', fontWeight: 800, justifyContent: 'center' }}
-            >
-              <span>Go to Login</span>
-              <ArrowRight style={{ width: 18, height: 18 }} />
-            </button>
           </div>
-        )}
 
-        {/* Existing Account Footer Link */}
-        {currentStep < 4 && (
-          <p style={{ marginTop: '28px', textAlign: 'center', fontSize: '13px', color: '#6E86A5' }}>
-            Already registered?{' '}
-            <Link to="/student/login" style={{ color: '#38A7FF', fontWeight: 700, textDecoration: 'none' }}>
-              Login with Email
-            </Link>
-          </p>
-        )}
+          {/* College Trust Badge */}
+          <div className="mt-5 text-center text-[11px] text-slate-400 space-y-1">
+            <p className="flex items-center justify-center gap-1.5 opacity-80">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+              <span>GASC Idappadi Sports Management System</span>
+            </p>
+            <p className="text-[10px] opacity-60">
+              Official University Sports Registry • Periyar University
+            </p>
+          </div>
+
+        </div>
 
       </div>
+
     </div>
   );
 };

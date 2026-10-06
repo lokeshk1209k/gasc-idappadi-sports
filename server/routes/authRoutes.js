@@ -5,6 +5,7 @@ const { verifyToken } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
 router.get('/verify-student/:registerNumber', authController.verifyStudent);
+router.get('/verify-student', authController.verifyStudent);
 router.post('/send-otp', authController.sendRegistrationOtp);
 router.post('/verify-otp', authController.verifyRegistrationOtp);
 router.post('/register', upload.single('profilePhoto'), authController.registerStudent);

@@ -34,6 +34,17 @@ function copyRecursiveSync(src, dest, skipFiles = []) {
   }
 }
 
+const { execSync } = require('child_process');
+const studentPkg = path.join(rootDir, 'student-client/package.json');
+if (fs.existsSync(studentPkg)) {
+  try {
+    console.log('[prepare-dist] 0. Building student-client with Vite...');
+    execSync('npm --prefix student-client run build', { stdio: 'inherit', cwd: rootDir });
+  } catch (e) {
+    console.warn('[prepare-dist] Using existing build artifacts:', e.message);
+  }
+}
+
 console.log('[prepare-dist] 1. Copying Vite build artifacts to root dist, public, and client/public...');
 copyRecursiveSync(studentDistDir, rootDistDir);
 copyRecursiveSync(studentDistDir, rootPublicDir);
@@ -47,7 +58,9 @@ if (fs.existsSync(rootIndex)) {
 }
 
 console.log('[prepare-dist] 2. Merging assets across all target directories...');
-[rootDistDir, rootPublicDir, studentDistDir, srcDir].forEach(targetDir => {
+const studentPublicDir = path.join(rootDir, 'student-client/public');
+
+[rootDistDir, rootPublicDir, studentDistDir, srcDir, studentPublicDir].forEach(targetDir => {
   copyRecursiveSync(path.join(srcDir, 'css'), path.join(targetDir, 'css'));
   copyRecursiveSync(path.join(srcDir, 'js'), path.join(targetDir, 'js'));
   copyRecursiveSync(path.join(srcDir, 'uploads'), path.join(targetDir, 'uploads'));

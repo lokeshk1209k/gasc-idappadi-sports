@@ -1,6 +1,6 @@
 {
   "success": true,
-  "count": 3,
+  "count": 4,
   "roster": [
     {
       "id": "ros_1791143969487_o0rr",
@@ -43,6 +43,20 @@
       "registered_user_id": null,
       "created_at": "2026-10-05T14:05:23.789Z",
       "updated_at": "2026-10-05T14:05:23.789Z"
+    },
+    {
+      "id": "ros_1791295927798_n4ec",
+      "register_number": "C24UG183CSC014",
+      "name": "MADHAN",
+      "department": "Computer Science",
+      "year": "III Year",
+      "section": "A",
+      "gender": "Male",
+      "status": "Active",
+      "is_registered": false,
+      "registered_user_id": null,
+      "created_at": "2026-10-06T14:12:07.798Z",
+      "updated_at": "2026-10-06T14:12:07.798Z"
     }
   ]
 }

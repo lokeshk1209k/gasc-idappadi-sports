@@ -1,7 +1,33 @@
 const xlsx = require('xlsx');
 const fs = require('fs');
+const path = require('path');
 const { supabase, toCamelCase, toSnakeCase } = require('../utils/supabaseHelper');
 const { storeInstance } = require('../data/localStore');
+
+function syncRosterJsonFiles(rosterList) {
+  try {
+    const payload = JSON.stringify({
+      success: true,
+      count: rosterList.length,
+      roster: rosterList
+    }, null, 2);
+    const rootDir = path.join(__dirname, '../..');
+    const targets = [
+      path.join(rootDir, 'student-client/public/roster.json'),
+      path.join(rootDir, 'student-client/dist/roster.json'),
+      path.join(rootDir, 'public/roster.json'),
+      path.join(rootDir, 'dist/roster.json'),
+      path.join(rootDir, 'client/public/roster.json')
+    ];
+    targets.forEach(t => {
+      try {
+        const dir = path.dirname(t);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(t, payload, 'utf8');
+      } catch (e) {}
+    });
+  } catch (err) {}
+}
 
 // Helper function to map flexible column headers
 function normalizeKeys(row) {
@@ -193,6 +219,7 @@ exports.uploadExcelRoster = async (req, res) => {
 
     storeInstance.db['college_student_roster'] = localRoster;
     storeInstance.save();
+    syncRosterJsonFiles(localRoster);
 
     const totalStudents = localRoster.length;
     const registeredCount = localRoster.filter(r => r.is_registered).length;
@@ -401,6 +428,7 @@ exports.addSingleStudent = async (req, res) => {
     localRoster.push(newRecord);
     storeInstance.db['college_student_roster'] = localRoster;
     storeInstance.save();
+    syncRosterJsonFiles(localRoster);
 
     // Instant real-time sync to Supabase so Student Portal detects it the very next second!
     try {
