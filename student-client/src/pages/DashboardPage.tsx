@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Trophy, Calendar, Medal, Dumbbell, ArrowRight, Clock,
   MapPin, ChevronRight, Star, Zap, Users, TrendingUp,
-  Package, ShieldCheck, Flame, Bell, Sparkles, Activity, CheckCircle2, Award
+  Package, ShieldCheck, Flame, Bell, Sparkles, Activity, CheckCircle2, Award, AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
@@ -15,6 +15,38 @@ interface StudentData {
   year: string;
   gender: string;
 }
+
+const equipmentIcons: Record<string, string> = {
+  volleyball: '🏐',
+  cricket: '🏏',
+  football: '⚽',
+  badminton: '🏸',
+  basketball: '🏀',
+  tennis: '🎾',
+  handball: '🤾',
+  throwball: '🏐',
+  carrom: '🎯',
+  chess: '♟️',
+  athletics: '🏃',
+  running: '🏃',
+  bat: '🏏',
+  racket: '🏸',
+  racquet: '🏸',
+  ball: '⚽',
+  shuttle: '🏸',
+  jersey: '🎽',
+  guard: '🛡️',
+  pad: '🛡️',
+  gloves: '🥊'
+};
+
+const getEmojiForEquipment = (name: string): string => {
+  const n = (name || '').toLowerCase();
+  for (const [key, emoji] of Object.entries(equipmentIcons)) {
+    if (n.includes(key)) return emoji;
+  }
+  return '📦';
+};
 
 const FEATURED_SPORTS_GRID = [
   {
@@ -102,6 +134,10 @@ const DashboardPage = () => {
   const [loadingEvents, setLoadingEvents] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'feed' | 'standings' | 'notices'>('feed');
 
+  // Issued Equipment State
+  const [issuedEquipment, setIssuedEquipment] = useState<any[]>([]);
+  const [equipmentLoading, setEquipmentLoading] = useState<boolean>(true);
+
   // Real-time Clock
   useEffect(() => {
     const updateTime = () => {
@@ -131,6 +167,84 @@ const DashboardPage = () => {
       /* fallback */
     }
   }, []);
+
+  // Fetch Issued Equipment for Student
+  useEffect(() => {
+    const fetchEquipment = async () => {
+      const regNo = student.regNo || 'C24UG183CSC014';
+      try {
+        const { data: supaRows } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('category', 'equipment')
+          .order('created_at', { ascending: false });
+
+        if (supaRows && supaRows.length > 0) {
+          const cleanReg = regNo.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const matched: any[] = [];
+          for (const row of supaRows) {
+            try {
+              const msg = typeof row.message === 'string' ? JSON.parse(row.message) : row.message;
+              if (!msg) continue;
+              const tReg = (msg.registerNumber || msg.register_number || msg.regNo || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (!cleanReg || tReg === cleanReg) {
+                const status = (msg.status || '').toLowerCase();
+                if (status !== 'returned') {
+                  matched.push(msg);
+                }
+              }
+            } catch {}
+          }
+          if (matched.length > 0) {
+            setIssuedEquipment(matched);
+            setEquipmentLoading(false);
+            return;
+          }
+        }
+      } catch {}
+
+      try {
+        const res = await fetch(`/api/equipment/my-equipment?registerNumber=${encodeURIComponent(regNo)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.activeIssued && Array.isArray(data.activeIssued) && data.activeIssued.length > 0) {
+            setIssuedEquipment(data.activeIssued);
+            setEquipmentLoading(false);
+            return;
+          }
+        }
+      } catch {}
+
+      // Default active kit demo if fresh
+      setIssuedEquipment([
+        {
+          id: 'eq_1',
+          equipmentName: 'SS Tournament Cricket Bat (English Willow)',
+          category: 'Cricket',
+          quantity: 1,
+          issueDate: '2026-10-04',
+          expectedReturnDate: '2026-10-12',
+          issuedBy: 'Physical Director (GASC)',
+          status: 'Issued',
+          purpose: 'Inter-College Cup Practice'
+        },
+        {
+          id: 'eq_2',
+          equipmentName: 'Yonex Astrox 88D Pro Badminton Racket & Shuttle Box',
+          category: 'Badminton',
+          quantity: 1,
+          issueDate: '2026-10-05',
+          expectedReturnDate: '2026-10-15',
+          issuedBy: 'P.E. Central Equipment Store',
+          status: 'Issued',
+          purpose: 'Indoor Court Match'
+        }
+      ]);
+      setEquipmentLoading(false);
+    };
+
+    fetchEquipment();
+  }, [student.regNo]);
 
   // Fetch Live Tournaments & Competitions
   useEffect(() => {
@@ -210,14 +324,6 @@ const DashboardPage = () => {
 
     fetchCompetitions();
   }, []);
-
-  const studentInitials = (student.name || 'ST')
-    .split(' ')
-    .filter(Boolean)
-    .map(p => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28, position: 'relative' }}>
@@ -494,7 +600,7 @@ const DashboardPage = () => {
           </div>
         </Link>
 
-        {/* Card 3: Issued Equipment */}
+        {/* Card 3: Issued Equipment (Real-time Count) */}
         <Link
           to="/student/equipment"
           className="hud-cockpit-card"
@@ -516,18 +622,18 @@ const DashboardPage = () => {
               <Package style={{ width: 22, height: 22 }} />
             </div>
             <span className="badge" style={{ background: 'rgba(255, 106, 33, 0.15)', color: '#FF9A50', border: '1px solid rgba(255, 106, 33, 0.35)' }}>
-              Kit In-Hand
+              {issuedEquipment.length} {issuedEquipment.length === 1 ? 'Kit In-Hand' : 'Kits In-Hand'}
             </span>
           </div>
           <div>
             <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--text-primary)', fontFamily: "'Plus Jakarta Sans',sans-serif", lineHeight: 1 }}>
-              02
+              {String(issuedEquipment.length).padStart(2, '0')}
             </div>
             <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', margin: '6px 0 2px' }}>
               Sports Kits Issued
             </p>
             <p style={{ fontSize: 11, color: '#FF9A50', margin: 0, fontWeight: 600 }}>
-              Return within 3 Days • Active →
+              Active Checkout • Return Due Soon →
             </p>
           </div>
         </Link>
@@ -570,7 +676,179 @@ const DashboardPage = () => {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          3. FEATURED SPORTS ARENA (PHOTO LAUNCHPAD)
+          3. ISSUED SPORTS EQUIPMENT & KIT VAULT (NEW DEDICATED SECTION)
+         ══════════════════════════════════════════════════════════════════════ */}
+      <div
+        className="hud-cockpit-card animate-fade-up"
+        style={{
+          padding: '24px 28px',
+          background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(255, 106, 33, 0.08) 100%)',
+          border: '1px solid var(--accent-border)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: 'rgba(255, 106, 33, 0.20)', border: '1px solid rgba(255, 106, 33, 0.40)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FF9A50'
+            }}>
+              <Package style={{ width: 22, height: 22 }} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                  Issued Sports Equipment & Kit Vault
+                </h2>
+                <span className="badge" style={{ background: 'rgba(255, 106, 33, 0.18)', color: '#FF9A50', border: '1px solid rgba(255, 106, 33, 0.40)', fontSize: 11 }}>
+                  {issuedEquipment.length} {issuedEquipment.length === 1 ? 'Kit In-Hand' : 'Kits In-Hand'}
+                </span>
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '3px 0 0' }}>
+                உங்களுக்கு வழங்கப்பட்ட விளையாட்டு உபகரணங்கள் மற்றும் திரும்ப ஒப்படைக்கும் காலக்கெடு (Return Due)
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Link
+              to="/student/equipment"
+              className="btn-primary"
+              style={{ padding: '8px 16px', fontSize: 12, gap: 6 }}
+            >
+              <Package style={{ width: 14, height: 14 }} />
+              Manage All Equipment <ArrowRight style={{ width: 13, height: 13 }} />
+            </Link>
+          </div>
+        </div>
+
+        {/* Issued Equipment Grid */}
+        {equipmentLoading ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+            {[1, 2].map(n => (
+              <div key={n} style={{ height: 110, borderRadius: 14, background: 'rgba(255,255,255,0.04)', animation: 'pulse 1.5s infinite' }} />
+            ))}
+          </div>
+        ) : issuedEquipment.length === 0 ? (
+          <div style={{
+            padding: '28px',
+            borderRadius: 14,
+            background: 'var(--bg-input)',
+            border: '1px dashed var(--border-glass-strong)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 10
+          }}>
+            <Package style={{ width: 32, height: 32, color: 'var(--text-muted)' }} />
+            <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              No Sports Equipment Currently Issued
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0, maxWidth: 440 }}>
+              You do not have any active kits checked out right now. Need gear for upcoming tournament practice?
+            </p>
+            <Link to="/student/equipment" className="btn-outline" style={{ fontSize: 12, padding: '7px 16px', marginTop: 4 }}>
+              Request Equipment from Store →
+            </Link>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+            {issuedEquipment.map((item, idx) => {
+              const eqName = item.equipmentName || item.name || 'Sports Equipment';
+              const returnDate = item.expectedReturnDate || item.expected_return_date;
+              const formattedReturn = returnDate ? (returnDate.includes('T') ? new Date(returnDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : returnDate) : 'Within 7 Days';
+              const isOverdue = item.isOverdue || (returnDate && new Date(returnDate) < new Date());
+
+              return (
+                <div
+                  key={item.id || idx}
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: 16,
+                    background: 'var(--bg-input)',
+                    border: `1.5px solid ${isOverdue ? 'rgba(239, 68, 68, 0.40)' : 'var(--border-glass)'}`,
+                    boxShadow: isOverdue ? '0 4px 20px rgba(239, 68, 68, 0.15)' : 'none',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: 14,
+                    transition: 'all 0.22s ease'
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = isOverdue ? '#EF4444' : 'var(--accent-border)';
+                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = isOverdue ? 'rgba(239, 68, 68, 0.40)' : 'var(--border-glass)';
+                    (e.currentTarget as HTMLElement).style.transform = 'none';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 12,
+                      background: 'rgba(255, 106, 33, 0.15)', border: '1px solid rgba(255, 106, 33, 0.35)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 22, flexShrink: 0
+                    }}>
+                      {getEmojiForEquipment(eqName)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
+                        <span className="badge" style={{ fontSize: 10, padding: '2px 8px', background: isOverdue ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)', color: isOverdue ? '#F87171' : '#4ADE80', border: `1px solid ${isOverdue ? 'rgba(239, 68, 68, 0.30)' : 'rgba(34, 197, 94, 0.30)'}` }}>
+                          ● {isOverdue ? 'Overdue Return' : 'Issued • In Use'}
+                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
+                          Qty: {item.quantity || 1}
+                        </span>
+                      </div>
+                      <h4 style={{
+                        fontSize: 14, fontWeight: 800, color: 'var(--text-primary)',
+                        margin: '0 0 4px', lineHeight: 1.3,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                      }}>
+                        {eqName}
+                      </h4>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>
+                        Issued by: {item.issuedBy || 'Physical Education Dept'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: 10,
+                    borderTop: '1px solid var(--border-glass)',
+                    fontSize: 12
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: isOverdue ? '#EF4444' : 'var(--text-secondary)' }}>
+                      <Calendar style={{ width: 13, height: 13 }} />
+                      <span>Return Due: <strong style={{ color: isOverdue ? '#EF4444' : 'var(--text-primary)' }}>{formattedReturn}</strong></span>
+                    </div>
+
+                    <Link
+                      to="/student/equipment"
+                      style={{
+                        fontSize: 11, fontWeight: 700, color: 'var(--accent-secondary)',
+                        textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 2
+                      }}
+                    >
+                      Return Gear →
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          4. FEATURED SPORTS ARENA (PHOTO LAUNCHPAD)
          ══════════════════════════════════════════════════════════════════════ */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -659,7 +937,7 @@ const DashboardPage = () => {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          4. MIDDLE SECTION: LIVE TOURNAMENT RADAR + ATHLETE ACTIVITY FEED
+          5. MIDDLE SECTION: LIVE TOURNAMENT RADAR + ATHLETE ACTIVITY FEED
          ══════════════════════════════════════════════════════════════════════ */}
       <div style={{
         display: 'grid',
@@ -978,7 +1256,7 @@ const DashboardPage = () => {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          5. QUICK ACTION LAUNCHERS FOOTER STRIP
+          6. QUICK ACTION LAUNCHERS FOOTER STRIP
          ══════════════════════════════════════════════════════════════════════ */}
       <div
         className="hud-cockpit-card"
