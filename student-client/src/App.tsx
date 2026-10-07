@@ -12,6 +12,16 @@ import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
 import EquipmentPage from './pages/EquipmentPage';
 
+// Root redirection helper: if authenticated go to dashboard, otherwise always go to login
+const RootRedirect = () => {
+  const token = localStorage.getItem('gasc_token');
+  const user = localStorage.getItem('gasc_user');
+  if (token && user) {
+    return <Navigate to="/student/dashboard" replace />;
+  }
+  return <Navigate to="/student/login" replace />;
+};
+
 // GASC Student Portal v2026.10.4
 function App() {
   return (
@@ -19,8 +29,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<MainLayout />}>
-          {/* Default: redirect to dashboard */}
-          <Route index element={<Navigate to="/student/dashboard" replace />} />
+          {/* Default: redirect to login if not logged in */}
+          <Route index element={<RootRedirect />} />
 
           {/* Auth */}
           <Route path="student/login" element={<LoginPage />} />

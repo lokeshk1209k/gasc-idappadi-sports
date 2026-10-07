@@ -86,6 +86,18 @@ const MainLayout = () => {
     };
   }, [location.pathname]);
 
+  // Redirect unauthenticated students to login page
+  useEffect(() => {
+    const isAuth = ['/student/login', '/student/register'].some(p => location.pathname.startsWith(p));
+    if (!isAuth) {
+      const token = localStorage.getItem('gasc_token');
+      const stored = localStorage.getItem('gasc_user');
+      if (!token || !stored) {
+        navigate('/student/login', { replace: true });
+      }
+    }
+  }, [location.pathname, navigate]);
+
   const logout = () => {
     localStorage.removeItem('gasc_token');
     localStorage.removeItem('gasc_user');
