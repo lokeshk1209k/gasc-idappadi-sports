@@ -9,7 +9,8 @@ $targets = @(
     "D:\GASC-Sports-Admin-Portable\GASC Sports Admin-win32-x64",
     "$workspace\dist\admin-exe\GASC Sports Admin-win32-x64",
     "C:\Users\ELCOT\Downloads\GASC Sports Admin Portal",
-    "C:\Users\ELCOT\Desktop\GASC Sports Admin Portable"
+    "C:\Users\ELCOT\Desktop\GASC Sports Admin Portable",
+    "C:\Users\ELCOT\Desktop\GASC Sports Admin"
 )
 
 foreach ($target in $targets) {
@@ -44,15 +45,29 @@ foreach ($target in $targets) {
         if (Test-Path "$workspace\gasc_sports_local.db") {
             Copy-Item -Path "$workspace\gasc_sports_local.db" -Destination $appDir -Force
         }
+        if (Test-Path "$workspace\server\data\local_db.json") {
+            $dataDir = Join-Path $appDir "server\data"
+            if (!(Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force | Out-Null }
+            Copy-Item -Path "$workspace\server\data\local_db.json" -Destination $dataDir -Force
+        }
 
-        # Sync any missing node_modules such as compression
+        # Sync complete node_modules if missing or incomplete
         $targetNm = Join-Path $appDir "node_modules"
-        if (Test-Path $targetNm) {
-            foreach ($mod in @("compression", "compressible", "on-headers")) {
+        if (!(Test-Path $targetNm)) {
+            New-Item -ItemType Directory -Path $targetNm -Force | Out-Null
+        }
+        $wsNmCount = (Get-ChildItem -Path "$workspace\node_modules" -Directory -ErrorAction SilentlyContinue).Count
+        $targetNmCount = (Get-ChildItem -Path $targetNm -Directory -ErrorAction SilentlyContinue).Count
+        if ($targetNmCount -lt ($wsNmCount - 10)) {
+            Write-Host "  Synchronizing complete node_modules ($wsNmCount packages)..." -ForegroundColor Cyan
+            Copy-Item -Path "$workspace\node_modules\*" -Destination $targetNm -Recurse -Force -ErrorAction SilentlyContinue
+        } else {
+            # Sync key critical packages
+            foreach ($mod in @("compression", "compressible", "on-headers", "sql.js", "uuid", "qrcode", "xlsx", "@supabase")) {
                 $modSrc = Join-Path "$workspace\node_modules" $mod
                 $modDst = Join-Path $targetNm $mod
-                if ((Test-Path $modSrc) -and !(Test-Path $modDst)) {
-                    Copy-Item -Path $modSrc -Destination $modDst -Recurse -Force
+                if (Test-Path $modSrc) {
+                    Copy-Item -Path $modSrc -Destination $modDst -Recurse -Force -ErrorAction SilentlyContinue
                 }
             }
         }

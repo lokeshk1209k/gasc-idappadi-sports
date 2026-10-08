@@ -6,7 +6,11 @@ class NotificationService {
    */
   static async send({ title, message, category = 'General', targetType = 'All Students', targetId = null, targetModel = null, priority = 'Normal', sender = 'Sports Incharge' }) {
     try {
+      const notifId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+        ? crypto.randomUUID() 
+        : `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       const payload = {
+        id: notifId,
         title,
         message,
         category,
