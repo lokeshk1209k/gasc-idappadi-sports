@@ -45,10 +45,9 @@ if (fs.existsSync(studentPkg)) {
   }
 }
 
-console.log('[prepare-dist] 1. Copying Vite build artifacts to root dist, public, and client/public...');
+console.log('[prepare-dist] 1. Copying Vite build artifacts to root dist and public...');
 copyRecursiveSync(studentDistDir, rootDistDir);
 copyRecursiveSync(studentDistDir, rootPublicDir);
-copyRecursiveSync(studentDistDir, srcDir);
 
 // Copy index.html and 404.html to root directory as well
 const rootIndex = path.join(studentDistDir, 'index.html');
