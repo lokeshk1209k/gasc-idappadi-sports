@@ -205,6 +205,9 @@ async function loadAdminInterCollegeData() {
       if (res && res.success) {
         comps = res.competitions || [];
         regs = res.registrations || [];
+        if (comps.length === 0 && res.allCompetitions && res.allCompetitions.length > 0) {
+          comps = res.allCompetitions;
+        }
       }
     } catch (e) {
       console.warn('Fallback: Fetching competitions & registrations separately:', e.message);
@@ -212,16 +215,26 @@ async function loadAdminInterCollegeData() {
       try {
         const compRes = await apiRequest('/competitions');
         const allComps = compRes.competitions || compRes.data || [];
-        comps = allComps.filter(c => 
+        const filtered = allComps.filter(c => 
           c.participation_type === 'INTER_COLLEGE' || 
           c.participationType === 'INTER_COLLEGE' ||
-          c.type === 'Inter-College'
+          (c.type && c.type.toLowerCase().includes('inter-college'))
         );
+        comps = filtered.length > 0 ? filtered : allComps;
       } catch (err) {}
 
       try {
         const regRes = await apiRequest('/inter-college/admin/registrations');
         if (regRes && regRes.data) regs = regRes.data;
+      } catch (err) {}
+    }
+
+    // Secondary safety check: ensure competitions cache is not empty if competitions exist in DB
+    if (comps.length === 0) {
+      try {
+        const compRes = await apiRequest('/competitions');
+        const allComps = compRes.competitions || compRes.data || [];
+        if (allComps.length > 0) comps = allComps;
       } catch (err) {}
     }
 
@@ -849,9 +862,22 @@ function generateAdminExtReport() {
   if (gender !== 'All') list = list.filter(r => (r.gender || '').toLowerCase() === gender.toLowerCase());
 
   let selectedCompName = 'All Inter-College Tournaments';
+  let qrCodeSnippet = '';
   if (compId !== 'All') {
     const matched = extCompetitionsCache.find(c => String(c.id || c._id) === String(compId));
-    if (matched) selectedCompName = matched.name || matched.tournamentName;
+    if (matched) {
+      selectedCompName = matched.name || matched.tournamentName;
+      const token = matched.registration_token || matched.registrationToken || matched.id;
+      const qrThumbUrl = getQrImageUrl(token, 130);
+      const regUrl = getPublicRegistrationUrl(token);
+      qrCodeSnippet = `
+        <div class="text-center p-2 rounded-3 bg-white border border-2 border-dark shadow-sm d-inline-block" style="min-width: 130px;">
+          <img src="${qrThumbUrl}" alt="Registration QR" style="width: 85px; height: 85px; object-fit: contain;">
+          <div class="fw-bold text-dark" style="font-size: 0.65rem; margin-top: 2px;">SCAN TO REGISTER</div>
+          <div class="text-muted font-monospace" style="font-size: 0.55rem; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${regUrl}</div>
+        </div>
+      `;
+    }
   }
 
   const dateNow = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -880,11 +906,14 @@ function generateAdminExtReport() {
   container.innerHTML = `
     <div id="ext-report-printable-sheet" class="bg-white p-4 rounded-3 border text-dark">
       <!-- Report Header -->
-      <div class="text-center pb-3 border-bottom border-2 border-dark mb-3">
-        <h5 class="fw-bold mb-0 text-uppercase">GOVERNMENT ARTS AND SCIENCE COLLEGE, IDAPPADI</h5>
-        <div class="small fw-bold text-muted text-uppercase">DEPARTMENT OF PHYSICAL EDUCATION &bull; INTER-COLLEGE SPORTS REPORT</div>
-        <h6 class="fw-bold text-primary mt-2 mb-0">${selectedCompName}</h6>
-        <div class="small text-muted">Generated Date: ${dateNow} &bull; Filter: Status (${status}) / Category (${gender})</div>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pb-3 border-bottom border-2 border-dark mb-3">
+        <div class="text-center text-sm-start flex-grow-1">
+          <h5 class="fw-bold mb-0 text-uppercase">GOVERNMENT ARTS AND SCIENCE COLLEGE, IDAPPADI</h5>
+          <div class="small fw-bold text-muted text-uppercase">DEPARTMENT OF PHYSICAL EDUCATION &bull; INTER-COLLEGE SPORTS REPORT</div>
+          <h6 class="fw-bold text-primary mt-2 mb-0">${selectedCompName}</h6>
+          <div class="small text-muted">Generated Date: ${dateNow} &bull; Filter: Status (${status}) / Category (${gender})</div>
+        </div>
+        ${qrCodeSnippet}
       </div>
 
       <!-- Report Tabulation Table -->
@@ -1634,3 +1663,23 @@ window.filterAdminExtRegistrations = filterAdminExtRegistrations;
 window.filterAdminExtPlayers = filterAdminExtPlayers;
 window.generateAdminExtReport = generateAdminExtReport;
 window.printAdminExtReport = printAdminExtReport;
+
+function openSelectedExtReportQrModal() {
+  const compId = document.getElementById('report-ext-comp')?.value;
+  if (!compId || compId === 'All') {
+    if (extCompetitionsCache && extCompetitionsCache.length > 0) {
+      openInterCollegeQrModal(extCompetitionsCache[0]);
+    } else {
+      notifyUser('Please select a specific competition from the dropdown first.', 'warning');
+    }
+    return;
+  }
+  const comp = extCompetitionsCache.find(c => String(c.id || c._id) === String(compId));
+  if (comp) {
+    openInterCollegeQrModal(comp);
+  } else {
+    notifyUser('Selected competition details not found.', 'warning');
+  }
+}
+window.openSelectedExtReportQrModal = openSelectedExtReportQrModal;
+

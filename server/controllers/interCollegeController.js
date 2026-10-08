@@ -107,7 +107,7 @@ exports.getCompetitionByToken = async (req, res) => {
       );
     }
 
-    // Check if token matches tournament ID or comp ID in Supabase
+    // Check if token matches tournament ID or comp ID or MD5 hash in Supabase/localStore
     if (!comp) {
       try {
         const { data } = await supabase
@@ -117,6 +117,20 @@ exports.getCompetitionByToken = async (req, res) => {
           .maybeSingle();
         if (data) comp = data;
       } catch (e) {}
+    }
+
+    if (!comp) {
+      let fallbackList = [...(localStore.storeInstance.getTable('competitions') || [])];
+      try {
+        const { data } = await supabase.from('competitions').select('*');
+        if (data && Array.isArray(data)) fallbackList.push(...data);
+      } catch (e) {}
+      comp = fallbackList.find(c => 
+        c.registration_token === token ||
+        c.registrationToken === token ||
+        String(c.id) === String(token) ||
+        crypto.createHash('md5').update(String(c.id || c.name)).digest('hex') === token
+      );
     }
 
     if (!comp) {
@@ -1242,21 +1256,44 @@ exports.getNetworkInfo = (req, res) => {
 // =========================================================================
 exports.getPublicCompetitions = async (req, res) => {
   try {
-    let comps = [];
+    let allComps = [];
     try {
       const { data } = await supabase.from('competitions').select('*');
-      if (data) comps = data;
+      if (data && Array.isArray(data)) allComps = [...data];
     } catch (e) {}
 
-    if (comps.length === 0) {
-      comps = localStore.storeInstance.getTable('competitions') || [];
-    }
+    const localComps = localStore.storeInstance.getTable('competitions') || [];
+    localComps.forEach(lc => {
+      if (!allComps.some(c => String(c.id) === String(lc.id))) {
+        allComps.push(lc);
+      }
+    });
 
-    const interComps = comps.filter(c => 
+    try {
+      const sqliteComps = localDB.query('SELECT * FROM competitions');
+      if (sqliteComps && Array.isArray(sqliteComps)) {
+        sqliteComps.forEach(sc => {
+          if (!allComps.some(c => String(c.id) === String(sc.id))) {
+            allComps.push(sc);
+          }
+        });
+      }
+    } catch (e) {}
+
+    allComps = allComps.map(c => {
+      if (!c.registration_token && !c.registrationToken) {
+        c.registration_token = crypto.createHash('md5').update(String(c.id || c.name)).digest('hex');
+      }
+      return c;
+    });
+
+    let interComps = allComps.filter(c => 
       c.participation_type === 'INTER_COLLEGE' || 
       c.participationType === 'INTER_COLLEGE' ||
-      c.type === 'Inter-College'
+      (c.type && c.type.toLowerCase().includes('inter-college'))
     );
+
+    if (interComps.length === 0) interComps = allComps;
 
     return res.json({ success: true, count: interComps.length, data: interComps });
   } catch (err) {
@@ -1269,33 +1306,73 @@ exports.getPublicCompetitions = async (req, res) => {
 // =========================================================================
 exports.getAdminAllData = async (req, res) => {
   try {
-    let comps = [];
-    let regs = [];
-
+    let allComps = [];
     try {
       const { data } = await supabase.from('competitions').select('*');
-      if (data) comps = data;
+      if (data && Array.isArray(data)) allComps = [...data];
     } catch (e) {}
-    if (comps.length === 0) comps = localStore.storeInstance.getTable('competitions') || [];
 
-    const interComps = comps.filter(c => 
-      c.participation_type === 'INTER_COLLEGE' || 
-      c.participationType === 'INTER_COLLEGE' ||
-      c.type === 'Inter-College'
-    );
+    const localComps = localStore.storeInstance.getTable('competitions') || [];
+    localComps.forEach(lc => {
+      if (!allComps.some(c => String(c.id) === String(lc.id))) {
+        allComps.push(lc);
+      }
+    });
 
     try {
-      const { data } = await supabase.from('external_registrations').select('*').order('created_at', { ascending: false });
-      if (data) regs = data;
+      const sqliteComps = localDB.query('SELECT * FROM competitions');
+      if (sqliteComps && Array.isArray(sqliteComps)) {
+        sqliteComps.forEach(sc => {
+          if (!allComps.some(c => String(c.id) === String(sc.id))) {
+            allComps.push(sc);
+          }
+        });
+      }
     } catch (e) {}
-    if (regs.length === 0) regs = localStore.storeInstance.getTable('external_registrations') || [];
+
+    allComps = allComps.map(c => {
+      if (!c.registration_token && !c.registrationToken) {
+        c.registration_token = crypto.createHash('md5').update(String(c.id || c.name)).digest('hex');
+      }
+      return c;
+    });
+
+    let interComps = allComps.filter(c => 
+      c.participation_type === 'INTER_COLLEGE' || 
+      c.participationType === 'INTER_COLLEGE' ||
+      (c.type && c.type.toLowerCase().includes('inter-college'))
+    );
+
+    // If no specific inter-college tagged, provide all competitions so user never sees 0
+    if (interComps.length === 0) {
+      interComps = allComps;
+    }
+
+    let regs = [];
+    try {
+      const { data } = await supabase.from('external_registrations').select('*').order('created_at', { ascending: false });
+      if (data && Array.isArray(data)) regs = [...data];
+    } catch (e) {}
+
+    const localRegs = localStore.storeInstance.getTable('external_registrations') || [];
+    localRegs.forEach(lr => {
+      if (!regs.some(r => String(r.id) === String(lr.id) || String(r.registration_id) === String(lr.registration_id))) {
+        regs.push(lr);
+      }
+    });
 
     let allPlayers = [];
     try {
       const { data } = await supabase.from('external_registration_players').select('*');
-      if (data) allPlayers = data;
+      if (data && Array.isArray(data)) allPlayers = [...data];
     } catch (e) {}
-    if (allPlayers.length === 0) allPlayers = localStore.storeInstance.getTable('external_registration_players') || [];
+
+    const localPlayers = localStore.storeInstance.getTable('external_registration_players') || [];
+    localPlayers.forEach(lp => {
+      if (!allPlayers.some(p => String(p.id) === String(lp.id))) {
+        allPlayers.push(lp);
+      }
+    });
 
     regs = regs.map(r => ({
       ...r,
@@ -1305,12 +1382,14 @@ exports.getAdminAllData = async (req, res) => {
     return res.json({
       success: true,
       competitions: interComps,
+      allCompetitions: allComps,
       registrations: regs,
       totalComps: interComps.length,
       totalRegs: regs.length,
       pendingCount: regs.filter(r => (r.status || '').toUpperCase() === 'PENDING').length
     });
   } catch (err) {
+    console.error('getAdminAllData error:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
 };

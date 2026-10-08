@@ -1306,9 +1306,12 @@
                     <option value="Girls">Girls</option>
                   </select>
                 </div>
-                <div class="col-md-3 d-flex align-items-end gap-2">
+                <div class="col-md-3 d-flex align-items-end gap-2 flex-wrap">
                   <button type="button" class="btn btn-primary btn-sm fw-bold flex-grow-1" onclick="generateAdminExtReport()">
                     <i class="bi bi-funnel-fill me-1"></i> Generate
+                  </button>
+                  <button type="button" class="btn btn-warning btn-sm fw-bold text-dark" onclick="openSelectedExtReportQrModal()" title="View & Download QR Code for this tournament">
+                    <i class="bi bi-qr-code-scan me-1"></i> QR Code
                   </button>
                   <button type="button" class="btn btn-outline-danger btn-sm" onclick="printAdminExtReport()">
                     <i class="bi bi-printer me-1"></i> Print / PDF
@@ -2083,10 +2086,13 @@
                 </div>
               </div>
 
-              <!-- Top Action Buttons: Generate, Total Department Report, Print, Download PDF -->
+              <!-- Top Action Buttons: Generate, Tournament QR, Total Department Report, Print, Download PDF -->
               <div class="d-flex align-items-center gap-2 flex-wrap mt-3 pt-3 border-top">
                 <button class="btn btn-primary fw-bold px-3" onclick="generateTournamentRegistrationReport()" id="btn-trr-generate">
                   <i class="bi bi-search me-1"></i> Generate Report
+                </button>
+                <button class="btn btn-warning text-dark fw-bold px-3 shadow-sm" onclick="openSelectedTournamentQrFromReport()" id="btn-trr-qr" title="View, Print & Download QR Code for this Tournament">
+                  <i class="bi bi-qr-code-scan me-1"></i> Tournament QR Code
                 </button>
                 <button class="btn btn-outline-success fw-bold px-3" onclick="generateTotalDepartmentReport()" id="btn-trr-dept-order" title="Generate and download total report across all departments in department order">
                   <i class="bi bi-diagram-3-fill me-1"></i> Total Department Report
