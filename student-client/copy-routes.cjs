@@ -26,7 +26,10 @@ const routes = [
   'student/equipment',
   'student/gallery',
   'student/notifications',
-  'student/settings'
+  'student/settings',
+  'inter-college',
+  'inter-college/register',
+  'inter-college/success'
 ];
 
 routes.forEach(route => {

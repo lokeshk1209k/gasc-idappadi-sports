@@ -40,6 +40,19 @@ exports.getAllCompetitions = async (req, res) => {
       if (!item.bannerImage || item.bannerImage.includes('unsplash') || item.bannerImage.includes('default') || item.bannerImage === 'null' || item.bannerImage === 'undefined' || item.bannerImage.startsWith('/images/sports/')) {
         item.bannerImage = '/images/sports/tournament.png';
       }
+
+      if (c.rules && typeof c.rules === 'string' && c.rules.includes('interCollegeConfig')) {
+        try {
+          const parsed = JSON.parse(c.rules);
+          if (parsed.interCollegeConfig) {
+            Object.assign(item, parsed.interCollegeConfig);
+          }
+        } catch(e) {}
+      }
+      item.participationType = item.participationType || c.participation_type || (item.type === 'Inter-College' ? 'INTER_COLLEGE' : 'INTERNAL');
+      item.competitionMode = item.competitionMode || c.competition_mode || (item.type === 'Team' ? 'TEAM' : 'INDIVIDUAL');
+      item.registrationToken = item.registrationToken || c.registration_token || null;
+
       return item;
     });
 
@@ -215,6 +228,11 @@ exports.createCompetition = async (req, res) => {
 
     const compId = req.body.id || `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
+    const crypto = require('crypto');
+    const isInterCollege = (req.body.participationType === 'INTER_COLLEGE' || req.body.participation_type === 'INTER_COLLEGE' || type === 'Inter-College');
+    const registrationToken = isInterCollege ? (req.body.registrationToken || req.body.registration_token || crypto.randomBytes(16).toString('hex')) : null;
+    const compMode = (req.body.competitionMode || req.body.competition_mode || req.body.sportType || 'INDIVIDUAL').toUpperCase();
+
     const newComp = {
       id: compId,
       name: name.trim(),
@@ -222,7 +240,7 @@ exports.createCompetition = async (req, res) => {
       tournament_name: tName,
       sport_id: sport.id,
       sport_name: sport.name,
-      type: type || 'Inter-College',
+      type: type || (isInterCollege ? 'Inter-College' : 'Inter-Department'),
       level: level || 'College',
       venue: venue || 'GASC Idappadi Sports Ground',
       date: new Date(date).toISOString(),
@@ -234,21 +252,93 @@ exports.createCompetition = async (req, res) => {
       eligibility: eligibility || 'All enrolled UG and PG students',
       max_participants: maxParticipants ? Number(maxParticipants) : 50,
       description: description || '',
+      rules: req.body.rules || '',
       banner_image: bannerImage,
-      status: 'Registration Open'
+      status: req.body.status || 'Registration Open'
     };
 
-    const { data: createdRaw, error } = await supabase
-      .from('competitions')
-      .insert(newComp)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
+    // Include Inter-College fields if applicable
+    if (isInterCollege) {
+      newComp.participation_type = 'INTER_COLLEGE';
+      newComp.competition_mode = compMode;
+      newComp.external_registration_enabled = true;
+      newComp.registration_token = registrationToken;
+      if (req.body.maxColleges) newComp.max_colleges = Number(req.body.maxColleges);
+      if (req.body.maxTeams) newComp.max_teams = Number(req.body.maxTeams);
+      if (req.body.requiredPlayers) newComp.required_players = Number(req.body.requiredPlayers);
+      if (req.body.substitutes !== undefined) newComp.substitutes = Number(req.body.substitutes);
+      if (req.body.contactPerson) newComp.contact_person = req.body.contactPerson.trim();
+      if (req.body.contactPhone) newComp.contact_phone = req.body.contactPhone.trim();
+      if (req.body.contactEmail) newComp.contact_email = req.body.contactEmail.trim();
+    } else {
+      newComp.participation_type = 'INTERNAL';
+      newComp.competition_mode = compMode;
     }
 
-    const competition = toCamelCase(createdRaw);
+    let createdRaw = null;
+    let supaError = null;
+    try {
+      const { data, error } = await supabase
+        .from('competitions')
+        .insert(newComp)
+        .select()
+        .single();
+      if (error) supaError = error;
+      else createdRaw = data;
+    } catch (e) {
+      supaError = e;
+    }
+
+    // Defensive fallback: If Supabase returns schema cache error for new columns,
+    // insert base columns only and pack extended config into rules JSON string
+    if (supaError && supaError.message && (supaError.message.includes('schema cache') || supaError.message.includes('column'))) {
+      try {
+        const baseComp = {
+          id: newComp.id,
+          name: newComp.name,
+          tournament_id: newComp.tournament_id,
+          tournament_name: newComp.tournament_name,
+          sport_id: newComp.sport_id,
+          sport_name: newComp.sport_name,
+          type: newComp.type,
+          level: newComp.level,
+          venue: newComp.venue,
+          date: newComp.date,
+          start_time: newComp.start_time,
+          end_time: newComp.end_time,
+          registration_start: newComp.registration_start,
+          registration_end: newComp.registration_end,
+          organizer: newComp.organizer,
+          eligibility: newComp.eligibility,
+          max_participants: newComp.max_participants,
+          description: newComp.description,
+          rules: JSON.stringify({
+            textRules: req.body.rules || '',
+            interCollegeConfig: {
+              participationType: newComp.participation_type,
+              competitionMode: newComp.competition_mode,
+              registrationToken: newComp.registration_token,
+              requiredPlayers: newComp.required_players,
+              substitutes: newComp.substitutes,
+              maxColleges: newComp.max_colleges,
+              maxTeams: newComp.max_teams,
+              contactPerson: newComp.contact_person,
+              contactPhone: newComp.contact_phone,
+              contactEmail: newComp.contact_email
+            }
+          }),
+          banner_image: newComp.banner_image,
+          status: newComp.status
+        };
+        const { data } = await supabase.from('competitions').insert(baseComp).select().single();
+        if (data) createdRaw = { ...data, ...newComp };
+      } catch (retryErr) {}
+    }
+
+    const competition = toCamelCase(createdRaw || newComp);
+    competition.registrationToken = registrationToken;
+    competition.participationType = newComp.participation_type;
+    competition.competitionMode = newComp.competition_mode;
 
     // Sync to localStore for 100% persistent cross-environment availability
     try {

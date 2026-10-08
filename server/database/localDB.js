@@ -230,6 +230,33 @@ function createTables() {
       key TEXT PRIMARY KEY, value TEXT,
       updated_at INTEGER DEFAULT (strftime('%s','now'))
     );
+    CREATE TABLE IF NOT EXISTS external_registrations (
+      id TEXT PRIMARY KEY, registration_id TEXT UNIQUE NOT NULL, competition_id TEXT NOT NULL,
+      college_name TEXT NOT NULL, college_address TEXT, district TEXT, state TEXT,
+      college_phone TEXT, college_email TEXT, registration_type TEXT DEFAULT 'INDIVIDUAL',
+      sport_id TEXT, sport_name TEXT NOT NULL, gender TEXT NOT NULL,
+      team_name TEXT, coach_name TEXT, coach_phone TEXT, manager_name TEXT, manager_phone TEXT,
+      player_name TEXT, player_register_number TEXT, department TEXT, year TEXT,
+      participant_email TEXT NOT NULL, participant_phone TEXT NOT NULL, supporting_document TEXT,
+      otp_verified INTEGER DEFAULT 0, status TEXT DEFAULT 'PENDING',
+      rejection_reason TEXT, correction_message TEXT, remarks TEXT,
+      sync_status TEXT DEFAULT 'synced',
+      created_at INTEGER DEFAULT (strftime('%s','now')),
+      updated_at INTEGER DEFAULT (strftime('%s','now'))
+    );
+    CREATE TABLE IF NOT EXISTS external_registration_players (
+      id TEXT PRIMARY KEY, external_registration_id TEXT NOT NULL,
+      player_name TEXT NOT NULL, college_register_number TEXT NOT NULL,
+      department TEXT, year TEXT, gender TEXT, player_role TEXT DEFAULT 'Player',
+      sync_status TEXT DEFAULT 'synced',
+      created_at INTEGER DEFAULT (strftime('%s','now'))
+    );
+    CREATE TABLE IF NOT EXISTS external_otps (
+      id TEXT PRIMARY KEY, email TEXT NOT NULL, otp_code TEXT NOT NULL,
+      competition_id TEXT, attempts INTEGER DEFAULT 0, expires_at INTEGER,
+      verified INTEGER DEFAULT 0,
+      created_at INTEGER DEFAULT (strftime('%s','now'))
+    );
   `);
   seedFromLocalStore(db);
   saveDB();

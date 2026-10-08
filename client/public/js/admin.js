@@ -208,6 +208,9 @@ function switchAdminView(viewId) {
     return;
   }
   else if (viewId === 'competitions') loadAdminCompetitions();
+  else if (viewId === 'inter-college') {
+    if (window.loadAdminInterCollegeData) window.loadAdminInterCollegeData();
+  }
   else if (viewId === 'applications') loadAdminApplications();
   else if (viewId === 'teams') loadAdminTeams();
   else if (viewId === 'achievements') loadAdminAchievements();
@@ -2145,6 +2148,15 @@ async function submitCreateCompetition(event) {
       }
     } catch (mErr) {}
     loadAdminCompetitions();
+
+    // If INTER_COLLEGE, open the QR Code modal automatically so Sports Mam can immediately preview / share / print
+    const partType = formData.get('participationType');
+    if (partType === 'INTER_COLLEGE' && window.openInterCollegeQrModal) {
+      setTimeout(() => {
+        const compForQr = res?.competition || newT;
+        window.openInterCollegeQrModal(compForQr);
+      }, 400);
+    }
   } catch (err) {
     showToast(err.message || 'Failed to create tournament', 'error');
   } finally {

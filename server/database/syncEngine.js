@@ -142,7 +142,9 @@ const TABLE_MAP = {
   competitions: "competitions", registrations: "sport_registrations",
   teams: "teams", team_members: "team_members",
   equipment: "equipment", equipment_transactions: "equipment_transactions",
-  achievements: "achievements", notifications: "notifications", sports_news: "sports_news"
+  achievements: "achievements", notifications: "notifications", sports_news: "sports_news",
+  external_registrations: "external_registrations",
+  external_registration_players: "external_registration_players"
 };
 
 // ─── Upload pending changes ───

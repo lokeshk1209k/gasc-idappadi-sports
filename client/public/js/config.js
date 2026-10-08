@@ -45,6 +45,7 @@
   // Define global config object
   window.GASC_CONFIG = {
     PRODUCTION_BACKEND_URL: PRODUCTION_BACKEND_URL,
+    PUBLIC_STUDENT_PORTAL_URL: 'https://gasc-student-portal.vercel.app',
     BACKEND_ORIGIN: resolvedBackendOrigin,
     API_BASE_URL: `${resolvedBackendOrigin}/api`,
     IS_PACKAGED_APP: isPackagedApp,

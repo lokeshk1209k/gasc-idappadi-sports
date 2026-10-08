@@ -27,6 +27,7 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const supabaseRoutes = require('./routes/supabaseRoutes');
 const externalCompetitionRoutes = require('./routes/externalCompetitionRoutes');
 const sportsNewsRoutes = require('./routes/sportsNewsRoutes');
+const interCollegeRoutes = require('./routes/interCollegeRoutes');
 let compression;
 try {
   compression = require('compression');
@@ -114,6 +115,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/supabase', supabaseRoutes);
 app.use('/api/external-competitions', externalCompetitionRoutes);
 app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
+app.use('/api/inter-college', interCollegeRoutes);
 
 // 2. Static Assets & File Hosting
 app.use('/css', express.static(path.join(clientPublic, 'css')));
@@ -126,9 +128,9 @@ app.use(express.static(studentPublic));
 app.use(express.static(clientPublic));
 app.use('/admin', express.static(clientPublic));
 
-// 3. Student Portal Routes (Modern 2050 Sports Cyber Portal - React + Vite + Tailwind)
-// Root / directly loads the React Cyber Student Portal
-app.get(['/', '/index.html', '/student', '/student/*', '/student-portal', '/cyber-portal'], (req, res) => {
+// 3. Student Portal Routes & Public Inter-College QR Routes (React + Vite SPA)
+// Root / and public routes directly load the React Student Portal
+app.get(['/', '/index.html', '/student', '/student/*', '/student-portal', '/cyber-portal', '/inter-college', '/inter-college/*'], (req, res) => {
   if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
     return res.sendFile(path.join(studentPublic, 'index.html'));
   }
