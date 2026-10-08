@@ -116,6 +116,7 @@ app.use('/api/supabase', supabaseRoutes);
 app.use('/api/external-competitions', externalCompetitionRoutes);
 app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
 app.use('/api/inter-college', interCollegeRoutes);
+app.use('/api/open-registration', interCollegeRoutes);
 
 // 2. Static Assets & File Hosting
 app.use('/css', express.static(path.join(clientPublic, 'css')));

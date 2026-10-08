@@ -924,45 +924,213 @@ exports.updateRegistrationStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Registration record not found.' });
     }
 
+    // If APPROVED, sync team/participant into teams and team_members table for Fixtures!
+    if (status === 'APPROVED') {
+      try {
+        const teamId = `team_ext_${updated.id}`;
+        const teamName = updated.team_name || `${updated.college_name} - ${updated.player_name || updated.sport_name}`;
+        const newTeamObj = {
+          id: teamId,
+          name: teamName,
+          sport_name: updated.sport_name || 'Championship',
+          department: updated.college_name || 'External College',
+          gender: updated.gender || 'Boys',
+          year: updated.year || 'I Year',
+          status: 'Active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        // Insert into Supabase teams
+        try {
+          await supabase.from('teams').upsert([newTeamObj]);
+        } catch (stErr) {}
+
+        // Insert into localStore teams
+        try {
+          const localTeams = localStore.storeInstance.getTable('teams') || [];
+          if (!localTeams.some(t => t.id === teamId)) {
+            localTeams.push(newTeamObj);
+            localStore.storeInstance.save();
+          }
+        } catch (ltErr) {}
+
+        // Fetch registered players and insert into team_members
+        let playersToSync = [];
+        try {
+          const { data: pData } = await supabase
+            .from('external_registration_players')
+            .select('*')
+            .eq('external_registration_id', updated.id);
+          if (Array.isArray(pData)) playersToSync = pData;
+        } catch (e) {}
+
+        if (playersToSync.length === 0) {
+          const localPlayers = localStore.storeInstance.getTable('external_registration_players') || [];
+          playersToSync = localPlayers.filter(p => String(p.external_registration_id) === String(updated.id));
+        }
+
+        // If individual player
+        if (playersToSync.length === 0 && updated.player_name) {
+          playersToSync = [{
+            player_name: updated.player_name,
+            college_roll_number: updated.player_roll_number || 'N/A',
+            department: updated.department || updated.college_name,
+            year: updated.year || 'I Year',
+            gender: updated.gender || 'Boys',
+            player_role: 'Captain'
+          }];
+        }
+
+        for (const pl of playersToSync) {
+          const memberObj = {
+            id: `tm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            team_id: teamId,
+            student_name: pl.player_name,
+            register_number: pl.college_roll_number || 'EXT',
+            department: pl.department || updated.college_name,
+            year: pl.year || 'I Year',
+            position: pl.player_role || 'Player',
+            created_at: new Date().toISOString()
+          };
+          try { await supabase.from('team_members').upsert([memberObj]); } catch (e) {}
+          try {
+            const localMems = localStore.storeInstance.getTable('team_members') || [];
+            localMems.push(memberObj);
+            localStore.storeInstance.save();
+          } catch (e) {}
+        }
+      } catch (syncErr) {
+        console.warn('Notice: Error syncing approved external team to fixtures table:', syncErr.message);
+      }
+    }
+
     // Send Status Update Email to participant
+    let emailSent = false;
+    let emailError = null;
+
     if (updated.participant_email) {
-      let subject = `[GASC Sports] Registration Update: ${updated.registration_id} - ${status}`;
-      let bodyMsg = '';
+      let subject = '';
+      let emailHtml = '';
+
+      const tName = updated.tournament_name || 'GASC Inter-College Sports Meet 2026';
+      const cSport = updated.sport_name || updated.event_name || 'Sports Competition';
 
       if (status === 'APPROVED') {
-        bodyMsg = `<p style="color:#16a34a;font-weight:700;">Congratulations! Your registration has been APPROVED by the GASC Sports Board.</p><p>Your team/participant profile is now confirmed for fixture scheduling. Please arrive at the venue with college ID cards and bonafide certificates.</p>`;
+        subject = 'GASC Inter-College Registration Approved';
+        emailHtml = `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:auto;padding:28px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;color:#0f172a;">
+          <h2 style="color:#0f172a;margin-top:0;font-size:20px;border-bottom:2px solid #16a34a;padding-bottom:10px;">${COLLEGE_NAME}</h2>
+          <p style="font-size:15px;color:#334155;">Dear Participant,</p>
+          <p style="font-size:15px;color:#16a34a;font-weight:700;">Your registration has been approved.</p>
+          <div style="background:#f8fafc;border-left:4px solid #16a34a;padding:14px 18px;margin:18px 0;line-height:1.7;">
+            <div><strong>Tournament:</strong> ${tName}</div>
+            <div><strong>Competition:</strong> ${cSport}</div>
+            <div><strong>College:</strong> ${updated.college_name}</div>
+            <div><strong>Registration ID:</strong> <span style="font-family:monospace;font-weight:700;color:#0f172a;">${updated.registration_id}</span></div>
+            <div><strong>Status:</strong> <span style="background:#dcfce7;color:#166534;font-weight:700;padding:2px 8px;border-radius:4px;">APPROVED</span></div>
+          </div>
+          <p style="font-size:14px;color:#334155;line-height:1.6;">
+            Please attend the competition on the scheduled date and venue. Ensure all athletes carry valid collegiate identity cards and bonafide letters.
+          </p>
+          <div style="margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px;font-size:13px;color:#64748b;line-height:1.5;">
+            Regards,<br/>
+            <strong>Department of Physical Education and Sports</strong><br/>
+            Government Arts and Science College, Idappadi - 637 101, Salem District
+          </div>
+        </div>`;
       } else if (status === 'REJECTED') {
-        bodyMsg = `<p style="color:#dc2626;font-weight:700;">Your registration could not be accepted.</p><p><strong>Reason:</strong> ${rejectionReason}</p>`;
+        subject = 'GASC Inter-College Registration Rejected';
+        emailHtml = `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:auto;padding:28px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;color:#0f172a;">
+          <h2 style="color:#0f172a;margin-top:0;font-size:20px;border-bottom:2px solid #dc2626;padding-bottom:10px;">${COLLEGE_NAME}</h2>
+          <p style="font-size:15px;color:#334155;">Dear Participant,</p>
+          <p style="font-size:15px;color:#dc2626;font-weight:700;">Your registration has been reviewed and rejected.</p>
+          <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:14px 18px;margin:18px 0;line-height:1.7;">
+            <div><strong>Tournament:</strong> ${tName}</div>
+            <div><strong>Competition:</strong> ${cSport}</div>
+            <div><strong>College:</strong> ${updated.college_name}</div>
+            <div><strong>Registration ID:</strong> <span style="font-family:monospace;font-weight:700;">${updated.registration_id}</span></div>
+            <div><strong>Status:</strong> <span style="background:#fee2e2;color:#991b1b;font-weight:700;padding:2px 8px;border-radius:4px;">REJECTED</span></div>
+            <div style="margin-top:8px;"><strong>Rejection Reason:</strong> ${rejectionReason}</div>
+          </div>
+          <p style="font-size:14px;color:#334155;line-height:1.6;">
+            If you have any questions or require clarification, please contact the Physical Education Department at sportsgascidappadi@gmail.com or +91 94432 18765.
+          </p>
+          <div style="margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px;font-size:13px;color:#64748b;line-height:1.5;">
+            Regards,<br/>
+            <strong>Department of Physical Education and Sports</strong><br/>
+            Government Arts and Science College, Idappadi
+          </div>
+        </div>`;
       } else if (status === 'CORRECTION_REQUIRED') {
-        bodyMsg = `<p style="color:#d97706;font-weight:700;">Action Required: Correction Requested.</p><p><strong>Details:</strong> ${correctionMessage}</p><p>Please contact the Sports Incharge to submit the revised documents.</p>`;
+        subject = 'Correction Required - Inter-College Registration';
+        emailHtml = `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:auto;padding:28px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;color:#0f172a;">
+          <h2 style="color:#0f172a;margin-top:0;font-size:20px;border-bottom:2px solid #d97706;padding-bottom:10px;">${COLLEGE_NAME}</h2>
+          <p style="font-size:15px;color:#334155;">Dear Participant,</p>
+          <p style="font-size:15px;color:#d97706;font-weight:700;">Action Required: Corrections are needed for your registration before it can be approved.</p>
+          <div style="background:#fffbeb;border-left:4px solid #d97706;padding:14px 18px;margin:18px 0;line-height:1.7;">
+            <div><strong>Tournament:</strong> ${tName}</div>
+            <div><strong>Competition:</strong> ${cSport}</div>
+            <div><strong>College:</strong> ${updated.college_name}</div>
+            <div><strong>Registration ID:</strong> <span style="font-family:monospace;font-weight:700;">${updated.registration_id}</span></div>
+            <div style="margin-top:8px;"><strong>Correction Instructions:</strong> ${correctionMessage}</div>
+          </div>
+          <p style="font-size:14px;color:#334155;line-height:1.6;">
+            Please submit the revised details or documents by replying to this email or contacting the Sports Incharge promptly.
+          </p>
+          <div style="margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px;font-size:13px;color:#64748b;line-height:1.5;">
+            Regards,<br/>
+            <strong>Department of Physical Education and Sports</strong><br/>
+            Government Arts and Science College, Idappadi
+          </div>
+        </div>`;
       }
 
-      const emailHtml = `
-      <div style="font-family:sans-serif;max-width:540px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;">
-        <h2 style="color:#0f172a;margin-top:0;">${COLLEGE_NAME}</h2>
-        <h3>Registration Status: ${status}</h3>
-        <p><strong>Registration ID:</strong> ${updated.registration_id}</p>
-        <p><strong>College:</strong> ${updated.college_name}</p>
-        <p><strong>Competition:</strong> ${updated.sport_name}</p>
-        ${bodyMsg}
-        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;" />
-        <small style="color:#64748b;">GASC Sports Board • Idappadi - 637 101, Salem</small>
-      </div>`;
+      if (subject) {
+        try {
+          await transporter.sendMail({
+            from: `"${COLLEGE_NAME} Sports" <${process.env.EMAIL_USER || 'sportsgascidappadi@gmail.com'}>`,
+            to: updated.participant_email,
+            subject,
+            html: emailHtml
+          });
+          emailSent = true;
 
-      try {
-        await transporter.sendMail({
-          from: `"${COLLEGE_NAME} Sports" <${process.env.EMAIL_USER || 'sportsgascidappadi@gmail.com'}>`,
-          to: updated.participant_email,
-          subject,
-          html: emailHtml
-        });
-      } catch (e) {}
+          // Log to notification_logs
+          try {
+            await supabase.from('notification_logs').insert({
+              registration_id: updated.registration_id,
+              email: updated.participant_email,
+              notification_type: status,
+              status: 'SENT',
+              sent_at: new Date().toISOString()
+            });
+          } catch(e) {}
+        } catch (mailErr) {
+          console.warn('Status update email failed:', mailErr.message);
+          emailError = mailErr.message;
+          try {
+            await supabase.from('notification_logs').insert({
+              registration_id: updated.registration_id,
+              email: updated.participant_email,
+              notification_type: status,
+              status: 'FAILED',
+              error_message: mailErr.message,
+              sent_at: new Date().toISOString()
+            });
+          } catch(e) {}
+        }
+      }
     }
 
     return res.json({
       success: true,
-      message: `Registration marked as ${status} successfully!`,
+      message: `Registration marked as ${status} successfully!${emailSent ? ' Status email sent to participant.' : (emailError ? ' (Email notification could not be dispatched: ' + emailError + ')' : '')}`,
       status: updated.status,
+      emailSent,
+      emailError,
       registration: toCamelCase(updated),
       data: updated
     });
@@ -1393,4 +1561,271 @@ exports.getAdminAllData = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// =========================================================================
+// PUBLIC: GET ALL INTER-COLLEGE TOURNAMENTS
+// =========================================================================
+exports.getPublicTournaments = async (req, res) => {
+  try {
+    let tournaments = [];
+    try {
+      const { data, error } = await supabase.from('tournaments').select('*').order('created_at', { ascending: false });
+      if (!error && Array.isArray(data)) tournaments = data;
+    } catch (e) {}
+
+    let competitions = [];
+    try {
+      const { data: compData } = await supabase.from('competitions').select('*');
+      if (Array.isArray(compData)) competitions = compData;
+    } catch (e) {}
+
+    // Fallback to localStore
+    if (tournaments.length === 0) {
+      tournaments = localStore.storeInstance.getTable('tournaments') || [];
+    }
+    if (competitions.length === 0) {
+      competitions = localStore.storeInstance.getTable('competitions') || [];
+    }
+
+    const interCollegeTournamentsMap = new Map();
+
+    tournaments.forEach(t => {
+      const tName = (t.tournament_name || t.name || '').trim();
+      const isInter = t.participation_type === 'INTER_COLLEGE' ||
+                      t.type === 'Inter-College' ||
+                      (t.description && t.description.toLowerCase().includes('inter-college')) ||
+                      (tName && tName.toLowerCase().includes('inter-college'));
+
+      if (isInter) {
+        interCollegeTournamentsMap.set(t.id || tName, {
+          id: t.id,
+          name: tName || 'Inter-College Championship',
+          description: t.description || 'Government Arts and Science College, Idappadi Inter-College Tournament.',
+          startDate: t.start_date || t.date || new Date().toISOString(),
+          endDate: t.end_date || t.registration_end || null,
+          venue: t.venue || 'GASC Idappadi Sports Ground',
+          status: t.status || 'Registration Open',
+          bannerImage: t.banner_image || t.banner_url || '/images/sports/tournament.png',
+          registrationToken: t.registration_token || t.id,
+          competitionsCount: 0
+        });
+      }
+    });
+
+    // Also scan competitions for any Inter-College tournaments
+    competitions.forEach(c => {
+      const isCompInter = c.participation_type === 'INTER_COLLEGE' ||
+                          c.type === 'Inter-College' ||
+                          (c.rules && typeof c.rules === 'string' && c.rules.includes('INTER_COLLEGE'));
+      if (isCompInter) {
+        const tId = c.tournament_id || `tour_${(c.tournament_name || c.name).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        const tName = c.tournament_name || c.name;
+        if (!interCollegeTournamentsMap.has(tId) && !interCollegeTournamentsMap.has(tName)) {
+          interCollegeTournamentsMap.set(tId, {
+            id: tId,
+            name: tName,
+            description: c.description || 'Inter-College Championship conducted by GASC Idappadi.',
+            startDate: c.date,
+            endDate: c.registration_end || c.registration_deadline,
+            venue: c.venue || 'College Ground',
+            status: c.status || 'Registration Open',
+            bannerImage: c.banner_image || '/images/sports/tournament.png',
+            registrationToken: c.tournament_token || tId,
+            competitionsCount: 0
+          });
+        }
+      }
+    });
+
+    const list = Array.from(interCollegeTournamentsMap.values());
+    list.forEach(t => {
+      const matchingComps = competitions.filter(c =>
+        (c.tournament_id && c.tournament_id === t.id) ||
+        (c.tournament_name && c.tournament_name.toLowerCase() === t.name.toLowerCase()) ||
+        (c.name && c.name.toLowerCase() === t.name.toLowerCase())
+      );
+      t.competitionsCount = matchingComps.length > 0 ? matchingComps.length : 1;
+    });
+
+    return res.json({
+      success: true,
+      tournaments: list,
+      count: list.length
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// =========================================================================
+// PUBLIC: GET TOURNAMENT & ALL CHILD COMPETITIONS BY TOKEN
+// =========================================================================
+exports.getTournamentByToken = async (req, res) => {
+  try {
+    const token = req.params.token || req.query.token || req.query.id;
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Tournament token is required.' });
+    }
+
+    let allTournaments = [];
+    let allCompetitions = [];
+
+    try {
+      const { data: tData } = await supabase.from('tournaments').select('*');
+      if (Array.isArray(tData)) allTournaments = tData;
+      const { data: cData } = await supabase.from('competitions').select('*');
+      if (Array.isArray(cData)) allCompetitions = cData;
+    } catch (e) {}
+
+    if (allTournaments.length === 0) {
+      allTournaments = localStore.storeInstance.getTable('tournaments') || [];
+    }
+    if (allCompetitions.length === 0) {
+      allCompetitions = localStore.storeInstance.getTable('competitions') || [];
+    }
+
+    const lowerToken = token.toLowerCase();
+    let tournament = allTournaments.find(t =>
+      (t.registration_token && t.registration_token.toLowerCase() === lowerToken) ||
+      (t.id && t.id.toLowerCase() === lowerToken) ||
+      (t.name && t.name.toLowerCase() === lowerToken) ||
+      (t.tournament_name && t.tournament_name.toLowerCase() === lowerToken)
+    );
+
+    if (!tournament) {
+      const matchedComp = allCompetitions.find(c =>
+        (c.tournament_token && c.tournament_token.toLowerCase() === lowerToken) ||
+        (c.tournament_id && c.tournament_id.toLowerCase() === lowerToken) ||
+        (c.rules && typeof c.rules === 'string' && c.rules.includes(token)) ||
+        (c.id && c.id.toLowerCase() === lowerToken)
+      );
+
+      if (matchedComp) {
+        const tId = matchedComp.tournament_id || `tour_${(matchedComp.tournament_name || matchedComp.name).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        tournament = {
+          id: tId,
+          name: matchedComp.tournament_name || matchedComp.name,
+          tournament_name: matchedComp.tournament_name || matchedComp.name,
+          description: matchedComp.description || 'Government Arts and Science College, Idappadi Inter-College Sports Meet.',
+          venue: matchedComp.venue || 'GASC Idappadi Sports Ground',
+          start_date: matchedComp.date,
+          end_date: matchedComp.registration_end || matchedComp.registration_deadline,
+          status: matchedComp.status || 'Registration Open',
+          banner_image: matchedComp.banner_image || '/images/sports/tournament.png',
+          registration_token: token
+        };
+      }
+    }
+
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invalid or expired tournament registration link. Tournament not found.'
+      });
+    }
+
+    const tName = tournament.tournament_name || tournament.name;
+    const tId = tournament.id;
+
+    const childComps = allCompetitions.filter(c =>
+      (c.tournament_id && c.tournament_id === tId) ||
+      (c.tournament_name && c.tournament_name.toLowerCase() === tName.toLowerCase()) ||
+      (c.name && c.name.toLowerCase() === tName.toLowerCase()) ||
+      (c.id === tId) ||
+      (c.rules && typeof c.rules === 'string' && c.rules.includes(token))
+    );
+
+    const mappedCompetitions = childComps.map(c => {
+      let extra = {};
+      if (c.rules && typeof c.rules === 'string') {
+        try { extra = JSON.parse(c.rules); } catch (e) {}
+      }
+
+      const sportName = c.sport_name || c.name || 'Athletics';
+      const defaultRules = exports.getSportRules(sportName);
+
+      const mode = (extra.competitionMode || c.competition_mode || (c.type === 'Team' ? 'TEAM' : defaultRules.mode)).toUpperCase();
+      const requiredPlayers = Number(extra.requiredPlayers || c.required_players || defaultRules.requiredPlayers);
+      const substitutes = Number(extra.substitutes !== undefined ? extra.substitutes : (c.substitutes !== undefined ? c.substitutes : defaultRules.substitutes));
+      const maxPlayers = Number(extra.maxPlayers || c.max_players || defaultRules.maxPlayers);
+
+      // Compute status
+      const now = new Date();
+      let status = 'OPEN';
+      const cStatus = (c.status || '').toLowerCase();
+      const tStatus = (tournament.status || '').toLowerCase();
+
+      if (tStatus === 'completed' || cStatus === 'completed') status = 'COMPLETED';
+      else if (tStatus === 'cancelled' || cStatus === 'cancelled') status = 'CANCELLED';
+      else if (c.registration_start && now < new Date(c.registration_start)) status = 'UPCOMING';
+      else {
+        const deadline = c.registration_end || c.registration_deadline || tournament.end_date || c.date;
+        if (deadline && now > new Date(deadline)) status = 'CLOSED';
+        else if (cStatus === 'draft' || tStatus === 'draft') status = 'UPCOMING';
+        else if (cStatus === 'registration closed' || cStatus === 'closed' || tStatus === 'registration_closed') status = 'CLOSED';
+        else {
+          const max = c.max_participants || c.max_teams || c.max_colleges;
+          const current = c.current_registrations || 0;
+          if (max && current >= max) status = 'FULL';
+          else status = 'OPEN';
+        }
+      }
+
+      return {
+        id: c.id,
+        name: c.name || sportName,
+        tournamentName: tName,
+        tournamentId: tId,
+        sportName: sportName,
+        eventName: c.event_name || c.name,
+        gender: c.gender || extra.gender || 'Boys',
+        competitionMode: mode,
+        date: c.date || tournament.start_date,
+        startTime: c.start_time || '09:00 AM',
+        endTime: c.end_time || '05:00 PM',
+        venue: c.venue || tournament.venue || 'GASC Idappadi Sports Ground',
+        registrationStart: c.registration_start || tournament.start_date,
+        registrationDeadline: c.registration_end || c.registration_deadline || tournament.end_date,
+        requiredPlayers,
+        substitutes,
+        maxPlayers,
+        maxColleges: Number(extra.maxColleges || c.max_colleges || 50),
+        maxTeams: Number(extra.maxTeams || c.max_teams || 30),
+        currentRegistrations: Number(c.current_registrations || 0),
+        status,
+        description: c.description || '',
+        bannerImage: c.banner_image || tournament.banner_image || '/images/sports/tournament.png',
+        rules: c.rules || tournament.rules || '',
+        contactPerson: extra.contactPerson || tournament.contact_person || 'Dr. R. ANITHA (Physical Director)',
+        contactPhone: extra.contactPhone || tournament.contact_phone || '+91 94432 18765',
+        contactEmail: extra.contactEmail || tournament.contact_email || 'sportsgascidappadi@gmail.com',
+        registrationToken: c.registration_token || c.id
+      };
+    });
+
+    return res.json({
+      success: true,
+      tournament: {
+        id: tournament.id,
+        name: tName,
+        description: tournament.description || 'Government Arts and Science College, Idappadi Inter-College Sports Championship.',
+        startDate: tournament.start_date || tournament.date,
+        endDate: tournament.end_date || tournament.registration_end,
+        registrationDeadline: tournament.end_date || tournament.registration_end,
+        venue: tournament.venue || 'GASC Idappadi Sports Ground',
+        status: tournament.status || 'Registration Open',
+        bannerImage: tournament.banner_image || tournament.banner_url || '/images/sports/tournament.png',
+        registrationToken: tournament.registration_token || token,
+        contactPerson: tournament.contact_person || 'Dr. R. ANITHA (Physical Director)',
+        contactPhone: tournament.contact_phone || '+91 94432 18765',
+        contactEmail: tournament.contact_email || 'sportsgascidappadi@gmail.com',
+        rules: tournament.rules || 'Official collegiate ID cards and bonafide certificates from the respective Head of Department/Principal are mandatory.'
+      },
+      competitions: mappedCompetitions
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 

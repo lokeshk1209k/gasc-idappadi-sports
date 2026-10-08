@@ -174,7 +174,8 @@ const studentPublicDir = path.join(rootDir, 'student-client/public');
       'student/settings',
       'inter-college',
       'inter-college/register',
-      'inter-college/success'
+      'inter-college/success',
+      'open-registration'
     ];
 
     spaRoutes.forEach(r => {

@@ -14,9 +14,18 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ success: false, message: 'QR token is required' });
   }
 
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'gasc-idappadi-sports.vercel.app';
-  const proto = req.headers['x-forwarded-proto'] || 'https';
-  const registrationUrl = `${proto}://${host}/inter-college/register/${token}`;
+  // Base URL resolution
+  let baseUrl = req.query.baseUrl;
+  if (!baseUrl || baseUrl.trim() === '') {
+    const host = req.headers['x-forwarded-host'] || req.headers.host || 'gasc-student-portal.vercel.app';
+    const proto = req.headers['x-forwarded-proto'] || 'https';
+    baseUrl = `${proto}://${host}`;
+  }
+  baseUrl = baseUrl.replace(/\/+$/, '');
+
+  // Determine path: Tournament QR opens /open-registration/<token>
+  const targetPath = req.query.path || `/open-registration/${token}`;
+  const registrationUrl = `${baseUrl}${targetPath.startsWith('/') ? '' : '/'}${targetPath}`;
 
   const format = req.query.format || 'png';
   const size = parseInt(req.query.size, 10) || 300;
@@ -40,7 +49,7 @@ module.exports = async function handler(req, res) {
       });
       res.setHeader('Content-Type', 'image/png');
       if (req.query.download === 'true') {
-        res.setHeader('Content-Disposition', `attachment; filename="GASC_InterCollege_QR_${token}.png"`);
+        res.setHeader('Content-Disposition', `attachment; filename="GASC_InterCollege_Tournament_QR_${token}.png"`);
       }
       return res.status(200).send(buffer);
     }

@@ -14,6 +14,7 @@ import EquipmentPage from './pages/EquipmentPage';
 import InterCollegeLandingPage from './pages/InterCollegeLandingPage';
 import InterCollegeRegisterPage from './pages/InterCollegeRegisterPage';
 import InterCollegeSuccessPage from './pages/InterCollegeSuccessPage';
+import OpenRegistrationPage from './pages/OpenRegistrationPage';
 
 // Root redirection helper: if authenticated go to dashboard, otherwise always go to login
 const RootRedirect = () => {
@@ -31,7 +32,11 @@ function App() {
     <ThemeProvider>
       <Router>
         <Routes>
-          {/* Public External Inter-College QR Routes (No Login Required, No Account Created) */}
+          {/* Public Tournament Open Registration Routes (No Login, No Account Created) */}
+          <Route path="/open-registration" element={<OpenRegistrationPage />} />
+          <Route path="/open-registration/:tournamentToken" element={<OpenRegistrationPage />} />
+
+          {/* Legacy & direct competition QR routes for backwards compatibility */}
           <Route path="/inter-college" element={<InterCollegeLandingPage />} />
           <Route path="/inter-college/register/:competitionToken" element={<InterCollegeRegisterPage />} />
           <Route path="/inter-college/success/:registrationId" element={<InterCollegeSuccessPage />} />

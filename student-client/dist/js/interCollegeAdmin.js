@@ -56,12 +56,12 @@ function getPublicPortalBaseUrl() {
 
 function getPublicRegistrationUrl(token) {
   const base = getPublicPortalBaseUrl();
-  return `${base}/inter-college/register/${token}`;
+  return `${base}/open-registration/${token}`;
 }
 
 function getQrImageUrl(token, size = 300) {
   const base = getPublicPortalBaseUrl();
-  return `/api/inter-college/qr/${token}?format=png&size=${size}&baseUrl=${encodeURIComponent(base)}`;
+  return `/api/inter-college/qr/${token}?format=png&size=${size}&baseUrl=${encodeURIComponent(base)}&path=${encodeURIComponent('/open-registration/' + token)}`;
 }
 
 function onQrPortalDomainChange(value) {

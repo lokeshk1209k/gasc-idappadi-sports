@@ -3,6 +3,42 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/open-registration/tournaments",
+      "destination": "/api/inter-college/tournaments"
+    },
+    {
+      "source": "/api/open-registration/tournament/:token",
+      "destination": "/api/inter-college/tournament?token=:token"
+    },
+    {
+      "source": "/api/open-registration/tournament",
+      "destination": "/api/inter-college/tournament"
+    },
+    {
+      "source": "/api/open-registration/competition/:token",
+      "destination": "/api/inter-college/competition?token=:token"
+    },
+    {
+      "source": "/api/open-registration/qr/:token",
+      "destination": "/api/inter-college/qr?token=:token"
+    },
+    {
+      "source": "/api/open-registration/receipt/:id",
+      "destination": "/api/inter-college/receipt?id=:id"
+    },
+    {
+      "source": "/api/open-registration/:action",
+      "destination": "/api/inter-college/:action"
+    },
+    {
+      "source": "/api/inter-college/tournaments",
+      "destination": "/api/inter-college/tournaments"
+    },
+    {
+      "source": "/api/inter-college/tournament/:token",
+      "destination": "/api/inter-college/tournament?token=:token"
+    },
+    {
       "source": "/api/inter-college/competition/:token",
       "destination": "/api/inter-college/competition?token=:token"
     },

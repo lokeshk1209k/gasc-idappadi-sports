@@ -29,7 +29,8 @@ const routes = [
   'student/settings',
   'inter-college',
   'inter-college/register',
-  'inter-college/success'
+  'inter-college/success',
+  'open-registration'
 ];
 
 routes.forEach(route => {

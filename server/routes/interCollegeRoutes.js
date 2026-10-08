@@ -5,6 +5,8 @@ const { verifyToken, requireAdmin } = require('../middleware/authMiddleware');
 
 // ── Public Routes (For External College Participants via QR) ──
 // No GASC student login, No student account created!
+router.get('/tournaments', ctrl.getPublicTournaments);
+router.get('/tournament/:token', ctrl.getTournamentByToken);
 router.get('/public/competitions', ctrl.getPublicCompetitions);
 router.get('/competition/:token', ctrl.getCompetitionByToken);
 router.get('/competition-by-token/:token', ctrl.getCompetitionByToken);
