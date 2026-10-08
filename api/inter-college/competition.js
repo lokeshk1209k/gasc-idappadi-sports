@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://yemypfgunokxfufnqvdh.supabase.co';
@@ -44,24 +46,63 @@ module.exports = async (req, res) => {
   if (!token) return res.status(400).json({ success: false, message: 'Token parameter is required.' });
 
   try {
-    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
-
-    // Look up competition by registration token or id
     let comp = null;
-    const { data: d1 } = await supabase
-      .from('competitions')
-      .select('*')
-      .eq('registration_token', token)
-      .maybeSingle();
+    let extraConfig = {};
 
-    if (d1) comp = d1;
-    else {
-      const { data: d2 } = await supabase
+    // 1. Primary lookup: Supabase Query
+    try {
+      const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+
+      // Lookup by rules string (contains JSON interCollegeConfig with registrationToken)
+      const { data: dRules } = await supabase
         .from('competitions')
         .select('*')
-        .eq('id', token)
+        .ilike('rules', `%${token}%`)
         .maybeSingle();
-      if (d2) comp = d2;
+
+      if (dRules) {
+        comp = dRules;
+      } else {
+        // Lookup by competition ID
+        const { data: dId } = await supabase
+          .from('competitions')
+          .select('*')
+          .eq('id', token)
+          .maybeSingle();
+        if (dId) comp = dId;
+      }
+    } catch (supaErr) {
+      console.warn('Supabase query error:', supaErr.message);
+    }
+
+    // 2. Secondary lookup: Local JSON database fallback
+    if (!comp) {
+      const pathsToTry = [
+        path.join(__dirname, '../../server/data/local_db.json'),
+        path.join(__dirname, '../server/data/local_db.json'),
+        path.join(process.cwd(), 'server/data/local_db.json'),
+        path.join(process.cwd(), 'dist/competitions.json'),
+        path.join(process.cwd(), 'public/competitions.json')
+      ];
+
+      for (const p of pathsToTry) {
+        if (fs.existsSync(p)) {
+          try {
+            const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+            const list = raw.competitions || (Array.isArray(raw) ? raw : []);
+            const match = list.find(c =>
+              c.registration_token === token ||
+              c.registrationToken === token ||
+              c.id === token ||
+              (c.rules && typeof c.rules === 'string' && c.rules.includes(token))
+            );
+            if (match) {
+              comp = match;
+              break;
+            }
+          } catch (e) {}
+        }
+      }
     }
 
     if (!comp) {
@@ -71,6 +112,16 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Parse extraConfig from rules if stored as JSON
+    if (comp.rules && typeof comp.rules === 'string' && comp.rules.includes('{')) {
+      try {
+        const parsed = JSON.parse(comp.rules);
+        if (parsed.interCollegeConfig) {
+          extraConfig = parsed.interCollegeConfig;
+        }
+      } catch (e) {}
+    }
+
     const deadline = comp.registration_end || comp.registration_deadline || comp.date;
     const isDeadlinePassed = deadline ? new Date() > new Date(deadline) : false;
     const isRegistrationEnabled = comp.external_registration_enabled !== false &&
@@ -78,10 +129,10 @@ module.exports = async (req, res) => {
       comp.status !== 'Cancelled' &&
       comp.status !== 'Draft';
 
-    const rules = getSportRules(comp.sport_name || comp.name);
-    const requiredPlayers = comp.required_players || rules.requiredPlayers;
-    const substitutes = comp.substitutes !== undefined ? comp.substitutes : rules.substitutes;
-    const competitionMode = (comp.competition_mode || (comp.type === 'Team' ? 'TEAM' : rules.mode)).toUpperCase();
+    const defaultRules = getSportRules(comp.sport_name || comp.name);
+    const requiredPlayers = extraConfig.requiredPlayers || comp.required_players || defaultRules.requiredPlayers;
+    const substitutes = extraConfig.substitutes !== undefined ? extraConfig.substitutes : (comp.substitutes !== undefined ? comp.substitutes : defaultRules.substitutes);
+    const competitionMode = (extraConfig.competitionMode || comp.competition_mode || (comp.type === 'Team' ? 'TEAM' : defaultRules.mode)).toUpperCase();
 
     return res.status(200).json({
       success: true,
@@ -90,7 +141,7 @@ module.exports = async (req, res) => {
         name: comp.name,
         tournamentName: comp.tournament_name || comp.name,
         sportName: comp.sport_name || comp.name,
-        participationType: comp.participation_type || 'INTER_COLLEGE',
+        participationType: extraConfig.participationType || comp.participation_type || 'INTER_COLLEGE',
         competitionMode,
         gender: comp.gender || 'All',
         date: comp.date,
@@ -100,20 +151,20 @@ module.exports = async (req, res) => {
         registrationStart: comp.registration_start,
         registrationEnd: deadline,
         description: comp.description || '',
-        rules: comp.rules || '',
+        rules: (comp.rules && typeof comp.rules === 'string' && comp.rules.startsWith('{')) ? '' : (comp.rules || ''),
         bannerImage: comp.banner_image || comp.banner_url || '/images/sports/tournament.png',
-        contactPerson: comp.contact_person || 'Dr. R. ANITHA (Physical Director)',
-        contactPhone: comp.contact_phone || '+91 94432 18765',
-        contactEmail: comp.contact_email || 'sportsgascidappadi@gmail.com',
+        contactPerson: extraConfig.contactPerson || comp.contact_person || 'Dr. R. ANITHA (Physical Director)',
+        contactPhone: extraConfig.contactPhone || comp.contact_phone || '+91 94432 18765',
+        contactEmail: extraConfig.contactEmail || comp.contact_email || 'sportsgascidappadi@gmail.com',
         requiredPlayers: Number(requiredPlayers),
         substitutes: Number(substitutes),
         maxPlayers: Number(requiredPlayers) + Number(substitutes),
-        maxColleges: comp.max_colleges || 50,
-        maxTeams: comp.max_teams || 30,
+        maxColleges: extraConfig.maxColleges || comp.max_colleges || 32,
+        maxTeams: extraConfig.maxTeams || comp.max_teams || 16,
         status: comp.status || 'Registration Open',
         isRegistrationOpen: isRegistrationEnabled && !isDeadlinePassed,
         isDeadlinePassed,
-        registrationToken: comp.registration_token || token
+        registrationToken: extraConfig.registrationToken || comp.registration_token || token
       }
     });
 

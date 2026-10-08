@@ -172,7 +172,10 @@ const studentPublicDir = path.join(rootDir, 'student-client/public');
       'student/equipment',
       'student/gallery',
       'student/notifications',
-      'student/settings'
+      'student/settings',
+      'inter-college',
+      'inter-college/register',
+      'inter-college/success'
     ];
 
     spaRoutes.forEach(r => {

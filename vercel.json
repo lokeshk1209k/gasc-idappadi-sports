@@ -3,6 +3,22 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/inter-college/competition/:token",
+      "destination": "/api/inter-college/competition?token=:token"
+    },
+    {
+      "source": "/api/inter-college/qr/:token",
+      "destination": "/api/inter-college/qr?token=:token"
+    },
+    {
+      "source": "/api/inter-college/receipt/:id",
+      "destination": "/api/inter-college/receipt?id=:id"
+    },
+    {
+      "source": "/api/inter-college/:action",
+      "destination": "/api/inter-college/:action"
+    },
+    {
       "source": "/api/auth/verify-student/:regNo",
       "destination": "/api/auth/verify-student?regNo=:regNo"
     },

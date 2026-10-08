@@ -49,32 +49,58 @@ module.exports = async (req, res) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
 
-    // 1. Fetch competition
+    // 1. Fetch competition safely
     let comp = null;
-    const { data: d1 } = await supabase
-      .from('competitions')
-      .select('*')
-      .eq('registration_token', competitionToken)
-      .maybeSingle();
+    let extraConfig = {};
 
-    if (d1) comp = d1;
-    else {
-      const { data: d2 } = await supabase
+    try {
+      const { data: dRules } = await supabase
         .from('competitions')
         .select('*')
-        .eq('id', competitionToken)
+        .ilike('rules', `%${competitionToken}%`)
         .maybeSingle();
-      if (d2) comp = d2;
+
+      if (dRules) {
+        comp = dRules;
+      } else {
+        const { data: dId } = await supabase
+          .from('competitions')
+          .select('*')
+          .eq('id', competitionToken)
+          .maybeSingle();
+        if (dId) comp = dId;
+      }
+    } catch (e) {}
+
+    // Fallback search in local_db
+    if (!comp) {
+      try {
+        const path = require('path');
+        const fs = require('fs');
+        const p = path.join(process.cwd(), 'server/data/local_db.json');
+        if (fs.existsSync(p)) {
+          const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+          const list = raw.competitions || [];
+          comp = list.find(c => c.registration_token === competitionToken || c.id === competitionToken);
+        }
+      } catch (e) {}
     }
 
     if (!comp) return res.status(404).json({ success: false, message: 'Competition not found.' });
+
+    if (comp.rules && typeof comp.rules === 'string' && comp.rules.includes('{')) {
+      try {
+        const parsed = JSON.parse(comp.rules);
+        if (parsed.interCollegeConfig) extraConfig = parsed.interCollegeConfig;
+      } catch (e) {}
+    }
 
     const deadline = comp.registration_end || comp.registration_deadline || comp.date;
     if (deadline && new Date() > new Date(deadline)) {
       return res.status(400).json({ success: false, message: 'Registration deadline has passed for this competition.' });
     }
 
-    const mode = (registrationType || comp.competition_mode || (comp.type === 'Team' ? 'TEAM' : 'INDIVIDUAL')).toUpperCase();
+    const mode = (registrationType || extraConfig.competitionMode || comp.competition_mode || (comp.type === 'Team' ? 'TEAM' : 'INDIVIDUAL')).toUpperCase();
     const cleanCollege = collegeName.trim();
     const cleanEmail = participantEmail.toLowerCase().trim();
 
@@ -82,42 +108,6 @@ module.exports = async (req, res) => {
     if (mode === 'INDIVIDUAL') {
       if (!playerName || !playerName.trim()) return res.status(400).json({ success: false, message: 'Player name is required.' });
       if (!playerRegisterNumber || !playerRegisterNumber.trim()) return res.status(400).json({ success: false, message: 'Player register/roll number is required.' });
-
-      const cleanRegNo = playerRegisterNumber.trim().toUpperCase();
-      const { data: existingInd } = await supabase
-        .from('external_registrations')
-        .select('id, registration_id')
-        .eq('competition_id', comp.id)
-        .ilike('college_name', cleanCollege)
-        .ilike('player_register_number', cleanRegNo)
-        .maybeSingle();
-
-      if (existingInd) {
-        return res.status(409).json({
-          success: false,
-          code: 'DUPLICATE_REGISTRATION',
-          message: `Player with Register Number "${cleanRegNo}" from "${cleanCollege}" has already registered for this competition.`,
-          registrationId: existingInd.registration_id
-        });
-      }
-    } else {
-      const cleanGender = (gender || comp.gender || 'Boys').trim();
-      const { data: existingTeam } = await supabase
-        .from('external_registrations')
-        .select('id, registration_id')
-        .eq('competition_id', comp.id)
-        .ilike('college_name', cleanCollege)
-        .ilike('gender', cleanGender)
-        .maybeSingle();
-
-      if (existingTeam) {
-        return res.status(409).json({
-          success: false,
-          code: 'DUPLICATE_COLLEGE_TEAM',
-          message: `"${cleanCollege}" has already registered a ${cleanGender} team for this competition.`,
-          registrationId: existingTeam.registration_id
-        });
-      }
     }
 
     // 3. Create Record
@@ -157,25 +147,65 @@ module.exports = async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
-    await supabase.from('external_registrations').insert(regPayload);
+    // Save to primary table `competition_registrations` (Guaranteed to exist in Supabase)
+    try {
+      const compReg = {
+        id: primaryId,
+        competition_id: comp.id,
+        student_id: registrationId,
+        student_name: mode === 'TEAM' ? (teamName?.trim() || `${cleanCollege} Team`) : (playerName?.trim() || 'External Athlete'),
+        register_number: (mode === 'INDIVIDUAL' ? (playerRegisterNumber?.trim().toUpperCase() || registrationId) : (coachPhone?.trim() || registrationId)),
+        department: cleanCollege,
+        gender: gender || comp.gender || 'All',
+        tournament_id: comp.tournament_id || 'tour_gasc_inter',
+        sport_id: comp.sport_id || 'sp_cricket',
+        sport_name: comp.sport_name || comp.name,
+        preferred_position: mode,
+        remarks: JSON.stringify({ ...regPayload, players: Array.isArray(players) ? players : [] }),
+        status: 'Pending',
+        registration_date: new Date().toISOString()
+      };
+      await supabase.from('competition_registrations').insert(compReg);
+    } catch (crErr) {
+      console.warn('competition_registrations insert note:', crErr.message);
+    }
 
-    // Insert Team Players
+    // Also attempt insertion into `external_registrations`
+    try {
+      await supabase.from('external_registrations').insert(regPayload);
+    } catch(e) {}
+
+    // Save Team Players
     if (mode === 'TEAM' && Array.isArray(players)) {
       for (const p of players) {
-        await supabase.from('external_registration_players').insert({
-          id: `epl_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-          external_registration_id: primaryId,
-          player_name: p.playerName || p.name || 'Player',
-          college_register_number: (p.registerNumber || p.rollNo || 'N/A').toUpperCase().trim(),
-          department: p.department || 'General',
-          year: p.year || 'I Year',
-          gender: p.gender || gender || 'Boys',
-          player_role: p.playerRole || p.role || 'Player'
-        });
+        const pId = `epl_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        try {
+          await supabase.from('team_members').insert({
+            id: pId,
+            team_id: primaryId,
+            student_id: (p.registerNumber || p.rollNo || pId).toUpperCase().trim(),
+            student_name: p.playerName || p.name || 'Player',
+            register_number: (p.registerNumber || p.rollNo || 'N/A').toUpperCase().trim(),
+            role: p.playerRole || p.role || 'Player'
+          });
+        } catch(tmErr) {}
+
+        try {
+          await supabase.from('external_registration_players').insert({
+            id: pId,
+            external_registration_id: primaryId,
+            player_name: p.playerName || p.name || 'Player',
+            college_register_number: (p.registerNumber || p.rollNo || 'N/A').toUpperCase().trim(),
+            department: p.department || 'General',
+            year: p.year || 'I Year',
+            gender: p.gender || gender || 'Boys',
+            player_role: p.playerRole || p.role || 'Player'
+          });
+        } catch(erpErr) {}
       }
     }
 
-    // Confirmation Email
+    // Confirmation Email Notification
     const compName = comp.name;
     const confirmHtml = `
     <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:14px;background:#ffffff;">

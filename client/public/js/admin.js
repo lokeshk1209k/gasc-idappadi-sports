@@ -208,9 +208,6 @@ function switchAdminView(viewId) {
     return;
   }
   else if (viewId === 'competitions') loadAdminCompetitions();
-  else if (viewId === 'inter-college') {
-    if (window.loadAdminInterCollegeData) window.loadAdminInterCollegeData();
-  }
   else if (viewId === 'applications') loadAdminApplications();
   else if (viewId === 'teams') loadAdminTeams();
   else if (viewId === 'achievements') loadAdminAchievements();
@@ -1915,9 +1912,6 @@ async function loadAdminCompetitions() {
             </div>
             <div class="col-md-4 text-md-end">
               <div class="d-flex flex-column flex-sm-row gap-2 justify-content-md-end">
-                <button class="btn btn-warning text-dark btn-sm fw-bold shadow-sm" onclick="showParentTournamentQrModal(decodeURIComponent('${encodeURIComponent(tName)}'))" title="View, Print & Download QR Code">
-                  <i class="bi bi-qr-code-scan me-1"></i> QR Code
-                </button>
                 <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal(decodeURIComponent('${encodeURIComponent(tName)}'))">
                   <i class="bi bi-plus-circle-fill me-1"></i> Add Sport
                 </button>
@@ -1979,10 +1973,7 @@ async function loadAdminCompetitions() {
                       </div>
                       <div class="d-flex gap-2 pt-2 border-top border-white border-opacity-15 mt-auto">
                         <button class="btn btn-sm btn-outline-info flex-grow-1 text-white fw-semibold" onclick="switchAdminView('applications'); document.getElementById('app-filter-status').value='All';" style="font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.6); background: rgba(56, 189, 248, 0.12);">
-                          <i class="bi bi-people me-1"></i> Registrations
-                        </button>
-                        <button class="btn btn-sm btn-warning text-dark fw-bold" onclick="showTournamentQrModal('${compId}')" title="Preview & Download QR Code" style="font-size: 0.78rem;">
-                          <i class="bi bi-qr-code-scan me-1"></i> QR
+                          <i class="bi bi-people me-1"></i> View Registrations
                         </button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteCompetition('${compId}', decodeURIComponent('${encodeURIComponent(sName)}'))" title="Delete Sport" style="border-color: rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.12);">
                           <i class="bi bi-trash text-danger"></i>
@@ -2154,15 +2145,6 @@ async function submitCreateCompetition(event) {
       }
     } catch (mErr) {}
     loadAdminCompetitions();
-
-    // If INTER_COLLEGE, open the QR Code modal automatically so Sports Mam can immediately preview / share / print
-    const partType = formData.get('participationType');
-    if (partType === 'INTER_COLLEGE' && window.openInterCollegeQrModal) {
-      setTimeout(() => {
-        const compForQr = res?.competition || newT;
-        window.openInterCollegeQrModal(compForQr);
-      }, 400);
-    }
   } catch (err) {
     showToast(err.message || 'Failed to create tournament', 'error');
   } finally {
@@ -4448,9 +4430,6 @@ function renderTournamentReportHTML(viewMode = 'sport') {
   // Bottom action buttons
   const actionBtns = `
     <div class="d-flex gap-2 flex-wrap mt-4 no-print border-top pt-3">
-      <button class="btn btn-warning text-dark fw-bold" onclick="showParentTournamentQrModal(decodeURIComponent('${encodeURIComponent(tournamentName)}'))">
-        <i class="bi bi-qr-code-scan me-1"></i> Tournament QR Code
-      </button>
       <button class="btn btn-primary" onclick="printTournamentReport()">
         <i class="bi bi-printer me-1"></i> Print ${viewMode === 'department' ? 'Department Report' : 'Report'}
       </button>
@@ -4467,40 +4446,23 @@ function renderTournamentReportHTML(viewMode = 'sport') {
       }
     </div>`;
 
-  const matchedComp = (typeof trrCompetitionsCache !== 'undefined') ? trrCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name) === tournamentName) : null;
-  const token = matchedComp ? (matchedComp.registration_token || matchedComp.registrationToken || matchedComp.id) : (tournamentName ? tournamentName.toLowerCase().replace(/[^a-z0-9]/g, '') : '');
-  const qrThumbUrl = (typeof window.getQrImageUrl === 'function' && token) ? window.getQrImageUrl(token, 120) : '';
-  const publicRegUrl = (typeof window.getPublicRegistrationUrl === 'function' && token) ? window.getPublicRegistrationUrl(token) : '';
-
   outArea.innerHTML = `
     <div class="glass-card p-4" id="trr-printable-area">
 
       ${viewSwitcherHtml}
 
-      <!-- Official College Header with Scannable QR -->
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 border-bottom mb-4">
-        <div class="text-center text-md-start flex-grow-1">
-          <h4 class="fw-bold mb-1 text-primary">${college.toUpperCase()}</h4>
-          <h6 class="fw-bold text-dark mb-1">${deptName}</h6>
-          <div class="text-secondary small">IDAPPADI, SALEM DISTRICT – 637101, TAMIL NADU</div>
-          <hr class="my-2">
-          <h5 class="fw-bold ${viewMode === 'department' ? 'text-success' : 'text-primary'} mb-1">
-            ${viewMode === 'department' ? 'Tournament Registration Report (Total Department-Wise Register)' : 'Tournament Registration Report'}
-          </h5>
-          <div class="small text-dark fw-semibold mb-1">Tournament: ${tournamentName}</div>
-          <div class="small text-muted">${filterLabels}</div>
-          <div class="small text-muted mt-1">Generated on: ${genDateStr}</div>
-        </div>
-        ${qrThumbUrl ? `
-          <div class="text-center p-2 rounded-3 bg-white border border-2 border-dark shadow-sm d-inline-block" style="min-width: 130px;">
-            <img src="${qrThumbUrl}" alt="Registration QR Code" style="width: 85px; height: 85px; object-fit: contain;">
-            <div class="fw-bold text-dark" style="font-size: 0.65rem; margin-top: 2px;">SCAN TO REGISTER</div>
-            <div class="text-muted font-monospace" style="font-size: 0.55rem; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${publicRegUrl}</div>
-            <button type="button" class="btn btn-xs btn-outline-primary mt-1 py-0 px-2 no-print" onclick="showParentTournamentQrModal('${encodeURIComponent(tournamentName)}')" style="font-size: 0.65rem;">
-              <i class="bi bi-qr-code"></i> Open QR
-            </button>
-          </div>
-        ` : ''}
+      <!-- Official College Header -->
+      <div class="text-center border-bottom pb-3 mb-4">
+        <h4 class="fw-bold mb-1 text-primary">${college.toUpperCase()}</h4>
+        <h6 class="fw-bold text-dark mb-1">${deptName}</h6>
+        <div class="text-secondary small">IDAPPADI, SALEM DISTRICT – 637101, TAMIL NADU</div>
+        <hr class="my-2">
+        <h5 class="fw-bold ${viewMode === 'department' ? 'text-success' : 'text-primary'} mb-1">
+          ${viewMode === 'department' ? 'Tournament Registration Report (Total Department-Wise Register)' : 'Tournament Registration Report'}
+        </h5>
+        <div class="small text-dark fw-semibold mb-1">Tournament: ${tournamentName}</div>
+        <div class="small text-muted">${filterLabels}</div>
+        <div class="small text-muted mt-1">Generated on: ${genDateStr}</div>
       </div>
 
       <!-- Summary Counts -->
@@ -5332,75 +5294,4 @@ window.openEditRosterModal = openEditRosterModal;
 window.deleteRosterStudent = deleteRosterStudent;
 window.submitEditRosterStudent = submitEditRosterStudent;
 window.loadAdminRoster = loadAdminRoster;
-
-// ── Tournament QR Code Actions for Competitions & Reports ──
-window.showTournamentQrModal = function(compId) {
-  let comp = null;
-  if (typeof extCompetitionsCache !== 'undefined' && Array.isArray(extCompetitionsCache)) {
-    comp = extCompetitionsCache.find(c => String(c.id || c._id) === String(compId));
-  }
-  if (!comp && typeof trrCompetitionsCache !== 'undefined' && Array.isArray(trrCompetitionsCache)) {
-    comp = trrCompetitionsCache.find(c => String(c.id || c._id) === String(compId));
-  }
-  if (!comp && typeof window.competitionsCache !== 'undefined' && Array.isArray(window.competitionsCache)) {
-    comp = window.competitionsCache.find(c => String(c.id || c._id) === String(compId));
-  }
-  if (comp) {
-    if (!comp.registration_token && !comp.registrationToken) {
-      comp.registration_token = comp.id;
-    }
-    if (typeof openInterCollegeQrModal === 'function') {
-      openInterCollegeQrModal(comp);
-    } else {
-      showToast('Opening QR Preview...', 'info');
-    }
-  } else {
-    showToast('Competition not found for QR preview.', 'warning');
-  }
-};
-
-window.showParentTournamentQrModal = function(rawTournamentName) {
-  const tName = decodeURIComponent(rawTournamentName || '').trim();
-  let comp = null;
-  if (typeof extCompetitionsCache !== 'undefined' && Array.isArray(extCompetitionsCache)) {
-    comp = extCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
-  }
-  if (!comp && typeof trrCompetitionsCache !== 'undefined' && Array.isArray(trrCompetitionsCache)) {
-    comp = trrCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
-  }
-  if (!comp && typeof window.competitionsCache !== 'undefined' && Array.isArray(window.competitionsCache)) {
-    comp = window.competitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
-  }
-  if (!comp) {
-    comp = {
-      id: 'tour_' + tName.replace(/[^a-zA-Z0-9]/g, '_'),
-      name: tName,
-      tournamentName: tName,
-      sportName: 'All Sports',
-      competition_mode: 'TEAM',
-      venue: 'GASC Idappadi Sports Ground',
-      date: new Date().toISOString(),
-      registration_token: 'tour_' + tName.replace(/[^a-zA-Z0-9]/g, '_')
-    };
-  }
-  if (!comp.registration_token && !comp.registrationToken) {
-    comp.registration_token = comp.id;
-  }
-  if (typeof openInterCollegeQrModal === 'function') {
-    openInterCollegeQrModal(comp);
-  } else {
-    showToast('Opening QR Preview...', 'info');
-  }
-};
-
-window.openSelectedTournamentQrFromReport = function() {
-  const tName = document.getElementById('trr-tournament')?.value?.trim();
-  if (!tName) {
-    showToast('Please select a tournament first from the dropdown above.', 'warning', 'No Tournament Selected');
-    document.getElementById('trr-tournament')?.focus();
-    return;
-  }
-  window.showParentTournamentQrModal(tName);
-};
-
 

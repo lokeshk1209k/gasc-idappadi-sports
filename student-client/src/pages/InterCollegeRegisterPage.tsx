@@ -140,18 +140,55 @@ const InterCollegeRegisterPage: React.FC = () => {
         // Continue to Supabase direct query fallback
       }
 
-      // Supabase Direct Query Fallback
+      // Supabase Direct Query & Static Fallback
       try {
-        const { data, error } = await supabase
+        let data: any = null;
+        const { data: dRules } = await supabase
           .from('competitions')
           .select('*')
-          .or(`registration_token.eq.${competitionToken},id.eq.${competitionToken}`)
+          .ilike('rules', `%${competitionToken}%`)
           .maybeSingle();
 
-        if (error || !data) {
+        if (dRules) {
+          data = dRules;
+        } else {
+          const { data: dId } = await supabase
+            .from('competitions')
+            .select('*')
+            .eq('id', competitionToken)
+            .maybeSingle();
+          if (dId) data = dId;
+        }
+
+        // Secondary fallback to static competitions.json
+        if (!data) {
+          try {
+            const staticRes = await fetch('/competitions.json');
+            if (staticRes.ok) {
+              const staticJson = await staticRes.json();
+              const list = staticJson.competitions || (Array.isArray(staticJson) ? staticJson : []);
+              data = list.find((c: any) =>
+                c.registration_token === competitionToken ||
+                c.registrationToken === competitionToken ||
+                c.id === competitionToken ||
+                (c.rules && typeof c.rules === 'string' && c.rules.includes(competitionToken))
+              );
+            }
+          } catch (e) {}
+        }
+
+        if (!data) {
           setErrorMsg('Invalid or expired competition link. Please check the QR code or contact GASC Sports Dept.');
           setLoading(false);
           return;
+        }
+
+        let extraConfig: any = {};
+        if (data.rules && typeof data.rules === 'string' && data.rules.includes('{')) {
+          try {
+            const parsed = JSON.parse(data.rules);
+            if (parsed.interCollegeConfig) extraConfig = parsed.interCollegeConfig;
+          } catch(e) {}
         }
 
         const deadline = data.registration_end || data.registration_deadline || data.date;
@@ -161,34 +198,36 @@ const InterCollegeRegisterPage: React.FC = () => {
           data.status !== 'Draft' &&
           !isDeadlinePassed;
 
-        const mode = (data.competition_mode || (data.type === 'Team' ? 'TEAM' : 'INDIVIDUAL')).toUpperCase() as 'INDIVIDUAL' | 'TEAM';
+        const mode = (extraConfig.competitionMode || data.competition_mode || (data.type === 'Team' ? 'TEAM' : 'INDIVIDUAL')).toUpperCase() as 'INDIVIDUAL' | 'TEAM';
+        const reqPlayers = Number(extraConfig.requiredPlayers || data.required_players || (mode === 'TEAM' ? 11 : 1));
+        const subPlayers = Number(extraConfig.substitutes !== undefined ? extraConfig.substitutes : (data.substitutes !== undefined ? data.substitutes : (mode === 'TEAM' ? 4 : 0)));
 
         setCompetition({
           id: data.id,
           name: data.name,
           tournamentName: data.tournament_name || data.name,
           sportName: data.sport_name || data.name,
-          participationType: data.participation_type || 'INTER_COLLEGE',
+          participationType: extraConfig.participationType || data.participation_type || 'INTER_COLLEGE',
           competitionMode: mode,
           gender: data.gender || 'All',
           date: data.date,
           venue: data.venue || 'GASC Idappadi Sports Ground',
           registrationEnd: deadline,
           description: data.description || '',
-          rules: data.rules || '',
+          rules: (data.rules && typeof data.rules === 'string' && data.rules.startsWith('{')) ? '' : (data.rules || ''),
           bannerImage: data.banner_image || '/images/sports/tournament.png',
-          contactPerson: data.contact_person || 'Dr. R. ANITHA (Physical Director)',
-          contactPhone: data.contact_phone || '+91 94432 18765',
-          contactEmail: data.contact_email || 'sportsgascidappadi@gmail.com',
-          requiredPlayers: data.required_players || (mode === 'TEAM' ? 11 : 1),
-          substitutes: data.substitutes || (mode === 'TEAM' ? 4 : 0),
-          maxPlayers: (data.required_players || 11) + (data.substitutes || 4),
-          maxColleges: data.max_colleges || 50,
-          maxTeams: data.max_teams || 30,
+          contactPerson: extraConfig.contactPerson || data.contact_person || 'Dr. R. ANITHA (Physical Director)',
+          contactPhone: extraConfig.contactPhone || data.contact_phone || '+91 94432 18765',
+          contactEmail: extraConfig.contactEmail || data.contact_email || 'sportsgascidappadi@gmail.com',
+          requiredPlayers: reqPlayers,
+          substitutes: subPlayers,
+          maxPlayers: reqPlayers + subPlayers,
+          maxColleges: extraConfig.maxColleges || data.max_colleges || 50,
+          maxTeams: extraConfig.maxTeams || data.max_teams || 30,
           status: data.status || 'Registration Open',
           isRegistrationOpen,
           isDeadlinePassed,
-          registrationToken: data.registration_token || competitionToken || ''
+          registrationToken: extraConfig.registrationToken || data.registration_token || competitionToken || ''
         });
       } catch (err: any) {
         setErrorMsg(err.message || 'Error loading competition details.');
