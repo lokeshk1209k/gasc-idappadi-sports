@@ -14,12 +14,10 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ success: false, message: 'QR token is required' });
   }
 
-  // Base URL resolution
+  // Base URL resolution: Default to live public production portal so mobile phones can reach it anywhere
   let baseUrl = req.query.baseUrl;
-  if (!baseUrl || baseUrl.trim() === '') {
-    const host = req.headers['x-forwarded-host'] || req.headers.host || 'gasc-student-portal.vercel.app';
-    const proto = req.headers['x-forwarded-proto'] || 'https';
-    baseUrl = `${proto}://${host}`;
+  if (!baseUrl || baseUrl.trim() === '' || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')) {
+    baseUrl = 'https://gasc-student-portal.vercel.app';
   }
   baseUrl = baseUrl.replace(/\/+$/, '');
 

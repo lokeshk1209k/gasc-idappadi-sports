@@ -137,10 +137,10 @@ const InterCollegeSuccessPage: React.FC = () => {
       {/* ── Screen Header (Hidden on Print) ── */}
       <div className="max-w-2xl mx-auto w-full mb-6 print:hidden flex items-center justify-between">
         <Link
-          to="/inter-college"
+          to="/open-registration"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" /> All Competitions
+          <ArrowLeft className="w-4 h-4" /> All Tournaments
         </Link>
         <div className="flex items-center gap-2">
           <button
@@ -317,10 +317,10 @@ const InterCollegeSuccessPage: React.FC = () => {
           <Printer className="w-4 h-4" /> Download / Print Official Slip
         </button>
         <Link
-          to="/inter-college"
+          to="/open-registration"
           className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
         >
-          <Trophy className="w-4 h-4" /> Back to Competitions
+          <Trophy className="w-4 h-4" /> Back to Tournaments
         </Link>
       </div>
 

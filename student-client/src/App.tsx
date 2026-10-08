@@ -37,8 +37,8 @@ function App() {
           <Route path="/open-registration/:tournamentToken" element={<OpenRegistrationPage />} />
 
           {/* Legacy & direct competition QR routes for backwards compatibility */}
-          <Route path="/inter-college" element={<InterCollegeLandingPage />} />
-          <Route path="/inter-college/register/:competitionToken" element={<InterCollegeRegisterPage />} />
+          <Route path="/inter-college" element={<Navigate to="/open-registration" replace />} />
+          <Route path="/inter-college/register/:competitionToken" element={<OpenRegistrationPage />} />
           <Route path="/inter-college/success/:registrationId" element={<InterCollegeSuccessPage />} />
 
           <Route path="/" element={<MainLayout />}>
@@ -66,8 +66,8 @@ function App() {
           <Route path="student/settings" element={<SettingsPage />} />
           <Route path="student/my-registrations" element={<CompetitionsPage />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
+          {/* Fallback for unknown routes */}
+          <Route path="*" element={<Navigate to="/open-registration" replace />} />
         </Route>
       </Routes>
       </Router>

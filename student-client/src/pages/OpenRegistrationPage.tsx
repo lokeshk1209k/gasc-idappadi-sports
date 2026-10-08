@@ -66,7 +66,8 @@ interface TeamPlayer {
 }
 
 const OpenRegistrationPage: React.FC = () => {
-  const { tournamentToken } = useParams<{ tournamentToken?: string }>();
+  const params = useParams<{ tournamentToken?: string; competitionToken?: string }>();
+  const tournamentToken = params.tournamentToken || params.competitionToken;
 
   // State: List of tournaments (if no token provided)
   const [tournamentsList, setTournamentsList] = useState<TournamentData[]>([]);
@@ -166,7 +167,19 @@ const OpenRegistrationPage: React.FC = () => {
           const data = await res.json();
           if (data && data.success && data.tournament) {
             setCurrentTournament(data.tournament);
-            setCompetitions(data.competitions || []);
+            const compsList: CompetitionItem[] = data.competitions || [];
+            setCompetitions(compsList);
+
+            // If a specific competition was targeted (either by activeCompetitionId or token match), open its registration form immediately!
+            const targetComp = compsList.find(c =>
+              (data.activeCompetitionId && c.id === data.activeCompetitionId) ||
+              c.id === tournamentToken ||
+              c.registrationToken === tournamentToken ||
+              (c.rules && typeof c.rules === 'string' && c.rules.includes(tournamentToken))
+            );
+            if (targetComp && targetComp.status === 'OPEN') {
+              startRegistrationForCompetition(targetComp);
+            }
           } else {
             setLoadError(data?.message || 'Tournament not found or invalid registration token.');
           }

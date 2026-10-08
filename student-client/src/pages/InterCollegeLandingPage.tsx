@@ -100,12 +100,9 @@ const InterCollegeLandingPage: React.FC = () => {
             </div>
           </div>
 
-          <Link
-            to="/student/login"
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-          >
-            Internal Student Login &rarr;
-          </Link>
+          <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Official Public Portal
+          </span>
         </div>
       </header>
 
@@ -133,7 +130,7 @@ const InterCollegeLandingPage: React.FC = () => {
               className="bg-transparent border-0 text-white placeholder-slate-500 text-xs sm:text-sm flex-1 focus:outline-none px-2"
             />
             <Link
-              to={manualToken.trim() ? `/inter-college/register/${manualToken.trim()}` : '#'}
+              to={manualToken.trim() ? `/open-registration/${manualToken.trim()}` : '#'}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                 manualToken.trim()
                   ? 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer'
@@ -245,7 +242,7 @@ const InterCollegeLandingPage: React.FC = () => {
                   </div>
 
                   <Link
-                    to={`/inter-college/register/${comp.registrationToken || comp.id}`}
+                    to={`/open-registration/${comp.registrationToken || comp.id}`}
                     className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
                       comp.isRegistrationOpen
                         ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20'

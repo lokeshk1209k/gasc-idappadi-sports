@@ -1343,24 +1343,17 @@ exports.getQrImage = async (req, res) => {
     if (!token) return res.status(400).send('Token required');
 
     let clientOrigin = req.query.baseUrl;
-    if (!clientOrigin) {
+    if (!clientOrigin || clientOrigin.includes('localhost') || clientOrigin.includes('127.0.0.1')) {
       if (process.env.PUBLIC_STUDENT_PORTAL_URL) {
         clientOrigin = process.env.PUBLIC_STUDENT_PORTAL_URL;
-      } else if (process.env.CLIENT_URL) {
-        clientOrigin = process.env.CLIENT_URL;
       } else {
-        const host = req.headers['x-forwarded-host'] || req.headers.host || '';
-        if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
-          const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-          clientOrigin = `${proto}://${host}`;
-        } else {
-          // Default to live public production portal so mobile phones can reach it!
-          clientOrigin = 'https://gasc-student-portal.vercel.app';
-        }
+        // Default to live public production portal so mobile phones can reach it anywhere!
+        clientOrigin = 'https://gasc-student-portal.vercel.app';
       }
     }
     clientOrigin = clientOrigin.replace(/\/+$/, '');
-    const registrationUrl = `${clientOrigin}/inter-college/register/${token}`;
+    const targetPath = req.query.path || `/open-registration/${token}`;
+    const registrationUrl = `${clientOrigin}${targetPath.startsWith('/') ? '' : '/'}${targetPath}`;
 
     const format = req.query.format || 'png';
     const size = parseInt(req.query.size, 10) || 300;
@@ -1692,8 +1685,11 @@ exports.getTournamentByToken = async (req, res) => {
       (t.tournament_name && t.tournament_name.toLowerCase() === lowerToken)
     );
 
+    let matchedComp = null;
     if (!tournament) {
-      const matchedComp = allCompetitions.find(c =>
+      matchedComp = allCompetitions.find(c =>
+        (c.registration_token && c.registration_token.toLowerCase() === lowerToken) ||
+        (c.registrationToken && c.registrationToken.toLowerCase() === lowerToken) ||
         (c.tournament_token && c.tournament_token.toLowerCase() === lowerToken) ||
         (c.tournament_id && c.tournament_id.toLowerCase() === lowerToken) ||
         (c.rules && typeof c.rules === 'string' && c.rules.includes(token)) ||
@@ -1701,19 +1697,28 @@ exports.getTournamentByToken = async (req, res) => {
       );
 
       if (matchedComp) {
-        const tId = matchedComp.tournament_id || `tour_${(matchedComp.tournament_name || matchedComp.name).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-        tournament = {
-          id: tId,
-          name: matchedComp.tournament_name || matchedComp.name,
-          tournament_name: matchedComp.tournament_name || matchedComp.name,
-          description: matchedComp.description || 'Government Arts and Science College, Idappadi Inter-College Sports Meet.',
-          venue: matchedComp.venue || 'GASC Idappadi Sports Ground',
-          start_date: matchedComp.date,
-          end_date: matchedComp.registration_end || matchedComp.registration_deadline,
-          status: matchedComp.status || 'Registration Open',
-          banner_image: matchedComp.banner_image || '/images/sports/tournament.png',
-          registration_token: token
-        };
+        const parentT = allTournaments.find(t =>
+          (t.id && t.id.toLowerCase() === (matchedComp.tournament_id || '').toLowerCase()) ||
+          (t.name && t.name.toLowerCase() === (matchedComp.tournament_name || matchedComp.name || '').toLowerCase()) ||
+          (t.tournament_name && t.tournament_name.toLowerCase() === (matchedComp.tournament_name || matchedComp.name || '').toLowerCase())
+        );
+        if (parentT) {
+          tournament = parentT;
+        } else {
+          const tId = matchedComp.tournament_id || `tour_${(matchedComp.tournament_name || matchedComp.name).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+          tournament = {
+            id: tId,
+            name: matchedComp.tournament_name || matchedComp.name,
+            tournament_name: matchedComp.tournament_name || matchedComp.name,
+            description: matchedComp.description || 'Government Arts and Science College, Idappadi Inter-College Sports Meet.',
+            venue: matchedComp.venue || 'GASC Idappadi Sports Ground',
+            start_date: matchedComp.date,
+            end_date: matchedComp.registration_end || matchedComp.registration_deadline,
+            status: matchedComp.status || 'Registration Open',
+            banner_image: matchedComp.banner_image || '/images/sports/tournament.png',
+            registration_token: token
+          };
+        }
       }
     }
 
@@ -1821,7 +1826,8 @@ exports.getTournamentByToken = async (req, res) => {
         contactEmail: tournament.contact_email || 'sportsgascidappadi@gmail.com',
         rules: tournament.rules || 'Official collegiate ID cards and bonafide certificates from the respective Head of Department/Principal are mandatory.'
       },
-      competitions: mappedCompetitions
+      competitions: mappedCompetitions,
+      activeCompetitionId: matchedComp ? matchedComp.id : null
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
