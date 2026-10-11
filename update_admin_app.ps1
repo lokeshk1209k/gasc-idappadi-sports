@@ -12,6 +12,28 @@ $targets = @(
     "C:\Users\ELCOT\Desktop\GASC Sports Admin Portable"
 )
 
+$staleItems = @(
+    "client\public\js\interCollegeAdmin.js",
+    "client\public\inter-college",
+    "client\public\open-registration",
+    "dist\inter-college",
+    "dist\open-registration",
+    "dist\js\interCollegeAdmin.js",
+    "server\routes\interCollegeRoutes.js",
+    "server\controllers\interCollegeController.js",
+    "api\inter-college",
+    "student-client\dist\inter-college",
+    "student-client\dist\open-registration",
+    "student-client\dist\js\interCollegeAdmin.js",
+    "student-client\public\inter-college",
+    "student-client\public\open-registration",
+    "student-client\public\js\interCollegeAdmin.js",
+    "student-client\src\pages\InterCollegeLandingPage.tsx",
+    "student-client\src\pages\InterCollegeRegisterPage.tsx",
+    "student-client\src\pages\InterCollegeSuccessPage.tsx",
+    "student-client\src\pages\OpenRegistrationPage.tsx"
+)
+
 foreach ($target in $targets) {
     if (Test-Path $target) {
         Write-Host ">>> Updating: $target" -ForegroundColor Yellow
@@ -20,23 +42,32 @@ foreach ($target in $targets) {
             New-Item -ItemType Directory -Path $appDir -Force | Out-Null
         }
 
-        # Sync client
+        # 1. Clean stale other college / inter-college items
+        foreach ($stale in $staleItems) {
+            $stalePath = Join-Path $appDir $stale
+            if (Test-Path $stalePath) {
+                Remove-Item -Path $stalePath -Recurse -Force -ErrorAction SilentlyContinue
+                Write-Host "  [CLEAN] Removed stale item: $stale" -ForegroundColor Magenta
+            }
+        }
+
+        # 2. Sync client (cleanly replace public files)
         Copy-Item -Path "$workspace\client" -Destination $appDir -Recurse -Force
-        # Sync server
+        # 3. Sync server
         Copy-Item -Path "$workspace\server" -Destination $appDir -Recurse -Force
-        # Sync electron
+        # 4. Sync electron
         Copy-Item -Path "$workspace\electron" -Destination $appDir -Recurse -Force
-        # Sync root dist
+        # 5. Sync root dist
         if (Test-Path "$workspace\dist") {
             Copy-Item -Path "$workspace\dist" -Destination $appDir -Recurse -Force
         }
-        # Sync student-client dist
+        # 6. Sync student-client dist
         if (Test-Path "$workspace\student-client\dist") {
             $studentAppDst = Join-Path $appDir "student-client\dist"
             if (!(Test-Path $studentAppDst)) { New-Item -ItemType Directory -Path $studentAppDst -Force | Out-Null }
             Copy-Item -Path "$workspace\student-client\dist\*" -Destination $studentAppDst -Recurse -Force
         }
-        # Sync root config files & local database
+        # 7. Sync root config files & local database
         Copy-Item -Path "$workspace\package.json" -Destination $appDir -Force
         if (Test-Path "$workspace\.env") {
             Copy-Item -Path "$workspace\.env" -Destination $appDir -Force
@@ -45,7 +76,7 @@ foreach ($target in $targets) {
             Copy-Item -Path "$workspace\gasc_sports_local.db" -Destination $appDir -Force
         }
 
-        # Sync any missing node_modules such as compression
+        # 8. Sync any missing node_modules such as compression
         $targetNm = Join-Path $appDir "node_modules"
         if (Test-Path $targetNm) {
             foreach ($mod in @("compression", "compressible", "on-headers")) {
@@ -57,20 +88,31 @@ foreach ($target in $targets) {
             }
         }
 
-        # Update / create Start scripts
+        # 9. Update / create Start scripts
         $batContent = "@echo off`r`ntitle GASC Sports Admin Portal`r`ncd /d `"%~dp0`"`r`ntaskkill /F /IM `"GASC Sports Admin.exe`" >nul 2>&1`r`necho Starting GASC Sports Admin...`r`nstart `"`" `"GASC Sports Admin.exe`"`r`n"
         Set-Content -Path (Join-Path $target "Start GASC Sports Admin.bat") -Value $batContent -Force
         Set-Content -Path (Join-Path $target "Start App.bat") -Value $batContent -Force
 
-        # Verify admin.js syntax
+        # 10. Verify admin.js and server.js syntax
         $adminJsPath = Join-Path $appDir "client\public\js\admin.js"
         if (Test-Path $adminJsPath) {
             $syntaxCheck = & node -c $adminJsPath 2>&1
             if ($LASTEXITCODE -eq 0) {
-                Write-Host "  [OK] Syntax check passed for: $adminJsPath" -ForegroundColor Green
+                Write-Host "  [OK] Syntax check passed for: admin.js" -ForegroundColor Green
             } else {
                 Write-Host "  [ERROR] Syntax check failed for: $adminJsPath" -ForegroundColor Red
                 Write-Host $syntaxCheck
+            }
+        }
+
+        $serverJsPath = Join-Path $appDir "server\server.js"
+        if (Test-Path $serverJsPath) {
+            $syntaxCheck2 = & node -c $serverJsPath 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "  [OK] Syntax check passed for: server.js" -ForegroundColor Green
+            } else {
+                Write-Host "  [ERROR] Syntax check failed for: $serverJsPath" -ForegroundColor Red
+                Write-Host $syntaxCheck2
             }
         }
     } else {
