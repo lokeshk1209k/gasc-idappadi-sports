@@ -1,102 +1,17 @@
 {
-  "buildCommand": "node scripts/prepare-dist.js",
+  "version": 2,
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    {
-      "source": "/api/open-registration/tournaments",
-      "destination": "/api/inter-college/tournaments"
-    },
-    {
-      "source": "/api/open-registration/tournament/:token",
-      "destination": "/api/inter-college/tournament?token=:token"
-    },
-    {
-      "source": "/api/open-registration/tournament",
-      "destination": "/api/inter-college/tournament"
-    },
-    {
-      "source": "/api/open-registration/competition/:token",
-      "destination": "/api/inter-college/competition?token=:token"
-    },
-    {
-      "source": "/api/open-registration/qr/:token",
-      "destination": "/api/inter-college/qr?token=:token"
-    },
-    {
-      "source": "/api/open-registration/receipt/:id",
-      "destination": "/api/inter-college/receipt?id=:id"
-    },
-    {
-      "source": "/api/open-registration/:action",
-      "destination": "/api/inter-college/:action"
-    },
-    {
-      "source": "/api/inter-college/tournaments",
-      "destination": "/api/inter-college/tournaments"
-    },
-    {
-      "source": "/api/inter-college/tournament/:token",
-      "destination": "/api/inter-college/tournament?token=:token"
-    },
-    {
-      "source": "/api/inter-college/competition/:token",
-      "destination": "/api/inter-college/competition?token=:token"
-    },
-    {
-      "source": "/api/inter-college/qr/:token",
-      "destination": "/api/inter-college/qr?token=:token"
-    },
-    {
-      "source": "/api/inter-college/receipt/:id",
-      "destination": "/api/inter-college/receipt?id=:id"
-    },
-    {
-      "source": "/api/inter-college/:action",
-      "destination": "/api/inter-college/:action"
-    },
-    {
-      "source": "/api/auth/verify-student/:regNo",
-      "destination": "/api/auth/verify-student?regNo=:regNo"
-    },
-    {
-      "source": "/api/auth/student-login",
-      "destination": "/api/auth/login"
-    },
-    {
-      "source": "/api/equipment/lookup-student/:regNo",
-      "destination": "/api/equipment?action=lookup-student&regNo=:regNo"
-    },
-    {
-      "source": "/api/equipment/lookup-student",
-      "destination": "/api/equipment?action=lookup-student"
-    },
-    {
-      "source": "/api/equipment/issue",
-      "destination": "/api/equipment?action=issue"
-    },
-    {
-      "source": "/api/equipment/return",
-      "destination": "/api/equipment?action=return"
-    },
-    {
-      "source": "/api/equipment/transactions",
-      "destination": "/api/equipment?action=transactions"
-    },
-    {
-      "source": "/api/equipment/my-equipment",
-      "destination": "/api/equipment?action=my-equipment"
-    },
-    {
-      "source": "/api/gallery",
-      "destination": "/api/gallery"
-    },
-    {
-      "source": "/api/gallery/:id",
-      "destination": "/api/gallery?id=:id"
-    },
-    {
-      "source": "/:match*",
-      "destination": "/index.html"
-    }
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/api", "destination": "/api" },
+    { "source": "/admin", "destination": "/admin-dashboard.html" },
+    { "source": "/admin/", "destination": "/admin-dashboard.html" },
+    { "source": "/admin/dashboard", "destination": "/admin-dashboard.html" },
+    { "source": "/admin/login", "destination": "/admin-login.html" },
+    { "source": "/admin/(.*)", "destination": "/api" },
+    { "source": "/uploads/(.*)", "destination": "/api" },
+    { "source": "/student/(.*)", "destination": "/index.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

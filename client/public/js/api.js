@@ -55,15 +55,6 @@ async function apiRequest(endpoint, method = 'GET', body = null, isFormData = fa
   const token = localStorage.getItem('gasc_token');
   const headers = {};
 
-  const isAdmin = (typeof window !== 'undefined') && (
-    window.location.pathname.includes('admin') ||
-    window.location.href.includes('admin') ||
-    (endpoint && endpoint.includes('tournament'))
-  );
-  if (isAdmin) {
-    headers['X-Portal-Type'] = 'admin';
-  }
-
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -81,21 +72,9 @@ async function apiRequest(endpoint, method = 'GET', body = null, isFormData = fa
 
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, options);
-    const contentType = response.headers.get('content-type') || '';
-    let data = null;
+    const data = await response.json();
 
-    if (contentType.includes('application/json')) {
-      data = await response.json();
-    } else {
-      const text = await response.text();
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        data = { success: false, message: `Server returned non-JSON response (${response.status})`, isHtml: true };
-      }
-    }
-
-    if (!response.ok || data.isHtml) {
+    if (!response.ok) {
       if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/admin-login')) {
         // Token expired or invalid
         localStorage.removeItem('gasc_token');
@@ -114,7 +93,7 @@ async function apiRequest(endpoint, method = 'GET', body = null, isFormData = fa
 
     return data;
   } catch (error) {
-    console.warn(`API Notice [${endpoint}]:`, error.message || error);
+    console.error(`API Error [${endpoint}]:`, error);
     throw error;
   }
 }

@@ -11,10 +11,6 @@ import ProfilePage from './pages/ProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
 import EquipmentPage from './pages/EquipmentPage';
-import InterCollegeLandingPage from './pages/InterCollegeLandingPage';
-import InterCollegeRegisterPage from './pages/InterCollegeRegisterPage';
-import InterCollegeSuccessPage from './pages/InterCollegeSuccessPage';
-import OpenRegistrationPage from './pages/OpenRegistrationPage';
 
 // Root redirection helper: if authenticated go to dashboard, otherwise always go to login
 const RootRedirect = () => {
@@ -32,44 +28,41 @@ function App() {
     <ThemeProvider>
       <Router>
         <Routes>
-          {/* Public Tournament Open Registration Routes (No Login, No Account Created) */}
-          <Route path="/open-registration" element={<OpenRegistrationPage />} />
-          <Route path="/open-registration/:tournamentToken" element={<OpenRegistrationPage />} />
-
-          {/* Legacy & direct competition QR routes for backwards compatibility */}
-          <Route path="/inter-college" element={<Navigate to="/open-registration" replace />} />
-          <Route path="/inter-college/register/:competitionToken" element={<OpenRegistrationPage />} />
-          <Route path="/inter-college/success/:registrationId" element={<InterCollegeSuccessPage />} />
+          {/* Legacy & external registration routes redirected back to student portal */}
+          <Route path="/open-registration" element={<Navigate to="/student/tournaments" replace />} />
+          <Route path="/open-registration/*" element={<Navigate to="/student/tournaments" replace />} />
+          <Route path="/inter-college" element={<Navigate to="/student/tournaments" replace />} />
+          <Route path="/inter-college/*" element={<Navigate to="/student/tournaments" replace />} />
 
           <Route path="/" element={<MainLayout />}>
-          {/* Default: redirect to login if not logged in */}
-          <Route index element={<RootRedirect />} />
+            {/* Default: redirect to login if not logged in */}
+            <Route index element={<RootRedirect />} />
 
-          {/* Auth */}
-          <Route path="student/login" element={<LoginPage />} />
-          <Route path="student/register" element={<RegisterPage />} />
+            {/* Auth */}
+            <Route path="student/login" element={<LoginPage />} />
+            <Route path="student/register" element={<RegisterPage />} />
 
-          {/* Portal Routes */}
-          <Route path="student/dashboard" element={<DashboardPage />} />
-          <Route path="student/profile" element={<ProfilePage />} />
-          <Route path="student/sports" element={<SportsPage />} />
-          <Route path="student/equipment" element={<EquipmentPage />} />
-          <Route path="student/my-equipment" element={<EquipmentPage />} />
-          <Route path="student/tournaments" element={<CompetitionsPage />} />
-          <Route path="student/competitions" element={<CompetitionsPage />} />
-          <Route path="student/journey" element={<Navigate to="/student/dashboard" replace />} />
-          <Route path="student/achievements" element={<Navigate to="/student/dashboard" replace />} />
-          <Route path="student/certificates" element={<Navigate to="/student/dashboard" replace />} />
-          <Route path="student/gallery" element={<GalleryPage />} />
-          <Route path="student/news" element={<Navigate to="/student/gallery" replace />} />
-          <Route path="student/notifications" element={<NotificationsPage />} />
-          <Route path="student/settings" element={<SettingsPage />} />
-          <Route path="student/my-registrations" element={<CompetitionsPage />} />
+            {/* Portal Routes */}
+            <Route path="student/dashboard" element={<DashboardPage />} />
+            <Route path="student/profile" element={<ProfilePage />} />
+            <Route path="student/sports" element={<SportsPage />} />
+            <Route path="student/equipment" element={<EquipmentPage />} />
+            <Route path="student/my-equipment" element={<EquipmentPage />} />
+            <Route path="student/tournaments" element={<CompetitionsPage />} />
+            <Route path="student/competitions" element={<CompetitionsPage />} />
+            <Route path="student/journey" element={<Navigate to="/student/dashboard" replace />} />
+            <Route path="student/achievements" element={<Navigate to="/student/dashboard" replace />} />
+            <Route path="student/certificates" element={<Navigate to="/student/dashboard" replace />} />
+            <Route path="student/gallery" element={<GalleryPage />} />
+            <Route path="student/news" element={<Navigate to="/student/gallery" replace />} />
+            <Route path="student/notifications" element={<NotificationsPage />} />
+            <Route path="student/settings" element={<SettingsPage />} />
+            <Route path="student/my-registrations" element={<CompetitionsPage />} />
 
-          {/* Fallback for unknown routes */}
-          <Route path="*" element={<Navigate to="/open-registration" replace />} />
-        </Route>
-      </Routes>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/student/dashboard" replace />} />
+          </Route>
+        </Routes>
       </Router>
     </ThemeProvider>
   );

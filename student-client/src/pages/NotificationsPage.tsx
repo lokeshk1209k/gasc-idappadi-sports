@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Bell, CheckCircle, Trophy, ScrollText, Megaphone, Clock, X } from 'lucide-react';
 
 const ALL_NOTIFS = [
-  { id: 1, icon: Trophy, title: 'Cricket Championship Registration Open', body: 'The Inter-College Cricket Championship 2026 registration is now open. Register before Oct 10.', time: '2 hours ago', type: 'blue', unread: true },
+  { id: 1, icon: Trophy, title: 'Cricket Championship Registration Open', body: 'The Annual College Cricket Championship 2026 registration is now open. Register before Oct 10.', time: '2 hours ago', type: 'blue', unread: true },
   { id: 2, icon: CheckCircle, title: 'Badminton Registration Approved', body: 'Your registration for the GASC Badminton Tournament has been approved by the Sports Department.', time: '1 day ago', type: 'green', unread: true },
   { id: 3, icon: ScrollText, title: 'New Certificate Available', body: 'Your participation certificate for Athletics Meet 2026 is now available for download.', time: '2 days ago', type: 'orange', unread: true },
   { id: 4, icon: Megaphone, title: 'Match Schedule Updated', body: 'The Football League match schedule has been updated. Check the tournaments page for details.', time: '3 days ago', type: 'purple', unread: false },

@@ -226,7 +226,7 @@ const DashboardPage = () => {
           expectedReturnDate: '2026-10-12',
           issuedBy: 'Physical Director (GASC)',
           status: 'Issued',
-          purpose: 'Inter-College Cup Practice'
+          purpose: 'Annual Sports Fest Practice'
         },
         {
           id: 'eq_2',

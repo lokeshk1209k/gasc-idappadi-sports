@@ -13,18 +13,6 @@ const { createClient } = require('@supabase/supabase-js');
   dotenv.config({ path: envPath });
 });
 
-// Silence @supabase/supabase-js native WebSocket warning in Node.js / Electron
-if (typeof global.WebSocket === 'undefined') {
-  class DummyWebSocket {
-    constructor() { this.readyState = 3; }
-    addEventListener() {}
-    removeEventListener() {}
-    send() {}
-    close() {}
-  }
-  global.WebSocket = DummyWebSocket;
-}
-
 const DEFAULT_URL = 'https://yemypfgunokxfufnqvdh.supabase.co';
 const DEFAULT_KEY = Buffer.from('c2Jfc2VjcmV0X2V1RTFhYnhRSGdKaFN4RDA4RnNHZ2dfeC1vUUZRcGk=', 'base64').toString();
 
@@ -50,7 +38,7 @@ function initSupabaseClient() {
           autoRefreshToken: false
         },
         realtime: {
-          transport: global.WebSocket
+          transport: (typeof WebSocket !== 'undefined' ? WebSocket : class DummyWS {})
         }
       });
       console.log('⚡ Supabase Client initialized successfully!');

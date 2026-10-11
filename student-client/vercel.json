@@ -1,16 +1,5 @@
 {
   "rewrites": [
-    {
-      "source": "/api/auth/verify-student/:regNo",
-      "destination": "/api/auth/verify-student?regNo=:regNo"
-    },
-    {
-      "source": "/api/auth/student-login",
-      "destination": "/api/auth/login"
-    },
-    {
-      "source": "/:match*",
-      "destination": "/index.html"
-    }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

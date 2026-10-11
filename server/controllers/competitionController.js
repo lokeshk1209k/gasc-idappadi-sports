@@ -9,7 +9,7 @@ exports.getAllCompetitions = async (req, res) => {
   try {
     const { status, type, level, sportId } = req.query;
 
-    let query = supabase.from('competitions').select('*');
+    let query = supabase.from('competitions').select('*, sports(id, name, icon)');
 
     if (status && status !== 'All') query = query.eq('status', status);
     if (type && type !== 'All') query = query.eq('type', type);
@@ -28,61 +28,18 @@ exports.getAllCompetitions = async (req, res) => {
       const item = toCamelCase(c);
       if (c.sports) item.sportId = toCamelCase(c.sports);
 
-      // Guarantee dual property compatibility
-      item.tournamentName = item.tournamentName || c.tournament_name || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'Collegiate Tournament';
-      item.tournament_name = item.tournamentName;
-
-      item.sportName = item.sportName || c.sport_name || (c.sports && c.sports.name) || c.name || 'General';
-      item.sport_name = item.sportName;
-
-      const sportNameStr = item.sportName || '';
+      const sportNameStr = c.sport_name || (c.sports && c.sports.name) || c.name || '';
       const slug = sportNameStr.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
       if (!item.bannerImage || item.bannerImage.includes('unsplash') || item.bannerImage.includes('default') || item.bannerImage === 'null' || item.bannerImage === 'undefined' || item.bannerImage.startsWith('/images/sports/')) {
         item.bannerImage = '/images/sports/tournament.png';
       }
-
-      if (c.rules && typeof c.rules === 'string' && c.rules.includes('interCollegeConfig')) {
-        try {
-          const parsed = JSON.parse(c.rules);
-          if (parsed.interCollegeConfig) {
-            Object.assign(item, parsed.interCollegeConfig);
-          }
-        } catch(e) {}
-      }
-      item.participationType = item.participationType || c.participation_type || (item.type === 'Inter-College' ? 'INTER_COLLEGE' : 'INTERNAL');
-      item.competitionMode = item.competitionMode || c.competition_mode || (item.type === 'Team' ? 'TEAM' : 'INDIVIDUAL');
-      item.registrationToken = item.registrationToken || c.registration_token || null;
-
       return item;
-    });
-
-    const storeInstance = require('../data/localStore').storeInstance;
-    let tournaments = storeInstance.getTable('tournaments') || [];
-
-    // Ensure all tournament names from competitions exist in tournaments list
-    competitions.forEach(c => {
-      const tName = (c.tournamentName || c.tournament_name || '').trim();
-      if (tName && !tournaments.some(t => (t.name || t.tournament_name || '').toLowerCase() === tName.toLowerCase())) {
-        tournaments.push({
-          id: `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
-          name: tName,
-          tournament_name: tName,
-          venue: c.venue || 'GASC Idappadi Sports Ground',
-          type: c.type || 'Inter-Department',
-          date: c.date,
-          registration_end: c.registrationEnd,
-          banner_image: c.bannerImage || '/images/sports/tournament.png',
-          status: c.status || 'Registration Open',
-          description: c.description || `Official ${tName} Tournament.`
-        });
-      }
     });
 
     res.json({
       success: true,
       count: competitions.length,
-      competitions,
-      tournaments
+      competitions
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -98,7 +55,7 @@ exports.getCompetitionById = async (req, res) => {
 
     const { data: compRaw, error: compErr } = await supabase
       .from('competitions')
-      .select('*')
+      .select('*, sports(id, name, icon)')
       .eq('id', id)
       .single();
 
@@ -107,22 +64,17 @@ exports.getCompetitionById = async (req, res) => {
     }
 
     const competition = toCamelCase(compRaw);
+    if (compRaw.sports) competition.sportId = toCamelCase(compRaw.sports);
 
     const { data: regsRaw } = await supabase
       .from('competition_registrations')
-      .select('*')
+      .select('*, users(id, name, register_number, department, year, mobile, profile_photo)')
       .eq('competition_id', id)
       .order('registration_date', { ascending: false });
 
     const registrations = (regsRaw || []).map(r => {
       const item = toCamelCase(r);
-      item.studentId = toCamelCase(r.users || {
-        id: r.student_id,
-        name: r.student_name || 'Student Athlete',
-        registerNumber: r.register_number || 'N/A',
-        department: r.department || 'General',
-        gender: r.gender || 'Male'
-      });
+      if (r.users) item.studentId = toCamelCase(r.users);
       return item;
     });
 
@@ -158,38 +110,18 @@ exports.createCompetition = async (req, res) => {
       description
     } = req.body;
 
-    if (!name || !date) {
-      return res.status(400).json({ success: false, message: 'Please provide Tournament Title and Date.' });
+    if (!name || !sportId || !date || !registrationEnd) {
+      return res.status(400).json({ success: false, message: 'Please provide all required fields.' });
     }
 
-    let sport = null;
-    if (sportId) {
-      try {
-        const { data } = await supabase
-          .from('sports')
-          .select('*')
-          .eq('id', sportId)
-          .single();
-        sport = data;
-      } catch (e) {}
-
-      if (!sport) {
-        try {
-          const { data } = await supabase
-            .from('sports')
-            .select('*')
-            .ilike('name', `%${sportId}%`)
-            .single();
-          sport = data;
-        } catch (e) {}
-      }
-    }
+    const { data: sport } = await supabase
+      .from('sports')
+      .select('*')
+      .eq('id', sportId)
+      .single();
 
     if (!sport) {
-      sport = {
-        id: sportId || `sport_${Date.now()}`,
-        name: req.body.sportName || req.body.name || 'General Sports'
-      };
+      return res.status(400).json({ success: false, message: 'Invalid sport ID.' });
     }
 
     let bannerImage = '';
@@ -203,44 +135,14 @@ exports.createCompetition = async (req, res) => {
       bannerImage = `/images/sports/tournament.png`;
     }
 
-    const tName = (req.body.tournamentName || req.body.tournament_name || name.split('-')[0].trim()).trim();
-    const tId = req.body.tournamentId || req.body.tournament_id || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-
-    // 1. Ensure parent tournament container exists in Supabase FIRST
-    try {
-      await supabase.from('tournaments').upsert({
-        id: tId,
-        name: tName,
-        tournament_name: tName,
-        description: req.body.tournamentDescription || req.body.description || `Official ${tName} Tournament conducted by GASC Idappadi.`,
-        venue: venue || 'GASC Idappadi Sports Ground',
-        start_date: new Date(date).toISOString(),
-        end_date: registrationEnd ? new Date(registrationEnd).toISOString() : new Date().toISOString(),
-        type: type || 'Inter-Department',
-        status: req.body.status || 'Registration Open',
-        banner_image: bannerImage,
-        banner_url: bannerImage,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
-    } catch (supaTournErr) {
-      console.warn('Supabase tournaments pre-upsert notice:', supaTournErr.message);
-    }
-
-    const compId = req.body.id || `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-
-    const crypto = require('crypto');
-    const isInterCollege = (req.body.participationType === 'INTER_COLLEGE' || req.body.participation_type === 'INTER_COLLEGE' || type === 'Inter-College');
-    const registrationToken = isInterCollege ? (req.body.registrationToken || req.body.registration_token || crypto.randomBytes(16).toString('hex')) : null;
-    const compMode = (req.body.competitionMode || req.body.competition_mode || req.body.sportType || 'INDIVIDUAL').toUpperCase();
+    const tName = req.body.tournamentName || req.body.tournament_name || name.split('-')[0].trim();
 
     const newComp = {
-      id: compId,
       name: name.trim(),
-      tournament_id: tId,
       tournament_name: tName,
       sport_id: sport.id,
       sport_name: sport.name,
-      type: type || (isInterCollege ? 'Inter-College' : 'Inter-Department'),
+      type: type || 'Inter-College',
       level: level || 'College',
       venue: venue || 'GASC Idappadi Sports Ground',
       date: new Date(date).toISOString(),
@@ -252,93 +154,21 @@ exports.createCompetition = async (req, res) => {
       eligibility: eligibility || 'All enrolled UG and PG students',
       max_participants: maxParticipants ? Number(maxParticipants) : 50,
       description: description || '',
-      rules: req.body.rules || '',
       banner_image: bannerImage,
-      status: req.body.status || 'Registration Open'
+      status: 'Registration Open'
     };
 
-    // Include Inter-College fields if applicable
-    if (isInterCollege) {
-      newComp.participation_type = 'INTER_COLLEGE';
-      newComp.competition_mode = compMode;
-      newComp.external_registration_enabled = true;
-      newComp.registration_token = registrationToken;
-      if (req.body.maxColleges) newComp.max_colleges = Number(req.body.maxColleges);
-      if (req.body.maxTeams) newComp.max_teams = Number(req.body.maxTeams);
-      if (req.body.requiredPlayers) newComp.required_players = Number(req.body.requiredPlayers);
-      if (req.body.substitutes !== undefined) newComp.substitutes = Number(req.body.substitutes);
-      if (req.body.contactPerson) newComp.contact_person = req.body.contactPerson.trim();
-      if (req.body.contactPhone) newComp.contact_phone = req.body.contactPhone.trim();
-      if (req.body.contactEmail) newComp.contact_email = req.body.contactEmail.trim();
-    } else {
-      newComp.participation_type = 'INTERNAL';
-      newComp.competition_mode = compMode;
+    const { data: createdRaw, error } = await supabase
+      .from('competitions')
+      .insert(newComp)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ success: false, message: error.message });
     }
 
-    let createdRaw = null;
-    let supaError = null;
-    try {
-      const { data, error } = await supabase
-        .from('competitions')
-        .insert(newComp)
-        .select()
-        .single();
-      if (error) supaError = error;
-      else createdRaw = data;
-    } catch (e) {
-      supaError = e;
-    }
-
-    // Defensive fallback: If Supabase returns schema cache error for new columns,
-    // insert base columns only and pack extended config into rules JSON string
-    if (supaError && supaError.message && (supaError.message.includes('schema cache') || supaError.message.includes('column'))) {
-      try {
-        const baseComp = {
-          id: newComp.id,
-          name: newComp.name,
-          tournament_id: newComp.tournament_id,
-          tournament_name: newComp.tournament_name,
-          sport_id: newComp.sport_id,
-          sport_name: newComp.sport_name,
-          type: newComp.type,
-          level: newComp.level,
-          venue: newComp.venue,
-          date: newComp.date,
-          start_time: newComp.start_time,
-          end_time: newComp.end_time,
-          registration_start: newComp.registration_start,
-          registration_end: newComp.registration_end,
-          organizer: newComp.organizer,
-          eligibility: newComp.eligibility,
-          max_participants: newComp.max_participants,
-          description: newComp.description,
-          rules: JSON.stringify({
-            textRules: req.body.rules || '',
-            interCollegeConfig: {
-              participationType: newComp.participation_type,
-              competitionMode: newComp.competition_mode,
-              registrationToken: newComp.registration_token,
-              requiredPlayers: newComp.required_players,
-              substitutes: newComp.substitutes,
-              maxColleges: newComp.max_colleges,
-              maxTeams: newComp.max_teams,
-              contactPerson: newComp.contact_person,
-              contactPhone: newComp.contact_phone,
-              contactEmail: newComp.contact_email
-            }
-          }),
-          banner_image: newComp.banner_image,
-          status: newComp.status
-        };
-        const { data } = await supabase.from('competitions').insert(baseComp).select().single();
-        if (data) createdRaw = { ...data, ...newComp };
-      } catch (retryErr) {}
-    }
-
-    const competition = toCamelCase(createdRaw || newComp);
-    competition.registrationToken = registrationToken;
-    competition.participationType = newComp.participation_type;
-    competition.competitionMode = newComp.competition_mode;
+    const competition = toCamelCase(createdRaw);
 
     // Sync to localStore for 100% persistent cross-environment availability
     try {
@@ -352,53 +182,7 @@ exports.createCompetition = async (req, res) => {
       } else {
         table.unshift(compRecord);
       }
-      // Also register parent tournament container
-      const tournTable = storeInstance.getTable('tournaments');
-      const existingTournIdx = tournTable.findIndex(t => (t.name || t.tournament_name || '').toLowerCase() === tName.toLowerCase());
-      const tournRecord = {
-        id: existingTournIdx >= 0 ? tournTable[existingTournIdx].id : `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
-        name: tName,
-        tournament_name: tName,
-        description: req.body.tournamentDescription || req.body.description || `Official ${tName} Tournament conducted by GASC Idappadi.`,
-        venue: venue || 'GASC Idappadi Sports Ground',
-        date: new Date(date).toISOString(),
-        start_date: new Date(date).toISOString(),
-        registration_end: new Date(registrationEnd).toISOString(),
-        end_date: new Date(registrationEnd).toISOString(),
-        type: type || 'Inter-Department',
-        status: req.body.status || 'Registration Open',
-        banner_image: bannerImage,
-        banner_url: bannerImage,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      if (existingTournIdx >= 0) {
-        tournTable[existingTournIdx] = { ...tournTable[existingTournIdx], ...tournRecord };
-      } else {
-        tournTable.unshift(tournRecord);
-      }
-
       storeInstance.save();
-
-      // Upsert directly into Supabase tournaments table
-      try {
-        await supabase.from('tournaments').upsert({
-          id: tournRecord.id,
-          name: tournRecord.name,
-          tournament_name: tournRecord.tournament_name,
-          description: tournRecord.description,
-          venue: tournRecord.venue,
-          start_date: tournRecord.start_date,
-          end_date: tournRecord.end_date,
-          type: tournRecord.type,
-          status: tournRecord.status,
-          banner_image: tournRecord.banner_image,
-          banner_url: tournRecord.banner_url,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
-      } catch (supaTournErr) {
-        console.warn('Supabase tournaments upsert notice:', supaTournErr.message);
-      }
     } catch (e) {
       console.warn('localStore sync notice on createCompetition:', e.message);
     }
@@ -484,27 +268,6 @@ exports.updateCompetition = async (req, res) => {
   }
 };
 
-function syncStaticCompetitions(comps) {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const payload = JSON.stringify({ success: true, count: comps.length, competitions: comps }, null, 2);
-    const targets = [
-      path.join(__dirname, '../../dist/competitions.json'),
-      path.join(__dirname, '../../dist/api/competitions'),
-      path.join(__dirname, '../../dist/api/competitions.json'),
-      path.join(__dirname, '../../student-client/dist/competitions.json'),
-      path.join(__dirname, '../../student-client/dist/api/competitions'),
-      path.join(__dirname, '../../student-client/dist/api/competitions.json')
-    ];
-    for (const t of targets) {
-      if (fs.existsSync(path.dirname(t))) {
-        try { fs.writeFileSync(t, payload, 'utf8'); } catch (e) {}
-      }
-    }
-  } catch (err) {}
-}
-
 // @desc    Delete competition
 // @route   DELETE /api/competitions/:id
 // @access  Private/Admin
@@ -516,71 +279,29 @@ exports.deleteCompetition = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid competition ID provided.' });
     }
 
-    const cleanId = String(id).trim();
+    // Delete associated registrations first
+    await supabase.from('competition_registrations').delete().eq('competition_id', id);
 
-    // 1. Delete associated registrations first in Supabase if online
-    try {
-      await supabase.from('competition_registrations').delete().eq('competition_id', cleanId);
-      await supabase.from('competitions').delete().eq('id', cleanId);
-    } catch(e) {}
+    // Delete in Supabase
+    await supabase.from('competitions').delete().eq('id', id);
 
-    // 2. Ensure deletion is saved in LocalStore immediately
+    // Ensure deletion is saved in LocalStore immediately
     const localStore = require('../data/localStore');
     const table = localStore.storeInstance.getTable('competitions');
-    const targetComp = table.find(c => String(c.id) === cleanId || String(c._id) === cleanId);
-    const remaining = table.filter(c => String(c.id) !== cleanId && String(c._id) !== cleanId);
+    const initialLen = table.length;
+    const remaining = table.filter(c => String(c.id) !== String(id) && String(c._id) !== String(id));
     localStore.storeInstance.db['competitions'] = remaining;
-
-    // Purge related registrations from localStore
-    const regTable = localStore.storeInstance.getTable('competition_registrations') || [];
-    localStore.storeInstance.db['competition_registrations'] = regTable.filter(r => String(r.competition_id) !== cleanId);
-
-    // CRITICAL: Preserve parent tournament container in tournaments table so deleting a sport NEVER deletes the tournament!
-    if (targetComp) {
-      const tName = (targetComp.tournament_name || targetComp.tournamentName || '').trim();
-      if (tName) {
-        const tournTable = localStore.storeInstance.getTable('tournaments');
-        const exists = tournTable.some(t => (t.name || t.tournament_name || '').toLowerCase() === tName.toLowerCase());
-        if (!exists) {
-          tournTable.push({
-            id: `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
-            name: tName,
-            tournament_name: tName,
-            description: targetComp.description || `Official ${tName} Tournament.`,
-            venue: targetComp.venue || 'GASC Idappadi Sports Ground',
-            date: targetComp.date || new Date().toISOString(),
-            registration_end: targetComp.registration_end || targetComp.date || new Date().toISOString(),
-            type: targetComp.type || 'Inter-Department',
-            status: targetComp.status || 'Registration Open',
-            banner_image: targetComp.banner_image || '/images/sports/tournament.png',
-            created_at: targetComp.created_at || new Date().toISOString()
-          });
-        }
-      }
-    }
     localStore.storeInstance.save();
-
-    // Sync static files
-    syncStaticCompetitions(remaining);
-
-    // 3. Delete in local SQLite database
-    try {
-      const localDB = require('../database/localDB');
-      localDB.run('DELETE FROM competitions WHERE id = ?', [cleanId]);
-      try { localDB.run('DELETE FROM registrations WHERE competition_id = ?', [cleanId]); } catch(e) {}
-      localDB.saveDB();
-    } catch (e) {}
 
     // Invalidate cache immediately
     try { invalidateCache('/api/competitions'); } catch (e) {}
 
     res.json({
       success: true,
-      message: 'Competition sport deleted successfully.',
-      deletedId: cleanId
+      message: 'Competition deleted successfully.',
+      deletedId: id
     });
   } catch (error) {
-    console.error('deleteCompetition error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -595,66 +316,31 @@ exports.deleteTournament = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Tournament name is required' });
     }
 
-    const tLower = tournamentName.trim().toLowerCase();
     const localStore = require('../data/localStore');
     const table = localStore.storeInstance.getTable('competitions');
     const deletedIds = [];
     const remaining = table.filter(c => {
-      const cTName = (c.tournament_name || c.tournamentName || '').trim().toLowerCase();
-      const cName = (c.name || '').trim().toLowerCase();
-      const cPrefix = cName.includes('-') ? cName.split('-')[0].trim().toLowerCase() : cName;
-      const cId = String(c.id || c._id || '').toLowerCase();
-
-      const match = (cTName && (cTName === tLower || cTName.includes(tLower) || tLower.includes(cTName))) ||
-                    (cName && (cName === tLower || cName.includes(tLower) || tLower.includes(cName))) ||
-                    (cPrefix && (cPrefix === tLower || cPrefix.includes(tLower) || tLower.includes(cPrefix))) ||
-                    (cId === tLower);
-
+      const tName = c.tournament_name || c.tournamentName || (c.name || '').split('-')[0].trim();
+      const match = tName.toLowerCase() === tournamentName.toLowerCase() ||
+                    tName.toLowerCase().includes(tournamentName.toLowerCase()) ||
+                    tournamentName.toLowerCase().includes(tName.toLowerCase());
       if (match) {
-        deletedIds.push(String(c.id));
+        deletedIds.push(c.id);
         return false;
       }
       return true;
     });
 
     localStore.storeInstance.db['competitions'] = remaining;
-
-    // Delete tournament from tournaments table
-    const tournTable = localStore.storeInstance.getTable('tournaments');
-    localStore.storeInstance.db['tournaments'] = tournTable.filter(t => {
-      const n = (t.name || t.tournament_name || '').toLowerCase();
-      return n !== tLower && !n.includes(tLower) && !tLower.includes(n);
-    });
-
-    // Delete registrations from localStore
-    const regTable = localStore.storeInstance.getTable('competition_registrations') || [];
-    localStore.storeInstance.db['competition_registrations'] = regTable.filter(r => !deletedIds.includes(String(r.competition_id)));
     localStore.storeInstance.save();
 
-    // Sync static files
-    syncStaticCompetitions(remaining);
+    // Delete registrations
+    for (const dId of deletedIds) {
+      await supabase.from('competition_registrations').delete().eq('competition_id', dId);
+    }
 
-    // Delete in local SQLite database
-    try {
-      const localDB = require('../database/localDB');
-      try { localDB.run('DELETE FROM tournaments WHERE LOWER(name) LIKE ?', [`%${tLower}%`]); } catch(e) {}
-      try { localDB.run('DELETE FROM competitions WHERE LOWER(name) LIKE ?', [`%${tLower}%`]); } catch(e) {}
-      for (const dId of deletedIds) {
-        try { localDB.run('DELETE FROM competitions WHERE id = ?', [dId]); } catch(e) {}
-        try { localDB.run('DELETE FROM registrations WHERE competition_id = ?', [dId]); } catch(e) {}
-      }
-      localDB.saveDB();
-    } catch(e) {}
-
-    // Delete registrations, competitions & tournaments in Supabase if online
-    try {
-      for (const dId of deletedIds) {
-        await supabase.from('competition_registrations').delete().eq('competition_id', dId);
-      }
-      await supabase.from('competitions').delete().ilike('tournament_name', `%${tournamentName}%`);
-      await supabase.from('competitions').delete().eq('tournament_id', `tour_${tLower.replace(/[^a-z0-9]/g, '_')}`);
-      await supabase.from('tournaments').delete().or(`name.ilike.%${tournamentName}%,tournament_name.ilike.%${tournamentName}%,id.eq.tour_${tLower.replace(/[^a-z0-9]/g, '_')}`);
-    } catch(e) {}
+    // Delete in Supabase
+    await supabase.from('competitions').delete().ilike('tournament_name', `%${tournamentName}%`);
 
     // Invalidate cache immediately
     try { invalidateCache('/api/competitions'); } catch (e) {}
@@ -665,7 +351,6 @@ exports.deleteTournament = async (req, res) => {
       deletedCount: deletedIds.length
     });
   } catch (error) {
-    console.error('deleteTournament error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -920,7 +605,7 @@ exports.getAllRegistrations = async (req, res) => {
   try {
     const { status, competitionId } = req.query;
 
-    let query = supabase.from('competition_registrations').select('*');
+    let query = supabase.from('competition_registrations').select('*, users(id, name, register_number, department, year, mobile, email, profile_photo), competitions(id, name, sport_name, date, venue)');
 
     if (status && status !== 'All') {
       if (status === 'Pending') {
@@ -953,19 +638,14 @@ exports.getAllRegistrations = async (req, res) => {
       };
       item.studentId = toCamelCase(studentObj);
 
-      const rawTourn = (r.tournament_id || '').replace(/^tour_/, '').replace(/_/g, ' ');
-      const cleanTourn = rawTourn ? rawTourn.charAt(0).toUpperCase() + rawTourn.slice(1) : '';
-      const compDisplayName = r.competition_name || (cleanTourn ? `${cleanTourn} - ${r.sport_name || 'Event'}` : `${r.sport_name || 'Sport'} Competition`);
-
       const compObj = r.competitions || {
         id: r.competition_id,
-        name: compDisplayName,
+        name: r.competition_name || `${r.sport_name || 'Sport'} Competition`,
         sportName: r.sport_name || 'General',
         date: r.registration_date,
         venue: 'GASC Sports Ground'
       };
       item.competitionId = toCamelCase(compObj);
-      item.tournamentName = cleanTourn || r.competition_name || 'Collegiate Tournament';
       return item;
     });
 
@@ -989,7 +669,7 @@ exports.getMyRegistrations = async (req, res) => {
 
     let query = supabase
       .from('competition_registrations')
-      .select('*');
+      .select('*, competitions(*, sports(name, icon))');
 
     if (registerNo && studentId) {
       query = query.or(`student_id.eq.${studentId},register_number.ilike.%${registerNo}%`);
@@ -1007,12 +687,11 @@ exports.getMyRegistrations = async (req, res) => {
 
     const registrations = (regsRaw || []).map(r => {
       const item = toCamelCase(r);
-      item.competitionId = {
-        id: r.competition_id,
-        name: r.tournament_id || `${r.sport_name || 'Sport'} Competition`,
-        sportName: r.sport_name || 'General',
-        sportId: { name: r.sport_name || 'General' }
-      };
+      if (r.competitions) {
+        const comp = toCamelCase(r.competitions);
+        if (r.competitions.sports) comp.sportId = toCamelCase(r.competitions.sports);
+        item.competitionId = comp;
+      }
       return item;
     });
 
@@ -1040,7 +719,7 @@ exports.updateRegistrationStatus = async (req, res) => {
 
     const { data: regRaw, error: regErr } = await supabase
       .from('competition_registrations')
-      .select('*')
+      .select('*, competitions(*), users(*)')
       .eq('id', id)
       .single();
 
@@ -1053,7 +732,7 @@ exports.updateRegistrationStatus = async (req, res) => {
       .update({
         status,
         admin_remarks: adminRemarks || '',
-        updated_at: new Date().toISOString()
+        reviewed_at: new Date().toISOString()
       })
       .eq('id', id)
       .select()
@@ -1062,17 +741,13 @@ exports.updateRegistrationStatus = async (req, res) => {
     const reg = toCamelCase(updatedRaw);
 
     // Notify student
-    const studentUserId = regRaw.student_id;
-    const competitionTitle = regRaw.sport_name || regRaw.tournament_id || 'Competition';
-    if (studentUserId) {
-      try {
-        await NotificationService.notifyApplicationStatus(
-          studentUserId,
-          competitionTitle,
-          status,
-          adminRemarks
-        );
-      } catch (e) {}
+    if (regRaw.users && regRaw.competitions) {
+      await NotificationService.notifyApplicationStatus(
+        regRaw.users.id,
+        regRaw.competitions.name,
+        status,
+        adminRemarks
+      );
     }
 
     res.json({
@@ -1108,13 +783,6 @@ exports.updateTournamentCover = async (req, res) => {
       .from('competitions')
       .update({ banner_image: bannerImage })
       .ilike('tournament_name', `%${tournamentName}%`);
-
-    try {
-      await supabase
-        .from('tournaments')
-        .update({ banner_image: bannerImage, banner_url: bannerImage, updated_at: new Date().toISOString() })
-        .ilike('name', `%${tournamentName}%`);
-    } catch(e) {}
 
     if (error) {
       return res.status(500).json({ success: false, message: error.message });

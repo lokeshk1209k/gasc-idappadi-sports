@@ -2,33 +2,9 @@
  * Admin / Sports Incharge Portal Management Script
  */
 
-const DEFAULT_SPORTS_FALLBACK = [
-  { id: 'sp_cricket', name: 'Cricket', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_football', name: 'Football', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_volleyball', name: 'Volleyball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_kabaddi', name: 'Kabaddi', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_badminton', name: 'Badminton', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
-  { id: 'sp_athletics', name: 'Athletics (Track & Field)', category: 'Athletics', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_chess', name: 'Chess', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
-  { id: 'sp_kho_kho', name: 'Kho Kho', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_table_tennis', name: 'Table Tennis', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
-  { id: 'sp_basketball', name: 'Basketball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_carrom', name: 'Carrom', category: 'Indoor Games', indoorOutdoor: 'Indoor' },
-  { id: 'sp_handball', name: 'Handball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_throwball', name: 'Throwball', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_tennis', name: 'Tennis', category: 'Outdoor Games', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_running', name: 'Running', category: 'Athletics', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_shot_put', name: 'Shot Put', category: 'Athletics', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_javelin_throw', name: 'Javelin Throw', category: 'Athletics', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_long_jump', name: 'Long Jump', category: 'Athletics', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_high_jump', name: 'High Jump', category: 'Athletics', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_relay', name: 'Relay', category: 'Athletics', indoorOutdoor: 'Outdoor' },
-  { id: 'sp_marathon', name: 'Marathon', category: 'Athletics', indoorOutdoor: 'Outdoor' }
-];
-
 let currentAdminUser = null;
 let selectedAdminPhotoFile = null;
-let allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
+let allSportsCache = [];
 let allEquipmentCache = [];
 let allStudentsCache = [];
 
@@ -44,9 +20,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 500);
     return;
   }
-
-  // Pre-populate dropdowns immediately so modals are ready on instant click
-  populateSelectDropdowns();
 
   // Set initial topbar info from cache
   const nameEl = document.getElementById('admin-display-name');
@@ -93,45 +66,22 @@ async function syncAdminHeaderAndSettings() {
 }
 
 async function loadCaches() {
-  // Ensure dropdowns have default items immediately
-  populateSelectDropdowns();
-
   try {
     const [sportsRes, eqRes, playersRes] = await Promise.all([
-      apiRequest('/sports').catch(async () => {
-        try {
-          const r = await fetch('/sports.json');
-          return await r.json();
-        } catch (e) {
-          return { sports: DEFAULT_SPORTS_FALLBACK };
-        }
-      }),
-      apiRequest('/equipment').catch(() => ({ equipment: [] })),
-      apiRequest('/players?limit=200').catch(() => ({ players: [] }))
+      apiRequest('/sports'),
+      apiRequest('/equipment'),
+      apiRequest('/players?limit=200')
     ]);
-
-    if (sportsRes && sportsRes.sports && sportsRes.sports.length > 0) {
-      allSportsCache = sportsRes.sports;
-    } else {
-      allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
-    }
-    allEquipmentCache = (eqRes && eqRes.equipment) || [];
-    allStudentsCache = (playersRes && playersRes.players) || [];
+    allSportsCache = sportsRes.sports || [];
+    allEquipmentCache = eqRes.equipment || [];
+    allStudentsCache = playersRes.players || [];
     populateSelectDropdowns();
   } catch (err) {
-    console.warn('Notice loading caches (using safe fallback):', err.message || err);
-    if (!allSportsCache || allSportsCache.length === 0) {
-      allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
-    }
-    populateSelectDropdowns();
+    console.error('Error loading caches:', err);
   }
 }
 
 function populateSelectDropdowns() {
-  if (!allSportsCache || allSportsCache.length === 0) {
-    allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
-  }
-
   // Populate Sports dropdowns
   const sportSelects = document.querySelectorAll('.populate-sports-select');
   sportSelects.forEach(sel => {
@@ -208,9 +158,6 @@ function switchAdminView(viewId) {
     return;
   }
   else if (viewId === 'competitions') loadAdminCompetitions();
-  else if (viewId === 'inter-college') {
-    if (window.loadAdminInterCollegeData) window.loadAdminInterCollegeData();
-  }
   else if (viewId === 'applications') loadAdminApplications();
   else if (viewId === 'teams') loadAdminTeams();
   else if (viewId === 'achievements') loadAdminAchievements();
@@ -349,7 +296,7 @@ async function loadAdminPlayers() {
         <td>${idx + 1}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
-            <img src="${p.profilePhoto || '/images/default-avatar.png'}" class="rounded-circle" width="36" height="36" style="object-fit:cover;" onerror="this.onerror=null;this.src='/images/default-avatar.png'">
+            <img src="${p.profilePhoto || 'images/default-avatar.png'}" class="rounded-circle" width="36" height="36" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
             <div>
               <strong class="d-block text-dark">${p.name}</strong>
               <small class="text-muted">${p.registerNumber}</small>
@@ -875,7 +822,7 @@ async function loadActiveIssues() {
           <td>${idx + 1}</td>
           <td>
             <div class="d-flex align-items-center gap-2">
-              <img src="${t.studentId?.profilePhoto || '/images/default-avatar.png'}" class="rounded-circle border" width="34" height="34" style="object-fit:cover;" onerror="this.onerror=null;this.src='/images/default-avatar.png'">
+              <img src="${t.studentId?.profilePhoto || 'images/default-avatar.png'}" class="rounded-circle border" width="34" height="34" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
               <div>
                 <strong class="d-block text-dark">${t.studentName}</strong>
                 <small class="text-muted font-monospace">${t.registerNumber}</small>
@@ -1808,71 +1755,10 @@ function useTournamentBanner() {
 async function loadAdminCompetitions() {
   const container = document.getElementById('admin-competitions-list-container');
   try {
-    let competitions = [];
-    let apiTournaments = [];
-    try {
-      const res = await apiRequest('/competitions');
-      competitions = res.competitions || res.data || [];
-      apiTournaments = res.tournaments || [];
-    } catch (apiErr) {
-      try {
-        const fallbackRes = await fetch('/competitions.json');
-        const fallbackData = await fallbackRes.json();
-        competitions = fallbackData.competitions || [];
-      } catch (fErr) {}
-    }
+    const res = await apiRequest('/competitions');
+    const competitions = res.competitions || res.data || [];
 
-    // Merge custom tournaments created in Admin
-    try {
-      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-      if (Array.isArray(custom) && custom.length > 0) {
-        custom.forEach(item => {
-          if (!competitions.some(c => String(c.id || c._id) === String(item.id || item._id))) {
-            competitions.push(item);
-          }
-        });
-      }
-    } catch (e) {}
-
-    // Group competitions by Tournament Name
-    const map = new Map();
-
-    // 1. First ensure all registered tournaments exist in map so deleting a sport NEVER deletes the tournament!
-    apiTournaments.forEach(t => {
-      const tName = (t.name || t.tournament_name || t.tournamentName || '').trim();
-      if (tName && !map.has(tName)) {
-        map.set(tName, {
-          info: {
-            name: tName,
-            venue: t.venue || 'GASC Idappadi Main Ground',
-            type: t.type || 'Inter-Department',
-            bannerImage: t.banner_image || t.bannerImage || '/images/sports/tournament.png',
-            status: t.status || 'Registration Open'
-          },
-          sports: []
-        });
-      }
-    });
-
-    // 2. Put competitions inside their parent tournament
-    competitions.forEach(c => {
-      const tName = (c.tournamentName || c.tournament_name || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'SPARK 2026 Annual Sports Fest').trim();
-      if (!map.has(tName)) {
-        map.set(tName, {
-          info: {
-            name: tName,
-            venue: c.venue || 'GASC Idappadi Main Ground',
-            type: c.type || 'Inter-Department',
-            bannerImage: c.bannerImage || '/images/sports/tournament.png',
-            status: c.status || 'Registration Open'
-          },
-          sports: []
-        });
-      }
-      map.get(tName).sports.push(c);
-    });
-
-    if (map.size === 0) {
+    if (competitions.length === 0) {
       container.innerHTML = `
         <div class="glass-card p-5 text-center my-3">
           <i class="bi bi-trophy text-warning display-4 mb-3"></i>
@@ -1883,22 +1769,28 @@ async function loadAdminCompetitions() {
       return;
     }
 
+    // Group competitions by Tournament Name
+    const map = new Map();
+    competitions.forEach(c => {
+      const tName = c.tournamentName || c.name.split('-')[0].trim() || 'SPARK 2026 Annual Sports Fest';
+      if (!map.has(tName)) map.set(tName, []);
+      map.get(tName).push(c);
+    });
+
     let html = '';
-    map.forEach((tournData, tName) => {
-      const sports = tournData.sports || [];
-      const tInfo = tournData.info || {};
+    map.forEach((sports, tName) => {
       const firstSport = sports[0] || {};
-      const tVenue = tInfo.venue || firstSport.venue || 'GASC Idappadi Main Ground';
-      const tType = tInfo.type || firstSport.type || 'Inter-Department';
+      const tVenue = firstSport.venue || 'GASC Idappadi Main Ground';
+      const tType = firstSport.type || 'Inter-Department';
       const customBanner = sports.find(s => s.bannerImage && (s.bannerImage.includes('tournament') || s.bannerImage.includes('/uploads/')) && !s.bannerImage.includes('default'))?.bannerImage;
-      const tBanner = tInfo.bannerImage || customBanner || '/images/sports/tournament.png';
+      const tBanner = customBanner || '/images/sports/tournament.png';
 
       html += `
         <div class="glass-card p-4 mb-4 border border-warning border-opacity-25 shadow-sm overflow-hidden">
           <div class="row g-3 align-items-center mb-3 pb-3 border-bottom border-secondary border-opacity-25">
             <div class="col-md-3">
               <div class="rounded-3 overflow-hidden border border-secondary border-opacity-30 bg-black shadow-sm" style="height: 100px; position: relative;">
-                <img src="${tBanner}" alt="${tName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/sports/tournament.jpg';">
+                <img src="${tBanner}" alt="${tName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src='/images/sports/tournament.png';">
                 <span class="badge bg-dark bg-opacity-75 text-white position-absolute bottom-0 start-0 m-1 px-2 py-0.5" style="font-size: 0.65rem;">16:9 Cover</span>
               </div>
             </div>
@@ -1913,18 +1805,15 @@ async function loadAdminCompetitions() {
                 <span class="badge badge-glass-success ms-1">Registration Open</span>
               </div>
             </div>
-            <div class="col-md-4 text-md-end">
+            <div class="col-md-5 text-md-end">
               <div class="d-flex flex-column flex-sm-row gap-2 justify-content-md-end">
-                <button class="btn btn-warning text-dark btn-sm fw-bold shadow-sm" onclick="showParentTournamentQrModal(decodeURIComponent('${encodeURIComponent(tName)}'))" title="View, Print & Download QR Code">
-                  <i class="bi bi-qr-code-scan me-1"></i> QR Code
-                </button>
-                <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal(decodeURIComponent('${encodeURIComponent(tName)}'))">
+                <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal('${tName.replace(/'/g, "\\'")}')">
                   <i class="bi bi-plus-circle-fill me-1"></i> Add Sport
                 </button>
-                <button class="btn btn-outline-secondary btn-sm" onclick="openEditTournamentModal(decodeURIComponent('${encodeURIComponent(tName)}'), decodeURIComponent('${encodeURIComponent(tBanner)}'))">
+                <button class="btn btn-outline-secondary btn-sm" onclick="openEditTournamentModal('${tName.replace(/'/g, "\\'")}', '${tBanner.replace(/'/g, "\\'")}')">
                   <i class="bi bi-image me-1"></i> Edit Cover
                 </button>
-                <button class="btn btn-outline-danger btn-sm" onclick="deleteTournament(decodeURIComponent('${encodeURIComponent(tName)}'))" title="Delete Entire Tournament">
+                <button class="btn btn-outline-danger btn-sm" onclick="deleteTournament('${tName.replace(/'/g, "\\'")}')" title="Delete Entire Tournament">
                   <i class="bi bi-trash3-fill me-1"></i> Delete Tournament
                 </button>
               </div>
@@ -1936,18 +1825,7 @@ async function loadAdminCompetitions() {
               <i class="bi bi-flag-fill text-primary me-1"></i> Sport Competitions inside ${tName} (${sports.length})
             </h6>
             <div class="row g-3">
-              ${sports.length === 0 ? `
-                <div class="col-12">
-                  <div class="p-4 rounded-3 text-center border border-info border-opacity-25" style="background: #0b1736 !important;">
-                    <i class="bi bi-info-circle text-info fs-3 mb-2 d-block"></i>
-                    <h6 class="fw-bold text-white mb-1">No Sports in ${tName} Currently</h6>
-                    <p class="small text-muted mb-3">The sport was deleted or not added yet. This tournament is active. Click below to add a sport.</p>
-                    <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal(decodeURIComponent('${encodeURIComponent(tName)}'))">
-                      <i class="bi bi-plus-circle-fill me-1"></i> Add Sport to ${tName}
-                    </button>
-                  </div>
-                </div>
-              ` : sports.map(c => {
+              ${sports.map(c => {
                 const sName = c.sportName || c.name || '';
                 const banner = window.getSportImage(sName, c.bannerImage);
                 const compId = c.id || c._id || '';
@@ -1979,12 +1857,9 @@ async function loadAdminCompetitions() {
                       </div>
                       <div class="d-flex gap-2 pt-2 border-top border-white border-opacity-15 mt-auto">
                         <button class="btn btn-sm btn-outline-info flex-grow-1 text-white fw-semibold" onclick="switchAdminView('applications'); document.getElementById('app-filter-status').value='All';" style="font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.6); background: rgba(56, 189, 248, 0.12);">
-                          <i class="bi bi-people me-1"></i> Registrations
+                          <i class="bi bi-people me-1"></i> View Registrations
                         </button>
-                        <button class="btn btn-sm btn-warning text-dark fw-bold" onclick="showTournamentQrModal('${compId}')" title="Preview & Download QR Code" style="font-size: 0.78rem;">
-                          <i class="bi bi-qr-code-scan me-1"></i> QR
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCompetition('${compId}', decodeURIComponent('${encodeURIComponent(sName)}'))" title="Delete Sport" style="border-color: rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.12);">
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteCompetition('${compId}', '${c.name.replace(/'/g, "\\'")}')" title="Delete Sport" style="border-color: rgba(239, 68, 68, 0.6); background: rgba(239, 68, 68, 0.12);">
                           <i class="bi bi-trash text-danger"></i>
                         </button>
                       </div>
@@ -2005,44 +1880,8 @@ async function loadAdminCompetitions() {
   }
 }
 
-function openCreateTournamentModal() {
-  populateSelectDropdowns();
-
-  // Set default dates if empty
-  const today = new Date().toISOString().split('T')[0];
-  const startDateInput = document.getElementById('ctm-start-date');
-  if (startDateInput && !startDateInput.value) startDateInput.value = today;
-  const endDateInput = document.getElementById('ctm-end-date');
-  if (endDateInput && !endDateInput.value) endDateInput.value = today;
-
-  // Auto-select first sport if not chosen
-  const sportSel = document.getElementById('create-tournament-sport-id');
-  if (sportSel && sportSel.options.length > 1 && (!sportSel.value || sportSel.selectedIndex === 0)) {
-    sportSel.selectedIndex = 1;
-    onTournamentSportSelectChange(sportSel);
-  }
-}
-
 function openAddSportModal(tournamentName) {
-  const tInput = document.getElementById('add-sport-tournament-name');
-  if (tInput) tInput.value = tournamentName;
-
-  populateSelectDropdowns();
-
-  // Pre-fill default dates so form passes HTML5 validation immediately
-  const today = new Date().toISOString().split('T')[0];
-  const dateInput = document.querySelector('#addSportCompetitionModal input[name="date"]');
-  if (dateInput && !dateInput.value) dateInput.value = today;
-  const regEndInput = document.querySelector('#addSportCompetitionModal input[name="registrationEnd"]');
-  if (regEndInput && !regEndInput.value) regEndInput.value = today;
-
-  // Auto-select first sport in dropdown
-  const sportSel = document.getElementById('add-sport-select-id') || document.querySelector('#addSportCompetitionModal select[name="sportId"]');
-  if (sportSel && sportSel.options.length > 1 && (!sportSel.value || sportSel.selectedIndex === 0)) {
-    sportSel.selectedIndex = 1;
-    onAddSportSelectChange(sportSel);
-  }
-
+  document.getElementById('add-sport-tournament-name').value = tournamentName;
   const modalEl = document.getElementById('addSportCompetitionModal');
   if (modalEl) {
     const modal = new bootstrap.Modal(modalEl);
@@ -2055,18 +1894,7 @@ function onTournamentSportSelectChange(sel) {
   if (compNameInput && sel.selectedIndex > 0) {
     const sportName = sel.options[sel.selectedIndex].text;
     if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
-      compNameInput.value = sportName;
-      compNameInput.dataset.autofilled = 'true';
-    }
-  }
-}
-
-function onAddSportSelectChange(sel) {
-  const compNameInput = document.getElementById('add-sport-comp-name') || document.querySelector('#addSportCompetitionModal input[name="name"]');
-  if (compNameInput && sel.selectedIndex > 0) {
-    const sportName = sel.options[sel.selectedIndex].text;
-    if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
-      compNameInput.value = sportName;
+      compNameInput.value = `${sportName}`;
       compNameInput.dataset.autofilled = 'true';
     }
   }
@@ -2079,21 +1907,18 @@ async function submitCreateCompetition(event) {
   const btn = form.querySelector('button[type="submit"]');
 
   const tName = formData.get('tournamentName') || 'SPARK 2026 Annual Sports Fest';
-  let sportId = formData.get('sportId');
-  let sportName = formData.get('name') || '';
-
-  // Resilient sport resolution: never block if dropdown was unselected
-  if (!sportId || sportId === '') {
-    const firstSport = (allSportsCache && allSportsCache[0]) || DEFAULT_SPORTS_FALLBACK[0];
-    sportId = firstSport.id || firstSport._id || 'sp_cricket';
-    formData.set('sportId', sportId);
-    if (!sportName) sportName = firstSport.name;
+  const sportId = formData.get('sportId');
+  if (!sportId) {
+    showToast('Please select a sport discipline for this tournament.', 'warning');
+    return;
   }
 
-  if (!sportName || sportName.trim() === '') {
+  // Get sport name from allSportsCache for fallback title if title is empty
+  let compName = formData.get('name');
+  if (!compName || compName.trim() === '') {
     const matchedSport = (allSportsCache || []).find(s => (s.id || s._id) === sportId);
-    sportName = matchedSport ? matchedSport.name : 'Championship Event';
-    formData.set('name', sportName);
+    compName = matchedSport ? matchedSport.name : 'Championship';
+    formData.set('name', compName);
   }
 
   // If sportType is set, use it for competition type
@@ -2101,70 +1926,35 @@ async function submitCreateCompetition(event) {
     formData.set('type', formData.get('sportType'));
   }
 
-  const uniqueCompId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-  formData.set('id', uniqueCompId);
-  const tId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-  formData.set('tournamentId', tId);
-
   try {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating Tournament...';
 
-    let res = null;
-    try {
-      res = await apiRequest('/competitions', 'POST', formData, true);
-    } catch (apiErr) {
-      console.warn('API save notice (using offline local fallback):', apiErr.message);
-    }
+    const res = await apiRequest('/competitions', 'POST', formData, true);
     
-    // Sync to localStorage
-    const newId = (res && res.competition && res.competition.id) || uniqueCompId;
-    const coverUrl = formData.get('coverImageUrl') || '/images/sports/tournament.png';
-
-    const newT = {
-      id: newId,
-      _id: newId,
-      tournamentName: tName,
-      name: sportName,
-      sportName: sportName,
-      type: formData.get('type') || formData.get('sportType') || 'Team Event',
-      date: formData.get('date') || new Date().toISOString(),
-      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
-      venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
-      status: formData.get('status') || 'Registration Open',
-      bannerImage: coverUrl,
-      description: formData.get('description') || `Annual collegiate ${tName} competition.`
-    };
-
+    // Also sync to localStorage so Student Portal on same domain/browser picks it up immediately
     try {
       const customTournaments = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-      const filtered = customTournaments.filter(c => c.id !== newId);
-      filtered.unshift(newT);
-      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
-      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
+      const newT = {
+        id: (res && res.competition && res.competition.id) || `tour_${Date.now()}`,
+        tournamentName: tName,
+        name: formData.get('name') || 'Championship',
+        sportName: formData.get('name') || 'General',
+        date: formData.get('date'),
+        venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
+        status: 'Registration Open',
+        description: formData.get('description') || `Annual collegiate ${tName} competition.`
+      };
+      customTournaments.unshift(newT);
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(customTournaments));
     } catch (e) {}
 
-    showToast(`Tournament "${tName}" created with sport "${sportName}"!`, 'success');
+    showToast(`Tournament "${tName}" created with sport "${formData.get('name')}"!`, 'success');
     form.reset();
-    try {
-      const modalEl = document.getElementById('addCompetitionModal');
-      if (modalEl) {
-        const inst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-        inst.hide();
-      }
-    } catch (mErr) {}
+    bootstrap.Modal.getInstance(document.getElementById('addCompetitionModal')).hide();
     loadAdminCompetitions();
-
-    // If INTER_COLLEGE, open the QR Code modal automatically so Sports Mam can immediately preview / share / print
-    const partType = formData.get('participationType');
-    if (partType === 'INTER_COLLEGE' && window.openInterCollegeQrModal) {
-      setTimeout(() => {
-        const compForQr = res?.competition || newT;
-        window.openInterCollegeQrModal(compForQr);
-      }, 400);
-    }
   } catch (err) {
-    showToast(err.message || 'Failed to create tournament', 'error');
+    showToast(err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Create Tournament';
@@ -2176,79 +1966,18 @@ async function submitAddSportToTournament(event) {
   const form = event.target;
   const formData = new FormData(form);
   const btn = form.querySelector('button[type="submit"]');
-  const tName = formData.get('tournamentName') || 'SPARK 2026 Annual Sports Fest';
-  let sportId = formData.get('sportId');
-  let sportName = formData.get('name') || '';
-
-  // Resilient sport resolution: never block if dropdown was unselected
-  if (!sportId || sportId === '') {
-    const firstSport = (allSportsCache && allSportsCache[0]) || DEFAULT_SPORTS_FALLBACK[0];
-    sportId = firstSport.id || firstSport._id || 'sp_cricket';
-    formData.set('sportId', sportId);
-    if (!sportName) sportName = firstSport.name;
-  }
-
-  if (!sportName || sportName.trim() === '') {
-    const matchedSport = (allSportsCache || []).find(s => (s.id || s._id) === sportId);
-    sportName = matchedSport ? matchedSport.name : 'Championship Event';
-    formData.set('name', sportName);
-  }
-
-  const uniqueSportId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-  formData.set('id', uniqueSportId);
-  const sportTId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-  formData.set('tournamentId', sportTId);
 
   try {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Adding Sport...';
 
-    let res = null;
-    try {
-      res = await apiRequest('/competitions', 'POST', formData, true);
-    } catch (apiErr) {
-      console.warn('API save notice for add sport:', apiErr.message);
-    }
-
-    // Sync to localStorage
-    const newId = (res && res.competition && res.competition.id) || uniqueSportId;
-    const newSport = {
-      id: newId,
-      _id: newId,
-      name: sportName,
-      tournamentName: tName,
-      sportName: sportName,
-      type: formData.get('type') || 'Team Event',
-      date: formData.get('date') || new Date().toISOString(),
-      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
-      startTime: formData.get('startTime') || '09:00 AM',
-      endTime: formData.get('endTime') || '05:00 PM',
-      venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
-      maxParticipants: Number(formData.get('maxParticipants')) || 50,
-      status: formData.get('status') || 'Registration Open',
-      description: formData.get('description') || `${sportName} competition inside ${tName}.`
-    };
-
-    try {
-      const customTournaments = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-      const filtered = customTournaments.filter(c => c.id !== newId);
-      filtered.unshift(newSport);
-      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
-      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
-    } catch (e) {}
-
-    showToast(`Sport "${sportName}" added to tournament "${tName}"!`, 'success');
+    const res = await apiRequest('/competitions', 'POST', formData, true);
+    showToast(`Sport "${formData.get('name')}" added to tournament!`, 'success');
     form.reset();
-    try {
-      const modalEl = document.getElementById('addSportCompetitionModal');
-      if (modalEl) {
-        const inst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-        inst.hide();
-      }
-    } catch (mErr) {}
+    bootstrap.Modal.getInstance(document.getElementById('addSportCompetitionModal')).hide();
     loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message || 'Failed to add sport', 'error');
+    showToast(err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Add Sport Competition';
@@ -2256,68 +1985,24 @@ async function submitAddSportToTournament(event) {
 }
 
 async function deleteCompetition(id, name) {
-  if (!id) return;
-  const confirmed = window.confirm(`Are you sure you want to delete competition sport "${name || 'Selected Sport'}"? The tournament will remain intact.`);
-  if (!confirmed) return;
-
+  if (!confirm(`Delete competition "${name}"?`)) return;
   try {
-    // 1. Call backend API
-    try {
-      await apiRequest(`/competitions/${id}`, 'DELETE');
-    } catch (apiErr) {
-      console.warn('API delete competition notice:', apiErr.message);
-    }
-
-    // 2. Remove ONLY this specific competition by ID (NEVER by name, preserving tournament!)
-    try {
-      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-      const filtered = custom.filter(c => String(c.id || c._id) !== String(id));
-      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
-      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
-    } catch (e) {}
-
-    showToast(`Sport "${name || 'Sport'}" deleted. Tournament remains active!`, 'info', 'Sport Deleted');
-    await loadAdminCompetitions();
+    await apiRequest(`/competitions/${id}`, 'DELETE');
+    showToast(`Competition "${name}" deleted.`, 'info');
+    loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message || 'Failed to delete sport competition', 'error');
+    showToast(err.message, 'error');
   }
 }
 
 async function deleteTournament(tName) {
-  if (!tName) return;
-  const confirmed = window.confirm(`⚠️ Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`);
-  if (!confirmed) return;
-
+  if (!confirm(`⚠️ Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`)) return;
   try {
-    // 1. Call backend DELETE API
-    try {
-      await apiRequest(`/competitions/tournament?name=${encodeURIComponent(tName)}`, 'DELETE');
-    } catch (apiErr) {
-      console.warn('API delete tournament notice:', apiErr.message);
-    }
-
-    // 2. Thoroughly purge from local custom tournaments in localStorage
-    try {
-      const targetTName = tName.trim().toLowerCase();
-      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
-      const filtered = custom.filter(c => {
-        const cTName = (c.tournamentName || c.tournament_name || '').trim().toLowerCase();
-        const cName = (c.name || '').trim().toLowerCase();
-        const cPrefix = cName.includes('-') ? cName.split('-')[0].trim().toLowerCase() : cName;
-        return cTName !== targetTName && 
-               !cTName.includes(targetTName) && 
-               !targetTName.includes(cTName) &&
-               cName !== targetTName &&
-               cPrefix !== targetTName;
-      });
-      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
-      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
-    } catch (e) {}
-
-    showToast(`Tournament "${tName}" deleted successfully!`, 'success', 'Tournament Deleted');
-    await loadAdminCompetitions();
+    await apiRequest(`/competitions/tournament?name=${encodeURIComponent(tName)}`, 'DELETE');
+    showToast(`Tournament "${tName}" deleted successfully.`, 'info');
+    loadAdminCompetitions();
   } catch (err) {
-    showToast(err.message || 'Failed to delete tournament', 'error');
+    showToast(err.message, 'error');
   }
 }
 
@@ -3275,51 +2960,23 @@ async function loadAdminGallery() {
   const container = document.getElementById('admin-gallery-grid');
   try {
     const res = await apiRequest('/gallery');
-    if (!res || !res.gallery || res.gallery.length === 0) {
-      container.innerHTML = `<div class="col-12 text-center text-muted py-5"><i class="bi bi-images fs-1 text-secondary mb-2 d-block"></i>No gallery moments uploaded yet. Click "+ Add Photo" to upload.</div>`;
-      return;
-    }
     container.innerHTML = res.gallery.map(g => `
-      <div class="col-md-4 mb-3" id="gallery-card-${g.id || g._id}">
-        <div class="glass-card overflow-hidden h-100 position-relative shadow-sm" style="border: 1px solid rgba(55,140,255,0.2);">
-          <div class="position-relative overflow-hidden" style="height: 190px;">
-            <img src="${g.image || '/images/sports/tournament.jpg'}" class="w-100 h-100" style="object-fit: cover; transition: transform 0.3s;" onerror="this.onerror=null;this.src='/images/sports/tournament.jpg';">
-            <button 
-              type="button" 
-              class="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 rounded-circle p-2 shadow" 
-              style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; z-index: 5;"
-              title="Delete Photo"
-              onclick="deleteGalleryItem('${g.id || g._id}', '${(g.title || 'Photo').replace(/'/g, "\\'")}')">
-              <i class="bi bi-trash3-fill fs-6"></i>
-            </button>
-          </div>
+      <div class="col-md-4 mb-3">
+        <div class="glass-card overflow-hidden h-100">
+          <img src="${g.image}" class="w-100" style="height: 180px; object-fit: cover;">
           <div class="p-3 d-flex flex-column">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-              <span class="badge badge-glass-primary">${g.category || 'Sports'}</span>
-              ${g.sportName ? `<span class="badge bg-secondary" style="font-size: 11px;">${g.sportName}</span>` : ''}
-            </div>
-            <h6 class="fw-bold mb-1 text-white">${g.title}</h6>
-            ${g.description ? `<p class="text-muted small mb-2 text-truncate" title="${g.description}">${g.description}</p>` : ''}
-            <div class="mt-auto pt-2 border-top border-secondary-subtle d-flex justify-content-between align-items-center">
-              <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>${formatDate(g.date || g.createdAt)}</small>
-              <div class="d-flex gap-2">
-                <a href="${g.image}" target="_blank" class="btn btn-sm btn-outline-info px-2 py-1" title="View Full Image">
-                  <i class="bi bi-box-arrow-up-right"></i>
-                </a>
-                <button 
-                  type="button" 
-                  class="btn btn-sm btn-danger px-2 py-1 d-flex align-items-center gap-1 shadow-sm fw-semibold" 
-                  onclick="deleteGalleryItem('${g.id || g._id}', '${(g.title || 'Photo').replace(/'/g, "\\'")}')">
-                  <i class="bi bi-trash3-fill"></i> Delete
-                </button>
-              </div>
+            <span class="badge badge-glass-primary mb-1 align-self-start">${g.category}</span>
+            <h6 class="fw-bold mb-1">${g.title}</h6>
+            <div class="mt-auto pt-2 border-top d-flex justify-content-between align-items-center">
+              <small class="text-muted">${formatDate(g.date)}</small>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteGalleryItem('${g.id || g._id}')"><i class="bi bi-trash"></i></button>
             </div>
           </div>
         </div>
       </div>
     `).join('');
   } catch (err) {
-    container.innerHTML = `<div class="col-12 text-center text-muted py-4"><i class="bi bi-info-circle me-1"></i> No gallery photos found. Click "+ Add Photo" to upload photos.</div>`;
+    container.innerHTML = `<div class="col-12 text-center text-danger">Failed to load gallery.</div>`;
   }
 }
 
@@ -3334,36 +2991,26 @@ async function submitCreateGallery(event) {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Uploading...';
 
     const res = await apiRequest('/gallery', 'POST', formData, true);
-    showToast(res.message || 'Photo added to sports gallery successfully!', 'success');
+    showToast(res.message, 'success');
     form.reset();
-    const modalEl = document.getElementById('addGalleryModal');
-    if (modalEl) {
-      const modalInst = bootstrap.Modal.getInstance(modalEl);
-      if (modalInst) modalInst.hide();
-    }
+    bootstrap.Modal.getInstance(document.getElementById('addGalleryModal')).hide();
     loadAdminGallery();
   } catch (err) {
-    showToast(err.message || 'Upload failed', 'error');
+    showToast(err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = 'Upload Photo';
   }
 }
 
-async function deleteGalleryItem(id, title = 'Photo') {
-  if (!confirm(`Are you sure you want to delete "${title}" from the sports gallery?\n\nThis will remove the photo instantly from both the Admin Portal and Student Portal.`)) return;
+async function deleteGalleryItem(id) {
+  if (!confirm('Remove photo from sports gallery?')) return;
   try {
-    const cardEl = document.getElementById(`gallery-card-${id}`);
-    if (cardEl) {
-      cardEl.style.opacity = '0.4';
-      cardEl.style.pointerEvents = 'none';
-    }
     await apiRequest(`/gallery/${id}`, 'DELETE');
-    showToast(`"${title}" deleted successfully.`, 'info');
+    showToast('Photo removed.', 'info');
     loadAdminGallery();
   } catch (err) {
-    showToast(err.message || 'Failed to delete photo', 'error');
-    loadAdminGallery();
+    showToast(err.message, 'error');
   }
 }
 
@@ -4448,9 +4095,6 @@ function renderTournamentReportHTML(viewMode = 'sport') {
   // Bottom action buttons
   const actionBtns = `
     <div class="d-flex gap-2 flex-wrap mt-4 no-print border-top pt-3">
-      <button class="btn btn-warning text-dark fw-bold" onclick="showParentTournamentQrModal(decodeURIComponent('${encodeURIComponent(tournamentName)}'))">
-        <i class="bi bi-qr-code-scan me-1"></i> Tournament QR Code
-      </button>
       <button class="btn btn-primary" onclick="printTournamentReport()">
         <i class="bi bi-printer me-1"></i> Print ${viewMode === 'department' ? 'Department Report' : 'Report'}
       </button>
@@ -4467,40 +4111,23 @@ function renderTournamentReportHTML(viewMode = 'sport') {
       }
     </div>`;
 
-  const matchedComp = (typeof trrCompetitionsCache !== 'undefined') ? trrCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name) === tournamentName) : null;
-  const token = matchedComp ? (matchedComp.registration_token || matchedComp.registrationToken || matchedComp.id) : (tournamentName ? tournamentName.toLowerCase().replace(/[^a-z0-9]/g, '') : '');
-  const qrThumbUrl = (typeof window.getQrImageUrl === 'function' && token) ? window.getQrImageUrl(token, 120) : '';
-  const publicRegUrl = (typeof window.getPublicRegistrationUrl === 'function' && token) ? window.getPublicRegistrationUrl(token) : '';
-
   outArea.innerHTML = `
     <div class="glass-card p-4" id="trr-printable-area">
 
       ${viewSwitcherHtml}
 
-      <!-- Official College Header with Scannable QR -->
-      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pb-3 border-bottom mb-4">
-        <div class="text-center text-md-start flex-grow-1">
-          <h4 class="fw-bold mb-1 text-primary">${college.toUpperCase()}</h4>
-          <h6 class="fw-bold text-dark mb-1">${deptName}</h6>
-          <div class="text-secondary small">IDAPPADI, SALEM DISTRICT – 637101, TAMIL NADU</div>
-          <hr class="my-2">
-          <h5 class="fw-bold ${viewMode === 'department' ? 'text-success' : 'text-primary'} mb-1">
-            ${viewMode === 'department' ? 'Tournament Registration Report (Total Department-Wise Register)' : 'Tournament Registration Report'}
-          </h5>
-          <div class="small text-dark fw-semibold mb-1">Tournament: ${tournamentName}</div>
-          <div class="small text-muted">${filterLabels}</div>
-          <div class="small text-muted mt-1">Generated on: ${genDateStr}</div>
-        </div>
-        ${qrThumbUrl ? `
-          <div class="text-center p-2 rounded-3 bg-white border border-2 border-dark shadow-sm d-inline-block" style="min-width: 130px;">
-            <img src="${qrThumbUrl}" alt="Registration QR Code" style="width: 85px; height: 85px; object-fit: contain;">
-            <div class="fw-bold text-dark" style="font-size: 0.65rem; margin-top: 2px;">SCAN TO REGISTER</div>
-            <div class="text-muted font-monospace" style="font-size: 0.55rem; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${publicRegUrl}</div>
-            <button type="button" class="btn btn-xs btn-outline-primary mt-1 py-0 px-2 no-print" onclick="showParentTournamentQrModal('${encodeURIComponent(tournamentName)}')" style="font-size: 0.65rem;">
-              <i class="bi bi-qr-code"></i> Open QR
-            </button>
-          </div>
-        ` : ''}
+      <!-- Official College Header -->
+      <div class="text-center border-bottom pb-3 mb-4">
+        <h4 class="fw-bold mb-1 text-primary">${college.toUpperCase()}</h4>
+        <h6 class="fw-bold text-dark mb-1">${deptName}</h6>
+        <div class="text-secondary small">IDAPPADI, SALEM DISTRICT – 637101, TAMIL NADU</div>
+        <hr class="my-2">
+        <h5 class="fw-bold ${viewMode === 'department' ? 'text-success' : 'text-primary'} mb-1">
+          ${viewMode === 'department' ? 'Tournament Registration Report (Total Department-Wise Register)' : 'Tournament Registration Report'}
+        </h5>
+        <div class="small text-dark fw-semibold mb-1">Tournament: ${tournamentName}</div>
+        <div class="small text-muted">${filterLabels}</div>
+        <div class="small text-muted mt-1">Generated on: ${genDateStr}</div>
       </div>
 
       <!-- Summary Counts -->
@@ -4803,12 +4430,7 @@ function renderRosterTable(students) {
   }
 
   tbody.innerHTML = students.map((s, idx) => {
-    const isInactive = (s.status && s.status.toUpperCase() === 'INACTIVE');
-    const rosterStatusBadge = isInactive
-      ? '<span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-50 px-2 py-1 fw-bold"><i class="bi bi-x-circle-fill text-danger me-1"></i> INACTIVE</span>'
-      : '<span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-2 py-1 fw-bold"><i class="bi bi-check-circle-fill text-success me-1"></i> ACTIVE</span>';
-
-    const portalBadge = s.isRegistered 
+    const statusBadge = s.isRegistered 
       ? '<span class="badge bg-success bg-opacity-25 text-dark border border-success border-opacity-60 px-2 py-1 fw-bold" style="color: #000000 !important;"><i class="bi bi-check-circle-fill text-success me-1"></i> Registered Athlete</span>'
       : '<span class="badge bg-warning bg-opacity-25 text-dark border border-warning border-opacity-60 px-2 py-1 fw-bold" style="color: #000000 !important;"><i class="bi bi-clock-history text-warning me-1"></i> Not Registered Yet</span>';
 
@@ -4817,10 +4439,6 @@ function renderRosterTable(students) {
       : (s.gender === 'Male' ? '<span class="badge bg-primary bg-opacity-15 text-dark border border-primary border-opacity-30 fw-semibold" style="color: #000000 !important;"><i class="bi bi-gender-male text-primary me-1"></i>Male</span>' : '<span class="badge bg-secondary bg-opacity-15 text-dark" style="color: #000000 !important;">Other</span>');
 
     const studentId = s.id || s._id;
-    const toggleBtn = isInactive
-      ? `<button type="button" onclick="toggleRosterStudentStatus('${studentId}', 'Active')" class="btn btn-sm btn-success me-1 px-2 py-1 fw-bold shadow-sm" title="Activate Student for Portal Registration"><i class="bi bi-check-lg me-1"></i>Activate</button>`
-      : `<button type="button" onclick="toggleRosterStudentStatus('${studentId}', 'Inactive')" class="btn btn-sm btn-warning me-1 px-2 py-1 fw-bold shadow-sm text-dark" title="Deactivate Student (Block Registration)"><i class="bi bi-slash-circle me-1"></i>Deactivate</button>`;
-
     return `
       <tr>
         <td class="text-muted small">${idx + 1}</td>
@@ -4839,10 +4457,8 @@ function renderRosterTable(students) {
           <small class="text-muted">Section: ${s.section || 'A'}</small>
         </td>
         <td>${genderIcon}</td>
-        <td>${rosterStatusBadge}</td>
-        <td>${portalBadge}</td>
+        <td>${statusBadge}</td>
         <td class="text-center text-nowrap">
-          ${toggleBtn}
           <button type="button" onclick="openEditRosterModal('${studentId}')" class="btn btn-sm btn-primary me-1 px-2 py-1 fw-bold shadow-sm" title="Edit Student">
             <i class="bi bi-pencil-square me-1"></i>Edit
           </button>
@@ -4853,20 +4469,6 @@ function renderRosterTable(students) {
       </tr>
     `;
   }).join('');
-}
-
-async function toggleRosterStudentStatus(id, newStatus) {
-  const student = allRosterCache.find(s => (s.id === id || s._id === id));
-  const studentName = student ? student.name : 'this student';
-  const studentRegNo = student ? student.registerNumber : '';
-
-  try {
-    const res = await apiRequest(`/roster/${id}/status`, 'PATCH', { status: newStatus });
-    showToast(res.message || `Student ${studentName} (${studentRegNo}) status updated to ${newStatus}.`, 'success', 'Status Changed');
-    await loadAdminRoster();
-  } catch (err) {
-    showToast(err.message || 'Failed to change student status.', 'error', 'Error');
-  }
 }
 
 async function handleRosterExcelUpload(event) {
@@ -4914,8 +4516,7 @@ async function submitManualStudentAdd(event) {
     department: formData.get('department'),
     year: formData.get('year'),
     section: formData.get('section'),
-    gender: formData.get('gender'),
-    status: formData.get('status') || 'Active'
+    gender: formData.get('gender')
   };
 
   try {
@@ -4967,10 +4568,6 @@ function openEditRosterModal(id) {
   document.getElementById('edit-roster-year').value = student.year || 'I Year';
   document.getElementById('edit-roster-section').value = student.section || 'A';
   document.getElementById('edit-roster-gender').value = student.gender || 'Male';
-  const statusEl = document.getElementById('edit-roster-status');
-  if (statusEl) {
-    statusEl.value = (student.status && student.status.toUpperCase() === 'INACTIVE') ? 'Inactive' : 'Active';
-  }
 
   const modalEl = document.getElementById('editRosterStudentModal');
   if (modalEl) {
@@ -4990,8 +4587,7 @@ async function submitEditRosterStudent(event) {
     department: document.getElementById('edit-roster-dept').value,
     year: document.getElementById('edit-roster-year').value,
     section: document.getElementById('edit-roster-section').value.trim().toUpperCase() || 'A',
-    gender: document.getElementById('edit-roster-gender').value,
-    status: document.getElementById('edit-roster-status')?.value || 'Active'
+    gender: document.getElementById('edit-roster-gender').value
   };
 
   try {
@@ -5332,75 +4928,4 @@ window.openEditRosterModal = openEditRosterModal;
 window.deleteRosterStudent = deleteRosterStudent;
 window.submitEditRosterStudent = submitEditRosterStudent;
 window.loadAdminRoster = loadAdminRoster;
-
-// ── Tournament QR Code Actions for Competitions & Reports ──
-window.showTournamentQrModal = function(compId) {
-  let comp = null;
-  if (typeof extCompetitionsCache !== 'undefined' && Array.isArray(extCompetitionsCache)) {
-    comp = extCompetitionsCache.find(c => String(c.id || c._id) === String(compId));
-  }
-  if (!comp && typeof trrCompetitionsCache !== 'undefined' && Array.isArray(trrCompetitionsCache)) {
-    comp = trrCompetitionsCache.find(c => String(c.id || c._id) === String(compId));
-  }
-  if (!comp && typeof window.competitionsCache !== 'undefined' && Array.isArray(window.competitionsCache)) {
-    comp = window.competitionsCache.find(c => String(c.id || c._id) === String(compId));
-  }
-  if (comp) {
-    if (!comp.registration_token && !comp.registrationToken) {
-      comp.registration_token = comp.id;
-    }
-    if (typeof openInterCollegeQrModal === 'function') {
-      openInterCollegeQrModal(comp);
-    } else {
-      showToast('Opening QR Preview...', 'info');
-    }
-  } else {
-    showToast('Competition not found for QR preview.', 'warning');
-  }
-};
-
-window.showParentTournamentQrModal = function(rawTournamentName) {
-  const tName = decodeURIComponent(rawTournamentName || '').trim();
-  let comp = null;
-  if (typeof extCompetitionsCache !== 'undefined' && Array.isArray(extCompetitionsCache)) {
-    comp = extCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
-  }
-  if (!comp && typeof trrCompetitionsCache !== 'undefined' && Array.isArray(trrCompetitionsCache)) {
-    comp = trrCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
-  }
-  if (!comp && typeof window.competitionsCache !== 'undefined' && Array.isArray(window.competitionsCache)) {
-    comp = window.competitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
-  }
-  if (!comp) {
-    comp = {
-      id: 'tour_' + tName.replace(/[^a-zA-Z0-9]/g, '_'),
-      name: tName,
-      tournamentName: tName,
-      sportName: 'All Sports',
-      competition_mode: 'TEAM',
-      venue: 'GASC Idappadi Sports Ground',
-      date: new Date().toISOString(),
-      registration_token: 'tour_' + tName.replace(/[^a-zA-Z0-9]/g, '_')
-    };
-  }
-  if (!comp.registration_token && !comp.registrationToken) {
-    comp.registration_token = comp.id;
-  }
-  if (typeof openInterCollegeQrModal === 'function') {
-    openInterCollegeQrModal(comp);
-  } else {
-    showToast('Opening QR Preview...', 'info');
-  }
-};
-
-window.openSelectedTournamentQrFromReport = function() {
-  const tName = document.getElementById('trr-tournament')?.value?.trim();
-  if (!tName) {
-    showToast('Please select a tournament first from the dropdown above.', 'warning', 'No Tournament Selected');
-    document.getElementById('trr-tournament')?.focus();
-    return;
-  }
-  window.showParentTournamentQrModal(tName);
-};
-
 
