@@ -57,9 +57,13 @@ foreach ($target in $targets) {
         Copy-Item -Path "$workspace\server" -Destination $appDir -Recurse -Force
         # 4. Sync electron
         Copy-Item -Path "$workspace\electron" -Destination $appDir -Recurse -Force
-        # 5. Sync root dist
+        # 5. Sync root dist (exclude heavy packaged binaries)
         if (Test-Path "$workspace\dist") {
-            Copy-Item -Path "$workspace\dist" -Destination $appDir -Recurse -Force
+            $distDst = Join-Path $appDir "dist"
+            if (!(Test-Path $distDst)) { New-Item -ItemType Directory -Path $distDst -Force | Out-Null }
+            Get-ChildItem -Path "$workspace\dist" -Exclude "admin-exe", "admin-portable" | ForEach-Object {
+                Copy-Item -Path $_.FullName -Destination $distDst -Recurse -Force
+            }
         }
         # 6. Sync student-client dist
         if (Test-Path "$workspace\student-client\dist") {
@@ -79,7 +83,7 @@ foreach ($target in $targets) {
         # 8. Sync any missing node_modules such as compression
         $targetNm = Join-Path $appDir "node_modules"
         if (Test-Path $targetNm) {
-            foreach ($mod in @("compression", "compressible", "on-headers")) {
+            foreach ($mod in @("compression", "compressible", "on-headers", "ws")) {
                 $modSrc = Join-Path "$workspace\node_modules" $mod
                 $modDst = Join-Path $targetNm $mod
                 if ((Test-Path $modSrc) -and !(Test-Path $modDst)) {

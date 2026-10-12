@@ -8,6 +8,7 @@ electron/
 electron/dist/
 dist/admin-portable/
 dist/admin-exe/
+dist/admin-installer/
 .DS_Store
 Thumbs.db
 replay_pid*.log

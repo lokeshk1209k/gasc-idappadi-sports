@@ -39,6 +39,7 @@
     "qrcode": "^1.5.4",
     "sql.js": "^1.14.2",
     "uuid": "^14.0.2",
+    "ws": "^8.22.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
@@ -51,7 +52,7 @@
     "productName": "GASC Sports Admin",
     "copyright": "Copyright © 2026 Government Arts and Science College, Idappadi",
     "directories": {
-      "output": "dist/admin-exe",
+      "output": "dist/admin-installer",
       "buildResources": "build-resources"
     },
     "extraMetadata": {
@@ -62,14 +63,18 @@
       "electron/**/*",
       "client/public/**/*",
       "server/**/*",
-      "node_modules/**/*",
       "package.json",
-      ".env"
+      ".env",
+      "gasc_sports_local.db"
     ],
     "extraResources": [
       {
         "from": ".env",
         "to": ".env"
+      },
+      {
+        "from": "gasc_sports_local.db",
+        "to": "gasc_sports_local.db"
       }
     ],
     "win": {
@@ -79,15 +84,9 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ],
-      "icon": "client/public/images/college-logo.png"
+      "icon": "build-resources/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -95,13 +94,11 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "GASC Sports Admin",
-      "installerIcon": "client/public/images/college-logo.png",
-      "uninstallerIcon": "client/public/images/college-logo.png",
-      "installerHeaderIcon": "client/public/images/college-logo.png",
-      "deleteAppDataOnUninstall": false
-    },
-    "portable": {
-      "artifactName": "GASC-Sports-Admin-Portable.exe"
+      "installerIcon": "build-resources/icon.ico",
+      "uninstallerIcon": "build-resources/icon.ico",
+      "installerHeaderIcon": "build-resources/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "GASC-Sports-Admin-Setup-1.0.0.exe"
     }
   },
   "engines": {
