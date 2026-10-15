@@ -77,7 +77,15 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const token = req.query.token || req.query.id;
+  let token = req.query.token || req.query.id;
+  if (!token && req.url) {
+    const cleanUrl = req.url.split('?')[0];
+    const parts = cleanUrl.split('/').filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (last && !['tournament', 'tournaments', 'open-registration', 'inter-college'].includes(last.toLowerCase())) {
+      token = decodeURIComponent(last);
+    }
+  }
   if (!token) {
     return res.status(400).json({ success: false, message: 'Tournament token or ID is required.' });
   }

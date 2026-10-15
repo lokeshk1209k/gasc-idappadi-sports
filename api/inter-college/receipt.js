@@ -11,7 +11,15 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const id = req.query.id;
+  let id = req.query.id || req.query.registrationId;
+  if (!id && req.url) {
+    const cleanUrl = req.url.split('?')[0];
+    const parts = cleanUrl.split('/').filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (last && !['receipt', 'open-registration', 'inter-college'].includes(last.toLowerCase())) {
+      id = decodeURIComponent(last);
+    }
+  }
   if (!id) return res.status(400).json({ success: false, message: 'Registration ID is required.' });
 
   try {

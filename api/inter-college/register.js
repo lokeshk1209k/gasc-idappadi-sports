@@ -35,9 +35,11 @@ module.exports = async (req, res) => {
       competitionToken, collegeName, collegeAddress, district, state,
       collegePhone, collegeEmail, registrationType, sportName, gender,
       teamName, coachName, coachPhone, managerName, managerPhone,
-      playerName, playerRegisterNumber, department, year,
+      playerName, playerRegisterNumber, playerRollNumber, department, year,
       participantEmail, participantPhone, supportingDocument, players
     } = body || {};
+
+    const finalRollNumber = (playerRegisterNumber || playerRollNumber || (players && players[0] && players[0].registerNumber) || '').trim().toUpperCase();
 
     if (!competitionToken) return res.status(400).json({ success: false, message: 'Competition token is required.' });
     if (!collegeName || !collegeName.trim()) return res.status(400).json({ success: false, message: 'College name is required.' });
@@ -107,7 +109,7 @@ module.exports = async (req, res) => {
     // 2. Duplicate Prevention
     if (mode === 'INDIVIDUAL') {
       if (!playerName || !playerName.trim()) return res.status(400).json({ success: false, message: 'Player name is required.' });
-      if (!playerRegisterNumber || !playerRegisterNumber.trim()) return res.status(400).json({ success: false, message: 'Player register/roll number is required.' });
+      if (!finalRollNumber) return res.status(400).json({ success: false, message: 'Player register/roll number is required.' });
     }
 
     // 3. Create Record
@@ -135,7 +137,7 @@ module.exports = async (req, res) => {
       manager_name: managerName?.trim() || null,
       manager_phone: managerPhone?.trim() || null,
       player_name: mode === 'INDIVIDUAL' ? playerName?.trim() : null,
-      player_register_number: mode === 'INDIVIDUAL' ? playerRegisterNumber?.trim().toUpperCase() : null,
+      player_register_number: mode === 'INDIVIDUAL' ? finalRollNumber : null,
       department: department?.trim() || 'General',
       year: year?.trim() || 'I Year',
       participant_email: cleanEmail,

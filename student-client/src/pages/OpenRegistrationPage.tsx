@@ -141,8 +141,12 @@ const OpenRegistrationPage: React.FC = () => {
       const fetchTournaments = async () => {
         setListLoading(true);
         try {
-          const res = await fetch('/api/open-registration/tournaments');
-          const data = await res.json();
+          let res = await fetch('/api/open-registration/tournaments');
+          let data = await res.json().catch(() => null);
+          if (!data || !data.success) {
+            res = await fetch('/api/inter-college/tournaments');
+            data = await res.json().catch(() => null);
+          }
           if (data && data.success && Array.isArray(data.tournaments)) {
             setTournamentsList(data.tournaments);
           }
@@ -163,8 +167,16 @@ const OpenRegistrationPage: React.FC = () => {
         setCompLoading(true);
         setLoadError(null);
         try {
-          const res = await fetch(`/api/open-registration/tournament/${encodeURIComponent(tournamentToken)}`);
-          const data = await res.json();
+          let res = await fetch(`/api/open-registration/tournament/${encodeURIComponent(tournamentToken)}`);
+          let data = await res.json().catch(() => null);
+          if (!data || !data.success) {
+            res = await fetch(`/api/open-registration/tournament?token=${encodeURIComponent(tournamentToken)}`);
+            data = await res.json().catch(() => null);
+          }
+          if (!data || !data.success) {
+            res = await fetch(`/api/inter-college/tournament?token=${encodeURIComponent(tournamentToken)}`);
+            data = await res.json().catch(() => null);
+          }
           if (data && data.success && data.tournament) {
             setCurrentTournament(data.tournament);
             const compsList: CompetitionItem[] = data.competitions || [];

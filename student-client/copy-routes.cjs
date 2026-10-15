@@ -27,7 +27,8 @@ const routes = [
   'student/gallery',
   'student/notifications',
   'student/settings',
-  'open-registration'
+  'open-registration',
+  'open-registration/gasc-inter-2026'
 ];
 
 routes.forEach(route => {
