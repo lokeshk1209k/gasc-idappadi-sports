@@ -702,7 +702,7 @@ const LoginPage: React.FC = () => {
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
             {/* Auth Mode Toggle Pill (Login vs Register) */}
-            <div className="flex p-1 mb-7 rounded-2xl bg-white/[0.05] border border-white/10 backdrop-blur-md">
+            <div className="flex p-1 mb-4 rounded-2xl bg-white/[0.05] border border-white/10 backdrop-blur-md">
               <div className="flex-1 py-2 px-3 text-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center justify-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-blue-200" />
                 <span>Student Login</span>
@@ -714,6 +714,25 @@ const LoginPage: React.FC = () => {
               >
                 <span>New Register</span>
                 <ArrowRight className="w-3 h-3 opacity-60" />
+              </Link>
+            </div>
+
+            {/* Prominent Inter-College / Other College Registration Banner */}
+            <div className="mb-6">
+              <Link
+                to="/open-registration"
+                className="w-full py-2.5 px-3.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-orange-500/20 to-yellow-500/25 border border-amber-400/50 text-amber-200 hover:text-white font-bold text-xs flex items-center justify-between gap-2 shadow-lg shadow-amber-950/40 transition-all hover:scale-[1.02] hover:border-amber-400 group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-xl bg-amber-500/30 border border-amber-400/60 flex items-center justify-center text-amber-300">
+                    <Trophy className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-extrabold text-amber-300 text-xs group-hover:text-amber-100">Other College Registration</div>
+                    <div className="text-[10px] text-amber-200/80 font-normal">பிற கல்லூரி மாணவர்கள் பதிவு செய்ய கிளிக் செய்யவும்</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform flex-shrink-0" />
               </Link>
             </div>
 
@@ -899,7 +918,7 @@ const LoginPage: React.FC = () => {
             </form>
 
             {/* Sign Up / Create Account Redirection */}
-            <div className="mt-7 pt-5 border-t border-white/[0.08] text-center">
+            <div className="mt-7 pt-5 border-t border-white/[0.08] text-center space-y-2">
               <p className="text-xs text-slate-400">
                 New to Idappadi Sports Portal?{' '}
                 <Link
@@ -908,6 +927,16 @@ const LoginPage: React.FC = () => {
                   className="font-bold text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-1 hover:underline ml-1"
                 >
                   Create Student Account
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </p>
+              <p className="text-xs text-amber-400/90 pt-1">
+                Other College / Inter-College?{' '}
+                <Link
+                  to="/open-registration"
+                  className="font-bold text-amber-300 hover:text-amber-200 underline inline-flex items-center gap-1 ml-1"
+                >
+                  Register External Team Here
                   <ArrowRight className="w-3 h-3" />
                 </Link>
               </p>
