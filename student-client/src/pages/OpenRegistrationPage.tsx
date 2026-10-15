@@ -180,15 +180,19 @@ const OpenRegistrationPage: React.FC = () => {
             const compsList: CompetitionItem[] = data.competitions || [];
             setCompetitions(compsList);
 
-            // If a specific competition was targeted, open its registration form immediately!
-            const targetComp = compsList.find(c =>
-              (data.activeCompetitionId && c.id === data.activeCompetitionId) ||
-              c.id === tournamentToken ||
-              c.registrationToken === tournamentToken ||
-              (c.rules && typeof c.rules === 'string' && c.rules.includes(tournamentToken))
-            );
-            if (targetComp && targetComp.status === 'OPEN') {
-              startRegistrationForCompetition(targetComp);
+            // Only auto-open direct registration form if ?register=true is explicitly passed in URL;
+            // Otherwise, keep selectedComp null so the complete Tournament Page overview is displayed!
+            const shouldAutoRegister = typeof window !== 'undefined' && window.location.search.includes('register=true');
+            if (shouldAutoRegister) {
+              const targetComp = compsList.find(c =>
+                (data.activeCompetitionId && c.id === data.activeCompetitionId) ||
+                c.id === tournamentToken ||
+                c.registrationToken === tournamentToken ||
+                (c.rules && typeof c.rules === 'string' && c.rules.includes(tournamentToken))
+              );
+              if (targetComp && targetComp.status === 'OPEN') {
+                startRegistrationForCompetition(targetComp);
+              }
             }
           }
         } catch (e: any) {

@@ -206,11 +206,17 @@ async function handleTournament(req, res, tokenParam) {
     } catch (e) {}
 
     const lowerToken = token.toLowerCase();
+    const cleanToken = lowerToken.replace(/[^a-z0-9]/g, '');
+
     let tournament = allTournaments.find(t =>
       (t.registration_token && t.registration_token.toLowerCase() === lowerToken) ||
       (t.id && t.id.toLowerCase() === lowerToken) ||
       (t.name && t.name.toLowerCase() === lowerToken) ||
-      (t.tournament_name && t.tournament_name.toLowerCase() === lowerToken)
+      (t.tournament_name && t.tournament_name.toLowerCase() === lowerToken) ||
+      (t.registration_token && t.registration_token.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
+      (t.id && t.id.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
+      (t.name && t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
+      (t.tournament_name && t.tournament_name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken)
     );
 
     let activeCompetitionId = null;
@@ -220,8 +226,14 @@ async function handleTournament(req, res, tokenParam) {
         (c.registrationToken && c.registrationToken.toLowerCase() === lowerToken) ||
         (c.tournament_token && c.tournament_token.toLowerCase() === lowerToken) ||
         (c.tournament_id && c.tournament_id.toLowerCase() === lowerToken) ||
-        (c.rules && typeof c.rules === 'string' && c.rules.includes(token)) ||
-        (c.id && c.id.toLowerCase() === lowerToken)
+        (c.id && c.id.toLowerCase() === lowerToken) ||
+        (c.tournament_name && c.tournament_name.toLowerCase() === lowerToken) ||
+        (c.name && c.name.toLowerCase() === lowerToken) ||
+        (c.tournament_id && c.tournament_id.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
+        (c.tournament_name && c.tournament_name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
+        (c.name && c.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
+        (c.id && c.id.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
+        (c.rules && typeof c.rules === 'string' && c.rules.includes(token))
       );
 
       if (matchedComp) {
@@ -229,7 +241,8 @@ async function handleTournament(req, res, tokenParam) {
         const parentT = allTournaments.find(t =>
           (t.id && t.id.toLowerCase() === (matchedComp.tournament_id || '').toLowerCase()) ||
           (t.name && t.name.toLowerCase() === (matchedComp.tournament_name || matchedComp.name || '').toLowerCase()) ||
-          (t.tournament_name && t.tournament_name.toLowerCase() === (matchedComp.tournament_name || matchedComp.name || '').toLowerCase())
+          (t.tournament_name && t.tournament_name.toLowerCase() === (matchedComp.tournament_name || matchedComp.name || '').toLowerCase()) ||
+          (t.id && t.id.toLowerCase().replace(/[^a-z0-9]/g, '') === (matchedComp.tournament_id || '').toLowerCase().replace(/[^a-z0-9]/g, ''))
         );
         if (parentT) {
           tournament = parentT;
@@ -254,13 +267,18 @@ async function handleTournament(req, res, tokenParam) {
       return res.status(404).json({ success: false, message: 'Tournament not found or invalid registration token.' });
     }
 
-    const tId = tournament.id;
+    const tId = (tournament.id || '').toLowerCase();
+    const tClean = tId.replace(/[^a-z0-9]/g, '');
     const tName = (tournament.name || tournament.tournament_name || '').toLowerCase();
+    const tNameClean = tName.replace(/[^a-z0-9]/g, '');
 
     let childComps = allCompetitions.filter(c =>
-      (c.tournament_id && c.tournament_id === tId) ||
+      (c.tournament_id && c.tournament_id.toLowerCase() === tId) ||
       (c.tournament_name && c.tournament_name.toLowerCase() === tName) ||
-      (c.name && c.name.toLowerCase() === tName)
+      (c.name && c.name.toLowerCase() === tName) ||
+      (c.tournament_id && c.tournament_id.toLowerCase().replace(/[^a-z0-9]/g, '') === tClean) ||
+      (c.tournament_name && c.tournament_name.toLowerCase().replace(/[^a-z0-9]/g, '') === tNameClean) ||
+      (activeCompetitionId && c.id === activeCompetitionId)
     );
 
     if (childComps.length === 0) {

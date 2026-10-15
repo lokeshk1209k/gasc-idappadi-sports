@@ -135,10 +135,42 @@ exports.createCompetition = async (req, res) => {
       bannerImage = `/images/sports/tournament.png`;
     }
 
+    const crypto = require('crypto');
     const tName = req.body.tournamentName || req.body.tournament_name || name.split('-')[0].trim();
+    const tId = req.body.tournamentId || req.body.tournament_id || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    const token = req.body.registrationToken || req.body.registration_token || crypto.randomBytes(16).toString('hex');
+    const pType = req.body.participationType || req.body.participation_type || (type === 'Inter-College' ? 'INTER_COLLEGE' : 'INTRA_COLLEGE');
+    const cMode = req.body.competitionMode || req.body.competition_mode || (type === 'Team Event' || type === 'TEAM' ? 'TEAM' : 'INDIVIDUAL');
+
+    // Ensure parent tournament exists in tournaments table for public portal
+    try {
+      const tourToken = tId.replace(/^tour_/, '');
+      await supabase.from('tournaments').upsert({
+        id: tId,
+        name: tName,
+        tournament_name: tName,
+        description: description || `Official collegiate championship conducted by GASC Idappadi.`,
+        start_date: new Date(date).toISOString(),
+        end_date: new Date(registrationEnd).toISOString(),
+        registration_deadline: new Date(registrationEnd).toISOString(),
+        venue: venue || 'GASC Idappadi Main Stadium',
+        status: 'Registration Open',
+        banner_image: bannerImage,
+        participation_type: pType,
+        external_registration_enabled: pType === 'INTER_COLLEGE',
+        registration_token: tourToken,
+        contact_person: req.body.contactPerson || 'Dr. R. ANITHA (Physical Director)',
+        contact_phone: req.body.contactPhone || '9443567890',
+        contact_email: req.body.contactEmail || 'sportsgascidappadi@gmail.com',
+        rules: req.body.rules || 'Official collegiate ID cards and bonafide certificates from the respective Head of Department/Principal are mandatory.'
+      }, { onConflict: 'id' });
+    } catch (tErr) {
+      console.warn('Parent tournament upsert notice:', tErr.message);
+    }
 
     const newComp = {
       name: name.trim(),
+      tournament_id: tId,
       tournament_name: tName,
       sport_id: sport.id,
       sport_name: sport.name,
@@ -150,12 +182,25 @@ exports.createCompetition = async (req, res) => {
       end_time: endTime || '05:00 PM',
       registration_start: registrationStart ? new Date(registrationStart).toISOString() : new Date().toISOString(),
       registration_end: new Date(registrationEnd).toISOString(),
+      registration_deadline: new Date(registrationEnd).toISOString(),
       organizer: organizer || 'GASC Idappadi Sports Board',
       eligibility: eligibility || 'All enrolled UG and PG students',
       max_participants: maxParticipants ? Number(maxParticipants) : 50,
       description: description || '',
       banner_image: bannerImage,
-      status: 'Registration Open'
+      status: 'Registration Open',
+      participation_type: pType,
+      competition_mode: cMode,
+      registration_token: token,
+      external_registration_enabled: pType === 'INTER_COLLEGE',
+      required_players: req.body.requiredPlayers ? Number(req.body.requiredPlayers) : null,
+      substitutes: req.body.substitutes ? Number(req.body.substitutes) : null,
+      max_colleges: req.body.maxColleges ? Number(req.body.maxColleges) : null,
+      max_teams: req.body.maxTeams ? Number(req.body.maxTeams) : null,
+      contact_person: req.body.contactPerson || 'Dr. R. ANITHA (Physical Director)',
+      contact_phone: req.body.contactPhone || '9443567890',
+      contact_email: req.body.contactEmail || 'sportsgascidappadi@gmail.com',
+      rules: req.body.rules || (typeof req.body.textRules === 'string' ? req.body.textRules : '')
     };
 
     const { data: createdRaw, error } = await supabase
