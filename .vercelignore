@@ -5,6 +5,9 @@ android-student-app/node_modules
 electron/node_modules
 dist/admin-exe
 dist/admin-portable
+dist/admin-installer
+dist/admin-*
+*.exe
 electron
 android-student-app
 *.log

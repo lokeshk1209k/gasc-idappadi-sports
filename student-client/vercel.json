@@ -1,13 +1,9 @@
 {
   "rewrites": [
-    { "source": "/api/open-registration/tournament/:token", "destination": "/api/open-registration/tournament?token=:token" },
-    { "source": "/api/open-registration/receipt/:id", "destination": "/api/open-registration/receipt?id=:id" },
-    { "source": "/api/open-registration/qr/:token", "destination": "/api/open-registration/qr?token=:token" },
-    { "source": "/api/open-registration/competition/:token", "destination": "/api/open-registration/competition?token=:token" },
-    { "source": "/api/inter-college/tournament/:token", "destination": "/api/inter-college/tournament?token=:token" },
-    { "source": "/api/inter-college/receipt/:id", "destination": "/api/inter-college/receipt?id=:id" },
-    { "source": "/api/inter-college/qr/:token", "destination": "/api/inter-college/qr?token=:token" },
-    { "source": "/api/inter-college/competition/:token", "destination": "/api/inter-college/competition?token=:token" },
+    { "source": "/api/open-registration/(.*)", "destination": "/api/open-registration" },
+    { "source": "/api/open-registration", "destination": "/api/open-registration" },
+    { "source": "/api/inter-college/(.*)", "destination": "/api/open-registration" },
+    { "source": "/api/inter-college", "destination": "/api/open-registration" },
     { "source": "/open-registration/(.*)", "destination": "/index.html" },
     { "source": "/open-registration", "destination": "/index.html" },
     { "source": "/student/(.*)", "destination": "/index.html" },
