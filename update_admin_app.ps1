@@ -12,27 +12,8 @@ $targets = @(
     "C:\Users\ELCOT\Desktop\GASC Sports Admin Portable"
 )
 
-$staleItems = @(
-    "client\public\js\interCollegeAdmin.js",
-    "client\public\inter-college",
-    "client\public\open-registration",
-    "dist\inter-college",
-    "dist\open-registration",
-    "dist\js\interCollegeAdmin.js",
-    "server\routes\interCollegeRoutes.js",
-    "server\controllers\interCollegeController.js",
-    "api\inter-college",
-    "student-client\dist\inter-college",
-    "student-client\dist\open-registration",
-    "student-client\dist\js\interCollegeAdmin.js",
-    "student-client\public\inter-college",
-    "student-client\public\open-registration",
-    "student-client\public\js\interCollegeAdmin.js",
-    "student-client\src\pages\InterCollegeLandingPage.tsx",
-    "student-client\src\pages\InterCollegeRegisterPage.tsx",
-    "student-client\src\pages\InterCollegeSuccessPage.tsx",
-    "student-client\src\pages\OpenRegistrationPage.tsx"
-)
+
+
 
 foreach ($target in $targets) {
     if (Test-Path $target) {
@@ -40,15 +21,6 @@ foreach ($target in $targets) {
         $appDir = Join-Path $target "resources\app"
         if (!(Test-Path $appDir)) {
             New-Item -ItemType Directory -Path $appDir -Force | Out-Null
-        }
-
-        # 1. Clean stale other college / inter-college items
-        foreach ($stale in $staleItems) {
-            $stalePath = Join-Path $appDir $stale
-            if (Test-Path $stalePath) {
-                Remove-Item -Path $stalePath -Recurse -Force -ErrorAction SilentlyContinue
-                Write-Host "  [CLEAN] Removed stale item: $stale" -ForegroundColor Magenta
-            }
         }
 
         # 2. Sync client (cleanly replace public files)
@@ -71,7 +43,15 @@ foreach ($target in $targets) {
             if (!(Test-Path $studentAppDst)) { New-Item -ItemType Directory -Path $studentAppDst -Force | Out-Null }
             Copy-Item -Path "$workspace\student-client\dist\*" -Destination $studentAppDst -Recurse -Force
         }
-        # 7. Sync root config files & local database
+        # 7. Sync api/inter-college serverless functions
+        $apiInterCollegeSrc = Join-Path $workspace "api\inter-college"
+        if (Test-Path $apiInterCollegeSrc) {
+            $apiInterCollegeDst = Join-Path $appDir "api\inter-college"
+            if (!(Test-Path $apiInterCollegeDst)) { New-Item -ItemType Directory -Path $apiInterCollegeDst -Force | Out-Null }
+            Copy-Item -Path "$apiInterCollegeSrc\*" -Destination $apiInterCollegeDst -Recurse -Force
+            Write-Host "  [OK] Synced api/inter-college serverless functions" -ForegroundColor Green
+        }
+        # 8. Sync root config files & local database
         Copy-Item -Path "$workspace\package.json" -Destination $appDir -Force
         if (Test-Path "$workspace\.env") {
             Copy-Item -Path "$workspace\.env" -Destination $appDir -Force
@@ -80,24 +60,25 @@ foreach ($target in $targets) {
             Copy-Item -Path "$workspace\gasc_sports_local.db" -Destination $appDir -Force
         }
 
-        # 8. Sync any missing node_modules such as compression
+        # 9. Sync any missing node_modules such as compression, qrcode, nodemailer
         $targetNm = Join-Path $appDir "node_modules"
         if (Test-Path $targetNm) {
-            foreach ($mod in @("compression", "compressible", "on-headers", "ws")) {
+            foreach ($mod in @("compression", "compressible", "on-headers", "ws", "qrcode", "nodemailer")) {
                 $modSrc = Join-Path "$workspace\node_modules" $mod
                 $modDst = Join-Path $targetNm $mod
                 if ((Test-Path $modSrc) -and !(Test-Path $modDst)) {
                     Copy-Item -Path $modSrc -Destination $modDst -Recurse -Force
+                    Write-Host "  [OK] Added missing module: $mod" -ForegroundColor Green
                 }
             }
         }
 
-        # 9. Update / create Start scripts
+        # 10. Update / create Start scripts
         $batContent = "@echo off`r`ntitle GASC Sports Admin Portal`r`ncd /d `"%~dp0`"`r`ntaskkill /F /IM `"GASC Sports Admin.exe`" >nul 2>&1`r`necho Starting GASC Sports Admin...`r`nstart `"`" `"GASC Sports Admin.exe`"`r`n"
         Set-Content -Path (Join-Path $target "Start GASC Sports Admin.bat") -Value $batContent -Force
         Set-Content -Path (Join-Path $target "Start App.bat") -Value $batContent -Force
 
-        # 10. Verify admin.js and server.js syntax
+        # 11. Verify admin.js and server.js syntax
         $adminJsPath = Join-Path $appDir "client\public\js\admin.js"
         if (Test-Path $adminJsPath) {
             $syntaxCheck = & node -c $adminJsPath 2>&1
@@ -106,6 +87,17 @@ foreach ($target in $targets) {
             } else {
                 Write-Host "  [ERROR] Syntax check failed for: $adminJsPath" -ForegroundColor Red
                 Write-Host $syntaxCheck
+            }
+        }
+
+        $interCollegeAdminJsPath = Join-Path $appDir "client\public\js\interCollegeAdmin.js"
+        if (Test-Path $interCollegeAdminJsPath) {
+            $syntaxCheck3 = & node -c $interCollegeAdminJsPath 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "  [OK] Syntax check passed for: interCollegeAdmin.js" -ForegroundColor Green
+            } else {
+                Write-Host "  [ERROR] Syntax check failed for: $interCollegeAdminJsPath" -ForegroundColor Red
+                Write-Host $syntaxCheck3
             }
         }
 

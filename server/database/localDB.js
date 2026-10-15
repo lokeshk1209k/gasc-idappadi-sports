@@ -12,19 +12,47 @@ let SQL = null;
 let saveTimer = null;
 
 function getDbPath() {
-  const appData = process.env.APPDATA || '';
-  if (appData) {
-    const appDataDb = path.join(appData, "gasc-idappadi-sports-management", "gasc_sports_local.db");
-    if (fs.existsSync(appDataDb)) {
-      return appDataDb;
+  // 1. Check for bundled preloaded database in app directory (portable mode)
+  try {
+    const localProjectDb = path.join(__dirname, "../../gasc_sports_local.db");
+    if (fs.existsSync(localProjectDb)) {
+      try {
+        fs.accessSync(localProjectDb, fs.constants.W_OK);
+        return localProjectDb;
+      } catch (e) {}
     }
-  }
+  } catch (e) {}
+
+  // 2. Check resources/app path in Electron packaged environment
+  try {
+    if (process.resourcesPath) {
+      const resDb = path.join(process.resourcesPath, "app", "gasc_sports_local.db");
+      if (fs.existsSync(resDb)) {
+        try {
+          fs.accessSync(resDb, fs.constants.W_OK);
+          return resDb;
+        } catch (e) {}
+      }
+    }
+  } catch (e) {}
+
+  // 3. UserData / AppData fallback
   try {
     const electron = require("electron");
     const app = electron.app || (electron.remote && electron.remote.app);
-    if (app) return path.join(app.getPath("userData"), "gasc_sports_local.db");
+    if (app) {
+      const userDb = path.join(app.getPath("userData"), "gasc_sports_local.db");
+      return userDb;
+    }
   } catch (e) {}
-  // Fallback: project root
+
+  const appData = process.env.APPDATA || '';
+  if (appData) {
+    const legacyDb = path.join(appData, "gasc-idappadi-sports-management", "gasc_sports_local.db");
+    if (fs.existsSync(legacyDb)) return legacyDb;
+    return path.join(appData, "GASC Sports Admin", "gasc_sports_local.db");
+  }
+
   return path.join(__dirname, "../../gasc_sports_local.db");
 }
 
@@ -59,6 +87,31 @@ async function initDB() {
         SQL = await initSqlJs(wasmBinary ? { wasmBinary } : {});
       }
       DB_PATH = getDbPath();
+      
+      const dir = path.dirname(DB_PATH);
+      if (!fs.existsSync(dir)) {
+        try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}
+      }
+
+      // If DB file does not exist at DB_PATH, seed it from any available bundled database
+      if (!fs.existsSync(DB_PATH)) {
+        const candidateBundles = [
+          path.join(__dirname, "../../gasc_sports_local.db"),
+          path.join(process.resourcesPath || '', "app", "gasc_sports_local.db"),
+          path.join(process.cwd(), "gasc_sports_local.db"),
+          path.join(process.cwd(), "resources", "app", "gasc_sports_local.db")
+        ];
+        for (const candidate of candidateBundles) {
+          if (candidate && fs.existsSync(candidate)) {
+            try {
+              fs.copyFileSync(candidate, DB_PATH);
+              console.log("[LocalDB] Seeded fresh DB from template:", candidate);
+              break;
+            } catch (e) {}
+          }
+        }
+      }
+
       // Load existing DB file if exists
       if (fs.existsSync(DB_PATH)) {
         const fileBuffer = fs.readFileSync(DB_PATH);
@@ -102,6 +155,10 @@ function saveDB() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
+        const dir = path.dirname(DB_PATH);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
         const data = db.export();
         const buffer = Buffer.from(data);
         fs.writeFileSync(DB_PATH, buffer);
@@ -315,6 +372,8 @@ function closeDB() {
     // Force immediate save
     clearTimeout(saveTimer);
     try {
+      const dir = path.dirname(DB_PATH);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const data = db.export();
       fs.writeFileSync(DB_PATH, Buffer.from(data));
     } catch(e) {}

@@ -11,6 +11,7 @@ import ProfilePage from './pages/ProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
 import EquipmentPage from './pages/EquipmentPage';
+import OpenRegistrationPage from './pages/OpenRegistrationPage';
 
 // Root redirection helper: if authenticated go to dashboard, otherwise always go to login
 const RootRedirect = () => {
@@ -28,9 +29,10 @@ function App() {
     <ThemeProvider>
       <Router>
         <Routes>
-          {/* Legacy & external registration routes redirected back to student portal */}
-          <Route path="/open-registration" element={<Navigate to="/student/tournaments" replace />} />
-          <Route path="/open-registration/*" element={<Navigate to="/student/tournaments" replace />} />
+          {/* ── External Registration (QR-based, no student login, outside MainLayout) ── */}
+          <Route path="/open-registration" element={<OpenRegistrationPage />} />
+          <Route path="/open-registration/:tournamentToken" element={<OpenRegistrationPage />} />
+          {/* Legacy inter-college redirected to student portal */}
           <Route path="/inter-college" element={<Navigate to="/student/tournaments" replace />} />
           <Route path="/inter-college/*" element={<Navigate to="/student/tournaments" replace />} />
 

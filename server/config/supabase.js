@@ -32,15 +32,24 @@ function initSupabaseClient() {
 
   if (url && key && url.startsWith('http')) {
     try {
-      supabase = createClient(url, key, {
+      let WebSocketImpl;
+      try {
+        WebSocketImpl = require('ws');
+      } catch (e) {
+        WebSocketImpl = typeof WebSocket !== 'undefined' ? WebSocket : undefined;
+      }
+
+      const clientOptions = {
         auth: {
           persistSession: false,
           autoRefreshToken: false
-        },
-        realtime: {
-          transport: (typeof WebSocket !== 'undefined' ? WebSocket : class DummyWS {})
         }
-      });
+      };
+      if (WebSocketImpl) {
+        clientOptions.realtime = { transport: WebSocketImpl };
+      }
+
+      supabase = createClient(url, key, clientOptions);
       console.log('⚡ Supabase Client initialized successfully!');
       return supabase;
     } catch (error) {

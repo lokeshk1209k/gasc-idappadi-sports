@@ -26,6 +26,7 @@ const practiceRoutes = require('./routes/practiceRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const supabaseRoutes = require('./routes/supabaseRoutes');
 const externalCompetitionRoutes = require('./routes/externalCompetitionRoutes');
+const interCollegeRoutes = require('./routes/interCollegeRoutes');
 const sportsNewsRoutes = require('./routes/sportsNewsRoutes');
 let compression;
 try {
@@ -114,6 +115,8 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/supabase', supabaseRoutes);
 app.use('/api/external-competitions', externalCompetitionRoutes);
 app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
+app.use('/api/inter-college', interCollegeRoutes);
+app.use('/api/open-registration', interCollegeRoutes);
 
 // 2. Static Assets & File Hosting
 app.use('/css', express.static(path.join(clientPublic, 'css')));
@@ -128,7 +131,8 @@ app.use('/admin', express.static(clientPublic));
 
 // 3. Student Portal Routes (React + Vite SPA)
 // Root / and student routes directly load the React Student Portal
-app.get(['/', '/index.html', '/student', '/student/*', '/student-portal', '/cyber-portal'], (req, res) => {
+app.get(['/', '/index.html', '/student', '/student/*', '/student-portal', '/cyber-portal',
+  '/open-registration', '/open-registration/*'], (req, res) => {
   if (fs.existsSync(path.join(studentPublic, 'index.html'))) {
     return res.sendFile(path.join(studentPublic, 'index.html'));
   }
