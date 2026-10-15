@@ -281,11 +281,6 @@ async function handleTournament(req, res, tokenParam) {
       (activeCompetitionId && c.id === activeCompetitionId)
     );
 
-    if (childComps.length === 0) {
-      childComps = allCompetitions.filter(c =>
-        c.participation_type === 'INTER_COLLEGE' || c.type === 'Inter-College'
-      );
-    }
 
     const formattedCompetitions = childComps.map(c => {
       const sportName = c.sport_name || c.sportName || c.name || 'Sports';
@@ -726,6 +721,117 @@ async function handleQr(req, res, tokenParam) {
   }
 }
 
+// ── Handler: Competitions CRUD for Web Admin ──
+async function handleCompetitions(req, res) {
+  const supabase = getSupabase();
+  if (req.method === 'GET') {
+    try {
+      const { data, error } = await supabase.from('competitions').select('*').order('date', { ascending: true });
+      if (error) throw error;
+      return res.status(200).json({ success: true, count: (data || []).length, competitions: data || [] });
+    } catch (e) {
+      return res.status(500).json({ success: false, message: e.message });
+    }
+  }
+
+  if (req.method === 'POST') {
+    try {
+      let body = req.body;
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch(e) {}
+      }
+      body = body || {};
+
+      const name = (body.name || body.compName || 'Competition').trim();
+      const sportName = body.sportName || body.sport_name || name;
+      const tName = (body.tournamentName || body.tournament_name || name.split('-')[0]).trim();
+      const tId = body.tournamentId || body.tournament_id || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      const uniqueCompId = body.id || `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const pType = body.participationType || body.participation_type || (body.type === 'Inter-College' ? 'INTER_COLLEGE' : 'INTRA_COLLEGE');
+      const cMode = (body.competitionMode || body.competition_mode || (body.type === 'Team Event' || body.type === 'Team' ? 'TEAM' : 'INDIVIDUAL')).toUpperCase();
+      const token = body.registrationToken || body.registration_token || crypto.randomBytes(16).toString('hex');
+      const bannerImage = body.coverImageUrl || body.bannerImage || '/images/sports/tournament.png';
+      const dateVal = body.date || new Date().toISOString();
+      const regEnd = body.registrationEnd || body.date || new Date().toISOString();
+
+      // Upsert parent tournament
+      try {
+        const tourToken = tId.replace(/^tour_/, '');
+        await supabase.from('tournaments').upsert({
+          id: tId,
+          name: tName,
+          tournament_name: tName,
+          description: body.description || `Official collegiate championship conducted by GASC Idappadi.`,
+          start_date: new Date(dateVal).toISOString(),
+          end_date: new Date(regEnd).toISOString(),
+          registration_deadline: new Date(regEnd).toISOString(),
+          venue: body.venue || 'GASC Idappadi Main Stadium',
+          status: 'Registration Open',
+          banner_image: bannerImage,
+          participation_type: pType,
+          external_registration_enabled: pType === 'INTER_COLLEGE',
+          registration_token: tourToken,
+          contact_person: body.contactPerson || 'Dr. R. ANITHA (Physical Director)',
+          contact_phone: body.contactPhone || '9443567890',
+          contact_email: body.contactEmail || 'sportsgascidappadi@gmail.com',
+          rules: body.rules || 'Official collegiate ID cards and bonafide certificates from the respective Head of Department/Principal are mandatory.'
+        }, { onConflict: 'id' });
+      } catch (tErr) {
+        console.warn('Parent tournament upsert notice:', tErr.message);
+      }
+
+      const newComp = {
+        id: uniqueCompId,
+        name: name,
+        tournament_id: tId,
+        tournament_name: tName,
+        sport_id: body.sportId || 'sp_general',
+        sport_name: sportName,
+        type: body.type || 'Inter-College',
+        level: body.level || 'College',
+        venue: body.venue || 'GASC Idappadi Sports Ground',
+        date: new Date(dateVal).toISOString(),
+        start_time: body.startTime || '09:00 AM',
+        end_time: body.endTime || '05:00 PM',
+        registration_start: body.registrationStart ? new Date(body.registrationStart).toISOString() : new Date().toISOString(),
+        registration_end: new Date(regEnd).toISOString(),
+        registration_deadline: new Date(regEnd).toISOString(),
+        organizer: body.organizer || 'GASC Idappadi Sports Board',
+        eligibility: body.eligibility || 'All enrolled UG and PG students',
+        max_participants: body.maxParticipants ? Number(body.maxParticipants) : 50,
+        description: body.description || '',
+        banner_image: bannerImage,
+        status: 'Registration Open',
+        participation_type: pType,
+        competition_mode: cMode,
+        registration_token: token,
+        external_registration_enabled: pType === 'INTER_COLLEGE',
+        required_players: body.requiredPlayers ? Number(body.requiredPlayers) : null,
+        substitutes: body.substitutes ? Number(body.substitutes) : null,
+        max_colleges: body.maxColleges ? Number(body.maxColleges) : null,
+        max_teams: body.maxTeams ? Number(body.maxTeams) : null,
+        contact_person: body.contactPerson || 'Dr. R. ANITHA (Physical Director)',
+        contact_phone: body.contactPhone || '9443567890',
+        contact_email: body.contactEmail || 'sportsgascidappadi@gmail.com',
+        rules: body.rules || ''
+      };
+
+      const { data: createdComp, error } = await supabase.from('competitions').insert(newComp).select().single();
+      if (error) throw error;
+
+      return res.status(201).json({
+        success: true,
+        message: 'Competition created and published successfully!',
+        competition: createdComp
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  return res.status(405).json({ success: false, message: 'Method not allowed' });
+}
+
 // ── Main Dispatcher ──
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -742,6 +848,9 @@ module.exports = async (req, res) => {
   }
   if (cleanPath.includes('/tournament')) {
     return handleTournament(req, res);
+  }
+  if (cleanPath.includes('/competitions') || cleanPath === '/competitions') {
+    return handleCompetitions(req, res);
   }
   if (cleanPath.includes('/send-otp')) {
     return handleSendOtp(req, res);

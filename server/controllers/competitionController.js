@@ -169,6 +169,7 @@ exports.createCompetition = async (req, res) => {
     }
 
     const newComp = {
+      id: req.body.id || `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       name: name.trim(),
       tournament_id: tId,
       tournament_name: tName,

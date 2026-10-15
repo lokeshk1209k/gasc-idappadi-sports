@@ -7,6 +7,8 @@
     { "source": "/api/open-registration", "destination": "/api/open-registration" },
     { "source": "/api/inter-college/(.*)", "destination": "/api/open-registration" },
     { "source": "/api/inter-college", "destination": "/api/open-registration" },
+    { "source": "/api/competitions/(.*)", "destination": "/api/open-registration" },
+    { "source": "/api/competitions", "destination": "/api/open-registration" },
     { "source": "/open-registration/(.*)", "destination": "/index.html" },
     { "source": "/open-registration", "destination": "/index.html" },
     { "source": "/admin", "destination": "/admin-dashboard.html" },
