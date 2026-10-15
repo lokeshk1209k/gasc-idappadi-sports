@@ -274,8 +274,7 @@ async function handleTournament(req, res, tokenParam) {
 
     let childComps = allCompetitions.filter(c =>
       (c.tournament_id && c.tournament_id.toLowerCase() === tId) ||
-      (c.tournament_name && c.tournament_name.toLowerCase() === tName) ||
-      (c.name && c.name.toLowerCase() === tName) ||
+      (c.tournament_name && c.tournament_name.toLowerCase().trim() === tName.trim()) ||
       (c.tournament_id && c.tournament_id.toLowerCase().replace(/[^a-z0-9]/g, '') === tClean) ||
       (c.tournament_name && c.tournament_name.toLowerCase().replace(/[^a-z0-9]/g, '') === tNameClean) ||
       (activeCompetitionId && c.id === activeCompetitionId)

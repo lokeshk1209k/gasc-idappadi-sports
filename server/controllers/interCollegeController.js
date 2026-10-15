@@ -1734,10 +1734,9 @@ exports.getTournamentByToken = async (req, res) => {
 
     const childComps = allCompetitions.filter(c =>
       (c.tournament_id && c.tournament_id === tId) ||
-      (c.tournament_name && c.tournament_name.toLowerCase() === tName.toLowerCase()) ||
-      (c.name && c.name.toLowerCase() === tName.toLowerCase()) ||
-      (c.id === tId) ||
-      (c.rules && typeof c.rules === 'string' && c.rules.includes(token))
+      (c.tournament_name && c.tournament_name.toLowerCase().trim() === tName.toLowerCase().trim()) ||
+      (c.tournament_id && c.tournament_id.toLowerCase().replace(/[^a-z0-9]/g, '') === (tId || '').toLowerCase().replace(/[^a-z0-9]/g, '')) ||
+      (c.tournament_name && c.tournament_name.toLowerCase().replace(/[^a-z0-9]/g, '') === (tName || '').toLowerCase().replace(/[^a-z0-9]/g, ''))
     );
 
     const mappedCompetitions = childComps.map(c => {
