@@ -135,30 +135,28 @@ const OpenRegistrationPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [otpCooldown]);
 
-  // Load Tournaments List if no token provided
+  // Always fetch Tournaments List so tournaments are instantly ready
   useEffect(() => {
-    if (!tournamentToken) {
-      const fetchTournaments = async () => {
-        setListLoading(true);
-        try {
-          let res = await fetch('/api/open-registration/tournaments');
-          let data = await res.json().catch(() => null);
-          if (!data || !data.success) {
-            res = await fetch('/api/inter-college/tournaments');
-            data = await res.json().catch(() => null);
-          }
-          if (data && data.success && Array.isArray(data.tournaments)) {
-            setTournamentsList(data.tournaments);
-          }
-        } catch (e) {
-          console.warn('Failed to load tournaments list:', e);
-        } finally {
-          setListLoading(false);
+    const fetchTournaments = async () => {
+      setListLoading(true);
+      try {
+        let res = await fetch('/api/open-registration/tournaments');
+        let data = await res.json().catch(() => null);
+        if (!data || !data.success) {
+          res = await fetch('/api/inter-college/tournaments');
+          data = await res.json().catch(() => null);
         }
-      };
-      fetchTournaments();
-    }
-  }, [tournamentToken]);
+        if (data && data.success && Array.isArray(data.tournaments)) {
+          setTournamentsList(data.tournaments);
+        }
+      } catch (e) {
+        console.warn('Failed to load tournaments list:', e);
+      } finally {
+        setListLoading(false);
+      }
+    };
+    fetchTournaments();
+  }, []);
 
   // Load Tournament & Competitions if token provided
   useEffect(() => {
@@ -182,7 +180,7 @@ const OpenRegistrationPage: React.FC = () => {
             const compsList: CompetitionItem[] = data.competitions || [];
             setCompetitions(compsList);
 
-            // If a specific competition was targeted (either by activeCompetitionId or token match), open its registration form immediately!
+            // If a specific competition was targeted, open its registration form immediately!
             const targetComp = compsList.find(c =>
               (data.activeCompetitionId && c.id === data.activeCompetitionId) ||
               c.id === tournamentToken ||
@@ -192,11 +190,9 @@ const OpenRegistrationPage: React.FC = () => {
             if (targetComp && targetComp.status === 'OPEN') {
               startRegistrationForCompetition(targetComp);
             }
-          } else {
-            setLoadError(data?.message || 'Tournament not found or invalid registration token.');
           }
         } catch (e: any) {
-          setLoadError(e.message || 'Error connecting to tournament server.');
+          console.warn('Error connecting to tournament:', e.message);
         } finally {
           setCompLoading(false);
         }
@@ -424,9 +420,9 @@ const OpenRegistrationPage: React.FC = () => {
   };
 
   // =========================================================================
-  // VIEW A: TOURNAMENTS DIRECTORY (When /open-registration is visited)
+  // VIEW A: TOURNAMENTS DIRECTORY (When /open-registration is visited or tournament not loaded)
   // =========================================================================
-  if (!tournamentToken) {
+  if (!tournamentToken || (!compLoading && !currentTournament)) {
     return (
       <div className="min-h-screen bg-[#020817] text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
         {/* Top Navbar */}
@@ -577,18 +573,6 @@ const OpenRegistrationPage: React.FC = () => {
           <div className="py-24 text-center text-slate-400">
             <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm">Identifying Tournament & Competitions...</p>
-          </div>
-        ) : loadError ? (
-          <div className="max-w-md mx-auto text-center py-16 px-6 bg-slate-900/60 border border-red-500/20 rounded-2xl">
-            <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-white">Registration Link Unavailable</h3>
-            <p className="text-xs text-slate-400 mt-2">{loadError}</p>
-            <Link
-              to="/open-registration"
-              className="inline-flex items-center gap-2 mt-6 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white"
-            >
-              Browse Open Tournaments
-            </Link>
           </div>
         ) : selectedComp ? (
           /* ═════════════════════════════════════════════════════════════

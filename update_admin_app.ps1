@@ -7,6 +7,8 @@ Start-Sleep -Seconds 2
 $workspace = "c:\Users\ELCOT\.gemini\antigravity-ide\scratch\gasc-idappadi-sports"
 $targets = @(
     "D:\GASC-Sports-Admin-Portable\GASC Sports Admin-win32-x64",
+    "D:\GASC-Sports-Admin-v1.3\GASC Sports Admin-win32-x64",
+    "D:\GASC-Sports-Admin-v1.2\GASC Sports Admin-win32-x64",
     "$workspace\dist\admin-exe\GASC Sports Admin-win32-x64",
     "C:\Users\ELCOT\Downloads\GASC Sports Admin Portal",
     "C:\Users\ELCOT\Desktop\GASC Sports Admin Portable"
@@ -43,13 +45,13 @@ foreach ($target in $targets) {
             if (!(Test-Path $studentAppDst)) { New-Item -ItemType Directory -Path $studentAppDst -Force | Out-Null }
             Copy-Item -Path "$workspace\student-client\dist\*" -Destination $studentAppDst -Recurse -Force
         }
-        # 7. Sync api/inter-college serverless functions
-        $apiInterCollegeSrc = Join-Path $workspace "api\inter-college"
-        if (Test-Path $apiInterCollegeSrc) {
-            $apiInterCollegeDst = Join-Path $appDir "api\inter-college"
-            if (!(Test-Path $apiInterCollegeDst)) { New-Item -ItemType Directory -Path $apiInterCollegeDst -Force | Out-Null }
-            Copy-Item -Path "$apiInterCollegeSrc\*" -Destination $apiInterCollegeDst -Recurse -Force
-            Write-Host "  [OK] Synced api/inter-college serverless functions" -ForegroundColor Green
+        # 7. Sync api serverless functions
+        $apiSrc = Join-Path $workspace "api"
+        $apiDst = Join-Path $appDir "api"
+        if (Test-Path $apiSrc) {
+            if (!(Test-Path $apiDst)) { New-Item -ItemType Directory -Path $apiDst -Force | Out-Null }
+            Copy-Item -Path "$apiSrc\*" -Destination $apiDst -Recurse -Force
+            Write-Host "  [OK] Synced api serverless functions" -ForegroundColor Green
         }
         # 8. Sync root config files & local database
         Copy-Item -Path "$workspace\package.json" -Destination $appDir -Force
