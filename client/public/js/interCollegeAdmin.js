@@ -998,9 +998,9 @@ function openInterCollegeQrModal(comp) {
   if (!comp) return;
   selectedExtCompForQr = comp;
 
-  const compName = comp.name || comp.tournamentName || 'Inter-College Championship';
-  const sport = comp.sportName || comp.sport_name || (comp.name ? comp.name.split('-')[0].trim() : 'Sports');
-  const compMode = (comp.competition_mode || comp.competitionMode || comp.type || 'TEAM').toUpperCase();
+  const compName = comp.isParentTournament ? (comp.name || comp.tournamentName) : (comp.name || comp.tournamentName || 'Inter-College Championship');
+  const sport = comp.isParentTournament ? 'All Tournament Sports' : (comp.sportName || comp.sport_name || (comp.name ? comp.name.split('-')[0].trim() : 'Sports'));
+  const compMode = comp.isParentTournament ? 'INTER-COLLEGE TOURNAMENT' : (comp.competition_mode || comp.competitionMode || comp.type || 'TEAM').toUpperCase();
   const token = comp.registration_token || comp.registrationToken || comp.id;
   const status = (comp.registration_status || comp.registrationStatus || comp.status || 'OPEN').toUpperCase();
   const isOpen = status.includes('OPEN') || status.includes('PUBLISHED');

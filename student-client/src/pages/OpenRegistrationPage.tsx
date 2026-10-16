@@ -135,28 +135,30 @@ const OpenRegistrationPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [otpCooldown]);
 
-  // Always fetch Tournaments List so tournaments are instantly ready
+  // Only fetch Tournaments Directory if NO tournamentToken is provided in URL
   useEffect(() => {
-    const fetchTournaments = async () => {
-      setListLoading(true);
-      try {
-        let res = await fetch('/api/open-registration/tournaments');
-        let data = await res.json().catch(() => null);
-        if (!data || !data.success) {
-          res = await fetch('/api/inter-college/tournaments');
-          data = await res.json().catch(() => null);
+    if (!tournamentToken) {
+      const fetchTournaments = async () => {
+        setListLoading(true);
+        try {
+          let res = await fetch('/api/open-registration/tournaments');
+          let data = await res.json().catch(() => null);
+          if (!data || !data.success) {
+            res = await fetch('/api/inter-college/tournaments');
+            data = await res.json().catch(() => null);
+          }
+          if (data && data.success && Array.isArray(data.tournaments)) {
+            setTournamentsList(data.tournaments);
+          }
+        } catch (e) {
+          console.warn('Failed to load tournaments list:', e);
+        } finally {
+          setListLoading(false);
         }
-        if (data && data.success && Array.isArray(data.tournaments)) {
-          setTournamentsList(data.tournaments);
-        }
-      } catch (e) {
-        console.warn('Failed to load tournaments list:', e);
-      } finally {
-        setListLoading(false);
-      }
-    };
-    fetchTournaments();
-  }, []);
+      };
+      fetchTournaments();
+    }
+  }, [tournamentToken]);
 
   // Load Tournament & Competitions if token provided
   useEffect(() => {
@@ -164,6 +166,8 @@ const OpenRegistrationPage: React.FC = () => {
       const fetchTournamentDetails = async () => {
         setCompLoading(true);
         setLoadError(null);
+        setCurrentTournament(null);
+        setCompetitions([]);
         try {
           let res = await fetch(`/api/open-registration/tournament/${encodeURIComponent(tournamentToken)}`);
           let data = await res.json().catch(() => null);
@@ -194,9 +198,11 @@ const OpenRegistrationPage: React.FC = () => {
                 startRegistrationForCompetition(targetComp);
               }
             }
+          } else {
+            setLoadError(data?.message || 'Tournament not found or invalid registration token.');
           }
         } catch (e: any) {
-          console.warn('Error connecting to tournament:', e.message);
+          setLoadError(e.message || 'Error connecting to tournament server.');
         } finally {
           setCompLoading(false);
         }
@@ -424,9 +430,9 @@ const OpenRegistrationPage: React.FC = () => {
   };
 
   // =========================================================================
-  // VIEW A: TOURNAMENTS DIRECTORY (When /open-registration is visited or tournament not loaded)
+  // VIEW A: GENERAL TOURNAMENTS DIRECTORY (Only when /open-registration has NO token)
   // =========================================================================
-  if (!tournamentToken || (!compLoading && !currentTournament)) {
+  if (!tournamentToken) {
     return (
       <div className="min-h-screen bg-[#020817] text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
         {/* Top Navbar */}
@@ -577,6 +583,35 @@ const OpenRegistrationPage: React.FC = () => {
           <div className="py-24 text-center text-slate-400">
             <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm">Identifying Tournament & Competitions...</p>
+          </div>
+        ) : (loadError || !currentTournament) ? (
+          /* Error State: Invalid, expired, or unpublished tournament */
+          <div className="max-w-xl mx-auto py-16 px-4 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4 text-red-400 shadow-lg shadow-red-500/5">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-black text-white">Tournament Not Found or Expired</h3>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              {loadError || 'The registration link or QR code you followed is invalid, has expired, or is currently unpublished.'}
+            </p>
+            <p className="text-[11px] text-slate-500 mt-2">
+              Please contact the Department of Physical Education, Government Arts and Science College, Idappadi.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                to="/open-registration"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2"
+              >
+                <span>Browse Open Tournaments</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <Link
+                to="/"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all"
+              >
+                GASC Home
+              </Link>
+            </div>
           </div>
         ) : selectedComp ? (
           /* ═════════════════════════════════════════════════════════════
@@ -1332,9 +1367,9 @@ const OpenRegistrationPage: React.FC = () => {
               {competitions.length === 0 ? (
                 <div className="py-16 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 p-8">
                   <AlertCircle className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-                  <h4 className="text-sm font-bold text-slate-300">No Competitions Added Yet</h4>
+                  <h4 className="text-sm font-bold text-slate-300">No competitions are available for this tournament.</h4>
                   <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                    The Sports Department is configuring competition events for this tournament. Please check back shortly!
+                    The Sports Department has not added active sport events to this tournament yet. Please check back shortly or contact the Sports Incharge.
                   </p>
                 </div>
               ) : (

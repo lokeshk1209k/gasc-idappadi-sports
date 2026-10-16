@@ -2155,12 +2155,11 @@ async function submitCreateCompetition(event) {
     } catch (mErr) {}
     loadAdminCompetitions();
 
-    // If INTER_COLLEGE, open the QR Code modal automatically so Sports Mam can immediately preview / share / print
+    // If INTER_COLLEGE, open the QR Code modal specifically for the tournament created
     const partType = formData.get('participationType');
-    if (partType === 'INTER_COLLEGE' && window.openInterCollegeQrModal) {
+    if (partType === 'INTER_COLLEGE' && window.showParentTournamentQrModal) {
       setTimeout(() => {
-        const compForQr = res?.competition || newT;
-        window.openInterCollegeQrModal(compForQr);
+        window.showParentTournamentQrModal(tName);
       }, 400);
     }
   } catch (err) {
@@ -4467,8 +4466,7 @@ function renderTournamentReportHTML(viewMode = 'sport') {
       }
     </div>`;
 
-  const matchedComp = (typeof trrCompetitionsCache !== 'undefined') ? trrCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name) === tournamentName) : null;
-  const token = matchedComp ? (matchedComp.registration_token || matchedComp.registrationToken || matchedComp.id) : (tournamentName ? tournamentName.toLowerCase().replace(/[^a-z0-9]/g, '') : '');
+  const token = tournamentName ? tournamentName.toLowerCase().replace(/[^a-z0-9]/g, '_') : '';
   const qrThumbUrl = (typeof window.getQrImageUrl === 'function' && token) ? window.getQrImageUrl(token, 120) : '';
   const publicRegUrl = (typeof window.getPublicRegistrationUrl === 'function' && token) ? window.getPublicRegistrationUrl(token) : '';
 
@@ -5361,35 +5359,47 @@ window.showTournamentQrModal = function(compId) {
 
 window.showParentTournamentQrModal = function(rawTournamentName) {
   const tName = decodeURIComponent(rawTournamentName || '').trim();
-  let comp = null;
+  const tokenSlug = tName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const tId = 'tour_' + tokenSlug;
+
+  // Find if tournament object exists in caches or database list
+  let tourObj = null;
+  if (typeof extTournamentsCache !== 'undefined' && Array.isArray(extTournamentsCache)) {
+    tourObj = extTournamentsCache.find(t => (t.name || t.tournament_name || '').toLowerCase().trim() === tName.toLowerCase().trim());
+  }
+  if (!tourObj && typeof allTournamentsCache !== 'undefined' && Array.isArray(allTournamentsCache)) {
+    tourObj = allTournamentsCache.find(t => (t.name || t.tournament_name || '').toLowerCase().trim() === tName.toLowerCase().trim());
+  }
+
+  // Find one sport in tournament for banner/venue/date fallback if available
+  let anySport = null;
   if (typeof extCompetitionsCache !== 'undefined' && Array.isArray(extCompetitionsCache)) {
-    comp = extCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
+    anySport = extCompetitionsCache.find(c => (c.tournament_id === tId) || (c.tournamentName || c.tournament_name || '').toLowerCase() === tName.toLowerCase());
   }
-  if (!comp && typeof trrCompetitionsCache !== 'undefined' && Array.isArray(trrCompetitionsCache)) {
-    comp = trrCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
+  if (!anySport && typeof trrCompetitionsCache !== 'undefined' && Array.isArray(trrCompetitionsCache)) {
+    anySport = trrCompetitionsCache.find(c => (c.tournament_id === tId) || (c.tournamentName || c.tournament_name || '').toLowerCase() === tName.toLowerCase());
   }
-  if (!comp && typeof window.competitionsCache !== 'undefined' && Array.isArray(window.competitionsCache)) {
-    comp = window.competitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
-  }
-  if (!comp) {
-    comp = {
-      id: 'tour_' + tName.replace(/[^a-zA-Z0-9]/g, '_'),
-      name: tName,
-      tournamentName: tName,
-      sportName: 'All Sports',
-      competition_mode: 'TEAM',
-      venue: 'GASC Idappadi Sports Ground',
-      date: new Date().toISOString(),
-      registration_token: 'tour_' + tName.replace(/[^a-zA-Z0-9]/g, '_')
-    };
-  }
-  if (!comp.registration_token && !comp.registrationToken) {
-    comp.registration_token = comp.id;
-  }
+
+  const tokenToUse = tourObj?.registration_token || tourObj?.registrationToken || tokenSlug;
+
+  const tournamentQrCard = {
+    id: tourObj?.id || tId,
+    name: tName,
+    tournamentName: tName,
+    sportName: 'Inter-College Championship',
+    competition_mode: 'TOURNAMENT',
+    venue: tourObj?.venue || anySport?.venue || 'GASC Idappadi Sports Ground',
+    date: tourObj?.startDate || tourObj?.start_date || anySport?.date || new Date().toISOString(),
+    registration_deadline: tourObj?.endDate || tourObj?.end_date || anySport?.registration_deadline,
+    registration_token: tokenToUse,
+    isParentTournament: true,
+    status: 'Registration Open'
+  };
+
   if (typeof openInterCollegeQrModal === 'function') {
-    openInterCollegeQrModal(comp);
+    openInterCollegeQrModal(tournamentQrCard);
   } else {
-    showToast('Opening QR Preview...', 'info');
+    showToast('Opening Tournament QR Preview...', 'info');
   }
 };
 

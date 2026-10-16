@@ -191,96 +191,94 @@ async function handleTournament(req, res, tokenParam) {
       token = decodeURIComponent(last);
     }
   }
-  if (!token) return res.status(400).json({ success: false, message: 'Tournament token or ID is required.' });
+  if (!token || !token.trim()) return res.status(400).json({ success: false, message: 'Tournament token or ID is required.' });
+
+  const cleanToken = token.trim();
+  const lowerToken = cleanToken.toLowerCase();
+  const tokenSlug = lowerToken.replace(/[^a-z0-9]/g, '_');
+  const tourPrefixed = lowerToken.startsWith('tour_') ? lowerToken : `tour_${tokenSlug}`;
 
   try {
     const supabase = getSupabase();
-    let allTournaments = [];
-    let allCompetitions = [];
 
-    try {
-      const { data: tData } = await supabase.from('tournaments').select('*');
-      if (Array.isArray(tData)) allTournaments = tData;
-      const { data: cData } = await supabase.from('competitions').select('*');
-      if (Array.isArray(cData)) allCompetitions = cData;
-    } catch (e) {}
+    // 1. Fetch exactly ONE tournament using the validated QR token from actual Supabase DB
+    const { data: tList, error: tErr } = await supabase
+      .from('tournaments')
+      .select('*')
+      .or(`registration_token.eq.${cleanToken},registration_token.eq.${lowerToken},id.eq.${cleanToken},id.eq.${tourPrefixed},tournament_name.ilike.${cleanToken},name.ilike.${cleanToken}`)
+      .limit(5);
 
-    const lowerToken = token.toLowerCase();
-    const cleanToken = lowerToken.replace(/[^a-z0-9]/g, '');
+    if (tErr) {
+      console.error('Supabase tournament query error:', tErr);
+    }
 
-    let tournament = allTournaments.find(t =>
-      (t.registration_token && t.registration_token.toLowerCase() === lowerToken) ||
-      (t.id && t.id.toLowerCase() === lowerToken) ||
-      (t.name && t.name.toLowerCase() === lowerToken) ||
-      (t.tournament_name && t.tournament_name.toLowerCase() === lowerToken) ||
-      (t.registration_token && t.registration_token.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
-      (t.id && t.id.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
-      (t.name && t.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
-      (t.tournament_name && t.tournament_name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken)
-    );
+    let tournament = (Array.isArray(tList) && tList.length > 0) ? tList[0] : null;
 
-    let activeCompetitionId = null;
-    if (!tournament) {
-      const matchedComp = allCompetitions.find(c =>
-        (c.registration_token && c.registration_token.toLowerCase() === lowerToken) ||
-        (c.registrationToken && c.registrationToken.toLowerCase() === lowerToken) ||
-        (c.tournament_token && c.tournament_token.toLowerCase() === lowerToken) ||
-        (c.tournament_id && c.tournament_id.toLowerCase() === lowerToken) ||
-        (c.id && c.id.toLowerCase() === lowerToken) ||
-        (c.tournament_name && c.tournament_name.toLowerCase() === lowerToken) ||
-        (c.name && c.name.toLowerCase() === lowerToken) ||
-        (c.tournament_id && c.tournament_id.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
-        (c.tournament_name && c.tournament_name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
-        (c.name && c.name.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
-        (c.id && c.id.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanToken) ||
-        (c.rules && typeof c.rules === 'string' && c.rules.includes(token))
+    if (!tournament && Array.isArray(tList)) {
+      tournament = tList.find(t =>
+        (t.registration_token && t.registration_token.toLowerCase() === lowerToken) ||
+        (t.id && t.id.toLowerCase() === lowerToken) ||
+        (t.id && t.id.toLowerCase() === tourPrefixed)
       );
+    }
 
-      if (matchedComp) {
-        activeCompetitionId = matchedComp.id;
-        const parentT = allTournaments.find(t =>
-          (t.id && t.id.toLowerCase() === (matchedComp.tournament_id || '').toLowerCase()) ||
-          (t.name && t.name.toLowerCase() === (matchedComp.tournament_name || matchedComp.name || '').toLowerCase()) ||
-          (t.tournament_name && t.tournament_name.toLowerCase() === (matchedComp.tournament_name || matchedComp.name || '').toLowerCase()) ||
-          (t.id && t.id.toLowerCase().replace(/[^a-z0-9]/g, '') === (matchedComp.tournament_id || '').toLowerCase().replace(/[^a-z0-9]/g, ''))
-        );
-        if (parentT) {
-          tournament = parentT;
-        } else {
-          tournament = {
-            id: matchedComp.tournament_id || `tour_${(matchedComp.tournament_name || matchedComp.name).toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
-            name: matchedComp.tournament_name || matchedComp.name,
-            tournament_name: matchedComp.tournament_name || matchedComp.name,
-            description: matchedComp.description || 'Government Arts and Science College, Idappadi Inter-College Sports Meet.',
-            venue: matchedComp.venue || 'GASC Idappadi Sports Ground',
-            start_date: matchedComp.date,
-            end_date: matchedComp.registration_end || matchedComp.registration_deadline,
-            status: matchedComp.status || 'Registration Open',
-            banner_image: matchedComp.banner_image || '/images/sports/tournament.png',
-            registration_token: token
-          };
-        }
+    // 2. Validate token: if not found, return 404
+    if (!tournament) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tournament not found or invalid registration token.'
+      });
+    }
+
+    // 3. Status checks: if tournament is unpublished, disabled, cancelled, or expired
+    const tStatus = (tournament.status || '').toLowerCase().trim();
+    if (
+      tournament.external_registration_enabled === false ||
+      tournament.is_published === false ||
+      tStatus === 'unpublished' ||
+      tStatus === 'disabled' ||
+      tStatus === 'cancelled' ||
+      tStatus === 'draft'
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'This tournament registration is currently closed or unpublished. Please contact the Sports Department.'
+      });
+    }
+
+    const deadline = tournament.registration_deadline || tournament.end_date;
+    const deadlineDate = deadline ? new Date(deadline) : null;
+    if (deadlineDate && !isNaN(deadlineDate.getTime()) && tStatus === 'closed') {
+      return res.status(410).json({
+        success: false,
+        message: 'Tournament registration has closed.'
+      });
+    }
+
+    // 4. Expected Supabase query logic: Fetch competitions filtered strictly by that tournament's actual ID:
+    // WHERE tournament_id = selectedTournament.id
+    const { data: cData, error: cErr } = await supabase
+      .from('competitions')
+      .select('*')
+      .eq('tournament_id', tournament.id)
+      .order('date', { ascending: true });
+
+    let childComps = Array.isArray(cData) ? cData : [];
+
+    // Fallback: If legacy competitions were created with tournament_name before tournament_id was populated
+    if (childComps.length === 0 && (tournament.tournament_name || tournament.name)) {
+      const tName = tournament.tournament_name || tournament.name;
+      const { data: legacyData } = await supabase
+        .from('competitions')
+        .select('*')
+        .eq('tournament_name', tName)
+        .order('date', { ascending: true });
+      if (Array.isArray(legacyData) && legacyData.length > 0) {
+        childComps = legacyData;
       }
     }
 
-    if (!tournament) {
-      return res.status(404).json({ success: false, message: 'Tournament not found or invalid registration token.' });
-    }
-
-    const tId = (tournament.id || '').toLowerCase();
-    const tClean = tId.replace(/[^a-z0-9]/g, '');
-    const tName = (tournament.name || tournament.tournament_name || '').toLowerCase();
-    const tNameClean = tName.replace(/[^a-z0-9]/g, '');
-
-    let childComps = allCompetitions.filter(c =>
-      (c.tournament_id && c.tournament_id.toLowerCase() === tId) ||
-      (c.tournament_name && c.tournament_name.toLowerCase().trim() === tName.trim()) ||
-      (c.tournament_id && c.tournament_id.toLowerCase().replace(/[^a-z0-9]/g, '') === tClean) ||
-      (c.tournament_name && c.tournament_name.toLowerCase().replace(/[^a-z0-9]/g, '') === tNameClean) ||
-      (activeCompetitionId && c.id === activeCompetitionId)
-    );
-
-
+    // 5. Format and sanitize output (Do NOT return any other tournaments or unrelated competitions)
     const formattedCompetitions = childComps.map(c => {
       const sportName = c.sport_name || c.sportName || c.name || 'Sports';
       const defaultRules = getSportRules(sportName);
@@ -318,7 +316,7 @@ async function handleTournament(req, res, tokenParam) {
         bannerImage: c.banner_image || tournament.banner_image || '/images/sports/tournament.png',
         rules: c.rules,
         contactPerson: tournament.contact_person || 'Dr. R. ANITHA (Physical Director)',
-        contactPhone: tournament.contact_phone || '9443567890',
+        contactPhone: tournament.contact_phone || '+91 94432 18765',
         contactEmail: tournament.contact_email || 'sportsgascidappadi@gmail.com',
         registrationToken: c.registration_token || c.id
       };
@@ -326,25 +324,25 @@ async function handleTournament(req, res, tokenParam) {
 
     return res.status(200).json({
       success: true,
-      activeCompetitionId,
       tournament: {
         id: tournament.id,
         name: tournament.name || tournament.tournament_name,
-        description: tournament.description,
+        description: tournament.description || 'Inter-College Tournament conducted by Government Arts and Science College, Idappadi.',
         startDate: tournament.start_date || tournament.date,
-        endDate: tournament.end_date,
-        registrationDeadline: tournament.registration_end || tournament.registration_deadline || tournament.end_date,
-        venue: tournament.venue || 'College Ground',
+        endDate: tournament.end_date || tournament.registration_end,
+        registrationDeadline: tournament.registration_deadline || tournament.end_date,
+        venue: tournament.venue || 'GASC Idappadi Sports Ground',
         status: tournament.status || 'Registration Open',
-        bannerImage: tournament.banner_image || tournament.banner_url || '/images/sports/tournament.png',
+        bannerImage: tournament.banner_image || '/images/sports/tournament.png',
         registrationToken: tournament.registration_token || tournament.id,
         contactPerson: tournament.contact_person || 'Dr. R. ANITHA (Physical Director)',
-        contactPhone: tournament.contact_phone || '9443567890',
+        contactPhone: tournament.contact_phone || '+91 94432 18765',
         contactEmail: tournament.contact_email || 'sportsgascidappadi@gmail.com',
-        rules: tournament.rules || 'Collegiate ID card verification mandatory.',
+        rules: tournament.rules || '',
         competitionsCount: formattedCompetitions.length
       },
-      competitions: formattedCompetitions
+      competitions: formattedCompetitions,
+      count: formattedCompetitions.length
     });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Server error: ' + err.message });
@@ -476,7 +474,8 @@ async function handleRegister(req, res) {
     const body = await parseRequestBody(req);
 
     const {
-      competitionToken, collegeName, collegeAddress, district, state,
+      competitionToken, tournamentToken, competitionId, tournamentId, tournamentName,
+      collegeName, collegeAddress, district, state,
       collegePhone, collegeEmail, registrationType, sportName, gender,
       teamName, coachName, coachPhone, managerName, managerPhone,
       playerName, playerRegisterNumber, playerRollNumber, department, year,
@@ -485,7 +484,7 @@ async function handleRegister(req, res) {
 
     const finalRollNumber = (playerRegisterNumber || playerRollNumber || (players && players[0] && players[0].registerNumber) || '').trim().toUpperCase();
 
-    if (!competitionToken) return res.status(400).json({ success: false, message: 'Competition token is required.' });
+    if (!competitionToken && !competitionId) return res.status(400).json({ success: false, message: 'Competition token or ID is required.' });
     if (!collegeName || !collegeName.trim()) return res.status(400).json({ success: false, message: 'College name is required.' });
     if (!collegeAddress || !collegeAddress.trim()) return res.status(400).json({ success: false, message: 'College address is required.' });
     if (!district || !district.trim()) return res.status(400).json({ success: false, message: 'District is required.' });
@@ -495,33 +494,47 @@ async function handleRegister(req, res) {
 
     const supabase = getSupabase();
 
+    // 1. Fetch competition from database
+    const compTarget = competitionId || competitionToken;
     let comp = null;
     try {
-      const { data: dRules } = await supabase
+      const { data: dComp } = await supabase
         .from('competitions')
         .select('*')
-        .ilike('rules', `%${competitionToken}%`)
+        .or(`id.eq.${compTarget},registration_token.eq.${compTarget}`)
         .maybeSingle();
-
-      if (dRules) {
-        comp = dRules;
-      } else {
-        const { data: dId } = await supabase
-          .from('competitions')
-          .select('*')
-          .eq('id', competitionToken)
-          .maybeSingle();
-        if (dId) comp = dId;
-      }
+      if (dComp) comp = dComp;
     } catch (e) {}
 
     if (!comp) {
-      comp = {
-        id: competitionToken,
-        name: sportName || 'Inter-College Competition',
-        sport_name: sportName || 'Sports',
-        tournament_id: 'tour_gasc_inter'
-      };
+      return res.status(404).json({ success: false, message: 'Selected competition not found.' });
+    }
+
+    // 2. Validate competition-to-tournament relationship
+    const targetTour = tournamentId || tournamentToken;
+    if (targetTour) {
+      const cleanTour = targetTour.trim();
+      const lowerTour = cleanTour.toLowerCase();
+      const tourPrefixed = lowerTour.startsWith('tour_') ? lowerTour : `tour_${lowerTour.replace(/[^a-z0-9]/g, '_')}`;
+
+      try {
+        const { data: tFound } = await supabase
+          .from('tournaments')
+          .select('*')
+          .or(`id.eq.${cleanTour},id.eq.${tourPrefixed},registration_token.eq.${cleanTour},registration_token.eq.${lowerTour}`)
+          .maybeSingle();
+
+        if (tFound) {
+          const belongs = (comp.tournament_id && comp.tournament_id.toLowerCase() === tFound.id.toLowerCase()) ||
+                          (comp.tournament_name && comp.tournament_name.toLowerCase().trim() === (tFound.tournament_name || tFound.name || '').toLowerCase().trim());
+          if (!belongs) {
+            return res.status(400).json({
+              success: false,
+              message: 'Validation failed: The selected competition does not belong to the tournament identified by this registration link.'
+            });
+          }
+        }
+      } catch (tErr) {}
     }
 
     const mode = (registrationType || (comp.type === 'Team' ? 'TEAM' : 'INDIVIDUAL')).toUpperCase();

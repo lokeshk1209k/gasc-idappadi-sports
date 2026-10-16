@@ -1,5 +1,7 @@
 Copy-Item 'client\public\js\interCollegeAdmin.js' 'dist\js\interCollegeAdmin.js' -Force
 Copy-Item 'client\public\js\interCollegeAdmin.js' 'student-client\dist\js\interCollegeAdmin.js' -Force
+Copy-Item 'client\public\js\admin.js' 'dist\js\admin.js' -Force
+Copy-Item 'client\public\js\admin.js' 'student-client\dist\js\admin.js' -Force
 Copy-Item 'client\public\admin-dashboard.html' 'dist\admin-dashboard.html' -Force
 Copy-Item 'client\public\admin-dashboard.html' 'student-client\dist\admin-dashboard.html' -Force
 Write-Host "Workspace dist updated!" -ForegroundColor Green
@@ -15,6 +17,9 @@ foreach ($dir in $appDirs) {
     Copy-Item 'client\public\js\interCollegeAdmin.js' "$dir\client\public\js\interCollegeAdmin.js" -Force -ErrorAction SilentlyContinue
     Copy-Item 'client\public\js\interCollegeAdmin.js' "$dir\dist\js\interCollegeAdmin.js" -Force -ErrorAction SilentlyContinue
     Copy-Item 'client\public\js\interCollegeAdmin.js' "$dir\student-client\dist\js\interCollegeAdmin.js" -Force -ErrorAction SilentlyContinue
+    Copy-Item 'client\public\js\admin.js' "$dir\client\public\js\admin.js" -Force -ErrorAction SilentlyContinue
+    Copy-Item 'client\public\js\admin.js' "$dir\dist\js\admin.js" -Force -ErrorAction SilentlyContinue
+    Copy-Item 'client\public\js\admin.js' "$dir\student-client\dist\js\admin.js" -Force -ErrorAction SilentlyContinue
     Copy-Item 'client\public\admin-dashboard.html' "$dir\client\public\admin-dashboard.html" -Force -ErrorAction SilentlyContinue
     Copy-Item 'client\public\admin-dashboard.html' "$dir\dist\admin-dashboard.html" -Force -ErrorAction SilentlyContinue
     Copy-Item 'client\public\admin-dashboard.html' "$dir\student-client\dist\admin-dashboard.html" -Force -ErrorAction SilentlyContinue
