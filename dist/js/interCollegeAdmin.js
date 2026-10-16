@@ -1356,13 +1356,18 @@ async function deleteInterCollegeCompetition(compId, compName) {
 
     notifyUser(`Competition "${safeName}" deleted successfully!`, 'success', 'Competition Deleted');
 
-    // Re-render immediately
-    renderExtCompetitionsGrid();
-    updateExtDashboardCounters();
+    // Re-render immediately without crashing
+    if (typeof renderExtCompetitionsCards === 'function') {
+      renderExtCompetitionsCards();
+    }
+    const kpiComps = document.getElementById('ext-kpi-comps-count');
+    if (kpiComps) kpiComps.innerText = extCompetitionsCache.length;
 
     // Reload from server in background
     if (typeof loadAdminInterCollegeData === 'function') {
-      setTimeout(() => loadAdminInterCollegeData(), 400);
+      setTimeout(() => {
+        try { loadAdminInterCollegeData(); } catch (e) {}
+      }, 400);
     }
     if (typeof loadAdminCompetitions === 'function') {
       try { loadAdminCompetitions(); } catch (e) {}
@@ -1373,6 +1378,7 @@ async function deleteInterCollegeCompetition(compId, compName) {
   }
 }
 window.deleteInterCollegeCompetition = deleteInterCollegeCompetition;
+window.renderExtCompetitionsGrid = renderExtCompetitionsCards;
 
 async function promptRegenerateQrToken(compId, compName) {
   const targetId = compId || (selectedExtCompForQr && (selectedExtCompForQr.id || selectedExtCompForQr._id));
