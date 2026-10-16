@@ -657,7 +657,7 @@ async function handleRegister(req, res) {
   }
 }
 
-// ── Handler: Receipt Details ──
+// ── Handler: Receipt Details & Official Printable/Downloadable PDF Receipt ──
 async function handleReceipt(req, res, idParam) {
   let id = idParam || req.query.id || req.query.registrationId;
   if (!id && req.url) {
@@ -674,6 +674,8 @@ async function handleReceipt(req, res, idParam) {
     const supabase = getSupabase();
     let reg = null;
     let players = [];
+    let comp = null;
+    let tournament = null;
 
     try {
       const { data: r1 } = await supabase
@@ -689,15 +691,419 @@ async function handleReceipt(req, res, idParam) {
           .eq('external_registration_id', reg.id)
           .order('created_at', { ascending: true });
         if (pls) players = pls;
+
+        // Fetch parent competition details
+        if (reg.competition_id) {
+          const { data: cData } = await supabase
+            .from('competitions')
+            .select('*')
+            .eq('id', reg.competition_id)
+            .maybeSingle();
+          if (cData) comp = cData;
+        }
+
+        // Fetch parent tournament details
+        const tId = reg.tournament_id || (comp && comp.tournament_id);
+        if (tId) {
+          const { data: tData } = await supabase
+            .from('tournaments')
+            .select('*')
+            .eq('id', tId)
+            .maybeSingle();
+          if (tData) tournament = tData;
+        }
       }
     } catch(e) {}
 
     if (!reg) return res.status(404).json({ success: false, message: 'Registration record not found.' });
 
-    return res.status(200).json({ success: true, registration: reg, players });
+    // If explicit JSON requested
+    if (req.query.format === 'json') {
+      return res.status(200).json({ success: true, registration: reg, players, competition: comp, tournament });
+    }
+
+    // Default: Render Official Printable/Downloadable Receipt HTML with Auto-Print
+    const html = generateOfficialReceiptHtml(reg, players, comp, tournament);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(html);
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Receipt fetch error: ' + err.message });
   }
+}
+
+function generateOfficialReceiptHtml(reg, players = [], comp = null, tournament = null) {
+  const regId = reg.registration_id || reg.id || 'GASC-IC-2026';
+  const tName = (tournament && tournament.name) || (comp && (comp.tournamentName || comp.tournament_name)) || 'GASC Inter-College Championship 2026';
+  const cName = (comp && comp.name) || reg.sport_name || 'Inter-College Competition';
+  const sport = reg.sport_name || (comp && comp.sportName) || 'Sports';
+  const isTeam = (reg.registration_type || 'INDIVIDUAL').toUpperCase() === 'TEAM';
+  const pName = isTeam ? (reg.team_name || 'College Squad') : (reg.player_name || reg.contact_person || 'Athlete');
+  const regNo = reg.player_register_number || '-';
+  const dept = reg.department || '-';
+  const year = reg.year || '-';
+  const college = reg.college_name || 'External College';
+  const address = [reg.college_address, reg.district, reg.state].filter(Boolean).join(', ') || '-';
+  const email = reg.participant_email || '-';
+  const phone = reg.participant_phone || '-';
+  const venue = (tournament && tournament.venue) || (comp && comp.venue) || 'GASC Idappadi Sports Ground';
+  const status = (reg.status || 'PENDING').toUpperCase();
+  const isApproved = status === 'APPROVED';
+  const statusBadge = isApproved ? 'APPROVED' : (status === 'REJECTED' ? 'REJECTED' : 'PENDING APPROVAL');
+  const statusColor = isApproved ? '#15803d' : (status === 'REJECTED' ? '#b91c1c' : '#b45309');
+  const statusBg = isApproved ? '#dcfce7' : (status === 'REJECTED' ? '#fee2e2' : '#fef3c7');
+  const statusBorder = isApproved ? '#86efac' : (status === 'REJECTED' ? '#fca5a5' : '#fcd34d');
+
+  const dateFormatted = reg.created_at ? new Date(reg.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleDateString('en-IN');
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(regId)}`;
+
+  let playersRows = '';
+  if (isTeam && players && players.length > 0) {
+    playersRows = players.map((p, idx) => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 6px 10px; font-weight: bold; text-align: center; color: #64748b;">${idx + 1}</td>
+        <td style="padding: 6px 10px; font-weight: 600; color: #1e293b;">${p.player_name || p.name || '-'}</td>
+        <td style="padding: 6px 10px; font-family: monospace; color: #334155;">${p.player_register_number || p.register_number || '-'}</td>
+        <td style="padding: 6px 10px; color: #475569;">${p.department || '-'}</td>
+        <td style="padding: 6px 10px; text-align: center;"><span style="display:inline-block; font-size:10px; padding:2px 8px; border-radius:12px; background:${(p.role || '').toLowerCase().includes('sub') ? '#f1f5f9' : '#e0f2fe'}; color:${(p.role || '').toLowerCase().includes('sub') ? '#64748b' : '#0369a1'}; font-weight:700;">${p.role || 'Player'}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GASC_Receipt_${regId}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px 16px;
+      background: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1e293b;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    .toolbar {
+      max-width: 820px;
+      margin: 0 auto 16px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 9999px;
+      cursor: pointer;
+      text-decoration: none;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary {
+      background: #334155;
+      color: #e2e8f0;
+    }
+    .btn-secondary:hover { background: #475569; }
+    .receipt-container {
+      max-width: 820px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 32px 36px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      border: 1px solid #cbd5e1;
+    }
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+    }
+    .header-table td { vertical-align: middle; }
+    .logo-img {
+      width: 82px;
+      height: 82px;
+      object-fit: contain;
+    }
+    .qr-img {
+      width: 95px;
+      height: 95px;
+      border: 1px solid #cbd5e1;
+      padding: 4px;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .title-area {
+      text-align: center;
+      padding: 0 12px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #1e40af;
+      background: #eff6ff;
+      padding: 6px 12px;
+      border-left: 4px solid #2563eb;
+      margin: 16px 0 10px 0;
+      border-radius: 0 4px 4px 0;
+    }
+    .info-grid {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+      font-size: 12.5px;
+    }
+    .info-grid td {
+      padding: 6px 10px;
+      border: 1px solid #e2e8f0;
+    }
+    .info-grid td.label {
+      background: #f8fafc;
+      font-weight: 700;
+      color: #475569;
+      width: 22%;
+    }
+    .info-grid td.value {
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .rules-list {
+      margin: 6px 0 0 0;
+      padding-left: 18px;
+      font-size: 11.5px;
+      color: #475569;
+      line-height: 1.5;
+    }
+    .sign-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 36px;
+      text-align: center;
+      font-size: 11.5px;
+    }
+    .sign-table td {
+      vertical-align: bottom;
+      padding: 0 10px;
+      width: 33.33%;
+    }
+    .sign-line {
+      border-top: 1.5px solid #0f172a;
+      padding-top: 6px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    @media print {
+      body {
+        background: #ffffff !important;
+        padding: 0 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .receipt-container {
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        border: 1.5px solid #000000 !important;
+        padding: 24px 28px !important;
+        max-width: 100% !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Print Toolbar -->
+  <div class="toolbar no-print">
+    <div style="color: #94a3b8; font-size: 13px; font-weight: 600;">
+      Official Entry Slip &bull; <span style="font-family: monospace; color: #38bdf8;">${regId}</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <a href="javascript:window.history.back()" class="btn btn-secondary">
+        &larr; Back
+      </a>
+      <button onclick="window.print()" class="btn btn-primary">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z"/><path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2H5zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4V3zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2H5zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1z"/></svg>
+        Download / Save as PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="receipt-container">
+    <!-- Header -->
+    <table class="header-table">
+      <tr>
+        <td style="width: 85px;">
+          <img src="/images/college-logo.png" alt="GASC Emblem" class="logo-img" onerror="this.onerror=null;this.src='https://gasc-student-portal.vercel.app/images/college-logo.png'">
+        </td>
+        <td class="title-area">
+          <div style="font-size: 11px; font-weight: 700; color: #475569; letter-spacing: 1px; text-transform: uppercase;">Government of Tamil Nadu</div>
+          <div style="font-size: 18px; font-weight: 900; color: #0f172a; margin: 2px 0; text-transform: uppercase; letter-spacing: 0.3px;">Government Arts and Science College, Idappadi</div>
+          <div style="font-size: 11px; color: #64748b;">(Affiliated to Periyar University, Salem | NAAC Accredited | Idappadi - 637 101, Salem Dt.)</div>
+          <div style="font-size: 13px; font-weight: 800; color: #1e40af; text-transform: uppercase; margin-top: 6px; letter-spacing: 0.5px;">Department of Physical Education &amp; Sports</div>
+          <div style="display: inline-block; margin-top: 4px; font-size: 11px; font-weight: 800; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 10px; border-radius: 12px; letter-spacing: 0.5px;">
+            INTER-COLLEGE TOURNAMENT PARTICIPATION ENTRY RECEIPT
+          </div>
+        </td>
+        <td style="width: 105px; text-align: center;">
+          <img src="${qrUrl}" alt="QR" class="qr-img">
+          <div style="font-size: 9px; font-weight: 700; color: #64748b; margin-top: 2px;">SCAN TO VERIFY</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Reg ID & Status Strip -->
+    <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 8px 14px; margin-bottom: 12px;">
+      <div>
+        <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Registration ID:</span>
+        <span style="font-family: monospace; font-size: 16px; font-weight: 900; color: #1d4ed8; margin-left: 6px;">${regId}</span>
+      </div>
+      <div>
+        <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-right: 6px;">Status:</span>
+        <span style="display: inline-block; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 800; background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusBorder};">
+          ${statusBadge}
+        </span>
+      </div>
+      <div style="font-size: 11px; color: #64748b; font-weight: 600;">
+        Date: <strong style="color: #0f172a;">${dateFormatted}</strong>
+      </div>
+    </div>
+
+    <!-- Tournament & Event Info -->
+    <div class="section-title">1. Tournament &amp; Competition Details</div>
+    <table class="info-grid">
+      <tr>
+        <td class="label">Tournament</td>
+        <td class="value" style="color: #1e40af; font-size: 14px;">${tName}</td>
+        <td class="label">Event / Sport</td>
+        <td class="value" style="color: #0f172a;">${cName} (${sport})</td>
+      </tr>
+      <tr>
+        <td class="label">Event Mode</td>
+        <td class="value">${isTeam ? 'Team (Squad Roster)' : 'Individual (Single Athlete)'}</td>
+        <td class="label">Category / Gender</td>
+        <td class="value">${reg.gender || 'Boys / Men'}</td>
+      </tr>
+      <tr>
+        <td class="label">Venue</td>
+        <td class="value" colspan="3">${venue}</td>
+      </tr>
+    </table>
+
+    <!-- Institution & Participant Info -->
+    <div class="section-title">2. Institution &amp; Participant Details</div>
+    <table class="info-grid">
+      <tr>
+        <td class="label">College / Institute</td>
+        <td class="value" colspan="3" style="font-size: 13.5px; font-weight: 800;">${college}</td>
+      </tr>
+      <tr>
+        <td class="label">College Address</td>
+        <td class="value" colspan="3">${address}</td>
+      </tr>
+      <tr>
+        <td class="label">${isTeam ? 'Team / Squad Name' : 'Athlete Name'}</td>
+        <td class="value" style="font-size: 13px; color: #1d4ed8;">${pName}</td>
+        <td class="label">Register Number</td>
+        <td class="value" style="font-family: monospace;">${regNo}</td>
+      </tr>
+      <tr>
+        <td class="label">Department &amp; Year</td>
+        <td class="value">${dept} &bull; ${year}</td>
+        <td class="label">Mobile Number</td>
+        <td class="value">${phone}</td>
+      </tr>
+      <tr>
+        <td class="label">Official Email</td>
+        <td class="value" colspan="3">${email}</td>
+      </tr>
+    </table>
+
+    ${isTeam && playersRows ? `
+      <!-- Squad Table -->
+      <div class="section-title">3. Registered Team Squad Members (${players.length} Players)</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 12px; border: 1px solid #cbd5e1;">
+        <thead>
+          <tr style="background: #f1f5f9; color: #334155; font-size: 11px; text-transform: uppercase;">
+            <th style="padding: 6px 10px; width: 35px; border-bottom: 1px solid #cbd5e1;">#</th>
+            <th style="padding: 6px 10px; text-align: left; border-bottom: 1px solid #cbd5e1;">Player Name</th>
+            <th style="padding: 6px 10px; text-align: left; border-bottom: 1px solid #cbd5e1;">Register No</th>
+            <th style="padding: 6px 10px; text-align: left; border-bottom: 1px solid #cbd5e1;">Department</th>
+            <th style="padding: 6px 10px; text-align: center; border-bottom: 1px solid #cbd5e1;">Squad Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${playersRows}
+        </tbody>
+      </table>
+    ` : ''}
+
+    <!-- Rules & Instructions -->
+    <div class="section-title">${isTeam && playersRows ? '4' : '3'}. Mandatory Competition Instructions</div>
+    <ul class="rules-list">
+      <li>All participants must produce their <strong>Original College Identity Card</strong> and this printed entry slip at the registration desk.</li>
+      <li>Teams / Athletes must report to the Physical Director at the venue <strong>minimum 45 minutes before</strong> the scheduled fixture.</li>
+      <li>Proper sports attire, standardized jersey, and protective gear as per federation rules are mandatory.</li>
+      <li>Decisions of the Referees and the GASC Idappadi Sports Organizing Committee shall be final and binding.</li>
+    </ul>
+
+    <!-- Signatures -->
+    <table class="sign-table">
+      <tr>
+        <td>
+          <div style="height: 40px;"></div>
+          <div class="sign-line">Candidate / Captain Signature</div>
+        </td>
+        <td>
+          <div style="height: 40px;"></div>
+          <div class="sign-line">
+            Dr. R. ANITHA<br>
+            <span style="font-size: 10px; color: #64748b; font-weight: normal;">Director of Physical Education</span>
+          </div>
+        </td>
+        <td>
+          <div style="height: 40px;"></div>
+          <div class="sign-line">
+            PRINCIPAL<br>
+            <span style="font-size: 10px; color: #64748b; font-weight: normal;">Government Arts &amp; Science College</span>
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <div style="text-align: center; font-size: 10px; color: #94a3b8; margin-top: 24px; border-top: 1px dashed #e2e8f0; padding-top: 8px;">
+      This is a system-generated computer slip issued by GASC Idappadi Sports Portal (v1.3) &bull; Ref: ${regId} &bull; Generated on ${dateFormatted}
+    </div>
+  </div>
+
+  <script>
+    // Automatically trigger Print / Save as PDF prompt on mobile or desktop
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    });
+  </script>
+</body>
+</html>`;
 }
 
 // ── Handler: QR Code Generator ──

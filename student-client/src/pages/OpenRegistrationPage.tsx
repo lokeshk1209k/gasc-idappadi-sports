@@ -1267,13 +1267,15 @@ const OpenRegistrationPage: React.FC = () => {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
-                    <button
-                      onClick={() => window.print()}
+                    <a
+                      href={`/api/open-registration/receipt/${submittedRegId}`}
+                      target="_blank"
+                      rel="noreferrer"
                       className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white flex items-center gap-2"
                     >
                       <Printer className="w-4 h-4" />
                       <span>Print Receipt</span>
-                    </button>
+                    </a>
                     <a
                       href={`/api/open-registration/receipt/${submittedRegId}`}
                       target="_blank"
