@@ -5413,4 +5413,23 @@ window.openSelectedTournamentQrFromReport = function() {
   window.showParentTournamentQrModal(tName);
 };
 
+// Global Bootstrap Modal Input Focus & Accessibility Helper
+document.addEventListener('shown.bs.modal', function(e) {
+  const modal = e.target;
+  if (!modal) return;
+  modal.style.pointerEvents = 'auto';
+  const firstInput = modal.querySelector('input:not([type="hidden"]):not([readonly]):not([disabled]), textarea:not([readonly]):not([disabled]), select:not([disabled])');
+  if (firstInput) {
+    setTimeout(() => {
+      try {
+        firstInput.focus();
+        if (typeof firstInput.select === 'function' && firstInput.type !== 'date' && firstInput.type !== 'file') {
+          firstInput.select();
+        }
+      } catch (err) {}
+    }, 60);
+  }
+});
+
+
 

@@ -23,6 +23,10 @@ foreach ($dir in $appDirs) {
     Copy-Item 'client\public\admin-dashboard.html' "$dir\client\public\admin-dashboard.html" -Force -ErrorAction SilentlyContinue
     Copy-Item 'client\public\admin-dashboard.html' "$dir\dist\admin-dashboard.html" -Force -ErrorAction SilentlyContinue
     Copy-Item 'client\public\admin-dashboard.html' "$dir\student-client\dist\admin-dashboard.html" -Force -ErrorAction SilentlyContinue
+    Copy-Item 'client\public\css\style.css' "$dir\client\public\css\style.css" -Force -ErrorAction SilentlyContinue
+    Copy-Item 'client\public\css\style.css' "$dir\dist\css\style.css" -Force -ErrorAction SilentlyContinue
+    Copy-Item 'client\public\css\style.css' "$dir\student-client\dist\css\style.css" -Force -ErrorAction SilentlyContinue
+    Copy-Item 'electron\main.js' "$dir\electron\main.js" -Force -ErrorAction SilentlyContinue
     Copy-Item 'server\routes\interCollegeRoutes.js' "$dir\server\routes\interCollegeRoutes.js" -Force -ErrorAction SilentlyContinue
     Copy-Item 'server\controllers\interCollegeController.js' "$dir\server\controllers\interCollegeController.js" -Force -ErrorAction SilentlyContinue
     Write-Host "Copied updates to $dir" -ForegroundColor Green

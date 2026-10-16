@@ -1704,8 +1704,15 @@ function openCreateInterCollegeModal() {
 
   const modalEl = document.getElementById('addCompetitionModal');
   if (modalEl) {
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl, { focus: false });
     modal.show();
+    setTimeout(() => {
+      const nameInput = document.getElementById('ctm-name');
+      if (nameInput) {
+        nameInput.focus();
+        nameInput.select();
+      }
+    }, 150);
   }
 }
 

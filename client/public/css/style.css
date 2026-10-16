@@ -596,6 +596,25 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   outline: none;
 }
 
+/* Modal Input & Keyboard Accessibility Fix for Electron/Chromium */
+.modal {
+  pointer-events: auto !important;
+}
+.modal-dialog {
+  pointer-events: auto !important;
+}
+.modal-content {
+  pointer-events: auto !important;
+}
+.modal-content input,
+.modal-content textarea,
+.modal-content select {
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+
 /* Toast Container */
 #toast-container {
   position: fixed;
