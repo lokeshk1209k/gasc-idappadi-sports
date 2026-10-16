@@ -3849,6 +3849,25 @@
             Send Correction Request
           </button>
         </div>
+  <!-- ================= MODAL: CUSTOM IN-APP CONFIRMATION ================= -->
+  <div class="modal fade" id="gascConfirmModal" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+      <div class="modal-content glass-card p-3 shadow-lg border border-danger border-opacity-30">
+        <div class="modal-body text-center p-3">
+          <div class="mb-3 text-danger">
+            <i class="bi bi-exclamation-triangle-fill fs-1" id="gasc-confirm-icon"></i>
+          </div>
+          <h5 class="fw-bold text-dark mb-2" id="gasc-confirm-title">Are you sure?</h5>
+          <p class="text-secondary small mb-4" id="gasc-confirm-message">This action cannot be undone.</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button type="button" class="btn btn-outline-secondary px-4 rounded-pill fw-bold" id="gasc-confirm-cancel-btn">
+              Cancel
+            </button>
+            <button type="button" class="btn btn-danger px-4 rounded-pill fw-bold shadow-sm" id="gasc-confirm-ok-btn">
+              <i class="bi bi-trash3 me-1"></i> Delete
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

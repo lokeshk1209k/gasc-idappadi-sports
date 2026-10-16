@@ -1293,10 +1293,14 @@ async function deleteInterCollegeCompetition(compId, compName) {
   const safeName = compName || (selectedExtCompForQr && selectedExtCompForQr.name) || 'Selected Competition';
   if (!targetId) return;
 
-  const confirmed = confirm(
-    `⚠️ Are you sure you want to DELETE "${safeName}"?\n\n` +
-    `This will permanently remove the competition, its QR code, and registration link.`
-  );
+  const confirmed = typeof window.showCustomConfirm === 'function'
+    ? await window.showCustomConfirm(
+        `Delete "${safeName}"?`,
+        `Are you sure you want to delete "${safeName}"? This will permanently remove the competition, its QR code, and registration link.`,
+        'Delete Competition',
+        'Cancel'
+      )
+    : confirm(`Are you sure you want to DELETE "${safeName}"?`);
   if (!confirmed) return;
 
   try {
@@ -1691,6 +1695,17 @@ async function confirmCorrectionExtRegistration() {
 // 12. COMPETITION CREATION HELPERS
 // ─────────────────────────────────────────────────────────────
 function openCreateInterCollegeModal() {
+  // Purge any lingering or orphaned backdrops
+  document.querySelectorAll('.modal-backdrop').forEach(b => {
+    if (!document.querySelector('.modal.show')) b.remove();
+  });
+
+  // Ensure window focus in Electron
+  window.focus();
+  if (window.electronAPI && typeof window.electronAPI.fixFocus === 'function') {
+    window.electronAPI.fixFocus();
+  }
+
   if (typeof openCreateTournamentModal === 'function') {
     openCreateTournamentModal();
   }

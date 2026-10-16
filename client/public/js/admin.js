@@ -2284,7 +2284,14 @@ async function deleteCompetition(id, name) {
 
 async function deleteTournament(tName) {
   if (!tName) return;
-  const confirmed = window.confirm(`⚠️ Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`);
+  const confirmed = typeof window.showCustomConfirm === 'function'
+    ? await window.showCustomConfirm(
+        `Delete Tournament "${tName}"?`,
+        `Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`,
+        'Delete Tournament',
+        'Cancel'
+      )
+    : window.confirm(`Are you sure you want to delete tournament "${tName}"?`);
   if (!confirmed) return;
 
   try {
@@ -5413,23 +5420,84 @@ window.openSelectedTournamentQrFromReport = function() {
   window.showParentTournamentQrModal(tName);
 };
 
-// Global Bootstrap Modal Input Focus & Accessibility Helper
-document.addEventListener('shown.bs.modal', function(e) {
-  const modal = e.target;
-  if (!modal) return;
-  modal.style.pointerEvents = 'auto';
-  const firstInput = modal.querySelector('input:not([type="hidden"]):not([readonly]):not([disabled]), textarea:not([readonly]):not([disabled]), select:not([disabled])');
-  if (firstInput) {
-    setTimeout(() => {
-      try {
-        firstInput.focus();
-        if (typeof firstInput.select === 'function' && firstInput.type !== 'date' && firstInput.type !== 'file') {
-          firstInput.select();
+// In-App Custom Confirmation Dialog (Prevents Electron Native Dialog Focus Trap)
+window.showCustomConfirm = function(title, message, confirmBtnText = 'Delete', cancelBtnText = 'Cancel', isDanger = true) {
+  return new Promise((resolve) => {
+    const modalEl = document.getElementById('gascConfirmModal');
+    if (!modalEl || typeof bootstrap === 'undefined') {
+      const res = window.confirm(`${title}\n\n${message}`);
+      if (window.electronAPI && typeof window.electronAPI.fixFocus === 'function') {
+        window.electronAPI.fixFocus();
+      }
+      window.focus();
+      return resolve(res);
+    }
+
+    const titleEl = document.getElementById('gasc-confirm-title');
+    const msgEl = document.getElementById('gasc-confirm-message');
+    const okBtn = document.getElementById('gasc-confirm-ok-btn');
+    const cancelBtn = document.getElementById('gasc-confirm-cancel-btn');
+    const iconEl = document.getElementById('gasc-confirm-icon');
+
+    if (titleEl) titleEl.innerText = title;
+    if (msgEl) msgEl.innerText = message;
+    if (cancelBtn) cancelBtn.innerText = cancelBtnText;
+    if (okBtn) {
+      okBtn.innerHTML = isDanger ? `<i class="bi bi-trash3 me-1"></i> ${confirmBtnText}` : `<i class="bi bi-check-circle me-1"></i> ${confirmBtnText}`;
+      okBtn.className = isDanger ? 'btn btn-danger px-4 rounded-pill fw-bold shadow-sm' : 'btn btn-primary px-4 rounded-pill fw-bold shadow-sm';
+    }
+    if (iconEl) {
+      iconEl.className = isDanger ? 'bi bi-exclamation-triangle-fill fs-1 text-danger' : 'bi bi-question-circle-fill fs-1 text-primary';
+    }
+
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false, focus: false });
+
+    let resolved = false;
+
+    function cleanup(result) {
+      if (resolved) return;
+      resolved = true;
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      bsModal.hide();
+      setTimeout(() => {
+        // Clean any lingering backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(b => {
+          if (!document.querySelector('.modal.show')) b.remove();
+        });
+        window.focus();
+        if (window.electronAPI && typeof window.electronAPI.fixFocus === 'function') {
+          window.electronAPI.fixFocus();
         }
-      } catch (err) {}
-    }, 60);
-  }
-});
+        resolve(result);
+      }, 150);
+    }
+
+    function onOk() { cleanup(true); }
+    function onCancel() { cleanup(false); }
+
+    okBtn.addEventListener('click', onOk, { once: true });
+    cancelBtn.addEventListener('click', onCancel, { once: true });
+
+    bsModal.show();
+  });
+};
+
+// Also protect against any native window.confirm calls stealing focus in Electron
+(function() {
+  const origConfirm = window.confirm;
+  window.confirm = function(msg) {
+    const res = origConfirm.call(window, msg);
+    try {
+      window.focus();
+      if (window.electronAPI && typeof window.electronAPI.fixFocus === 'function') {
+        window.electronAPI.fixFocus();
+      }
+    } catch(e) {}
+    return res;
+  };
+})();
+
 
 
 
