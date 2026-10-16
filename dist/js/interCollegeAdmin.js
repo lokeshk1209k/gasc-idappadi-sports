@@ -389,9 +389,14 @@ function renderExtCompetitionsCards() {
                   <i class="bi bi-trophy-fill me-1"></i>${sportName}
                 </span>
               </div>
-              <span class="badge ${isOpen ? 'bg-success' : 'bg-secondary'} px-2.5 py-1 text-xs fw-bold">
-                ${isOpen ? '<i class="bi bi-check-circle-fill me-1"></i>REGISTRATION OPEN' : '<i class="bi bi-pause-circle me-1"></i>REGISTRATION CLOSED'}
-              </span>
+              <div class="d-flex align-items-center gap-1.5">
+                <span class="badge ${isOpen ? 'bg-success' : 'bg-secondary'} px-2.5 py-1 text-xs fw-bold">
+                  ${isOpen ? '<i class="bi bi-check-circle-fill me-1"></i>REGISTRATION OPEN' : '<i class="bi bi-pause-circle me-1"></i>REGISTRATION CLOSED'}
+                </span>
+                <button class="btn btn-sm btn-outline-danger p-0 px-2 rounded-pill fw-bold" onclick="deleteInterCollegeCompetition('${compId}', decodeURIComponent('${encodeURIComponent(compName)}'))" title="Delete Competition" style="font-size:0.75rem; height:24px; line-height:22px;">
+                  <i class="bi bi-trash3-fill"></i>
+                </button>
+              </div>
             </div>
 
             <!-- Title & Info -->
@@ -442,8 +447,11 @@ function renderExtCompetitionsCards() {
             <button class="btn btn-sm btn-warning text-dark rounded-pill px-3 fw-bold" onclick="openInterCollegePosterModalById('${compId}')">
               <i class="bi bi-file-earmark-richtext-fill me-1"></i> A4 Poster
             </button>
-            <button class="btn btn-sm ${isOpen ? 'btn-outline-danger' : 'btn-outline-success'} rounded-pill px-3" onclick="toggleCompetitionRegistrationState('${compId}', '${status}')">
+            <button class="btn btn-sm ${isOpen ? 'btn-outline-secondary' : 'btn-outline-success'} rounded-pill px-3" onclick="toggleCompetitionRegistrationState('${compId}', '${status}')">
               ${isOpen ? '<i class="bi bi-pause-circle me-1"></i> Disable' : '<i class="bi bi-play-circle me-1"></i> Enable'}
+            </button>
+            <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold" onclick="deleteInterCollegeCompetition('${compId}', decodeURIComponent('${encodeURIComponent(compName)}'))" title="Delete Competition">
+              <i class="bi bi-trash3-fill me-1"></i> Delete
             </button>
           </div>
         </div>
@@ -1279,6 +1287,92 @@ async function toggleCompetitionRegistrationState(compId, currentStatus) {
     notifyUser('Failed to update registration state: ' + err.message, 'error');
   }
 }
+
+async function deleteInterCollegeCompetition(compId, compName) {
+  const targetId = compId || (selectedExtCompForQr && (selectedExtCompForQr.id || selectedExtCompForQr._id));
+  const safeName = compName || (selectedExtCompForQr && selectedExtCompForQr.name) || 'Selected Competition';
+  if (!targetId) return;
+
+  const confirmed = confirm(
+    `⚠️ Are you sure you want to DELETE "${safeName}"?\n\n` +
+    `This will permanently remove the competition, its QR code, and registration link.`
+  );
+  if (!confirmed) return;
+
+  try {
+    notifyUser(`Deleting "${safeName}"...`, 'info', 'Delete Competition');
+
+    let deleted = false;
+    // 1. Try inter-college specific delete endpoint
+    try {
+      const res = await apiRequest(`/inter-college/admin/competition/${targetId}`, 'DELETE', {});
+      if (res && res.success) deleted = true;
+    } catch (e1) {
+      console.warn('inter-college DELETE API notice:', e1.message);
+    }
+
+    // 2. Try general competition delete endpoint
+    if (!deleted) {
+      try {
+        const res = await apiRequest(`/competitions/${targetId}`, 'DELETE', {});
+        if (res && res.success) deleted = true;
+      } catch (e2) {
+        console.warn('/competitions/ DELETE notice:', e2.message);
+      }
+    }
+
+    // 3. Direct fetch fallback for live serverless API
+    if (!deleted) {
+      try {
+        const res = await fetch(`/api/competitions/${targetId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + (localStorage.getItem('adminToken') || '')
+          }
+        });
+        const d = await res.json().catch(() => null);
+        if (d && d.success) deleted = true;
+      } catch (e3) {}
+    }
+
+    // 4. Purge from extCompetitionsCache and localStorage
+    extCompetitionsCache = extCompetitionsCache.filter(c => String(c.id || c._id) !== String(targetId));
+    try {
+      const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
+      const filtered = custom.filter(c => String(c.id || c._id) !== String(targetId));
+      localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
+    } catch (e) {}
+
+    // Close QR modal if open
+    try {
+      const modalEl = document.getElementById('qrPreviewModal');
+      if (modalEl) {
+        const inst = bootstrap.Modal.getInstance(modalEl);
+        if (inst) inst.hide();
+      }
+    } catch (mErr) {}
+
+    notifyUser(`Competition "${safeName}" deleted successfully!`, 'success', 'Competition Deleted');
+
+    // Re-render immediately
+    renderExtCompetitionsGrid();
+    updateExtDashboardCounters();
+
+    // Reload from server in background
+    if (typeof loadAdminInterCollegeData === 'function') {
+      setTimeout(() => loadAdminInterCollegeData(), 400);
+    }
+    if (typeof loadAdminCompetitions === 'function') {
+      try { loadAdminCompetitions(); } catch (e) {}
+    }
+  } catch (err) {
+    console.error('deleteInterCollegeCompetition error:', err);
+    notifyUser('Failed to delete competition: ' + err.message, 'error');
+  }
+}
+window.deleteInterCollegeCompetition = deleteInterCollegeCompetition;
 
 async function promptRegenerateQrToken(compId, compName) {
   const targetId = compId || (selectedExtCompForQr && (selectedExtCompForQr.id || selectedExtCompForQr._id));

@@ -1833,4 +1833,46 @@ exports.getTournamentByToken = async (req, res) => {
   }
 };
 
+// ── ADMIN: DELETE COMPETITION ──
+exports.deleteCompetition = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Competition ID is required.' });
+    }
+
+    // 1. Delete associated registrations
+    try {
+      await supabase.from('external_registrations').delete().eq('competition_id', id);
+    } catch (e) {}
+    try {
+      await supabase.from('competition_registrations').delete().eq('competition_id', id);
+    } catch (e) {}
+
+    // 2. Delete competition in Supabase
+    try {
+      await supabase.from('competitions').delete().eq('id', id);
+    } catch (e) {}
+
+    // 3. Delete in localStore
+    try {
+      const localStore = require('../data/localStore');
+      const table = localStore.storeInstance.getTable('competitions') || [];
+      const remaining = table.filter(c => String(c.id) !== String(id) && String(c._id) !== String(id));
+      localStore.storeInstance.db['competitions'] = remaining;
+      localStore.storeInstance.save();
+    } catch (e) {}
+
+    return res.json({
+      success: true,
+      message: 'Competition deleted successfully.',
+      deletedId: id
+    });
+  } catch (err) {
+    console.error('deleteCompetition error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
 

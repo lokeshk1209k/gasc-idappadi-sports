@@ -828,13 +828,49 @@ async function handleCompetitions(req, res) {
     }
   }
 
+  if (req.method === 'DELETE') {
+    try {
+      const supabase = getSupabase();
+      const url = req.url || '';
+      const cleanPath = url.split('?')[0];
+      const parts = cleanPath.split('/').filter(Boolean);
+      let targetId = req.query?.id;
+      if (!targetId && parts.length > 0 && parts[parts.length - 1] !== 'competitions') {
+        targetId = parts[parts.length - 1];
+      }
+      const tournamentName = req.query?.name || (req.body && (req.body.tournamentName || req.body.name));
+
+      if (targetId && targetId !== 'tournament') {
+        try {
+          await supabase.from('external_registrations').delete().eq('competition_id', targetId);
+        } catch (e) {}
+        try {
+          await supabase.from('competition_registrations').delete().eq('competition_id', targetId);
+        } catch (e) {}
+        const { error } = await supabase.from('competitions').delete().eq('id', targetId);
+        if (error) throw error;
+        return res.json({ success: true, message: 'Competition deleted successfully.', deletedId: targetId });
+      }
+
+      if (tournamentName) {
+        await supabase.from('competitions').delete().ilike('tournament_name', tournamentName);
+        await supabase.from('tournaments').delete().ilike('name', tournamentName);
+        return res.json({ success: true, message: `Tournament "${tournamentName}" deleted successfully.` });
+      }
+
+      return res.status(400).json({ success: false, message: 'Competition ID or Tournament name required for deletion.' });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
   return res.status(405).json({ success: false, message: 'Method not allowed' });
 }
 
 // ── Main Dispatcher ──
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();

@@ -43,6 +43,9 @@ router.post('/admin/competitions/:id/toggle-registration', adminAuth, ctrl.toggl
 router.post('/admin/competition/:id/toggle-registration', adminAuth, ctrl.toggleRegistration);
 router.patch('/admin/competitions/:id/toggle-registration', adminAuth, ctrl.toggleRegistration);
 router.patch('/admin/competition/:id/toggle-registration', adminAuth, ctrl.toggleRegistration);
+router.delete('/admin/competitions/:id', adminAuth, ctrl.deleteCompetition);
+router.delete('/admin/competition/:id', adminAuth, ctrl.deleteCompetition);
+router.delete('/competition/:id', adminAuth, ctrl.deleteCompetition);
 router.get('/admin/analytics', adminAuth, ctrl.getAnalytics);
 
 module.exports = router;
