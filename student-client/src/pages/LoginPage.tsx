@@ -717,24 +717,6 @@ const LoginPage: React.FC = () => {
               </Link>
             </div>
 
-            {/* Prominent Inter-College / Other College Registration Banner */}
-            <div className="mb-6">
-              <Link
-                to="/open-registration"
-                className="w-full py-2.5 px-3.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-orange-500/20 to-yellow-500/25 border border-amber-400/50 text-amber-200 hover:text-white font-bold text-xs flex items-center justify-between gap-2 shadow-lg shadow-amber-950/40 transition-all hover:scale-[1.02] hover:border-amber-400 group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-xl bg-amber-500/30 border border-amber-400/60 flex items-center justify-center text-amber-300">
-                    <Trophy className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-extrabold text-amber-300 text-xs group-hover:text-amber-100">Other College Registration</div>
-                    <div className="text-[10px] text-amber-200/80 font-normal">பிற கல்லூரி மாணவர்கள் பதிவு செய்ய கிளிக் செய்யவும்</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-amber-400 group-hover:translate-x-1 transition-transform flex-shrink-0" />
-              </Link>
-            </div>
 
             {/* Card Header */}
             <div className="mb-6">
@@ -930,16 +912,7 @@ const LoginPage: React.FC = () => {
                   <ArrowRight className="w-3 h-3" />
                 </Link>
               </p>
-              <p className="text-xs text-amber-400/90 pt-1">
-                Other College / Inter-College?{' '}
-                <Link
-                  to="/open-registration"
-                  className="font-bold text-amber-300 hover:text-amber-200 underline inline-flex items-center gap-1 ml-1"
-                >
-                  Register External Team Here
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
-              </p>
+
             </div>
 
           </div>
