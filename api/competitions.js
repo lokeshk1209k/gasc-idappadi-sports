@@ -115,7 +115,7 @@ module.exports = async (req, res) => {
             status: 'Registration Open',
             banner_image: bannerImage,
             participation_type: pType,
-            external_registration_enabled: pType === 'INTER_COLLEGE',
+            external_registration_enabled: true,
             registration_token: tourToken,
             contact_person: body.contactPerson || 'Dr. R. ANITHA (Physical Director)',
             contact_phone: body.contactPhone || '+91 94432 18765',

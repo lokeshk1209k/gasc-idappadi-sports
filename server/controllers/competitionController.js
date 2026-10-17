@@ -50,7 +50,7 @@ exports.getAllCompetitions = async (req, res) => {
   try {
     const { status, type, level, sportId } = req.query;
 
-    let query = supabase.from('competitions').select('*, sports(id, name, icon)');
+    let query = supabase.from('competitions').select('*');
 
     if (status && status !== 'All') query = query.eq('status', status);
     if (type && type !== 'All') query = query.eq('type', type);
@@ -104,7 +104,7 @@ exports.getCompetitionById = async (req, res) => {
 
     const { data: compRaw, error: compErr } = await supabase
       .from('competitions')
-      .select('*, sports(id, name, icon)')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -169,14 +169,18 @@ exports.createCompetition = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please provide all required fields.' });
     }
 
-    const { data: sport } = await supabase
-      .from('sports')
-      .select('*')
-      .eq('id', sportId)
-      .single();
+    let sport = null;
+    try {
+      const { data: s } = await supabase
+        .from('sports')
+        .select('*')
+        .eq('id', sportId)
+        .maybeSingle();
+      if (s) sport = s;
+    } catch (e) {}
 
     if (!sport) {
-      return res.status(400).json({ success: false, message: 'Invalid sport ID.' });
+      sport = { id: sportId || 'sp_cricket', name: req.body.sportName || req.body.name || 'Sports' };
     }
 
     let bannerImage = '';
@@ -219,7 +223,7 @@ exports.createCompetition = async (req, res) => {
         status: parentComputedStatus,
         banner_image: bannerImage,
         participation_type: pType,
-        external_registration_enabled: pType === 'INTER_COLLEGE',
+        external_registration_enabled: true,
         registration_token: tourToken,
         contact_person: req.body.contactPerson || 'Dr. R. ANITHA (Physical Director)',
         contact_phone: req.body.contactPhone || '9443567890',
@@ -263,7 +267,7 @@ exports.createCompetition = async (req, res) => {
       participation_type: pType,
       competition_mode: cMode,
       registration_token: token,
-      external_registration_enabled: pType === 'INTER_COLLEGE',
+      external_registration_enabled: true,
       required_players: req.body.requiredPlayers ? Number(req.body.requiredPlayers) : null,
       substitutes: req.body.substitutes ? Number(req.body.substitutes) : null,
       max_colleges: req.body.maxColleges ? Number(req.body.maxColleges) : null,
