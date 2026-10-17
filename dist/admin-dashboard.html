@@ -69,12 +69,12 @@
         <a class="sidebar-nav-item admin-nav-item" data-view="equipment-mgmt">
           <i class="bi bi-box-seam-fill text-warning"></i> <span>Equipment Management</span>
         </a>
-        <a class="sidebar-nav-item admin-nav-item" data-view="competitions">
-          <i class="bi bi-flag-fill"></i> <span>Competitions</span>
-        </a>
-        <a class="sidebar-nav-item admin-nav-item" data-view="inter-college">
-          <i class="bi bi-qr-code-scan text-warning"></i> <span>Inter-College (QR)</span>
+        <a class="sidebar-nav-item admin-nav-item" data-view="competitions" id="nav-item-competitions">
+          <i class="bi bi-trophy-fill text-warning"></i> <span>Competitions & Inter-College</span>
           <span class="badge bg-warning text-dark ms-auto" id="nav-ext-pending-badge" style="display:none;font-size:0.65rem;">0</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item d-none" data-view="inter-college">
+          <i class="bi bi-qr-code-scan text-warning"></i> <span>Inter-College</span>
         </a>
         <a class="sidebar-nav-item admin-nav-item" data-view="applications">
           <i class="bi bi-file-earmark-check-fill"></i> <span>Applications</span>
@@ -977,125 +977,135 @@
           </div>
         </section>
 
-        <!-- VIEW 6: COMPETITIONS -->
+        <!-- VIEW 6: UNIFIED COMPETITIONS & INTER-COLLEGE HUB -->
         <section id="view-competitions" class="admin-view-section d-none">
-          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
-            <div>
-              <h4 class="fw-bold text-dark mb-0"><i class="bi bi-trophy-fill text-warning me-2"></i>Tournaments & Sports Competitions Management</h4>
-              <small class="text-secondary">Create parent tournaments and manage sports competitions inside each event</small>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-              <select id="comp-category-filter" class="form-select form-select-glass form-select-sm" onchange="loadAdminCompetitions()" style="min-width: 140px;">
-                <option value="All">All Categories</option>
-                <option value="Men">Men</option>
-                <option value="Women">Women</option>
-                <option value="Mixed">Mixed</option>
-              </select>
-              <button class="btn btn-sports-primary btn-sm shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addCompetitionModal" onclick="openCreateTournamentModal()">
-                <i class="bi bi-plus-circle me-1"></i> Create Tournament
-              </button>
-            </div>
-          </div>
-          <div id="admin-competitions-list-container">
-            <div class="table-glass-container">
-              <table class="table table-glass">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Tournament Name</th>
-                    <th>Date & Time</th>
-                    <th>Venue</th>
-                    <th>Reg. Deadline</th>
-                    <th>Slots Filled</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody id="admin-competitions-table">
-                  <!-- Loaded via admin.js -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- VIEW: INTER-COLLEGE MANAGEMENT & QR CODES -->
-        <section id="view-inter-college" class="admin-view-section d-none">
           <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
             <div>
               <div class="d-flex align-items-center gap-2 mb-1">
                 <span class="badge px-2.5 py-1 fw-bold" style="background: rgba(245, 158, 11, 0.2); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.45);">
-                  <i class="bi bi-qr-code-scan me-1"></i> QR PASS ENGINE
+                  <i class="bi bi-trophy-fill me-1"></i> ALL-IN-ONE SPORTS HUB
                 </span>
                 <span class="badge px-2.5 py-1 fw-bold" style="background: rgba(34, 211, 238, 0.16); color: #22D3EE; border: 1px solid rgba(34, 211, 238, 0.35);">
-                  <i class="bi bi-shield-check me-1"></i> Open External Regs
+                  <i class="bi bi-qr-code-scan me-1"></i> QR Pass & Registration Engine
                 </span>
               </div>
               <h4 class="fw-bold text-white mb-1">
-                Inter-College Championships & QR Management
+                Tournaments, Competitions & Inter-College Hub
               </h4>
               <small style="color: #AFC4DF;">
-                Create external college competitions, generate unique registration QR codes & posters, and manage verified college registrations
+                Create tournaments, manage sports competitions, generate QR registration passes, and track external college applications in one place.
               </small>
             </div>
-            <div class="d-flex gap-2 align-items-center">
-              <button class="btn btn-outline-secondary btn-sm px-3 text-white" onclick="loadAdminInterCollegeData()">
-                <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              <button class="btn btn-outline-secondary btn-sm px-3 text-white" onclick="reloadUnifiedCompetitionsHub()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Refresh Hub
               </button>
-              <button class="btn btn-warning btn-sm fw-bold px-3 text-dark shadow-sm" onclick="openCreateInterCollegeModal()">
-                <i class="bi bi-plus-circle-fill me-1"></i> Create Competition
+              <button class="btn btn-sports-primary btn-sm shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addCompetitionModal" onclick="openCreateTournamentModal()">
+                <i class="bi bi-trophy me-1"></i> Create Tournament
+              </button>
+              <button class="btn btn-warning btn-sm fw-bold px-3 text-dark shadow-sm text-nowrap" onclick="openCreateInterCollegeModal()">
+                <i class="bi bi-plus-circle-fill me-1"></i> Add Sport / QR
               </button>
             </div>
           </div>
 
-          <!-- Top Sub-Navigation Tabs (Modern Segmented Glass Bar) -->
-          <ul class="nav nav-pills inter-college-tab-bar p-2 mb-4 gap-1.5 flex-wrap" id="inter-college-tabs">
+          <!-- Top Sub-Navigation Tabs (Unified Segmented Glass Bar) -->
+          <ul class="nav nav-pills inter-college-tab-bar p-2 mb-4 gap-2 flex-wrap" id="inter-college-tabs">
             <li class="nav-item">
-              <button class="nav-link active" onclick="switchExtTab('competitions')">
-                <i class="bi bi-qr-code me-1.5"></i> Competitions & QRs
+              <button class="nav-link active" onclick="switchExtTab('tournaments')">
+                <i class="bi bi-trophy-fill me-1.5 text-warning"></i> Tournaments & Sports
+                <span class="badge rounded-pill ms-1.5" id="unified-tournaments-count">0</span>
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" onclick="switchExtTab('competitions')">
+                <i class="bi bi-qr-code-scan me-1.5 text-info"></i> Inter-College QRs & Passes
                 <span class="badge rounded-pill ms-1.5" id="ext-kpi-comps-count">0</span>
               </button>
             </li>
             <li class="nav-item">
               <button class="nav-link" onclick="switchExtTab('registrations')">
-                <i class="bi bi-card-checklist me-1.5"></i> All Registrations
+                <i class="bi bi-card-checklist me-1.5 text-success"></i> College Registrations
                 <span class="badge rounded-pill ms-1.5" id="ext-kpi-regs-count">0</span>
               </button>
             </li>
             <li class="nav-item">
               <button class="nav-link" onclick="switchExtTab('teams')">
-                <i class="bi bi-shield-shaded me-1.5"></i> External Teams
+                <i class="bi bi-shield-shaded me-1.5 text-primary"></i> External Teams
                 <span class="badge rounded-pill ms-1.5" id="ext-kpi-teams-count">0</span>
               </button>
             </li>
             <li class="nav-item">
               <button class="nav-link" onclick="switchExtTab('players')">
-                <i class="bi bi-people-fill me-1.5"></i> External Players
+                <i class="bi bi-people-fill me-1.5 text-info"></i> External Players
                 <span class="badge rounded-pill ms-1.5" id="ext-kpi-players-count">0</span>
               </button>
             </li>
             <li class="nav-item">
               <button class="nav-link" onclick="switchExtTab('approvals')">
                 <i class="bi bi-check2-circle me-1.5 text-warning"></i> Approval Queue
-                <span class="badge rounded-pill ms-1.5" id="ext-kpi-pending-count">0</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('analytics')">
-                <i class="bi bi-graph-up-arrow me-1.5"></i> Analytics
+                <span class="badge rounded-pill ms-1.5 bg-warning text-dark" id="ext-kpi-pending-count">0</span>
               </button>
             </li>
             <li class="nav-item">
               <button class="nav-link" onclick="switchExtTab('reports')">
-                <i class="bi bi-file-earmark-pdf-fill me-1.5"></i> Official Reports
+                <i class="bi bi-file-earmark-pdf-fill me-1.5 text-danger"></i> Official Reports
+              </button>
+            </li>
+            <li class="nav-item">
+              <button class="nav-link" onclick="switchExtTab('analytics')">
+                <i class="bi bi-graph-up-arrow me-1.5 text-info"></i> Analytics
               </button>
             </li>
           </ul>
 
           <!-- ══════════════════════════════════════════════════
+               SUB-VIEW 0: TOURNAMENTS & SPORTS LIST
+               ══════════════════════════════════════════════════ -->
+          <div id="ext-tab-pane-tournaments" class="ext-tab-pane">
+            <!-- Fast Filter & Options Selection Bar -->
+            <div class="glass-card p-3 mb-4 border border-warning border-opacity-25 shadow-sm">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-3">
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-dark border-secondary text-info"><i class="bi bi-search"></i></span>
+                    <input type="text" id="comp-search-filter" class="form-control form-control-glass form-control-sm" placeholder="Search tournament or sport..." onkeyup="filterAdminTournamentsList()">
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <select id="comp-tournament-filter" class="form-select form-select-glass form-select-sm" onchange="filterAdminTournamentsList()">
+                    <option value="All">All Tournaments</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <select id="comp-category-filter" class="form-select form-select-glass form-select-sm" onchange="loadAdminCompetitions()">
+                    <option value="All">All Categories</option>
+                    <option value="Men">Men</option>
+                    <option value="Women">Women</option>
+                    <option value="Mixed">Mixed</option>
+                  </select>
+                </div>
+                <div class="col-md-4 text-md-end d-flex gap-2 justify-content-md-end">
+                  <button class="btn btn-outline-secondary btn-sm text-white" onclick="loadAdminCompetitions()">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+                  </button>
+                  <button class="btn btn-sports-primary btn-sm shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addCompetitionModal" onclick="openCreateTournamentModal()">
+                    <i class="bi bi-plus-circle me-1"></i> Create Tournament
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div id="admin-competitions-list-container">
+              <div class="text-center py-5">
+                <div class="spinner-border text-primary spinner-border-sm"></div> Loading Tournaments & Sports...
+              </div>
+            </div>
+          </div>
+
+          <!-- ══════════════════════════════════════════════════
                SUB-VIEW 1: COMPETITIONS & QR CODES
                ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-competitions" class="ext-tab-pane">
+          <div id="ext-tab-pane-competitions" class="ext-tab-pane d-none">
             <div class="row g-3" id="ext-competitions-cards-container">
               <!-- Dynamically populated via loadAdminInterCollegeCompetitions() -->
               <div class="col-12 text-center py-5">
@@ -1352,6 +1362,9 @@
             </div>
           </div>
         </section>
+
+        <!-- BACKWARD COMPATIBILITY STUB FOR INTER-COLLEGE VIEW -->
+        <section id="view-inter-college" class="admin-view-section d-none"></section>
 
         <!-- VIEW 7: APPLICATIONS REVIEW -->
         <section id="view-applications" class="admin-view-section d-none">

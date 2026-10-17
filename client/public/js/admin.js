@@ -207,9 +207,14 @@ function switchAdminView(viewId) {
     switchEqTab('active');
     return;
   }
-  else if (viewId === 'competitions') loadAdminCompetitions();
-  else if (viewId === 'inter-college') {
+  else if (viewId === 'competitions') {
+    loadAdminCompetitions();
     if (window.loadAdminInterCollegeData) window.loadAdminInterCollegeData();
+  }
+  else if (viewId === 'inter-college') {
+    switchAdminView('competitions');
+    if (typeof switchExtTab === 'function') switchExtTab('competitions');
+    return;
   }
   else if (viewId === 'applications') loadAdminApplications();
   else if (viewId === 'teams') loadAdminTeams();
@@ -1885,7 +1890,28 @@ async function loadAdminCompetitions() {
       return;
     }
 
+    // Update tournaments count badge
+    const tournCountBadge = document.getElementById('unified-tournaments-count');
+    if (tournCountBadge) {
+      tournCountBadge.innerText = map.size;
+    }
+
+    // Populate tournament selector options
+    const compTournSelect = document.getElementById('comp-tournament-filter');
+    if (compTournSelect) {
+      const currentVal = compTournSelect.value;
+      let optHtml = '<option value="All">All Tournaments</option>';
+      map.forEach((_, tName) => {
+        optHtml += `<option value="${tName.replace(/"/g, '&quot;')}">${tName}</option>`;
+      });
+      compTournSelect.innerHTML = optHtml;
+      if (currentVal && (currentVal === 'All' || map.has(currentVal))) {
+        compTournSelect.value = currentVal;
+      }
+    }
+
     const compCategoryFilter = document.getElementById('comp-category-filter') ? document.getElementById('comp-category-filter').value : 'All';
+    const compTournFilter = compTournSelect ? compTournSelect.value : 'All';
 
     let html = '';
     map.forEach((tournData, tName) => {
@@ -2004,8 +2030,8 @@ async function loadAdminCompetitions() {
                         </div>
                       </div>
                       <div class="d-flex gap-2 pt-2 border-top border-white border-opacity-15 mt-auto">
-                        <button class="btn btn-sm btn-outline-info flex-grow-1 text-white fw-semibold" onclick="switchAdminView('applications'); document.getElementById('app-filter-status').value='All';" style="font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.6); background: rgba(56, 189, 248, 0.12);">
-                          <i class="bi bi-people me-1"></i> Registrations
+                        <button class="btn btn-sm btn-outline-info flex-grow-1 text-white fw-semibold" onclick="openTournamentRegistrations('${encodeURIComponent(tName)}', '${encodeURIComponent(sName)}')" style="font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.6); background: rgba(56, 189, 248, 0.12);">
+                          <i class="bi bi-card-checklist me-1"></i> Registrations
                         </button>
                         <button class="btn btn-sm btn-warning text-dark fw-bold" onclick="showTournamentQrModal('${compId}')" title="Preview & Download QR Code" style="font-size: 0.78rem;">
                           <i class="bi bi-qr-code-scan me-1"></i> QR
@@ -2030,6 +2056,79 @@ async function loadAdminCompetitions() {
     container.innerHTML = `<div class="p-4 text-center text-danger">Failed to load tournaments and competitions.</div>`;
   }
 }
+
+window.openTournamentRegistrations = function(tNameEncoded, sNameEncoded) {
+  const tName = decodeURIComponent(tNameEncoded || '');
+  const sName = decodeURIComponent(sNameEncoded || '');
+  
+  if (typeof switchExtTab === 'function') {
+    switchExtTab('registrations');
+    setTimeout(() => {
+      const tourSelect = document.getElementById('ext-reg-filter-tournament');
+      if (tourSelect) {
+        for (let i = 0; i < tourSelect.options.length; i++) {
+          const optText = tourSelect.options[i].text.toLowerCase();
+          const optVal = tourSelect.options[i].value.toLowerCase();
+          if (optText.includes(tName.toLowerCase()) || optVal.includes(tName.toLowerCase())) {
+            tourSelect.selectedIndex = i;
+            break;
+          }
+        }
+        if (typeof onAdminTournamentFilterChange === 'function') {
+          onAdminTournamentFilterChange();
+        }
+      }
+      const searchInput = document.getElementById('ext-reg-search');
+      if (searchInput && sName) {
+        searchInput.value = sName;
+      }
+      if (typeof filterAdminExtRegistrations === 'function') {
+        filterAdminExtRegistrations();
+      }
+    }, 100);
+  }
+};
+
+window.filterAdminTournamentsList = function() {
+  const search = (document.getElementById('comp-search-filter')?.value || '').toLowerCase().trim();
+  const selectedTourn = document.getElementById('comp-tournament-filter')?.value || 'All';
+  const container = document.getElementById('admin-competitions-list-container');
+  if (!container) return;
+
+  const cards = container.querySelectorAll('.glass-card');
+  cards.forEach(card => {
+    const tTitle = card.querySelector('h4')?.innerText.toLowerCase() || '';
+    const matchesTourn = (selectedTourn === 'All') || (tTitle.includes(selectedTourn.toLowerCase()));
+    
+    const sportCards = card.querySelectorAll('.col-md-6.col-lg-4');
+    let hasMatchingSport = false;
+    
+    sportCards.forEach(sc => {
+      const sportTitle = sc.querySelector('h6')?.innerText.toLowerCase() || '';
+      const sportText = sc.innerText.toLowerCase();
+      const matchesSearch = !search || sportTitle.includes(search) || tTitle.includes(search) || sportText.includes(search);
+      
+      if (matchesSearch && matchesTourn) {
+        sc.style.display = '';
+        hasMatchingSport = true;
+      } else {
+        sc.style.display = 'none';
+      }
+    });
+
+    if (matchesTourn && (!search || hasMatchingSport || tTitle.includes(search))) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+};
+
+window.reloadUnifiedCompetitionsHub = async function() {
+  if (typeof loadAdminCompetitions === 'function') await loadAdminCompetitions();
+  if (typeof loadAdminInterCollegeData === 'function') await loadAdminInterCollegeData();
+  if (typeof showToast === 'function') showToast('Competitions & Inter-College data synchronized!', 'info', 'Hub Refreshed');
+};
 
 window.getAdminDynamicStatus = function(c) {
   const now = new Date();

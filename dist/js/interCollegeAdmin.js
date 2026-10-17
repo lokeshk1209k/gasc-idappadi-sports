@@ -7,7 +7,7 @@ let extCompetitionsCache = [];
 let extRegistrationsCache = [];
 let extTeamsCache = [];
 let extPlayersCache = [];
-let currentActiveExtTab = 'competitions';
+let currentActiveExtTab = 'tournaments';
 let selectedExtCompForQr = null;
 let selectedExtRegForAction = null;
 
@@ -182,7 +182,10 @@ function switchExtTab(tabName) {
   if (targetPane) targetPane.classList.remove('d-none');
 
   // Trigger sub-tab loader
-  if (tabName === 'competitions') renderExtCompetitionsCards();
+  if (tabName === 'tournaments') {
+    if (typeof loadAdminCompetitions === 'function') loadAdminCompetitions();
+  }
+  else if (tabName === 'competitions') renderExtCompetitionsCards();
   else if (tabName === 'registrations') renderExtRegistrationsTable();
   else if (tabName === 'teams') renderExtTeamsCards();
   else if (tabName === 'players') renderExtPlayersTable();
@@ -298,6 +301,11 @@ async function loadAdminInterCollegeData() {
 
     const kpiPending = document.getElementById('ext-kpi-pending-count');
     if (kpiPending) kpiPending.innerText = pendingCount;
+
+    const tournCountBadge = document.getElementById('unified-tournaments-count');
+    if (tournCountBadge && window.allTournamentsCache && Array.isArray(window.allTournamentsCache)) {
+      tournCountBadge.innerText = window.allTournamentsCache.length;
+    }
 
     // Populate competition filter dropdowns
     populateCompFilterOptions();
