@@ -511,6 +511,38 @@ exports.submitRegistration = async (req, res) => {
     const cleanCollege = collegeName.trim();
     const cleanEmail = participantEmail.toLowerCase().trim();
 
+    // Verify Category strictly from actual database record - NEVER trust browser value blindly
+    const dbCat = comp.category || comp.gender || 'Mixed';
+    let verifiedCategory = 'Mixed';
+    if (/^men$|^boys?$/i.test(dbCat)) verifiedCategory = 'Men';
+    else if (/^women$|^girls?$/i.test(dbCat)) verifiedCategory = 'Women';
+    else verifiedCategory = 'Mixed';
+
+    // Verify participant/team gender against competition category
+    if (mode === 'INDIVIDUAL') {
+      const pGender = (req.body.individualGender || gender || '').toLowerCase();
+      const isMale = pGender === 'male' || pGender === 'boy' || pGender === 'boys' || pGender === 'men';
+      const isFemale = pGender === 'female' || pGender === 'girl' || pGender === 'girls' || pGender === 'women';
+      if (verifiedCategory === 'Men' && isFemale) {
+        return res.status(400).json({ success: false, message: 'Eligibility restriction: Female athletes cannot register for Men\'s category competitions.' });
+      }
+      if (verifiedCategory === 'Women' && isMale) {
+        return res.status(400).json({ success: false, message: 'Eligibility restriction: Male athletes cannot register for Women\'s category competitions.' });
+      }
+    } else if (mode === 'TEAM') {
+      const tGender = (req.body.teamGender || gender || '').toLowerCase();
+      const isMale = tGender === 'male' || tGender === 'boy' || tGender === 'boys' || tGender === 'men';
+      const isFemale = tGender === 'female' || tGender === 'girl' || tGender === 'girls' || tGender === 'women';
+      if (verifiedCategory === 'Men' && isFemale) {
+        return res.status(400).json({ success: false, message: 'Eligibility restriction: Female squads cannot register for Men\'s category competitions.' });
+      }
+      if (verifiedCategory === 'Women' && isMale) {
+        return res.status(400).json({ success: false, message: 'Eligibility restriction: Male squads cannot register for Women\'s category competitions.' });
+      }
+    }
+
+    const cleanGender = verifiedCategory;
+
     // 2. Duplicate Registration Prevention
     if (mode === 'INDIVIDUAL') {
       if (!playerName || !playerName.trim()) return res.status(400).json({ success: false, message: 'Player name is required.' });
@@ -540,7 +572,6 @@ exports.submitRegistration = async (req, res) => {
     } else {
       // TEAM MODE: Duplicate Check by College + Competition + Sport + Gender
       const cleanSport = (sportName || comp.sport_name || comp.name).trim();
-      const cleanGender = (gender || comp.gender || 'Boys').trim();
 
       try {
         const { data: existingTeam } = await supabase
@@ -599,7 +630,7 @@ exports.submitRegistration = async (req, res) => {
       registration_type: mode,
       sport_id: comp.sport_id || null,
       sport_name: comp.sport_name || comp.name,
-      gender: gender || comp.gender || 'All',
+      gender: verifiedCategory,
       team_name: mode === 'TEAM' ? (teamName?.trim() || `${cleanCollege} Team`) : null,
       coach_name: coachName?.trim() || null,
       coach_phone: coachPhone?.trim() || null,

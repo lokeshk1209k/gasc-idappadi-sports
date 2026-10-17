@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, User, Dumbbell, Trophy, TrendingUp,
   Image, Bell, Settings, LogOut,
-  ChevronLeft, ChevronRight, Search, X, Menu, Package
+  ChevronLeft, ChevronRight, Search, X, Menu, Package, Award
 } from 'lucide-react';
 
 // ── Auth Context ──────────────────────────────────────────────────────────────
@@ -32,8 +32,9 @@ export const useAuth = () => useContext(AuthContext);
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard',       path: '/student/dashboard' },
   { icon: User,            label: 'My Profile',      path: '/student/profile' },
-  { icon: Dumbbell,        label: 'Sports',           path: '/student/sports' },
-  { icon: Trophy,          label: 'Tournaments',      path: '/student/tournaments' },
+  { icon: Dumbbell,        label: 'Sports',          path: '/student/sports' },
+  { icon: Trophy,          label: 'Tournaments',     path: '/student/tournaments' },
+  { icon: Award,           label: 'CM Trophy',       path: '/student/cm-trophy' },
   { icon: Package,         label: 'My Equipment',    path: '/student/equipment' },
   { icon: Image,           label: 'Photos',          path: '/student/gallery' },
   { icon: Bell,            label: 'Notifications',   path: '/student/notifications' },
@@ -55,8 +56,102 @@ const MainLayout = () => {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [user, setUser] = useState<StudentUser | null>(null);
+  const [liveNotifs, setLiveNotifs] = useState<any[]>(NOTIFICATIONS);
+  const [unreadCount, setUnreadCount] = useState<number>(3);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Load live notifications
+  const fetchLiveNotifs = async () => {
+    try {
+      const readSet = new Set(JSON.parse(localStorage.getItem('gasc_read_notifs') || '[]'));
+      const token = localStorage.getItem('gasc_token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      let notifItems: any[] = [];
+      try {
+        const res = await fetch('/api/notifications', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.notifications) {
+            notifItems = data.notifications;
+          }
+        }
+      } catch (e) {}
+
+      // Fallback to CM Trophy announcements or direct Supabase notifications
+      if (notifItems.length === 0) {
+        try {
+          const cmRes = await fetch('/api/cm-trophy');
+          if (cmRes.ok) {
+            const cmData = await cmRes.json();
+            if (cmData && cmData.announcements) {
+              notifItems = cmData.announcements.map((a: any) => ({
+                id: a.id,
+                title: a.title,
+                message: a.instructions,
+                category: 'cm_trophy',
+                type: 'cm_trophy_announcement',
+                priority: a.isImportant ? 'High' : 'Normal',
+                sender: a.createdBy || 'Dr. R. ANITHA',
+                created_at: a.publishedAt || a.createdAt
+              }));
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (notifItems.length > 0) {
+        const processed = notifItems.map((n: any, idx: number) => {
+          let parsedBody = n.message || '';
+          let isCmTrophy = n.category === 'cm_trophy' || n.type === 'cm_trophy_announcement' || (n.title && n.title.includes('CM Trophy'));
+          let officialLink = isCmTrophy ? 'https://tncmtrophy.sdat.in/' : null;
+
+          try {
+            const parsed = JSON.parse(n.message);
+            parsedBody = parsed.shortMessage || parsed.instructions || parsed.title || n.message;
+            if (parsed.officialLink) officialLink = parsed.officialLink;
+          } catch (e) {}
+
+          const isUnread = !readSet.has(n.id);
+          return {
+            id: n.id || idx,
+            title: n.title,
+            body: parsedBody,
+            category: n.category,
+            isCmTrophy,
+            officialLink,
+            time: n.created_at ? new Date(n.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Recently',
+            type: isCmTrophy ? 'orange' : n.priority === 'High' ? 'blue' : 'green',
+            unread: isUnread
+          };
+        });
+        setLiveNotifs(processed);
+        setUnreadCount(processed.filter((p: any) => p.unread).length);
+      }
+    } catch (err) {
+      console.warn('Failed to load notifications in MainLayout:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveNotifs();
+    const interval = setInterval(fetchLiveNotifs, 20000);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
+
+  const markNotifRead = (id: any, isCmTrophy?: boolean) => {
+    const readSet = new Set(JSON.parse(localStorage.getItem('gasc_read_notifs') || '[]'));
+    readSet.add(id);
+    localStorage.setItem('gasc_read_notifs', JSON.stringify(Array.from(readSet)));
+    setLiveNotifs(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+    setShowNotifs(false);
+    if (isCmTrophy) {
+      navigate('/student/cm-trophy');
+    }
+  };
 
   // Load user from localStorage dynamically on route change or storage event
   useEffect(() => {
@@ -280,9 +375,33 @@ const MainLayout = () => {
               <button
                 onClick={() => { setShowNotifs(!showNotifs); setShowProfile(false); }}
                 style={{ position: 'relative', padding: 9, borderRadius: 10, background: 'rgba(8,27,53,0.8)', border: '1px solid rgba(55,140,255,0.20)', cursor: 'pointer', color: '#6E86A5', display: 'flex', alignItems: 'center' }}
+                title="Notifications"
               >
                 <Bell style={{ width: 18, height: 18 }} />
-                <span className="notif-dot" style={{ top: 6, right: 6 }} />
+                {unreadCount > 0 ? (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      background: '#FF6A21',
+                      color: '#FFFFFF',
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      fontSize: 10,
+                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 0 8px rgba(255,106,33,0.6)'
+                    }}
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                ) : (
+                  <span className="notif-dot" style={{ top: 6, right: 6 }} />
+                )}
               </button>
 
               {/* Notification Dropdown */}
@@ -292,25 +411,73 @@ const MainLayout = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Bell style={{ width: 16, height: 16, color: 'var(--accent-secondary)' }} />
                       <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>Notifications</span>
-                      <span className="badge badge-orange" style={{ fontSize: 10, padding: '2px 8px' }}>3 New</span>
+                      {unreadCount > 0 && (
+                        <span className="badge badge-orange" style={{ fontSize: 10, padding: '2px 8px' }}>{unreadCount} New</span>
+                      )}
                     </div>
                     <button onClick={() => setShowNotifs(false)} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
                       <X style={{ width: 16, height: 16 }} />
                     </button>
                   </div>
                   <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                    {NOTIFICATIONS.map(n => (
-                      <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-glass)', display: 'flex', gap: 12, alignItems: 'flex-start', background: n.unread ? 'var(--accent-subtle)' : 'transparent', cursor: 'pointer', transition: 'background 0.2s' }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: n.type === 'blue' ? 'var(--accent-secondary)' : n.type === 'green' ? '#4ade80' : n.type === 'orange' ? '#FF8A50' : '#a78bfa', boxShadow: n.unread ? `0 0 8px currentColor` : 'none' }} />
-                        <div>
-                          <p style={{ fontSize: 13, fontWeight: n.unread ? 600 : 400, color: n.unread ? 'var(--text-primary)' : 'var(--text-secondary)', margin: 0 }}>{n.title}</p>
-                          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0' }}>{n.time}</p>
-                        </div>
+                    {liveNotifs.length === 0 ? (
+                      <div style={{ padding: '24px 16px', textAlign: 'center', color: '#6E86A5', fontSize: 13 }}>
+                        No notifications yet.
                       </div>
-                    ))}
+                    ) : (
+                      liveNotifs.slice(0, 8).map(n => (
+                        <div
+                          key={n.id}
+                          onClick={() => markNotifRead(n.id, n.isCmTrophy)}
+                          style={{
+                            padding: '12px 16px',
+                            borderBottom: '1px solid var(--border-glass)',
+                            display: 'flex',
+                            gap: 12,
+                            alignItems: 'flex-start',
+                            background: n.unread ? 'rgba(56,167,255,0.08)' : 'transparent',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s'
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              marginTop: 6,
+                              flexShrink: 0,
+                              background: n.type === 'orange' ? '#FF8A50' : n.type === 'green' ? '#4ade80' : 'var(--accent-secondary)',
+                              boxShadow: n.unread ? '0 0 8px currentColor' : 'none'
+                            }}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                              <p style={{ fontSize: 13, fontWeight: n.unread ? 700 : 500, color: n.unread ? 'var(--text-primary)' : 'var(--text-secondary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {n.title}
+                              </p>
+                              {n.isCmTrophy && (
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 6, background: 'rgba(255,184,0,0.18)', color: '#FFB800', flexShrink: 0 }}>
+                                  CM Trophy
+                                </span>
+                              )}
+                            </div>
+                            <p style={{ fontSize: 11, color: '#AFC4DF', margin: '3px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {n.body}
+                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{n.time}</span>
+                              {n.isCmTrophy && (
+                                <span style={{ fontSize: 10, color: '#38A7FF', fontWeight: 600 }}>Open CM Trophy →</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                  <div style={{ padding: '10px 16px', textAlign: 'center' }}>
-                    <Link to="/student/notifications" onClick={() => setShowNotifs(false)} style={{ fontSize: 13, color: 'var(--accent-secondary)', fontWeight: 600, textDecoration: 'none' }}>View All →</Link>
+                  <div style={{ padding: '10px 16px', textAlign: 'center', borderTop: '1px solid var(--border-glass)' }}>
+                    <Link to="/student/notifications" onClick={() => setShowNotifs(false)} style={{ fontSize: 13, color: 'var(--accent-secondary)', fontWeight: 600, textDecoration: 'none' }}>View All Notifications →</Link>
                   </div>
                 </div>
               )}

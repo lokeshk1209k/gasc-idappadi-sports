@@ -214,6 +214,7 @@ function switchAdminView(viewId) {
   else if (viewId === 'applications') loadAdminApplications();
   else if (viewId === 'teams') loadAdminTeams();
   else if (viewId === 'achievements') loadAdminAchievements();
+  else if (viewId === 'cm-trophy') loadAdminCmTrophy();
   else if (viewId === 'notifications') loadAdminNotifications();
   else if (viewId === 'gallery') loadAdminGallery();
   else if (viewId === 'analytics') loadAdminAnalytics();
@@ -1883,9 +1884,21 @@ async function loadAdminCompetitions() {
       return;
     }
 
+    const compCategoryFilter = document.getElementById('comp-category-filter') ? document.getElementById('comp-category-filter').value : 'All';
+
     let html = '';
     map.forEach((tournData, tName) => {
-      const sports = tournData.sports || [];
+      let sports = tournData.sports || [];
+      if (compCategoryFilter !== 'All') {
+        sports = sports.filter(c => {
+          const rawCat = (c.category || c.gender || '').toLowerCase();
+          const target = compCategoryFilter.toLowerCase();
+          if (target === 'men') return rawCat === 'men' || rawCat === 'boys';
+          if (target === 'women') return rawCat === 'women' || rawCat === 'girls';
+          if (target === 'mixed') return rawCat === 'mixed';
+          return true;
+        });
+      }
       const tInfo = tournData.info || {};
       const firstSport = sports[0] || {};
       const tVenue = tInfo.venue || firstSport.venue || 'GASC Idappadi Main Ground';
@@ -1951,21 +1964,32 @@ async function loadAdminCompetitions() {
                 const sName = c.sportName || c.name || '';
                 const banner = window.getSportImage(sName, c.bannerImage);
                 const compId = c.id || c._id || '';
+                const rawCat = c.category || c.gender || 'Mixed';
+                let compCat = 'Mixed';
+                if (/^men$|^boys?$/i.test(rawCat)) compCat = 'Men';
+                else if (/^women$|^girls?$/i.test(rawCat)) compCat = 'Women';
+                else compCat = 'Mixed';
+                const compDisplayTitle = (c.name && c.name.includes('—')) ? c.name : `${sName} — ${compCat}`;
+
+                let catBadgeClass = 'bg-primary';
+                if (compCat === 'Women') catBadgeClass = 'bg-danger';
+                else if (compCat === 'Mixed') catBadgeClass = 'bg-warning text-dark';
+
                 return `
                 <div class="col-md-6 col-lg-4">
                   <div class="glass-card-dark rounded-3 border border-info border-opacity-25 h-100 d-flex flex-column justify-content-between overflow-hidden shadow-lg" style="background: #0b1736 !important; border: 1px solid rgba(56, 189, 248, 0.25) !important;">
                     <div style="height: 130px; position: relative; overflow: hidden; background: #071524;">
-                      <img src="${banner}" alt="${c.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src=window.getSportImage('${sName}');">
+                      <img src="${banner}" alt="${compDisplayTitle}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src=window.getSportImage('${sName}');">
                       <div style="position: absolute; inset: 0; background: linear-gradient(to top, #0b1736, transparent 65%);"></div>
-                      <span class="badge bg-primary bg-opacity-90 text-white border border-info border-opacity-40 position-absolute shadow-sm" style="top: 10px; left: 10px; backdrop-filter: blur(4px);">
-                        ${sName}
+                      <span class="badge ${catBadgeClass} bg-opacity-90 position-absolute shadow-sm" style="top: 10px; left: 10px; backdrop-filter: blur(4px); font-size: 0.72rem;">
+                        <i class="bi bi-gender-ambiguous me-1"></i>${compCat}
                       </span>
                       <span class="badge bg-success bg-opacity-90 text-white border border-success border-opacity-40 position-absolute shadow-sm" style="top: 10px; right: 10px; backdrop-filter: blur(4px);">
                         ${c.status || 'Open'}
                       </span>
                     </div>
                     <div class="p-3 flex-grow-1 d-flex flex-column justify-content-between" style="background: #0b1736 !important;">
-                      <h6 class="fw-bold mb-2" style="color: #ffffff !important; font-size: 1.05rem; letter-spacing: 0.3px;">${c.name}</h6>
+                      <h6 class="fw-bold mb-2" style="color: #ffffff !important; font-size: 1.05rem; letter-spacing: 0.3px;">${compDisplayTitle}</h6>
                       <div class="small mb-3" style="font-size: 0.82rem; line-height: 1.6; color: #f8fafc !important;">
                         <div class="mb-1" style="color: #ffffff !important;">
                           <i class="bi bi-calendar3 text-warning me-1.5"></i> <strong style="color: #ffffff !important;">${formatDate(c.date)}</strong> &bull; <span style="color: #cbd5e1 !important;">${c.startTime || '09:00 AM'}</span>
@@ -2052,23 +2076,41 @@ function openAddSportModal(tournamentName) {
 
 function onTournamentSportSelectChange(sel) {
   const compNameInput = document.getElementById('create-tournament-comp-name');
+  const catSel = document.getElementById('create-tournament-gender');
+  const cat = catSel ? catSel.value : 'Men';
   if (compNameInput && sel.selectedIndex > 0) {
     const sportName = sel.options[sel.selectedIndex].text;
-    if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
-      compNameInput.value = sportName;
-      compNameInput.dataset.autofilled = 'true';
-    }
+    compNameInput.value = `${sportName} — ${cat}`;
+    compNameInput.dataset.autofilled = 'true';
+  }
+}
+
+function onTournamentCategoryChange(cat) {
+  const compNameInput = document.getElementById('create-tournament-comp-name');
+  const sportSel = document.getElementById('create-tournament-sport-id');
+  if (compNameInput && sportSel && sportSel.selectedIndex > 0) {
+    const sportName = sportSel.options[sportSel.selectedIndex].text;
+    compNameInput.value = `${sportName} — ${cat}`;
   }
 }
 
 function onAddSportSelectChange(sel) {
   const compNameInput = document.getElementById('add-sport-comp-name') || document.querySelector('#addSportCompetitionModal input[name="name"]');
+  const catSel = document.getElementById('add-sport-gender');
+  const cat = catSel ? catSel.value : 'Men';
   if (compNameInput && sel.selectedIndex > 0) {
     const sportName = sel.options[sel.selectedIndex].text;
-    if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
-      compNameInput.value = sportName;
-      compNameInput.dataset.autofilled = 'true';
-    }
+    compNameInput.value = `${sportName} — ${cat}`;
+    compNameInput.dataset.autofilled = 'true';
+  }
+}
+
+function onAddSportCategoryChange(cat) {
+  const compNameInput = document.getElementById('add-sport-comp-name') || document.querySelector('#addSportCompetitionModal input[name="name"]');
+  const sportSel = document.getElementById('add-sport-select-id');
+  if (compNameInput && sportSel && sportSel.selectedIndex > 0) {
+    const sportName = sportSel.options[sportSel.selectedIndex].text;
+    compNameInput.value = `${sportName} — ${cat}`;
   }
 }
 
@@ -2101,6 +2143,14 @@ async function submitCreateCompetition(event) {
     formData.set('type', formData.get('sportType'));
   }
 
+  // Category Extraction & Normalization
+  const rawCat = formData.get('firstSportGender') || formData.get('gender') || 'Men';
+  let normCat = 'Men';
+  if (/^women$|^girls?$/i.test(rawCat)) normCat = 'Women';
+  else if (/^mixed$/i.test(rawCat)) normCat = 'Mixed';
+  formData.set('gender', normCat);
+  formData.set('category', normCat);
+
   const uniqueCompId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   formData.set('id', uniqueCompId);
   const tId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -2127,6 +2177,8 @@ async function submitCreateCompetition(event) {
       tournamentName: tName,
       name: sportName,
       sportName: sportName,
+      category: normCat,
+      gender: normCat,
       type: formData.get('type') || formData.get('sportType') || 'Team Event',
       date: formData.get('date') || new Date().toISOString(),
       registrationEnd: formData.get('registrationEnd') || formData.get('date'),
@@ -2193,6 +2245,13 @@ async function submitAddSportToTournament(event) {
     formData.set('name', sportName);
   }
 
+  const rawSportCat = formData.get('gender') || 'Men';
+  let normSportCat = 'Men';
+  if (/^women$|^girls?$/i.test(rawSportCat)) normSportCat = 'Women';
+  else if (/^mixed$/i.test(rawSportCat)) normSportCat = 'Mixed';
+  formData.set('gender', normSportCat);
+  formData.set('category', normSportCat);
+
   const uniqueSportId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   formData.set('id', uniqueSportId);
   const sportTId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -2217,6 +2276,8 @@ async function submitAddSportToTournament(event) {
       name: sportName,
       tournamentName: tName,
       sportName: sportName,
+      category: normSportCat,
+      gender: normSportCat,
       type: formData.get('type') || 'Team Event',
       date: formData.get('date') || new Date().toISOString(),
       registrationEnd: formData.get('registrationEnd') || formData.get('date'),
@@ -2331,24 +2392,50 @@ async function deleteTournament(tName) {
 async function loadAdminApplications() {
   const table = document.getElementById('admin-applications-table');
   const status = document.getElementById('app-filter-status') ? document.getElementById('app-filter-status').value : 'All';
+  const categoryFilter = document.getElementById('app-filter-gender') ? document.getElementById('app-filter-gender').value : 'All';
 
   try {
     const res = await apiRequest(`/competitions/registrations/all?status=${status}`);
-    if (!res.registrations || res.registrations.length === 0) {
+    let regs = res.registrations || [];
+
+    if (categoryFilter !== 'All') {
+      regs = regs.filter(r => {
+        const c = r.competitionId || {};
+        const rawCat = (r.category || c.category || r.gender || c.gender || '').toLowerCase();
+        if (categoryFilter === 'Men') return rawCat === 'men' || rawCat === 'boys';
+        if (categoryFilter === 'Women') return rawCat === 'women' || rawCat === 'girls';
+        if (categoryFilter === 'Mixed') return rawCat === 'mixed';
+        return true;
+      });
+    }
+
+    if (regs.length === 0) {
       const emptyMsg = status === 'Pending' 
-        ? 'No pending applications to review. (Select "All Applications" or "Approved" to view reviewed entries).'
-        : `No student applications found for status: ${status}.`;
-      table.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-inbox me-2 fs-5"></i>${emptyMsg}</td></tr>`;
+        ? 'No pending applications to review matching criteria.'
+        : `No student applications found for status "${status}" and category "${categoryFilter}".`;
+      table.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-inbox me-2 fs-5"></i>${emptyMsg}</td></tr>`;
       return;
     }
 
-    table.innerHTML = res.registrations.map((r, idx) => {
+    table.innerHTML = regs.map((r, idx) => {
       const regId = r.id || r._id;
       const studentName = (r.studentId && r.studentId.name) ? r.studentId.name : (r.studentName || 'Student Athlete');
       const regNo = (r.studentId && r.studentId.registerNumber) ? r.studentId.registerNumber : (r.registerNumber || '');
       const dept = (r.studentId && r.studentId.department) ? r.studentId.department : (r.department || '');
+      const tName = r.tournamentName || (r.competitionId && r.competitionId.tournamentName) || 'Inter-Department Fest';
       const compName = (r.competitionId && r.competitionId.name) ? r.competitionId.name : (r.tournamentName || 'Competition');
       const sportName = (r.competitionId && r.competitionId.sportName) ? r.competitionId.sportName : (r.sportName || 'General');
+
+      const c = r.competitionId || {};
+      const rawCat = r.category || c.category || r.gender || c.gender || 'Mixed';
+      let compCat = 'Mixed';
+      if (/^men$|^boys?$/i.test(rawCat)) compCat = 'Men';
+      else if (/^women$|^girls?$/i.test(rawCat)) compCat = 'Women';
+      else compCat = 'Mixed';
+
+      let catBadgeClass = 'bg-primary';
+      if (compCat === 'Women') catBadgeClass = 'bg-danger';
+      else if (compCat === 'Mixed') catBadgeClass = 'bg-warning text-dark';
 
       let statusBadge = `<span class="badge badge-glass-warning text-dark"><i class="bi bi-clock-history me-1"></i>${r.status || 'Registered'}</span>`;
       if (r.status === 'Approved') {
@@ -2398,21 +2485,32 @@ async function loadAdminApplications() {
           <td>${idx + 1}</td>
           <td>
             <strong class="d-block text-dark">${studentName}</strong>
-            <small class="text-muted">${regNo} &bull; ${dept}</small>
+            <small class="text-muted font-monospace">${regNo}</small>
           </td>
           <td>
-            <strong class="d-block text-dark">${compName}</strong>
-            <small class="text-primary fw-medium">${sportName}</small>
+            <strong class="d-block text-dark small">${tName}</strong>
+            <small class="text-primary fw-medium"><i class="bi bi-trophy-fill text-warning me-1"></i>${sportName}</small>
           </td>
-          <td><span class="badge bg-light text-dark border">${r.preferredPosition || 'Player'}</span></td>
-          <td>${formatDate(r.registrationDate || r.createdAt)}</td>
+          <td>
+            <span class="fw-semibold text-dark">${compName}</span>
+          </td>
+          <td>
+            <span class="badge ${catBadgeClass} px-2 py-1" style="font-size:0.75rem;">
+              <i class="bi bi-gender-ambiguous me-1"></i>${compCat}
+            </span>
+          </td>
+          <td>
+            <span class="badge bg-light text-dark border me-1">${dept}</span>
+            <small class="text-muted d-block mt-0.5">${r.preferredPosition || 'Player'}</small>
+          </td>
+          <td class="small text-muted">${formatDate(r.registrationDate || r.createdAt)}</td>
           <td>${statusBadge}</td>
           <td>${actionButtons}</td>
         </tr>
       `;
     }).join('');
   } catch (err) {
-    table.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Failed to load applications.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Failed to load applications.</td></tr>`;
   }
 }
 
@@ -3207,6 +3305,394 @@ async function deleteAchievement(id) {
     loadAdminAchievements();
   } catch (err) {
     showToast(err.message, 'error');
+  }
+}
+
+// 11b. CM Trophy Updates & Notifications Management
+let allCmTrophyAnnouncements = [];
+
+async function loadAdminCmTrophy() {
+  const tbody = document.getElementById('cm-trophy-table-tbody');
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted"><div class="spinner-border text-warning spinner-border-sm me-2"></div> Loading official CM Trophy circulars & announcements...</td></tr>`;
+  }
+
+  try {
+    const res = await apiRequest('/cm-trophy');
+    allCmTrophyAnnouncements = res.data || res.announcements || (Array.isArray(res) ? res : []);
+    updateCmTrophyMetrics(allCmTrophyAnnouncements);
+    filterAdminCmTrophyTable();
+  } catch (err) {
+    console.error('Failed to load CM Trophy announcements:', err);
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle me-1"></i> Failed to load announcements: ${escapeHtml(err.message || 'Network error')}</td></tr>`;
+    }
+  }
+}
+
+function updateCmTrophyMetrics(list) {
+  const total = list.length;
+  const published = list.filter(a => a.status === 'published').length;
+  const drafts = list.filter(a => a.status === 'draft').length;
+  const important = list.filter(a => a.isImportant).length;
+
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = val;
+  };
+
+  setVal('cm-stat-total', total);
+  setVal('cm-stat-published', published);
+  setVal('cm-stat-drafts', drafts);
+  setVal('cm-stat-important', important);
+
+  const badge = document.getElementById('nav-cm-trophy-badge');
+  if (badge) {
+    if (published > 0) {
+      badge.innerText = published;
+      badge.style.display = 'inline-block';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+}
+
+function filterAdminCmTrophyTable() {
+  const query = (document.getElementById('cm-search-input')?.value || '').toLowerCase().trim();
+  const statusFilter = document.getElementById('cm-status-filter')?.value || 'All';
+  const categoryFilter = document.getElementById('cm-category-filter')?.value || 'All';
+
+  let filtered = [...allCmTrophyAnnouncements];
+
+  if (statusFilter !== 'All') {
+    filtered = filtered.filter(a => (a.status || '').toLowerCase() === statusFilter.toLowerCase());
+  }
+
+  if (categoryFilter !== 'All') {
+    filtered = filtered.filter(a => (a.category || '').toLowerCase() === categoryFilter.toLowerCase());
+  }
+
+  if (query) {
+    filtered = filtered.filter(a => 
+      (a.title || '').toLowerCase().includes(query) ||
+      (a.instructions || '').toLowerCase().includes(query) ||
+      (a.category || '').toLowerCase().includes(query)
+    );
+  }
+
+  renderAdminCmTrophyTable(filtered);
+}
+
+function renderAdminCmTrophyTable(list) {
+  const tbody = document.getElementById('cm-trophy-table-tbody');
+  if (!tbody) return;
+
+  if (!list || list.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center py-5 text-muted">
+          <div class="stat-icon bg-warning bg-opacity-10 text-warning mx-auto mb-2" style="width: 48px; height: 48px; font-size: 1.5rem;">
+            <i class="bi bi-trophy-fill"></i>
+          </div>
+          <div class="fw-bold text-dark">No CM Trophy Announcements Found</div>
+          <small class="text-muted">Click "+ New Announcement" above to publish verified SDAT circulars and instructions for students.</small>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const fmtDate = (d) => {
+    if (!d) return '-';
+    try {
+      return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch (e) {
+      return String(d);
+    }
+  };
+
+  tbody.innerHTML = list.map((a, idx) => {
+    const isPub = a.status === 'published';
+    const isArch = a.status === 'archived';
+    const statusBadge = isPub
+      ? '<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25"><i class="bi bi-broadcast me-1"></i>Published</span>'
+      : (isArch
+          ? '<span class="badge bg-secondary bg-opacity-25 text-secondary border">Archived</span>'
+          : '<span class="badge bg-warning bg-opacity-15 text-dark border border-warning border-opacity-50"><i class="bi bi-pencil-fill me-1"></i>Draft</span>');
+
+    const priorityBadge = a.isImportant
+      ? '<span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-1"></i>HIGH PRIORITY</span>'
+      : '<span class="badge bg-light text-muted border">Standard</span>';
+
+    const datesDisplay = (a.registrationStartDate || a.registrationEndDate)
+      ? `<div class="small fw-semibold text-dark">${fmtDate(a.registrationStartDate)} – ${fmtDate(a.registrationEndDate)}</div>`
+      : '<span class="text-muted small">Pending verification</span>';
+
+    const linkSafe = escapeHtml(a.officialLink || 'https://tncmtrophy.sdat.in/');
+    const safeTitle = escapeHtml(a.title || 'Untitled Notice');
+    const safeSnippet = escapeHtml((a.instructions || '').substring(0, 85)) + ((a.instructions || '').length > 85 ? '...' : '');
+
+    return `
+      <tr>
+        <td class="text-muted small">${idx + 1}</td>
+        <td>
+          <div class="fw-bold text-dark">${safeTitle}</div>
+          <div class="d-flex align-items-center gap-2 mt-1">
+            <span class="badge bg-primary bg-opacity-10 text-primary border" style="font-size: 0.7rem;">${escapeHtml(a.category || 'General')}</span>
+            <a href="${linkSafe}" target="_blank" rel="noopener noreferrer" class="small text-decoration-none text-muted" style="font-size: 0.72rem;">
+              <i class="bi bi-box-arrow-up-right me-1"></i>SDAT Portal
+            </a>
+          </div>
+        </td>
+        <td>
+          <div class="small text-secondary" style="max-width: 280px;">${safeSnippet}</div>
+        </td>
+        <td>${datesDisplay}</td>
+        <td>${priorityBadge}</td>
+        <td>${statusBadge}</td>
+        <td class="small text-muted">${fmtDate(a.publishedAt || a.createdAt)}</td>
+        <td class="text-end">
+          <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-info" onclick="previewSingleCmTrophy('${a.id}')" title="Preview student view">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="btn btn-outline-primary" onclick="editCmTrophyAnnouncement('${a.id}')" title="Edit notice">
+              <i class="bi bi-pencil"></i>
+            </button>
+            ${!isPub ? `
+              <button class="btn btn-outline-success" onclick="publishCmTrophyAnnouncement('${a.id}')" title="Publish to students now">
+                <i class="bi bi-send"></i>
+              </button>
+            ` : `
+              <button class="btn btn-outline-secondary" onclick="archiveCmTrophyAnnouncement('${a.id}')" title="Archive announcement">
+                <i class="bi bi-archive"></i>
+              </button>
+            `}
+            <button class="btn btn-outline-danger" onclick="deleteCmTrophyAnnouncement('${a.id}')" title="Delete record">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openAddCmTrophyModal() {
+  document.getElementById('cmTrophyForm')?.reset();
+  document.getElementById('cm-trophy-id').value = '';
+  document.getElementById('cm-trophy-official-link').value = 'https://tncmtrophy.sdat.in/';
+  document.getElementById('cm-trophy-modal-title').innerText = 'New CM Trophy Announcement';
+  document.getElementById('cm-trophy-is-important').checked = true;
+  document.getElementById('cm-trophy-notify-students').checked = true;
+
+  const modalEl = document.getElementById('cmTrophyModal');
+  if (modalEl) {
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+}
+
+function editCmTrophyAnnouncement(id) {
+  const item = allCmTrophyAnnouncements.find(a => String(a.id) === String(id));
+  if (!item) {
+    showToast('Announcement not found', 'warning');
+    return;
+  }
+
+  document.getElementById('cm-trophy-id').value = item.id;
+  document.getElementById('cm-trophy-title').value = item.title || '';
+  document.getElementById('cm-trophy-category').value = item.category || 'Important Notice';
+  document.getElementById('cm-trophy-official-link').value = item.officialLink || 'https://tncmtrophy.sdat.in/';
+  document.getElementById('cm-trophy-start-date').value = item.registrationStartDate ? item.registrationStartDate.split('T')[0] : '';
+  document.getElementById('cm-trophy-end-date').value = item.registrationEndDate ? item.registrationEndDate.split('T')[0] : '';
+  document.getElementById('cm-trophy-is-important').checked = !!item.isImportant;
+  document.getElementById('cm-trophy-notify-students').checked = true;
+  document.getElementById('cm-trophy-instructions').value = item.instructions || '';
+  document.getElementById('cm-trophy-modal-title').innerText = 'Edit CM Trophy Announcement & Instructions';
+
+  const modalEl = document.getElementById('cmTrophyModal');
+  if (modalEl) {
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+}
+
+async function saveCmTrophyAnnouncement(targetStatus) {
+  const id = document.getElementById('cm-trophy-id')?.value;
+  const title = document.getElementById('cm-trophy-title')?.value.trim();
+  const category = document.getElementById('cm-trophy-category')?.value;
+  const officialLink = document.getElementById('cm-trophy-official-link')?.value.trim() || 'https://tncmtrophy.sdat.in/';
+  const registrationStartDate = document.getElementById('cm-trophy-start-date')?.value || null;
+  const registrationEndDate = document.getElementById('cm-trophy-end-date')?.value || null;
+  const isImportant = document.getElementById('cm-trophy-is-important')?.checked;
+  const notifyStudents = document.getElementById('cm-trophy-notify-students')?.checked;
+  const instructions = document.getElementById('cm-trophy-instructions')?.value.trim();
+
+  if (!title) {
+    showToast('Please enter an announcement title.', 'warning');
+    return;
+  }
+
+  if (!instructions) {
+    showToast('Please provide detailed instructions or guidelines for students.', 'warning');
+    return;
+  }
+
+  const payload = {
+    title,
+    instructions,
+    category,
+    officialLink,
+    registrationStartDate,
+    registrationEndDate,
+    isImportant,
+    status: targetStatus || 'published',
+    notifyStudents
+  };
+
+  try {
+    let res;
+    if (id) {
+      res = await apiRequest(`/cm-trophy/${id}`, 'PUT', payload);
+      showToast(res.message || 'CM Trophy announcement updated successfully.', 'success', 'Update Complete');
+    } else {
+      res = await apiRequest('/cm-trophy', 'POST', payload);
+      showToast(res.message || 'CM Trophy announcement created & published!', 'success', 'Published');
+    }
+
+    const modalEl = document.getElementById('cmTrophyModal');
+    if (modalEl) {
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+    }
+
+    await loadAdminCmTrophy();
+  } catch (err) {
+    console.error('Save CM Trophy error:', err);
+    showToast(err.message || 'Failed to save CM Trophy announcement.', 'error', 'Error');
+  }
+}
+
+function previewCmTrophyModal() {
+  const title = document.getElementById('cm-trophy-title')?.value.trim() || 'Tamil Nadu CM Trophy 2026-27 Registration';
+  const category = document.getElementById('cm-trophy-category')?.value || 'Important Notice';
+  const officialLink = document.getElementById('cm-trophy-official-link')?.value.trim() || 'https://tncmtrophy.sdat.in/';
+  const startDate = document.getElementById('cm-trophy-start-date')?.value;
+  const endDate = document.getElementById('cm-trophy-end-date')?.value;
+  const isImportant = document.getElementById('cm-trophy-is-important')?.checked;
+  const instructions = document.getElementById('cm-trophy-instructions')?.value.trim() || 'Detailed guidelines will appear here for students.';
+
+  populatePreviewModal({
+    title,
+    category,
+    officialLink,
+    registrationStartDate: startDate,
+    registrationEndDate: endDate,
+    isImportant,
+    instructions
+  });
+}
+
+function previewSingleCmTrophy(id) {
+  const item = allCmTrophyAnnouncements.find(a => String(a.id) === String(id));
+  if (!item) return;
+  populatePreviewModal(item);
+}
+
+function populatePreviewModal(data) {
+  const fmt = (d) => {
+    if (!d) return 'Pending SDAT Verification';
+    try {
+      return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch(e) {
+      return String(d);
+    }
+  };
+
+  document.getElementById('preview-title-display').innerText = data.title;
+  document.getElementById('preview-category-badge').innerText = data.category || 'CM Trophy';
+  document.getElementById('preview-instructions-display').innerText = data.instructions;
+  document.getElementById('preview-start-date').innerText = fmt(data.registrationStartDate);
+  document.getElementById('preview-end-date').innerText = fmt(data.registrationEndDate);
+  document.getElementById('preview-link-btn').href = data.officialLink || 'https://tncmtrophy.sdat.in/';
+
+  const importantBadge = document.getElementById('preview-important-badge');
+  if (importantBadge) {
+    importantBadge.style.display = data.isImportant ? 'inline-block' : 'none';
+  }
+
+  const modalEl = document.getElementById('cmTrophyPreviewModal');
+  if (modalEl) {
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+}
+
+async function publishFromPreview() {
+  const modalEl = document.getElementById('cmTrophyPreviewModal');
+  if (modalEl) {
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+  }
+  await saveCmTrophyAnnouncement('published');
+}
+
+async function publishCmTrophyAnnouncement(id) {
+  try {
+    const res = await apiRequest(`/cm-trophy/${id}/publish`, 'PUT', { notifyStudents: true });
+    showToast(res.message || 'Announcement published to students!', 'success', 'Live Broadcast');
+    await loadAdminCmTrophy();
+  } catch (err) {
+    showToast(err.message || 'Failed to publish announcement', 'error');
+  }
+}
+
+async function archiveCmTrophyAnnouncement(id) {
+  let ok = false;
+  if (window.showConfirm) {
+    ok = await window.showConfirm({
+      title: 'Archive Announcement?',
+      message: 'This will archive the announcement and hide it from the active student view.',
+      isDanger: false,
+      okText: 'Archive'
+    });
+  } else {
+    ok = confirm('Archive this announcement from the student portal?');
+  }
+
+  if (!ok) return;
+
+  try {
+    const res = await apiRequest(`/cm-trophy/${id}/archive`, 'PUT');
+    showToast(res.message || 'Announcement archived.', 'info', 'Archived');
+    await loadAdminCmTrophy();
+  } catch (err) {
+    showToast(err.message || 'Failed to archive', 'error');
+  }
+}
+
+async function deleteCmTrophyAnnouncement(id) {
+  let ok = false;
+  if (window.showConfirm) {
+    ok = await window.showConfirm({
+      title: 'Delete Announcement?',
+      message: 'Are you sure you want to delete this CM Trophy circular permanently?',
+      isDanger: true,
+      okText: 'Delete'
+    });
+  } else {
+    ok = confirm('Permanently delete this announcement?');
+  }
+
+  if (!ok) return;
+
+  try {
+    const res = await apiRequest(`/cm-trophy/${id}`, 'DELETE');
+    showToast(res.message || 'Announcement deleted.', 'info');
+    await loadAdminCmTrophy();
+  } catch (err) {
+    showToast(err.message || 'Failed to delete', 'error');
   }
 }
 
@@ -4367,6 +4853,7 @@ function renderTournamentReportHTML(viewMode = 'sport') {
               <tr>
                 <th style="width:45px">S.No</th>
                 <th>Sport Name</th>
+                <th>Category</th>
                 <th>Register Number</th>
                 <th>Player Name</th>
                 <th>Year</th>
@@ -4380,6 +4867,7 @@ function renderTournamentReportHTML(viewMode = 'sport') {
                 <tr>
                   <td>${r.sNo}</td>
                   <td><strong>${r.sportName}</strong></td>
+                  <td><span class="badge ${r.category === 'Women' ? 'bg-danger' : r.category === 'Mixed' ? 'bg-success' : 'bg-primary'} text-white">${r.category || (r.gender === 'Girls' || r.gender === 'Female' ? 'Women' : 'Men')}</span></td>
                   <td><code>${r.registerNumber}</code></td>
                   <td>${r.playerName}</td>
                   <td>${r.year}</td>
@@ -4406,6 +4894,7 @@ function renderTournamentReportHTML(viewMode = 'sport') {
               <tr>
                 <th style="width:45px">S.No</th>
                 <th>Sport Name</th>
+                <th>Category</th>
                 <th>Team Name</th>
                 <th>Register Number</th>
                 <th>Player Name</th>
@@ -4420,6 +4909,7 @@ function renderTournamentReportHTML(viewMode = 'sport') {
                 <tr class="${r.teamStatus === 'Not Assigned' ? 'table-warning' : ''}">
                   <td>${r.sNo}</td>
                   <td><strong>${r.sportName}</strong></td>
+                  <td><span class="badge ${r.category === 'Women' ? 'bg-danger' : r.category === 'Mixed' ? 'bg-success' : 'bg-primary'} text-white">${r.category || (r.gender === 'Girls' || r.gender === 'Female' ? 'Women' : 'Men')}</span></td>
                   <td>${r.teamStatus === 'Not Assigned'
                     ? '<span class="text-muted fst-italic">Not Assigned</span>'
                     : `<span class="fw-semibold text-success">${r.teamName}</span>`}</td>

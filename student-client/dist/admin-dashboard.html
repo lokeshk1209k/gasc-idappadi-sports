@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Portal v1.3 — GASC Idappadi Sports Management</title>
+  <title>Admin Portal v1.4 — GASC Idappadi Sports Management</title>
   <base href="/">
   <!-- Offline-First Local Vendor CSS with CDN Fallback -->
   <link href="vendor/bootstrap.min.css" rel="stylesheet" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css';">
@@ -13,7 +13,7 @@
   <!-- Chart.js -->
   <script src="vendor/chart.umd.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';"></script>
   <!-- Glassmorphism Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=20260909_table">
+  <link rel="stylesheet" href="css/style.css?v=20261017_glass_v14">
   <script src="js/config.js"></script>
   <script>
     // Strict Role-Based Portal Guard: Sports Incharge / Admin Only
@@ -49,7 +49,7 @@
         <img src="images/college-logo.png" alt="GASC Idappadi Official Seal" class="college-logo-sidebar" onerror="this.onerror=null;this.src='images/college-logo.png'">
         <div>
           <div class="fw-bold text-white lh-1">GASC IDAPPADI</div>
-          <small class="text-white-50" style="font-size: 0.7rem;">Sports Incharge <span class="badge bg-primary ms-1" style="font-size: 0.65rem;">v1.3</span></small>
+          <small class="text-white-50" style="font-size: 0.7rem;">Sports Incharge <span class="badge ms-1" style="background: linear-gradient(135deg, #05c46b, #00cec9); font-size: 0.65rem; box-shadow: 0 2px 6px rgba(0,206,201,0.4);">v1.4 Ultra Glass</span></small>
         </div>
       </div>
 
@@ -84,6 +84,10 @@
         </a>
         <a class="sidebar-nav-item admin-nav-item" data-view="achievements">
           <i class="bi bi-award-fill"></i> <span>Achievements</span>
+        </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="cm-trophy">
+          <i class="bi bi-award text-warning"></i> <span>CM Trophy Updates</span>
+          <span class="badge bg-warning text-dark ms-auto" id="nav-cm-trophy-badge" style="display:none;font-size:0.65rem;">0</span>
         </a>
         <a class="sidebar-nav-item admin-nav-item" data-view="notifications">
           <i class="bi bi-bell-fill"></i> <span>Broadcasts</span>
@@ -975,14 +979,22 @@
 
         <!-- VIEW 6: COMPETITIONS -->
         <section id="view-competitions" class="admin-view-section d-none">
-          <div class="d-flex justify-content-between align-items-center mb-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
             <div>
               <h4 class="fw-bold text-dark mb-0"><i class="bi bi-trophy-fill text-warning me-2"></i>Tournaments & Sports Competitions Management</h4>
               <small class="text-secondary">Create parent tournaments and manage sports competitions inside each event</small>
             </div>
-            <button class="btn btn-sports-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#addCompetitionModal" onclick="openCreateTournamentModal()">
-              <i class="bi bi-plus-circle me-1"></i> Create Tournament
-            </button>
+            <div class="d-flex align-items-center gap-2">
+              <select id="comp-category-filter" class="form-select form-select-glass form-select-sm" onchange="loadAdminCompetitions()" style="min-width: 140px;">
+                <option value="All">All Categories</option>
+                <option value="Men">Men</option>
+                <option value="Women">Women</option>
+                <option value="Mixed">Mixed</option>
+              </select>
+              <button class="btn btn-sports-primary btn-sm shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addCompetitionModal" onclick="openCreateTournamentModal()">
+                <i class="bi bi-plus-circle me-1"></i> Create Tournament
+              </button>
+            </div>
           </div>
           <div id="admin-competitions-list-container">
             <div class="table-glass-container">
@@ -1011,62 +1023,70 @@
         <section id="view-inter-college" class="admin-view-section d-none">
           <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
             <div>
-              <h4 class="fw-bold text-dark mb-0">
-                <i class="bi bi-qr-code-scan text-warning me-2"></i>Inter-College Championships & QR Management
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge px-2.5 py-1 fw-bold" style="background: rgba(245, 158, 11, 0.2); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.45);">
+                  <i class="bi bi-qr-code-scan me-1"></i> QR PASS ENGINE
+                </span>
+                <span class="badge px-2.5 py-1 fw-bold" style="background: rgba(34, 211, 238, 0.16); color: #22D3EE; border: 1px solid rgba(34, 211, 238, 0.35);">
+                  <i class="bi bi-shield-check me-1"></i> Open External Regs
+                </span>
+              </div>
+              <h4 class="fw-bold text-white mb-1">
+                Inter-College Championships & QR Management
               </h4>
-              <small class="text-secondary">
-                Create external college competitions, generate unique registration QR codes & posters, and manage participant approvals
+              <small style="color: #AFC4DF;">
+                Create external college competitions, generate unique registration QR codes & posters, and manage verified college registrations
               </small>
             </div>
-            <div class="d-flex gap-2">
-              <button class="btn btn-outline-primary btn-sm shadow-sm" onclick="loadAdminInterCollegeData()">
+            <div class="d-flex gap-2 align-items-center">
+              <button class="btn btn-outline-secondary btn-sm px-3 text-white" onclick="loadAdminInterCollegeData()">
                 <i class="bi bi-arrow-clockwise me-1"></i> Refresh
               </button>
-              <button class="btn btn-warning btn-sm fw-bold shadow-sm text-dark" onclick="openCreateInterCollegeModal()">
-                <i class="bi bi-plus-circle me-1"></i> Create Inter-College Competition
+              <button class="btn btn-warning btn-sm fw-bold px-3 text-dark shadow-sm" onclick="openCreateInterCollegeModal()">
+                <i class="bi bi-plus-circle-fill me-1"></i> Create Competition
               </button>
             </div>
           </div>
 
-          <!-- Top Sub-Navigation Tabs -->
-          <ul class="nav nav-pills glass-card p-1.5 mb-4 gap-1" id="inter-college-tabs">
+          <!-- Top Sub-Navigation Tabs (Modern Segmented Glass Bar) -->
+          <ul class="nav nav-pills inter-college-tab-bar p-2 mb-4 gap-1.5 flex-wrap" id="inter-college-tabs">
             <li class="nav-item">
-              <button class="nav-link active btn-sm fw-bold px-3 py-2" onclick="switchExtTab('competitions')">
+              <button class="nav-link active" onclick="switchExtTab('competitions')">
                 <i class="bi bi-qr-code me-1.5"></i> Competitions & QRs
-                <span class="badge bg-secondary ms-1" id="ext-kpi-comps-count">0</span>
+                <span class="badge rounded-pill ms-1.5" id="ext-kpi-comps-count">0</span>
               </button>
             </li>
             <li class="nav-item">
-              <button class="nav-link btn-sm fw-bold px-3 py-2" onclick="switchExtTab('registrations')">
+              <button class="nav-link" onclick="switchExtTab('registrations')">
                 <i class="bi bi-card-checklist me-1.5"></i> All Registrations
-                <span class="badge bg-primary ms-1" id="ext-kpi-regs-count">0</span>
+                <span class="badge rounded-pill ms-1.5" id="ext-kpi-regs-count">0</span>
               </button>
             </li>
             <li class="nav-item">
-              <button class="nav-link btn-sm fw-bold px-3 py-2" onclick="switchExtTab('teams')">
+              <button class="nav-link" onclick="switchExtTab('teams')">
                 <i class="bi bi-shield-shaded me-1.5"></i> External Teams
-                <span class="badge bg-info text-dark ms-1" id="ext-kpi-teams-count">0</span>
+                <span class="badge rounded-pill ms-1.5" id="ext-kpi-teams-count">0</span>
               </button>
             </li>
             <li class="nav-item">
-              <button class="nav-link btn-sm fw-bold px-3 py-2" onclick="switchExtTab('players')">
+              <button class="nav-link" onclick="switchExtTab('players')">
                 <i class="bi bi-people-fill me-1.5"></i> External Players
-                <span class="badge bg-success ms-1" id="ext-kpi-players-count">0</span>
+                <span class="badge rounded-pill ms-1.5" id="ext-kpi-players-count">0</span>
               </button>
             </li>
             <li class="nav-item">
-              <button class="nav-link btn-sm fw-bold px-3 py-2" onclick="switchExtTab('approvals')">
+              <button class="nav-link" onclick="switchExtTab('approvals')">
                 <i class="bi bi-check2-circle me-1.5 text-warning"></i> Approval Queue
-                <span class="badge bg-danger ms-1" id="ext-kpi-pending-count">0</span>
+                <span class="badge rounded-pill ms-1.5" id="ext-kpi-pending-count">0</span>
               </button>
             </li>
             <li class="nav-item">
-              <button class="nav-link btn-sm fw-bold px-3 py-2" onclick="switchExtTab('analytics')">
+              <button class="nav-link" onclick="switchExtTab('analytics')">
                 <i class="bi bi-graph-up-arrow me-1.5"></i> Analytics
               </button>
             </li>
             <li class="nav-item">
-              <button class="nav-link btn-sm fw-bold px-3 py-2" onclick="switchExtTab('reports')">
+              <button class="nav-link" onclick="switchExtTab('reports')">
                 <i class="bi bi-file-earmark-pdf-fill me-1.5"></i> Official Reports
               </button>
             </li>
@@ -1110,9 +1130,9 @@
                 </div>
                 <div class="col-md-2">
                   <select id="ext-reg-filter-gender" class="form-select form-select-glass form-select-sm" onchange="filterAdminExtRegistrations()">
-                    <option value="All">All Genders</option>
-                    <option value="Boys">Boys / Men</option>
-                    <option value="Girls">Girls / Women</option>
+                    <option value="All">All Categories</option>
+                    <option value="Men">Men</option>
+                    <option value="Women">Women</option>
                     <option value="Mixed">Mixed</option>
                   </select>
                 </div>
@@ -1302,8 +1322,9 @@
                   <label class="form-label small fw-bold">Category</label>
                   <select id="report-ext-gender" class="form-select form-select-glass form-select-sm">
                     <option value="All">All Categories</option>
-                    <option value="Boys">Boys</option>
-                    <option value="Girls">Girls</option>
+                    <option value="Men">Men</option>
+                    <option value="Women">Women</option>
+                    <option value="Mixed">Mixed</option>
                   </select>
                 </div>
                 <div class="col-md-3 d-flex align-items-end gap-2 flex-wrap">
@@ -1334,7 +1355,13 @@
               <h4 class="fw-bold text-dark mb-0">Competition Registration Applications</h4>
               <small class="text-secondary">Approve or reject student participation requests with instant notifications</small>
             </div>
-            <div>
+            <div class="d-flex gap-2">
+              <select id="app-filter-gender" class="form-select form-select-glass form-select-sm" onchange="loadAdminApplications()">
+                <option value="All">All Categories</option>
+                <option value="Men">Men</option>
+                <option value="Women">Women</option>
+                <option value="Mixed">Mixed</option>
+              </select>
               <select id="app-filter-status" class="form-select form-select-glass form-select-sm" onchange="loadAdminApplications()">
                 <option value="All">All Applications</option>
                 <option value="Pending" selected>Pending Review</option>
@@ -1344,13 +1371,15 @@
             </div>
           </div>
           <div class="table-glass-container">
-            <table class="table table-glass">
+            <table class="table table-glass align-middle">
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Student Athlete</th>
-                  <th>Competition Applied</th>
-                  <th>Position</th>
+                  <th>Tournament & Sport</th>
+                  <th>Competition / Event</th>
+                  <th>Category</th>
+                  <th>Department & Role</th>
                   <th>Application Date</th>
                   <th>Status</th>
                   <th>Decision Actions</th>
@@ -1405,10 +1434,11 @@
                   </select>
                 </div>
                 <div class="col-lg-3 col-md-6">
-                  <label class="form-label text-muted small fw-bold mb-1">Gender *</label>
+                  <label class="form-label text-muted small fw-bold mb-1">Category / Gender *</label>
                   <select id="team-form-gender" class="form-select form-select-glass" onchange="onTeamFormationFilterChange()">
-                    <option value="Boys">Boys</option>
-                    <option value="Girls">Girls</option>
+                    <option value="Men" selected>Men</option>
+                    <option value="Women">Women</option>
+                    <option value="Mixed">Mixed</option>
                   </select>
                 </div>
                 <div class="col-lg-3 col-md-6">
@@ -1604,6 +1634,148 @@
               </thead>
               <tbody id="admin-achievements-table">
                 <!-- Loaded via admin.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- VIEW: CM TROPHY UPDATES & NOTIFICATIONS -->
+        <section id="view-cm-trophy" class="admin-view-section d-none">
+          <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-warning text-dark fw-bold px-2 py-1"><i class="bi bi-award-fill me-1"></i> SDAT TAMIL NADU</span>
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1" id="cm-sync-status-badge">
+                  <i class="bi bi-cloud-check-fill me-1"></i> Cloud Synced
+                </span>
+              </div>
+              <h4 class="fw-bold text-white mb-0 mt-1">CM Trophy Updates & Student Notifications</h4>
+              <small class="text-secondary" style="color: #AFC4DF !important;">Publish verified SDAT circulars, registration deadlines, and broadcast instant notifications to students</small>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              <a href="https://tncmtrophy.sdat.in/" target="_blank" rel="noopener noreferrer" class="btn btn-outline-warning btn-sm fw-semibold">
+                <i class="bi bi-box-arrow-up-right me-1"></i> Official SDAT Portal
+              </a>
+              <button class="btn btn-outline-secondary btn-sm" onclick="loadAdminCmTrophy(true)">
+                <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+              </button>
+              <button class="btn btn-sports-primary btn-sm" onclick="openAddCmTrophyModal()">
+                <i class="bi bi-plus-circle-fill me-1"></i> New Announcement
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card p-3">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-award-fill"></i></div>
+                <div>
+                  <div class="stat-value text-warning" id="cm-stat-total">0</div>
+                  <div class="stat-label">Total Announcements</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card p-3">
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-broadcast"></i></div>
+                <div>
+                  <div class="stat-value text-success" id="cm-stat-published">0</div>
+                  <div class="stat-label">Published to Students</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card p-3">
+                <div class="stat-icon bg-secondary bg-opacity-10 text-secondary"><i class="bi bi-pencil-square"></i></div>
+                <div>
+                  <div class="stat-value text-secondary" id="cm-stat-drafts">0</div>
+                  <div class="stat-label">Drafts (Unpublished)</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card p-3">
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div>
+                  <div class="stat-value text-danger" id="cm-stat-important">0</div>
+                  <div class="stat-label">Important Bulletins</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Official Portal Reference Alert -->
+          <div class="glass-card d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4 p-3 rounded-3" style="border: 1px solid rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08);">
+            <div class="d-flex align-items-center gap-3">
+              <i class="bi bi-shield-lock-fill fs-3 text-warning"></i>
+              <div>
+                <strong class="text-white">Official CM Trophy SDAT Direct Link:</strong>
+                <a href="https://tncmtrophy.sdat.in/" target="_blank" rel="noopener noreferrer" class="text-decoration-none fw-bold ms-1" style="color: #38A7FF;">
+                  https://tncmtrophy.sdat.in/ <i class="bi bi-box-arrow-up-right small"></i>
+                </a>
+                <div class="small mt-1" style="color: #AFC4DF;">
+                  Students complete individual registration and district trials directly on the official SDAT portal. All announcements published below appear in the Student Portal with live notification alerts.
+                </div>
+              </div>
+            </div>
+            <span class="badge bg-warning text-dark px-3 py-2 fw-bold"><i class="bi bi-patch-check-fill me-1"></i> Verified SDAT</span>
+          </div>
+
+          <!-- Filter & Search Toolbar -->
+          <div class="glass-card p-3 mb-4">
+            <div class="row g-2 align-items-center">
+              <div class="col-md-3">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                  <input type="text" class="form-control border-start-0" id="cm-search-input" placeholder="Search announcement or circular..." onkeyup="filterAdminCmTrophyTable()">
+                </div>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select form-select-sm" id="cm-status-filter" onchange="loadAdminCmTrophy()">
+                  <option value="All">All Statuses</option>
+                  <option value="Published">Published (Live to Students)</option>
+                  <option value="Draft">Drafts Only</option>
+                  <option value="Archived">Archived</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select form-select-sm" id="cm-category-filter" onchange="loadAdminCmTrophy()">
+                  <option value="All">All Categories</option>
+                  <option value="Registration Notice">Registration Notice</option>
+                  <option value="Eligibility Instructions">Eligibility Instructions</option>
+                  <option value="Schedule Update">Schedule Update</option>
+                  <option value="General Guidance">General Guidance</option>
+                </select>
+              </div>
+              <div class="col-md-3 text-end">
+                <button class="btn btn-outline-primary btn-sm w-100" onclick="openAddCmTrophyModal()">
+                  <i class="bi bi-megaphone-fill me-1"></i> New Notice & Broadcast
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Announcements Table -->
+          <div class="table-glass-container">
+            <table class="table table-glass align-middle mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 40px;">#</th>
+                  <th>Announcement Title & Category</th>
+                  <th>Instructions Summary</th>
+                  <th>Registration Window</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Published Date</th>
+                  <th class="text-end" style="width: 170px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="cm-trophy-table-tbody">
+                <!-- Loaded dynamically via admin.js -->
+                <tr>
+                  <td colspan="8" class="text-center py-4 text-muted">Loading CM Trophy announcements...</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -2612,9 +2784,9 @@
                   </div>
                   <div class="col-md-4">
                     <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Category / Gender *</label>
-                    <select name="gender" class="form-select form-select-glass form-select-sm">
-                      <option value="Boys" selected>Boys / Men</option>
-                      <option value="Girls">Girls / Women</option>
+                    <select name="gender" id="ctm-gender-select" class="form-select form-select-glass form-select-sm">
+                      <option value="Men" selected>Men</option>
+                      <option value="Women">Women</option>
                       <option value="Mixed">Mixed</option>
                     </select>
                   </div>
@@ -2732,20 +2904,28 @@
                   </div>
                   <div class="col-6">
                     <label class="form-label small fw-bold" style="font-size:0.75rem;">Competition Title *</label>
-                    <input type="text" name="name" id="create-tournament-comp-name" class="form-control form-control-glass form-control-sm" required placeholder="e.g. Badminton Men's Singles">
+                    <input type="text" name="name" id="create-tournament-comp-name" class="form-control form-control-glass form-control-sm" required placeholder="e.g. Cricket — Men">
                   </div>
-                  <div class="col-4">
+                  <div class="col-3">
+                    <label class="form-label small fw-bold" style="font-size:0.75rem;"><i class="bi bi-gender-ambiguous text-primary me-1"></i> Category *</label>
+                    <select name="firstSportGender" id="create-tournament-gender" class="form-select form-select-glass form-select-sm" onchange="onTournamentCategoryChange(this.value)">
+                      <option value="Men" selected>Men</option>
+                      <option value="Women">Women</option>
+                      <option value="Mixed">Mixed</option>
+                    </select>
+                  </div>
+                  <div class="col-3">
                     <label class="form-label small fw-bold" style="font-size:0.75rem;">Event Type</label>
                     <select name="sportType" class="form-select form-select-glass form-select-sm">
                       <option value="Individual">Individual</option>
                       <option value="Team" selected>Team</option>
                     </select>
                   </div>
-                  <div class="col-4">
+                  <div class="col-3">
                     <label class="form-label small fw-bold" style="font-size:0.75rem;">Start Time</label>
                     <input type="text" name="startTime" class="form-control form-control-glass form-control-sm" value="09:00 AM">
                   </div>
-                  <div class="col-4">
+                  <div class="col-3">
                     <label class="form-label small fw-bold" style="font-size:0.75rem;">Max Slots</label>
                     <input type="number" name="maxParticipants" class="form-control form-control-glass form-control-sm" value="50">
                   </div>
@@ -2841,7 +3021,15 @@
               </div>
               <div class="col-md-6">
                 <label class="form-label small fw-bold"><i class="bi bi-flag-fill text-primary me-1"></i> Competition Title *</label>
-                <input type="text" name="name" id="add-sport-comp-name" class="form-control form-control-glass" required placeholder="e.g. Men's Cricket">
+                <input type="text" name="name" id="add-sport-comp-name" class="form-control form-control-glass" required placeholder="e.g. Cricket — Men">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold"><i class="bi bi-gender-ambiguous text-primary me-1"></i> Category *</label>
+                <select name="gender" id="add-sport-gender" class="form-select form-select-glass" required onchange="onAddSportCategoryChange(this.value)">
+                  <option value="Men" selected>Men</option>
+                  <option value="Women">Women</option>
+                  <option value="Mixed">Mixed</option>
+                </select>
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Event Type</label>
@@ -2853,6 +3041,14 @@
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Competition Date *</label>
                 <input type="date" name="date" class="form-control form-control-glass" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Required Players</label>
+                <input type="number" name="requiredPlayers" class="form-control form-control-glass" value="11" min="1">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small fw-bold">Substitutes</label>
+                <input type="number" name="substitutes" class="form-control form-control-glass" value="4" min="0">
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Registration Deadline *</label>
@@ -3849,6 +4045,184 @@
             Send Correction Request
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: CM TROPHY ANNOUNCEMENT (CREATE / EDIT) ================= -->
+  <div class="modal fade" id="cmTrophyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-2 shadow-lg border-primary border-opacity-25">
+        <div class="modal-header border-0 pb-1">
+          <div class="d-flex align-items-center gap-2">
+            <div class="avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center p-2">
+              <i class="bi bi-trophy-fill fs-5 text-warning"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0" id="cm-trophy-modal-title">New CM Trophy Announcement</h5>
+              <small class="text-muted">Tamil Nadu Chief Minister's Trophy Official SDAT Guidance</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-2">
+          <form id="cmTrophyForm" onsubmit="event.preventDefault();">
+            <input type="hidden" id="cm-trophy-id">
+
+            <div class="row g-3">
+              <!-- Announcement Title -->
+              <div class="col-12">
+                <label class="form-label small fw-bold text-dark">Announcement Title <span class="text-danger">*</span></label>
+                <input type="text" id="cm-trophy-title" class="form-control form-control-glass" placeholder="e.g. CM Trophy 2026-27 Registration Started — Official SDAT Guidelines" required>
+              </div>
+
+              <!-- Category & Priority -->
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-dark">Category</label>
+                <select id="cm-trophy-category" class="form-select form-control-glass">
+                  <option value="Registration">Registration Update</option>
+                  <option value="Important Notice" selected>Important Notice</option>
+                  <option value="Eligibility">Eligibility & Rules</option>
+                  <option value="Schedule">Schedule / Dates</option>
+                  <option value="General Update">General Department Update</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-dark">Official Portal Link</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light text-primary"><i class="bi bi-link-45deg"></i></span>
+                  <input type="url" id="cm-trophy-official-link" class="form-control form-control-glass" value="https://tncmtrophy.sdat.in/" placeholder="https://tncmtrophy.sdat.in/">
+                </div>
+              </div>
+
+              <!-- Verified Registration Dates -->
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-dark">
+                  Registration Start Date <span class="text-muted fw-normal">(Optional / When verified)</span>
+                </label>
+                <input type="date" id="cm-trophy-start-date" class="form-control form-control-glass">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-dark">
+                  Registration Deadline / End Date <span class="text-muted fw-normal">(Optional / When verified)</span>
+                </label>
+                <input type="date" id="cm-trophy-end-date" class="form-control form-control-glass">
+              </div>
+
+              <!-- Priority & Status options -->
+              <div class="col-12">
+                <div class="p-3 bg-light rounded-3 border">
+                  <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" id="cm-trophy-is-important" checked>
+                    <label class="form-check-label fw-bold text-danger" for="cm-trophy-is-important">
+                      <i class="bi bi-exclamation-triangle-fill me-1"></i> Mark as High-Priority / Important Announcement
+                    </label>
+                    <div class="form-text small">Displays an urgent alert badge on both the Student Portal and Notification Feed.</div>
+                  </div>
+
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="cm-trophy-notify-students" checked>
+                    <label class="form-check-label fw-bold text-primary" for="cm-trophy-notify-students">
+                      <i class="bi bi-bell-fill me-1"></i> Send Instant Notification Alert to Students
+                    </label>
+                    <div class="form-text small">Dispatches an in-app student notification alert with direct SDAT portal link.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Full Instructions / Notice text -->
+              <div class="col-12">
+                <label class="form-label small fw-bold text-dark">Detailed Instructions & Circular <span class="text-danger">*</span></label>
+                <textarea id="cm-trophy-instructions" class="form-control form-control-glass" rows="6" placeholder="Provide complete guidelines:
+1. Eligibility: Only bonafide regular students of GASC Idappadi.
+2. Required documents: Aadhaar card, College ID card, Bonafide certificate.
+3. Official SDAT Portal registration instructions.
+4. Physical verification date at the Physical Education department room." required></textarea>
+                <small class="text-muted">Students will read these exact instructions inside their portal and notification dialog.</small>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer border-0 pt-2 d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-info rounded-pill px-3" onclick="previewCmTrophyModal()">
+            <i class="bi bi-eye me-1"></i> Preview Notice
+          </button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-outline-primary rounded-pill px-3" onclick="saveCmTrophyAnnouncement('draft')">
+              <i class="bi bi-file-earmark me-1"></i> Save Draft
+            </button>
+            <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="saveCmTrophyAnnouncement('published')">
+              <i class="bi bi-send-fill me-1"></i> Publish Announcement
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: CM TROPHY PREVIEW ================= -->
+  <div class="modal fade" id="cmTrophyPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-3 shadow-lg">
+        <div class="modal-header border-0 pb-1">
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-eye-fill text-primary"></i>
+            <span>Student Portal Announcement Preview</span>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-2">
+          <div class="card border rounded-3 p-4 bg-white shadow-sm">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div class="d-flex gap-2">
+                <span class="badge bg-primary" id="preview-category-badge">CM Trophy</span>
+                <span class="badge bg-danger" id="preview-important-badge"><i class="bi bi-exclamation-circle me-1"></i> IMPORTANT</span>
+              </div>
+              <small class="text-muted" id="preview-date-display">Today</small>
+            </div>
+            <h4 class="fw-bold text-dark mb-2" id="preview-title-display">Announcement Title</h4>
+
+            <div class="p-3 bg-light rounded-3 border mb-3" id="preview-dates-box">
+              <div class="row text-center g-2">
+                <div class="col-6 border-end">
+                  <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.75rem;">Registration Begins</small>
+                  <span class="fw-bold text-success fs-6" id="preview-start-date">-</span>
+                </div>
+                <div class="col-6">
+                  <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.75rem;">Deadline / Closing Date</small>
+                  <span class="fw-bold text-danger fs-6" id="preview-end-date">-</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-3 bg-white border mb-3">
+              <h6 class="fw-bold text-primary mb-2"><i class="bi bi-card-text me-1"></i> Official Instructions</h6>
+              <div id="preview-instructions-display" class="text-dark small" style="white-space: pre-line;"></div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
+              <div class="d-flex align-items-center gap-2 text-muted small">
+                <i class="bi bi-shield-check text-success fs-5"></i>
+                <span>Official SDAT Portal Link Verified</span>
+              </div>
+              <a href="https://tncmtrophy.sdat.in/" target="_blank" rel="noopener noreferrer" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm text-dark" id="preview-link-btn">
+                Visit Official Website <i class="bi bi-box-arrow-up-right ms-1"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Back to Edit</button>
+          <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold" onclick="publishFromPreview()">
+            <i class="bi bi-send-fill me-1"></i> Looks Good, Publish Now
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
   <!-- ================= MODAL: CUSTOM IN-APP CONFIRMATION ================= -->
   <div class="modal fade" id="gascConfirmModal" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false">
     <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
@@ -3880,6 +4254,7 @@
   <script src="js/admin.js?v=20260927_emoji_v6"></script>
   <script src="js/interCollegeAdmin.js?v=20261008_v1"></script>
   <script src="js/offlineStatus.js?v=20260928_offline_v1"></script>
+  <script src="js/touchEffects.js"></script>
 </body>
 
 </html>

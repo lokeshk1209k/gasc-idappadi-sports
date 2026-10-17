@@ -168,6 +168,12 @@ exports.createCompetition = async (req, res) => {
       console.warn('Parent tournament upsert notice:', tErr.message);
     }
 
+    const rawCategory = (req.body.category || req.body.gender || 'Mixed').trim();
+    let normCategory = 'Mixed';
+    if (/^men$|^boys?$/i.test(rawCategory)) normCategory = 'Men';
+    else if (/^women$|^girls?$/i.test(rawCategory)) normCategory = 'Women';
+    else normCategory = 'Mixed';
+
     const newComp = {
       id: req.body.id || `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
       name: name.trim(),
@@ -177,6 +183,8 @@ exports.createCompetition = async (req, res) => {
       sport_name: sport.name,
       type: type || 'Inter-College',
       level: level || 'College',
+      category: normCategory,
+      gender: normCategory,
       venue: venue || 'GASC Idappadi Sports Ground',
       date: new Date(date).toISOString(),
       start_time: startTime || '09:00 AM',
@@ -544,10 +552,40 @@ exports.registerForCompetition = async (req, res) => {
       }
     }
 
-    // 3. Duplicate Check
+    // 3. Category & Gender Eligibility Check
+    const compCategory = (compRaw.category || compRaw.gender || 'Mixed').trim();
+    const studentGender = (studentUser.gender || req.body.gender || 'Male').trim();
+    const isMale = /^male|^boy|^men/i.test(studentGender);
+    const isFemale = /^female|^girl|^women/i.test(studentGender);
+
+    if (/^men$|^boys?$/i.test(compCategory) && isFemale) {
+      return res.status(400).json({
+        success: false,
+        message: `Eligibility Restriction: Female students cannot register for Men's category competitions (${compRaw.name || compRaw.sport_name}).`
+      });
+    }
+    if (/^women$|^girls?$/i.test(compCategory) && isMale) {
+      return res.status(400).json({
+        success: false,
+        message: `Eligibility Restriction: Male students cannot register for Women's category competitions (${compRaw.name || compRaw.sport_name}).`
+      });
+    }
+
+    // Check registration deadline
+    if (compRaw.registration_end || compRaw.registration_deadline) {
+      const deadline = new Date(compRaw.registration_end || compRaw.registration_deadline);
+      if (!isNaN(deadline.getTime()) && new Date() > deadline) {
+        return res.status(400).json({
+          success: false,
+          message: `Registration has closed for ${compRaw.name || compRaw.sport_name}. Deadline was ${deadline.toLocaleDateString('en-IN')}.`
+        });
+      }
+    }
+
+    // 4. Duplicate Check
     const { data: existing } = await supabase
       .from('competition_registrations')
-      .select('id, registration_code, status')
+      .select('id, status')
       .eq('competition_id', compRaw.id)
       .or(`student_id.eq.${studentUser.id},register_number.ilike.%${studentUser.register_number}%`)
       .limit(1)
@@ -588,14 +626,32 @@ exports.registerForCompetition = async (req, res) => {
       created_at: new Date().toISOString()
     };
 
+    // Prepare Cloud-compatible payload matching Supabase schema cache
+    const cloudReg = {
+      id: newReg.id,
+      competition_id: newReg.competition_id,
+      student_id: newReg.student_id,
+      student_name: newReg.student_name,
+      register_number: newReg.register_number,
+      department: newReg.department,
+      gender: newReg.gender,
+      tournament_id: newReg.tournament_id,
+      sport_name: newReg.sport_name,
+      preferred_position: newReg.preferred_position,
+      remarks: newReg.remarks,
+      status: newReg.status,
+      registration_date: newReg.registration_date,
+      created_at: newReg.created_at
+    };
+
     const { data: regRaw, error: regErr } = await supabase
       .from('competition_registrations')
-      .insert(newReg)
+      .insert(cloudReg)
       .select()
       .maybeSingle();
 
     const regTable = localStore.storeInstance.getTable('competition_registrations');
-    const finalRegDoc = regRaw || newReg;
+    const finalRegDoc = { ...newReg, ...(regRaw || {}) };
     if (!regTable.some(r => String(r.id) === String(finalRegDoc.id))) {
       regTable.unshift(finalRegDoc);
       localStore.storeInstance.save();

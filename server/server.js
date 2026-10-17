@@ -28,6 +28,7 @@ const supabaseRoutes = require('./routes/supabaseRoutes');
 const externalCompetitionRoutes = require('./routes/externalCompetitionRoutes');
 const interCollegeRoutes = require('./routes/interCollegeRoutes');
 const sportsNewsRoutes = require('./routes/sportsNewsRoutes');
+const cmTrophyRoutes = require('./routes/cmTrophyRoutes');
 let compression;
 try {
   compression = require('compression');
@@ -117,6 +118,7 @@ app.use('/api/external-competitions', externalCompetitionRoutes);
 app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
 app.use('/api/inter-college', interCollegeRoutes);
 app.use('/api/open-registration', interCollegeRoutes);
+app.use('/api/cm-trophy', cmTrophyRoutes);
 
 // 2. Static Assets & File Hosting
 app.use('/css', express.static(path.join(clientPublic, 'css')));

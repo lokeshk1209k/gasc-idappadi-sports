@@ -289,6 +289,11 @@ async function handleTournament(req, res, tokenParam) {
 
       const compMode = (c.competition_mode || parsedRules.competitionMode || (c.type === 'Team' ? 'TEAM' : defaultRules.mode)).toUpperCase();
       const status = calculateCompetitionStatus(c, tournament);
+      const rawCat = c.category || c.gender || 'Mixed';
+      let cat = 'Mixed';
+      if (/^men$|^boys?$/i.test(rawCat)) cat = 'Men';
+      else if (/^women$|^girls?$/i.test(rawCat)) cat = 'Women';
+      else cat = 'Mixed';
 
       return {
         id: c.id,
@@ -297,7 +302,8 @@ async function handleTournament(req, res, tokenParam) {
         tournamentId: tournament.id,
         sportName: sportName,
         eventName: c.event_name || c.eventName || c.name,
-        gender: c.gender || 'Boys',
+        category: cat,
+        gender: cat,
         competitionMode: compMode,
         date: c.date,
         startTime: c.start_time || '09:00 AM',
@@ -537,9 +543,53 @@ async function handleRegister(req, res) {
       } catch (tErr) {}
     }
 
+    // 3. Backend deadline & competition status validation
+    const now = new Date();
+    const deadline = comp.registration_end || comp.registration_deadline;
+    if (deadline) {
+      const dDate = new Date(deadline);
+      if (!isNaN(dDate.getTime()) && now > dDate) {
+        return res.status(400).json({ success: false, message: `Registration for this competition closed on ${dDate.toLocaleDateString('en-IN')}.` });
+      }
+    }
+    const cStat = (comp.status || '').toLowerCase();
+    if (cStat === 'closed' || cStat === 'registration closed' || cStat === 'completed' || cStat === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Registration for this competition is closed.' });
+    }
+
+    // 4. Verify Category from actual database record - NEVER trust browser value blindly
+    const dbCat = comp.category || comp.gender || 'Mixed';
+    let verifiedCategory = 'Mixed';
+    if (/^men$|^boys?$/i.test(dbCat)) verifiedCategory = 'Men';
+    else if (/^women$|^girls?$/i.test(dbCat)) verifiedCategory = 'Women';
+    else verifiedCategory = 'Mixed';
+
     const mode = (registrationType || (comp.type === 'Team' ? 'TEAM' : 'INDIVIDUAL')).toUpperCase();
     const cleanCollege = collegeName.trim();
     const cleanEmail = participantEmail.toLowerCase().trim();
+
+    // Verify participant/team gender compatibility with competition category
+    if (mode === 'INDIVIDUAL') {
+      const pGender = (body.individualGender || gender || '').toLowerCase();
+      const isMale = pGender === 'male' || pGender === 'boy' || pGender === 'boys' || pGender === 'men';
+      const isFemale = pGender === 'female' || pGender === 'girl' || pGender === 'girls' || pGender === 'women';
+      if (verifiedCategory === 'Men' && isFemale) {
+        return res.status(400).json({ success: false, message: 'Eligibility restriction: Female athletes cannot register for Men\'s category competitions.' });
+      }
+      if (verifiedCategory === 'Women' && isMale) {
+        return res.status(400).json({ success: false, message: 'Eligibility restriction: Male athletes cannot register for Women\'s category competitions.' });
+      }
+    } else if (mode === 'TEAM') {
+      const tGender = (body.teamGender || gender || '').toLowerCase();
+      const isMale = tGender === 'male' || tGender === 'boy' || tGender === 'boys' || tGender === 'men';
+      const isFemale = tGender === 'female' || tGender === 'girl' || tGender === 'girls' || tGender === 'women';
+      if (verifiedCategory === 'Men' && isFemale) {
+        return res.status(400).json({ success: false, message: 'Eligibility restriction: Female squads cannot register for Men\'s category competitions.' });
+      }
+      if (verifiedCategory === 'Women' && isMale) {
+        return res.status(400).json({ success: false, message: 'Eligibility restriction: Male squads cannot register for Women\'s category competitions.' });
+      }
+    }
 
     if (mode === 'INDIVIDUAL') {
       if (!playerName || !playerName.trim()) return res.status(400).json({ success: false, message: 'Player name is required.' });
@@ -563,7 +613,7 @@ async function handleRegister(req, res) {
       registration_type: mode,
       sport_id: comp.sport_id || null,
       sport_name: comp.sport_name || comp.name,
-      gender: gender || comp.gender || 'All',
+      gender: verifiedCategory,
       team_name: mode === 'TEAM' ? (teamName?.trim() || `${cleanCollege} Team`) : null,
       coach_name: coachName?.trim() || null,
       coach_phone: coachPhone?.trim() || null,
@@ -1286,6 +1336,140 @@ async function handleCompetitions(req, res) {
   return res.status(405).json({ success: false, message: 'Method not allowed' });
 }
 
+// ── CM Trophy Announcements Handler ──
+async function handleCmTrophy(req, res) {
+  const supabase = getSupabase();
+  const OFFICIAL_CM_TROPHY_URL = 'https://tncmtrophy.sdat.in/';
+
+  if (req.method === 'GET') {
+    try {
+      let { data: annRaw, error } = await supabase
+        .from('cm_trophy_announcements')
+        .select('*')
+        .eq('status', 'Published')
+        .order('is_important', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error || !annRaw || annRaw.length === 0) {
+        const { data: notifs } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('category', 'cm_trophy')
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        if (notifs && notifs.length > 0) {
+          annRaw = notifs.map(n => {
+            let parsed = {};
+            try { parsed = JSON.parse(n.message); } catch (e) { parsed = { instructions: n.message }; }
+            return {
+              id: parsed.announcementId || n.id,
+              title: parsed.title || n.title,
+              instructions: parsed.instructions || n.message,
+              official_link: parsed.officialLink || OFFICIAL_CM_TROPHY_URL,
+              registration_start_date: parsed.registrationStartDate || null,
+              registration_end_date: parsed.registrationEndDate || null,
+              category: 'Official Announcement',
+              is_important: parsed.isImportant !== undefined ? parsed.isImportant : (n.priority === 'High'),
+              status: 'Published',
+              published_at: parsed.publishedAt || n.created_at,
+              created_by: n.sender || 'Sports Department',
+              created_at: n.created_at
+            };
+          });
+        }
+      }
+
+      const list = (annRaw || []).map(a => ({
+        id: a.id,
+        title: a.title,
+        instructions: a.instructions,
+        officialLink: a.official_link || a.officialLink || OFFICIAL_CM_TROPHY_URL,
+        registrationStartDate: a.registration_start_date || a.registrationStartDate || null,
+        registrationEndDate: a.registration_end_date || a.registrationEndDate || null,
+        category: a.category || 'General',
+        isImportant: a.is_important !== undefined ? a.is_important : Boolean(a.isImportant),
+        status: a.status || 'Published',
+        publishedAt: a.published_at || a.publishedAt || a.created_at,
+        createdBy: a.created_by || a.createdBy || 'Dr. R. ANITHA (Physical Director)',
+        createdAt: a.created_at
+      }));
+
+      return res.json({
+        success: true,
+        officialPortalUrl: OFFICIAL_CM_TROPHY_URL,
+        count: list.length,
+        announcements: list
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  if (req.method === 'POST') {
+    try {
+      const { title, instructions, officialLink, registrationStartDate, registrationEndDate, isImportant, status = 'Published' } = req.body || {};
+      if (!title || !instructions) {
+        return res.status(400).json({ success: false, message: 'Title and instructions required.' });
+      }
+
+      const docId = `cm_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+      const newAnn = {
+        id: docId,
+        title: title.trim(),
+        instructions: instructions.trim(),
+        official_link: (officialLink && officialLink.trim()) || OFFICIAL_CM_TROPHY_URL,
+        registration_start_date: registrationStartDate || null,
+        registration_end_date: registrationEndDate || null,
+        category: 'Official Announcement',
+        is_important: Boolean(isImportant),
+        status,
+        published_at: new Date().toISOString(),
+        created_by: 'Dr. R. ANITHA (Physical Director)',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      await supabase.from('cm_trophy_announcements').insert(newAnn);
+
+      const notifPayload = {
+        announcementId: docId,
+        title: newAnn.title,
+        shortMessage: newAnn.instructions.slice(0, 160) + '...',
+        instructions: newAnn.instructions,
+        officialLink: newAnn.official_link,
+        registrationStartDate: newAnn.registration_start_date,
+        registrationEndDate: newAnn.registration_end_date,
+        isImportant: newAnn.is_important,
+        publishedAt: newAnn.published_at
+      };
+
+      await supabase.from('notifications').insert({
+        id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        title: `🏆 CM Trophy Announcement: ${newAnn.title}`,
+        message: JSON.stringify(notifPayload),
+        category: 'cm_trophy',
+        type: 'cm_trophy_announcement',
+        target_type: 'All Students',
+        target_audience: 'all',
+        priority: newAnn.is_important ? 'High' : 'Normal',
+        sender: 'Dr. R. ANITHA (Physical Director)',
+        created_at: new Date().toISOString()
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'CM Trophy announcement published and broadcasted to students successfully!',
+        announcement: newAnn
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  return res.status(405).json({ success: false, message: 'Method not allowed' });
+}
+
 // ── Main Dispatcher ──
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1297,6 +1481,9 @@ module.exports = async (req, res) => {
   const url = req.url || '';
   const cleanPath = url.split('?')[0].toLowerCase();
 
+  if (cleanPath.includes('/cm-trophy') || req.query.action === 'cm-trophy') {
+    return handleCmTrophy(req, res);
+  }
   if (cleanPath.includes('/tournaments') || cleanPath === '/tournaments') {
     return handleTournaments(req, res);
   }
@@ -1325,3 +1512,6 @@ module.exports = async (req, res) => {
   // Default to tournaments list if root called
   return handleTournaments(req, res);
 };
+
+module.exports.handleCmTrophy = handleCmTrophy;
+

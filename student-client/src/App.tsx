@@ -12,6 +12,7 @@ import NotificationsPage from './pages/NotificationsPage';
 import SettingsPage from './pages/SettingsPage';
 import EquipmentPage from './pages/EquipmentPage';
 import OpenRegistrationPage from './pages/OpenRegistrationPage';
+import CmTrophyPage from './pages/CmTrophyPage';
 
 // Root redirection helper: if authenticated go to dashboard, otherwise always go to login
 const RootRedirect = () => {
@@ -52,6 +53,8 @@ function App() {
             <Route path="student/my-equipment" element={<EquipmentPage />} />
             <Route path="student/tournaments" element={<CompetitionsPage />} />
             <Route path="student/competitions" element={<CompetitionsPage />} />
+            <Route path="student/cm-trophy" element={<CmTrophyPage />} />
+            <Route path="cm-trophy" element={<Navigate to="/student/cm-trophy" replace />} />
             <Route path="student/journey" element={<Navigate to="/student/dashboard" replace />} />
             <Route path="student/achievements" element={<Navigate to="/student/dashboard" replace />} />
             <Route path="student/certificates" element={<Navigate to="/student/dashboard" replace />} />

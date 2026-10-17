@@ -34,6 +34,8 @@ interface SportCompetition {
   name: string;
   sportName: string;
   type: 'Individual Event' | 'Team Event' | 'Individual' | 'Team';
+  category?: 'Men' | 'Women' | 'Mixed' | string;
+  gender?: string;
   date: string;
   startTime?: string;
   endTime?: string;
@@ -59,16 +61,16 @@ interface Tournament {
 }
 
 const DEFAULT_SPORTS: SportCompetition[] = [
-  { id: 'spark_cricket', name: 'Men\'s Cricket Championship', sportName: 'Cricket', type: 'Team Event', date: '2026-10-12', registrationEnd: '2026-10-08', venue: 'College Main Ground', maxParticipants: 60, currentRegistrations: 14, status: 'Registration Open', description: 'Inter-department T20 Cricket championship.' },
-  { id: 'spark_football', name: 'Inter-Dept Football League', sportName: 'Football', type: 'Team Event', date: '2026-10-13', registrationEnd: '2026-10-09', venue: 'Football Field', maxParticipants: 48, currentRegistrations: 22, status: 'Registration Open', description: '11-a-side football tournament.' },
-  { id: 'spark_volleyball', name: 'Volleyball Rolling Trophy', sportName: 'Volleyball', type: 'Team Event', date: '2026-10-14', registrationEnd: '2026-10-10', venue: 'Volleyball Court', maxParticipants: 36, currentRegistrations: 18, status: 'Registration Open', description: 'Annual volleyball championship.' },
-  { id: 'spark_basketball', name: 'Basketball Championship', sportName: 'Basketball', type: 'Team Event', date: '2026-10-14', registrationEnd: '2026-10-10', venue: 'Basketball Court', maxParticipants: 40, currentRegistrations: 12, status: 'Registration Open', description: 'Full court 5v5 tournament.' },
-  { id: 'spark_badminton', name: 'Badminton Singles & Doubles', sportName: 'Badminton', type: 'Individual Event', date: '2026-10-11', registrationEnd: '2026-10-07', venue: 'Indoor Stadium Court 1', maxParticipants: 32, currentRegistrations: 16, status: 'Registration Open', description: 'Badminton singles and doubles competition.' },
-  { id: 'spark_kabaddi', name: 'Kabaddi State Selection', sportName: 'Kabaddi', type: 'Team Event', date: '2026-10-15', registrationEnd: '2026-10-11', venue: 'Kabaddi Mud Mat', maxParticipants: 40, currentRegistrations: 28, status: 'Registration Open', description: 'Inter-department Kabaddi tournament.' },
-  { id: 'spark_athletics', name: '100m Track Sprint', sportName: 'Athletics', type: 'Individual Event', date: '2026-10-10', registrationEnd: '2026-10-06', venue: '400m Track Field', maxParticipants: 24, currentRegistrations: 8, status: 'Registration Open', description: '100m track sprint event.' },
-  { id: 'spark_handball', name: 'Handball Championship', sportName: 'Handball', type: 'Team Event', date: '2026-10-15', registrationEnd: '2026-10-11', venue: 'Outdoor Handball Court', maxParticipants: 30, currentRegistrations: 10, status: 'Registration Open', description: 'Handball team event.' },
-  { id: 'spark_throwball', name: 'Women\'s Throwball Cup', sportName: 'Throwball', type: 'Team Event', date: '2026-10-12', registrationEnd: '2026-10-08', venue: 'Throwball Court', maxParticipants: 36, currentRegistrations: 15, status: 'Registration Open', description: 'Inter-department women throwball tournament.' },
-  { id: 'spark_tennis', name: 'Lawn Tennis Singles', sportName: 'Tennis', type: 'Individual Event', date: '2026-10-13', registrationEnd: '2026-10-09', venue: 'Lawn Tennis Court', maxParticipants: 16, currentRegistrations: 6, status: 'Registration Open', description: 'Lawn tennis singles competition.' },
+  { id: 'spark_cricket', name: 'Cricket — Men', sportName: 'Cricket', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-12', registrationEnd: '2026-10-08', venue: 'College Main Ground', maxParticipants: 60, currentRegistrations: 14, status: 'Registration Open', description: 'Inter-department T20 Cricket championship.' },
+  { id: 'spark_football', name: 'Football — Men', sportName: 'Football', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-13', registrationEnd: '2026-10-09', venue: 'Football Field', maxParticipants: 48, currentRegistrations: 22, status: 'Registration Open', description: '11-a-side football tournament.' },
+  { id: 'spark_volleyball', name: 'Volleyball — Men', sportName: 'Volleyball', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-14', registrationEnd: '2026-10-10', venue: 'Volleyball Court', maxParticipants: 36, currentRegistrations: 18, status: 'Registration Open', description: 'Annual volleyball championship.' },
+  { id: 'spark_basketball', name: 'Basketball — Men', sportName: 'Basketball', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-14', registrationEnd: '2026-10-10', venue: 'Basketball Court', maxParticipants: 40, currentRegistrations: 12, status: 'Registration Open', description: 'Full court 5v5 tournament.' },
+  { id: 'spark_badminton', name: 'Badminton — Mixed Doubles', sportName: 'Badminton', type: 'Individual Event', category: 'Mixed', gender: 'Mixed', date: '2026-10-11', registrationEnd: '2026-10-07', venue: 'Indoor Stadium Court 1', maxParticipants: 32, currentRegistrations: 16, status: 'Registration Open', description: 'Badminton mixed doubles competition.' },
+  { id: 'spark_kabaddi', name: 'Kabaddi — Men', sportName: 'Kabaddi', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-15', registrationEnd: '2026-10-11', venue: 'Kabaddi Mud Mat', maxParticipants: 40, currentRegistrations: 28, status: 'Registration Open', description: 'Inter-department Kabaddi tournament.' },
+  { id: 'spark_athletics', name: '100m Track Sprint — Men', sportName: 'Athletics', type: 'Individual Event', category: 'Men', gender: 'Men', date: '2026-10-10', registrationEnd: '2026-10-06', venue: '400m Track Field', maxParticipants: 24, currentRegistrations: 8, status: 'Registration Open', description: '100m track sprint event.' },
+  { id: 'spark_handball', name: 'Handball — Men', sportName: 'Handball', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-15', registrationEnd: '2026-10-11', venue: 'Outdoor Handball Court', maxParticipants: 30, currentRegistrations: 10, status: 'Registration Open', description: 'Handball team event.' },
+  { id: 'spark_throwball', name: 'Throwball — Women', sportName: 'Throwball', type: 'Team Event', category: 'Women', gender: 'Women', date: '2026-10-12', registrationEnd: '2026-10-08', venue: 'Throwball Court', maxParticipants: 36, currentRegistrations: 15, status: 'Registration Open', description: 'Inter-department women throwball tournament.' },
+  { id: 'spark_tennis', name: 'Lawn Tennis — Women', sportName: 'Tennis', type: 'Individual Event', category: 'Women', gender: 'Women', date: '2026-10-13', registrationEnd: '2026-10-09', venue: 'Lawn Tennis Court', maxParticipants: 16, currentRegistrations: 6, status: 'Registration Open', description: 'Lawn tennis singles competition.' },
 ];
 
 const DEFAULT_TOURNAMENT: Tournament = {
@@ -163,6 +165,7 @@ const CompetitionsPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('All');
   const [activeTournament, setActiveTournament] = useState<Tournament | null>(null);
   const [searchSport, setSearchSport] = useState('');
+  const [compCategoryFilter, setCompCategoryFilter] = useState<'All' | 'Men' | 'Women' | 'Mixed'>('All');
   
   // Registration Flow Modals
   const [selectedSport, setSelectedSport] = useState<SportCompetition | null>(null);
@@ -310,11 +313,16 @@ const CompetitionsPage = () => {
             };
           }
 
+          const cat = c.category || c.gender || 'Men';
+          const normCat = /^boys?|^men$/i.test(cat) ? 'Men' : (/^girls?|^women$/i.test(cat) ? 'Women' : (/^mixed|^all$/i.test(cat) ? 'Mixed' : cat));
+
           groupMap[tName].sports.push({
             id: String(c.id || c._id),
-            name: c.name || `${sName} Event`,
+            name: c.name || `${sName} — ${normCat}`,
             sportName: sName,
             type: c.type && c.type.includes('Team') ? 'Team Event' : 'Individual Event',
+            category: normCat,
+            gender: normCat,
             date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
             startTime: c.startTime || '09:00 AM',
             endTime: c.endTime || '05:00 PM',
@@ -429,6 +437,19 @@ const CompetitionsPage = () => {
   // ── 5. One-Click Confirm Registration ──────────────────────────────────────
   const handleConfirmRegistration = async () => {
     if (!selectedSport) return;
+
+    const userGender = (studentUser.gender || 'Male').toLowerCase();
+    const compCategory = (selectedSport.category || selectedSport.gender || 'Men').toLowerCase();
+
+    if (compCategory === 'men' && (userGender === 'female' || userGender === 'girls' || userGender === 'women')) {
+      showToast("Eligibility Notice: This is a Men's competition. Female students cannot register for Men's events.", 'error');
+      return;
+    }
+    if (compCategory === 'women' && (userGender === 'male' || userGender === 'boys' || userGender === 'men')) {
+      showToast("Eligibility Notice: This is a Women's competition. Male students cannot register for Women's events.", 'error');
+      return;
+    }
+
     setRegistering(true);
 
     const compId = selectedSport.id;
@@ -873,27 +894,57 @@ const CompetitionsPage = () => {
               <p style={{ color: '#6E86A5', fontSize: 13, margin: '2px 0 0' }}>Select a sport discipline below to complete 1-click registration for {activeTournament.tournamentName}.</p>
             </div>
 
-            {/* Sport Search */}
-            <div style={{ position: 'relative', width: 260 }}>
-              <Search style={{ width: 15, height: 15, color: '#6E86A5', position: 'absolute', left: 12, top: 11 }} />
-              <input
-                type="text"
-                placeholder="Search sport inside tournament..."
-                value={searchSport}
-                onChange={e => setSearchSport(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 12px 8px 36px', borderRadius: 12,
-                  background: 'rgba(11,27,58,0.6)', border: '1px solid rgba(55,140,255,0.25)',
-                  color: '#FFF', fontSize: 13, outline: 'none'
-                }}
-              />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {/* Category Filter Pills */}
+              <div style={{ display: 'flex', gap: 6, background: 'rgba(11,27,58,0.7)', padding: 4, borderRadius: 12, border: '1px solid rgba(56,167,255,0.2)' }}>
+                {(['All', 'Men', 'Women', 'Mixed'] as const).map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCompCategoryFilter(cat)}
+                    style={{
+                      background: compCategoryFilter === cat ? (cat === 'Women' ? '#ec4899' : (cat === 'Mixed' ? '#10b981' : '#0284c7')) : 'transparent',
+                      color: compCategoryFilter === cat ? '#FFF' : '#94a3b8',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '5px 12px',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {cat === 'All' ? 'All Categories' : cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sport Search */}
+              <div style={{ position: 'relative', width: 220 }}>
+                <Search style={{ width: 15, height: 15, color: '#6E86A5', position: 'absolute', left: 12, top: 11 }} />
+                <input
+                  type="text"
+                  placeholder="Search sport..."
+                  value={searchSport}
+                  onChange={e => setSearchSport(e.target.value)}
+                  style={{
+                    width: '100%', padding: '8px 12px 8px 36px', borderRadius: 12,
+                    background: 'rgba(11,27,58,0.6)', border: '1px solid rgba(55,140,255,0.25)',
+                    color: '#FFF', fontSize: 13, outline: 'none'
+                  }}
+                />
+              </div>
             </div>
           </div>
 
           {/* Grid of Sports Glass Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 20 }}>
             {activeTournament.sports
-              .filter(s => s.name.toLowerCase().includes(searchSport.toLowerCase()) || s.sportName.toLowerCase().includes(searchSport.toLowerCase()))
+              .filter(s => {
+                const matchesSearch = s.name.toLowerCase().includes(searchSport.toLowerCase()) || s.sportName.toLowerCase().includes(searchSport.toLowerCase());
+                const matchesCat = compCategoryFilter === 'All' || (s.category || s.gender || 'Men').toLowerCase() === compCategoryFilter.toLowerCase();
+                return matchesSearch && matchesCat;
+              })
               .map((s, idx) => {
                 const reg = myRegistrations[s.id];
                 const isRegistered = !!reg;
@@ -911,21 +962,34 @@ const CompetitionsPage = () => {
                     }}
                   >
                     <div>
-                      {/* Card Header: Emoji & Type Badge */}
+                      {/* Card Header: Emoji & Badges */}
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                         <div style={{ fontSize: 32, width: 48, height: 48, borderRadius: 14, background: 'rgba(56,167,255,0.12)', border: '1px solid rgba(56,167,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {sportEmoji[s.sportName] || '🏅'}
                         </div>
-                        <span className={`badge ${s.type.includes('Team') ? 'badge-purple' : 'badge-blue'}`}>
-                          {s.type}
-                        </span>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span className={`badge ${s.type.includes('Team') ? 'badge-purple' : 'badge-blue'}`}>
+                            {s.type}
+                          </span>
+                          <span
+                            className="badge"
+                            style={{
+                              background: s.category === 'Women' ? 'rgba(236,72,153,0.2)' : (s.category === 'Mixed' ? 'rgba(16,185,129,0.2)' : 'rgba(56,167,255,0.2)'),
+                              color: s.category === 'Women' ? '#f472b6' : (s.category === 'Mixed' ? '#34d399' : '#38A7FF'),
+                              border: `1px solid ${s.category === 'Women' ? '#ec4899' : (s.category === 'Mixed' ? '#10b981' : '#38A7FF')}`,
+                              fontWeight: 800
+                            }}
+                          >
+                            {s.category || 'Men'}
+                          </span>
+                        </div>
                       </div>
 
                       <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', margin: '0 0 6px' }}>
                         {s.name}
                       </h3>
                       <div style={{ fontSize: 12, color: '#38A7FF', fontWeight: 600, marginBottom: 12 }}>
-                        {s.sportName} Discipline
+                        {s.sportName} — {s.category || 'Men'}
                       </div>
 
                       {/* Event Details */}
@@ -1113,6 +1177,7 @@ const CompetitionsPage = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, color: '#AFC4DF', marginTop: 10 }}>
                 <div><span style={{ color: '#6E86A5' }}>Tournament:</span> <strong>{activeTournament?.tournamentName}</strong></div>
                 <div><span style={{ color: '#6E86A5' }}>Event Type:</span> <strong>{selectedSport.type}</strong></div>
+                <div><span style={{ color: '#6E86A5' }}>Category:</span> <strong style={{ color: selectedSport.category === 'Women' ? '#f472b6' : (selectedSport.category === 'Mixed' ? '#34d399' : '#38A7FF'), fontWeight: 800 }}>{selectedSport.category || 'Men'}</strong></div>
                 <div><span style={{ color: '#6E86A5' }}>Event Date:</span> {selectedSport.date}</div>
                 <div><span style={{ color: '#6E86A5' }}>Deadline:</span> {selectedSport.registrationEnd}</div>
               </div>

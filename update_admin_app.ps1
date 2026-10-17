@@ -6,6 +6,7 @@ Start-Sleep -Seconds 2
 
 $workspace = "c:\Users\ELCOT\.gemini\antigravity-ide\scratch\gasc-idappadi-sports"
 $targets = @(
+    "D:\GASC-Sports-Admin-v1.4\GASC Sports Admin-win32-x64",
     "D:\GASC-Sports-Admin-Portable\GASC Sports Admin-win32-x64",
     "D:\GASC-Sports-Admin-v1.3\GASC Sports Admin-win32-x64",
     "D:\GASC-Sports-Admin-v1.2\GASC Sports Admin-win32-x64",

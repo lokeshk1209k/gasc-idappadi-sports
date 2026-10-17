@@ -32,6 +32,7 @@ interface CompetitionItem {
   tournamentId: string;
   sportName: string;
   eventName: string;
+  category?: 'Men' | 'Women' | 'Mixed' | string;
   gender: string;
   competitionMode: 'INDIVIDUAL' | 'TEAM';
   date: string;
@@ -223,6 +224,9 @@ const OpenRegistrationPage: React.FC = () => {
     setSubmittedRegId(null);
 
     // If Team event, initialize required players list
+    const compCat = comp.category || comp.gender || 'Men';
+    const normCat = /^girls?|^women$/i.test(compCat) ? 'Women' : (/^mixed|^all$/i.test(compCat) ? 'Mixed' : 'Men');
+
     if (comp.competitionMode === 'TEAM') {
       const totalSlots = (comp.requiredPlayers || 11) + (comp.substitutes || 0);
       const initialRoster: TeamPlayer[] = [];
@@ -233,14 +237,14 @@ const OpenRegistrationPage: React.FC = () => {
           registerNumber: '',
           department: '',
           year: 'I Year',
-          gender: comp.gender === 'Girls' ? 'Girls' : 'Boys',
+          gender: normCat === 'Women' ? 'Women' : 'Men',
           role: i === 0 ? 'Captain' : (i === 1 ? 'Vice Captain' : (isSub ? 'Substitute' : 'Player'))
         });
       }
       setPlayers(initialRoster);
-      setTeamGender(comp.gender === 'Girls' ? 'Girls' : 'Boys');
+      setTeamGender(normCat);
     } else {
-      setIndividualGender(comp.gender === 'Girls' ? 'Girls' : 'Boys');
+      setIndividualGender(normCat);
     }
 
     // Scroll to top
@@ -1391,12 +1395,15 @@ const OpenRegistrationPage: React.FC = () => {
                         {/* Competition Card Header & Badges */}
                         <div className="p-5 border-b border-slate-800/80 bg-slate-950/40 flex items-start justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white uppercase">
                                 {comp.sportName}
                               </span>
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-amber-300 border border-amber-500/20 uppercase">
                                 {comp.competitionMode}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${(comp.category || comp.gender) === 'Women' ? 'bg-pink-600/30 text-pink-300 border border-pink-500/30' : (comp.category || comp.gender) === 'Mixed' ? 'bg-emerald-600/30 text-emerald-300 border border-emerald-500/30' : 'bg-blue-600/30 text-blue-300 border border-blue-500/30'}`}>
+                                {comp.category || comp.gender || 'Men'}
                               </span>
                             </div>
                             <h4 className="text-base font-extrabold text-white group-hover:text-blue-400 transition-colors">
@@ -1423,7 +1430,7 @@ const OpenRegistrationPage: React.FC = () => {
                           <div className="space-y-2 text-xs text-slate-400">
                             <div className="flex items-center justify-between">
                               <span className="text-slate-500">Gender / Category:</span>
-                              <strong className="text-slate-200">{comp.gender}</strong>
+                              <strong className="text-slate-200">{comp.category || comp.gender || 'Men'}</strong>
                             </div>
                             {comp.competitionMode === 'TEAM' ? (
                               <>

@@ -520,7 +520,8 @@ function getInitialData() {
     gallery: [],
     practice_sessions: [],
     sports_news: [],
-    external_competitions: []
+    external_competitions: [],
+    cm_trophy_announcements: []
   };
 }
 

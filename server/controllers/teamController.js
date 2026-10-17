@@ -344,7 +344,11 @@ exports.getEligiblePlayers = async (req, res) => {
         targetTourn.toLowerCase().includes(t.tournament_name.toLowerCase());
       const matchSport = (t.sport_name || '').toLowerCase() === targetSport.toLowerCase();
       const matchDept = (t.department || '').toLowerCase() === targetDept.toLowerCase();
-      const matchGender = (t.gender || 'Boys').toLowerCase() === targetGender.toLowerCase();
+      const tG = (t.gender || 'Men').toLowerCase();
+      const targetG = targetGender.toLowerCase();
+      const matchGender = (tG === targetG) ||
+        ((targetG === 'men' || targetG === 'boys') && (tG === 'men' || tG === 'boys')) ||
+        ((targetG === 'women' || targetG === 'girls') && (tG === 'women' || tG === 'girls'));
       return matchTourn && matchSport && matchDept && matchGender;
     });
 
@@ -400,10 +404,19 @@ exports.getEligiblePlayers = async (req, res) => {
         (targetDept === 'BCA' && (uDept === 'Computer Applications'));
       if (!isDeptMatch) return;
 
-      // Check gender match
-      const isGenderMatch = targetGender === 'Boys' 
-        ? (uGender === 'Male' || uGender.toLowerCase() === 'boy' || uGender.toLowerCase() === 'male')
-        : (uGender === 'Female' || uGender.toLowerCase() === 'girl' || uGender.toLowerCase() === 'female');
+      // Check gender match (Men/Boys, Women/Girls, Mixed)
+      const isTargetMen = /^boys?|^men/i.test(targetGender);
+      const isTargetWomen = /^girls?|^women/i.test(targetGender);
+      const isTargetMixed = /^mixed/i.test(targetGender);
+
+      const isUserMale = /^male|^boy|^men/i.test(uGender);
+      const isUserFemale = /^female|^girl|^women/i.test(uGender);
+
+      let isGenderMatch = true;
+      if (isTargetMen) isGenderMatch = isUserMale;
+      else if (isTargetWomen) isGenderMatch = isUserFemale;
+      else if (isTargetMixed) isGenderMatch = true;
+      else isGenderMatch = (uGender.toLowerCase() === targetGender.toLowerCase());
       if (!isGenderMatch) return;
 
       // Check if already in this or other team
@@ -499,25 +512,51 @@ exports.formTeam = async (req, res) => {
         tournamentName.toLowerCase().includes(t.tournament_name.toLowerCase());
       const matchSport = (t.sport_name || '').toLowerCase() === sportName.toLowerCase();
       const matchDept = (t.department || '').toLowerCase() === department.toLowerCase();
-      const matchGender = (t.gender || 'Boys').toLowerCase() === gender.toLowerCase();
+      const tG = (t.gender || 'Men').toLowerCase();
+      const reqG = gender.toLowerCase();
+      const matchGender = (tG === reqG) ||
+        ((reqG === 'men' || reqG === 'boys') && (tG === 'men' || tG === 'boys')) ||
+        ((reqG === 'women' || reqG === 'girls') && (tG === 'women' || tG === 'girls'));
       return matchTourn && matchSport && matchDept && matchGender;
     });
+
+    let normGender = 'Men';
+    if (/^women$|^girls?$/i.test(gender)) normGender = 'Women';
+    else if (/^mixed$/i.test(gender)) normGender = 'Mixed';
 
     if (duplicate) {
       return res.status(400).json({
         success: false,
         code: 'DUPLICATE_TEAM',
-        message: `Team already created for ${department} ${gender} ${sportName}.`,
+        message: `Team already created for ${department} ${normGender} ${sportName}.`,
         existingTeam: toCamelCase(duplicate)
       });
     }
 
-    // 4. Resolve selected student details
+    // 4. Resolve selected student details & Enforce Gender Category Eligibility
     const { data: allUsers } = await supabase.from('users').select('*');
     const selectedUsers = selectedStudentIds.map(id => (allUsers || []).find(u => u.id === id)).filter(Boolean);
 
+    for (const u of selectedUsers) {
+      const uGen = (u.gender || '').toLowerCase();
+      const isMale = uGen === 'male' || uGen === 'boy' || uGen === 'men';
+      const isFemale = uGen === 'female' || uGen === 'girl' || uGen === 'women';
+      if (normGender === 'Men' && isFemale) {
+        return res.status(400).json({
+          success: false,
+          message: `Incompatible player category: ${u.name} (Female) cannot be assigned to Men's team.`
+        });
+      }
+      if (normGender === 'Women' && isMale) {
+        return res.status(400).json({
+          success: false,
+          message: `Incompatible player category: ${u.name} (Male) cannot be assigned to Women's team.`
+        });
+      }
+    }
+
     const captainUser = selectedUsers[0] || { name: 'Team Captain', register_number: 'N/A' };
-    const generatedTeamName = teamName ? teamName.trim() : `${department} - ${gender} - ${sportName} Team`;
+    const generatedTeamName = teamName ? teamName.trim() : `${sportName} — ${normGender} — ${department}`;
 
     // 5. Create Team Record
     const teamDoc = {
@@ -528,7 +567,7 @@ exports.formTeam = async (req, res) => {
       sport_id: sportId || null,
       sport_name: sportName.trim(),
       department: department.trim(),
-      gender: gender.trim(),
+      gender: normGender,
       required_players: requiredPlayers,
       substitutes: sportRule ? (sportRule.substitutes || 0) : 0,
       captain_name: captainUser.name,

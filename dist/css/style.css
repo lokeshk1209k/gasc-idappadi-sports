@@ -3,61 +3,113 @@
    Full Glassmorphism & High-Energy Sports Aesthetic Design System
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
 
 :root {
-  /* Cinematic Sports Equipment Montage Palette */
-  --primary-navy: #071524;
-  --primary-blue: #0f4c81;
-  --primary-deep: #091a2b;
-  --sports-cyan: #00d2d3;
-  --sports-cyan-glow: rgba(0, 210, 211, 0.4);
-  --sports-emerald: #05c46b;
-  --sports-emerald-dark: #009452;
-  --sports-amber: #ff9f43;
-  --sports-gold: #f1c40f;
-  --sports-crimson: #ff5252;
-  --sports-sky: #0984e3;
+  /* Student Website Inspired Dark Navy & Electric Sports Palette */
+  --primary-navy: #020817;
+  --primary-blue: #1677FF;
+  --primary-deep: #031126;
+  --sports-cyan: #22D3EE;
+  --sports-cyan-glow: rgba(34, 211, 238, 0.45);
+  --sports-emerald: #10B981;
+  --sports-emerald-dark: #059669;
+  --sports-amber: #FF6A21;
+  --sports-gold: #F59E0B;
+  --sports-crimson: #EF4444;
+  --sports-sky: #38A7FF;
+  --sports-purple: #6C4CFF;
 
-  /* Full Glassmorphism Light Tokens */
-  --glass-bg: rgba(255, 255, 255, 0.90);
-  --glass-bg-subtle: rgba(255, 255, 255, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.65);
-  --glass-border-glow: rgba(0, 210, 211, 0.45);
-  --glass-shadow: 0 16px 40px 0 rgba(7, 21, 36, 0.28);
-  --glass-shadow-hover: 0 22px 50px 0 rgba(7, 21, 36, 0.40);
-  --glass-blur: blur(20px);
+  /* 100% Full Glassmorphism Dark Navy Tokens (Matching Student Website) */
+  --glass-bg: rgba(7, 27, 53, 0.65);
+  --glass-bg-hover: rgba(12, 38, 74, 0.78);
+  --glass-bg-subtle: rgba(5, 19, 38, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-border-glow: rgba(55, 140, 255, 0.50);
+  --glass-shadow: 0 10px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --glass-shadow-hover: 0 16px 48px rgba(22, 119, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --glass-blur: blur(20px) saturate(180%);
 
-  /* Full Glassmorphism Dark Tokens */
-  --dark-glass-bg: rgba(7, 18, 30, 0.88);
-  --dark-glass-border: rgba(0, 210, 211, 0.22);
-  --dark-glass-shadow: 0 20px 48px rgba(0, 0, 0, 0.50);
+  /* Dark Frosted Acrylic Tokens */
+  --dark-glass-bg: rgba(5, 19, 38, 0.85);
+  --dark-glass-bg-hover: rgba(8, 27, 53, 0.92);
+  --dark-glass-border: rgba(55, 140, 255, 0.35);
+  --dark-glass-shadow: 0 22px 50px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  --dark-glass-blur: blur(28px) saturate(190%);
 
   /* Typography & Layout */
-  --font-family-primary: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-family-body: 'Poppins', sans-serif;
+  --font-family-primary: 'Plus Jakarta Sans', sans-serif;
+  --font-family-body: 'Inter', sans-serif;
   --sidebar-width: 275px;
   --header-height: 74px;
   --radius-sm: 12px;
   --radius-md: 18px;
-  --radius-lg: 26px;
+  --radius-lg: 24px;
   --radius-full: 9999px;
-  --transition-smooth: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: all 0.22s ease-in-out;
+  --touch-press: transform 0.08s ease;
 }
 
-/* Global Reset & Cinematic Sports Artwork Background */
+/* Global Reset & Luminous Sports Ambient Canvas */
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, button, input, select, textarea, .glass-card, .stat-card, .sidebar-nav-item, .table-glass {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+::selection {
+  background: #1677FF !important;
+  color: #FFFFFF !important;
+  text-shadow: none !important;
 }
 
 body {
   font-family: var(--font-family-body);
-  color: #2d3436;
-  background: linear-gradient(135deg, rgba(7, 21, 36, 0.90) 0%, rgba(13, 37, 63, 0.84) 50%, rgba(7, 21, 36, 0.92) 100%),
-              url('../images/sports-equipment-bg.jpg') center/cover no-repeat fixed;
+  color: #FFFFFF;
+  background-color: #020817;
+  background-image: radial-gradient(circle at 50% 5%, rgba(22, 119, 255, 0.16) 0%, transparent 60%),
+                    linear-gradient(180deg, rgba(2, 8, 23, 0.88) 0%, rgba(3, 17, 38, 0.96) 100%),
+                    url('../images/sports-equipment-bg.jpg');
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-attachment: fixed;
+  background-size: cover;
   min-height: 100vh;
   margin: 0;
   overflow-x: hidden;
+  position: relative;
+}
+
+/* Ambient Subtle Static Glow Accents (No continuous GPU blur animation) */
+body::before {
+  content: '';
+  position: fixed;
+  top: -100px;
+  left: -100px;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(22, 119, 255, 0.16) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -100px;
+  right: -100px;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(108, 76, 255, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
@@ -67,37 +119,102 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 }
 
 /* ==========================================================================
-   FULL GLASSMORPHISM CORE COMPONENTS
+   FULL GLASSMORPHISM CORE COMPONENTS & TOUCH EFFECTS
    ========================================================================== */
 
-/* Glass Card */
+/* Ultra Glass Card (Student Website Dark Navy Theme) */
 .glass-card {
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), var(--glass-shadow);
-  transition: var(--transition-smooth);
+  box-shadow: var(--glass-shadow);
+  transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   overflow: hidden;
+  color: #FFFFFF !important;
+}
+
+.glass-card::after {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%; width: 200%; height: 200%;
+  background: linear-gradient(60deg, transparent 40%, rgba(255, 255, 255, 0.08) 50%, transparent 60%);
+  transform: translateX(-100%) rotate(25deg);
+  transition: transform 0.6s ease;
+  pointer-events: none;
+}
+
+.glass-card:hover::after {
+  transform: translateX(100%) rotate(25deg);
 }
 
 .glass-card:hover {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), var(--glass-shadow-hover);
+  background: var(--glass-bg-hover);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(22, 119, 255, 0.25);
   border-color: var(--glass-border-glow);
-  transform: translateY(-3px);
+  transform: none !important;
+}
+
+/* Touch Compression & Haptic Press Feedback - Razor Sharp (NO scale, NO blur) */
+.btn:active,
+.btn-sports-primary:active,
+.btn-sports-accent:active,
+.btn-glass:active {
+  filter: brightness(1.15);
+  transform: translateY(1px) !important;
+  transition: var(--touch-press) !important;
+}
+
+.sidebar-nav-item:active,
+.stat-card:active,
+.matrix-badge-cell:active,
+.mob-nav-item:active,
+.mob-drawer-item:active,
+.player-select-item:active,
+.badge:active {
+  filter: brightness(1.1);
+  transform: none !important;
+}
+
+/* Fluid Touch Ripple Wave */
+.glass-touch-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 210, 211, 0.45) 0%, rgba(255, 255, 255, 0.3) 40%, transparent 70%);
+  transform: scale(0);
+  animation: glassRippleAnim 0.6s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+  pointer-events: none;
+  z-index: 99;
+}
+
+@keyframes glassRippleAnim {
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
 }
 
 /* Dark Frosted Glass Card */
 .glass-card-dark {
   background: var(--dark-glass-bg);
-  backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
+  backdrop-filter: var(--dark-glass-blur);
+  -webkit-backdrop-filter: var(--dark-glass-blur);
   border: 1px solid var(--dark-glass-border);
   color: #ffffff !important;
   border-radius: var(--radius-md);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), var(--dark-glass-shadow);
+  box-shadow: var(--dark-glass-shadow);
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-card-dark:hover {
+  background: var(--dark-glass-bg-hover);
+  border-color: rgba(0, 210, 211, 0.5);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 25px rgba(0, 210, 211, 0.2);
+  transform: translateY(-4px);
 }
 
 .glass-card-dark h1,
@@ -185,8 +302,7 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 }
 
 .college-logo-img:hover {
-  transform: scale(1.08) rotate(3deg);
-  box-shadow: 0 8px 20px rgba(0, 210, 211, 0.55);
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.65);
 }
 
 .college-logo-lg {
@@ -196,13 +312,13 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   border-radius: 50%;
   background: #ffffff;
   padding: 4px;
-  border: 3px solid #00d2d3;
-  box-shadow: 0 10px 28px rgba(0, 210, 211, 0.45);
+  border: 3px solid #22D3EE;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   transition: var(--transition-smooth);
 }
 
 .college-logo-lg:hover {
-  transform: scale(1.05);
+  box-shadow: 0 0 24px rgba(34, 211, 238, 0.6);
 }
 
 .college-logo-sidebar {
@@ -212,8 +328,8 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   border-radius: 50%;
   background: #ffffff;
   padding: 2px;
-  border: 2px solid #00d2d3;
-  box-shadow: 0 3px 14px rgba(0, 210, 211, 0.4);
+  border: 2px solid #22D3EE;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.35);
   flex-shrink: 0;
 }
 
@@ -230,7 +346,7 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 }
 
 .college-logo-hero:hover {
-  transform: scale(1.05) rotate(2deg);
+  box-shadow: 0 0 28px rgba(34, 211, 238, 0.6);
 }
 
 /* ==========================================================================
@@ -288,15 +404,37 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 }
 
 /* ==========================================================================
-   SPORTS METRIC KPI CARDS
+   SPORTS METRIC KPI CARDS (Student Website Navy Glass & Accent Lines)
    ========================================================================== */
 .stat-card {
+  background: rgba(7, 27, 53, 0.55) !important;
+  backdrop-filter: blur(16px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
   border-radius: var(--radius-md);
   padding: 1.5rem;
   position: relative;
   display: flex;
   align-items: center;
   gap: 1.25rem;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+.stat-card:hover {
+  background: rgba(12, 38, 74, 0.78) !important;
+  border-color: rgba(56, 167, 255, 0.60) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 20px rgba(22, 119, 255, 0.28) !important;
+  transform: none !important;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #1677FF, #38A7FF);
 }
 
 .stat-icon {
@@ -308,7 +446,9 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   justify-content: center;
   font-size: 1.85rem;
   flex-shrink: 0;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+  background: rgba(22, 119, 255, 0.15) !important;
+  border: 1px solid rgba(55, 140, 255, 0.35);
 }
 
 .stat-value {
@@ -316,11 +456,13 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   font-weight: 800;
   line-height: 1.1;
   font-family: var(--font-family-primary);
+  color: #FFFFFF !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .stat-label {
   font-size: 0.85rem;
-  color: #4a5568;
+  color: #AFC4DF !important;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -328,39 +470,57 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 }
 
 /* ==========================================================================
-   GLASS BADGES & CHIPS
+   GLASS BADGES & CHIPS (Student Website Glowing Translucents)
    ========================================================================== */
-.badge-glass-success {
-  background: rgba(5, 196, 107, 0.18);
-  color: #000000 !important;
-  border: 1px solid rgba(5, 196, 107, 0.45);
+.badge-glass-success, .badge.bg-success {
+  background: rgba(34, 197, 94, 0.22) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(34, 197, 94, 0.40) !important;
   font-weight: 700;
   border-radius: var(--radius-full);
   padding: 0.35rem 0.85rem;
 }
 
-.badge-glass-primary {
-  background: rgba(0, 206, 201, 0.18);
-  color: #000000 !important;
-  border: 1px solid rgba(0, 206, 201, 0.45);
+.badge-glass-primary, .badge.bg-primary {
+  background: rgba(22, 119, 255, 0.22) !important;
+  color: #38A7FF !important;
+  border: 1px solid rgba(55, 140, 255, 0.40) !important;
   font-weight: 700;
   border-radius: var(--radius-full);
   padding: 0.35rem 0.85rem;
 }
 
-.badge-glass-warning {
-  background: rgba(255, 159, 67, 0.22);
-  color: #000000 !important;
-  border: 1px solid rgba(255, 159, 67, 0.5);
+.badge-glass-warning, .badge.bg-warning {
+  background: rgba(255, 106, 33, 0.22) !important;
+  color: #FF8A50 !important;
+  border: 1px solid rgba(255, 106, 33, 0.40) !important;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  padding: 0.35rem 0.85rem;
+}
+
+.badge-glass-danger, .badge.bg-danger {
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.40) !important;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  padding: 0.35rem 0.85rem;
+}
+
+.badge-glass-info, .badge.bg-info {
+  background: rgba(34, 211, 238, 0.22) !important;
+  color: #22D3EE !important;
+  border: 1px solid rgba(34, 211, 238, 0.40) !important;
   font-weight: 700;
   border-radius: var(--radius-full);
   padding: 0.35rem 0.85rem;
 }
 
 .badge-glass-danger {
-  background: rgba(255, 82, 82, 0.18);
-  color: #000000 !important;
-  border: 1px solid rgba(255, 82, 82, 0.45);
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.45) !important;
   font-weight: 700;
   border-radius: var(--radius-full);
   padding: 0.35rem 0.85rem;
@@ -404,12 +564,12 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 
 .portal-sidebar {
   width: var(--sidebar-width);
-  background: rgba(7, 18, 30, 0.88);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border-right: 1px solid rgba(0, 206, 201, 0.22);
-  box-shadow: 8px 0 35px rgba(0, 0, 0, 0.45);
-  color: #e2e8f0;
+  background: rgba(3, 17, 38, 0.82) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 4px 0 32px rgba(0, 0, 0, 0.45), inset -1px 0 0 rgba(255, 255, 255, 0.05) !important;
+  color: #AFC4DF;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -417,7 +577,7 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   bottom: 0;
   left: 0;
   z-index: 1040;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   overflow-y: auto;
 }
 
@@ -427,33 +587,47 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   display: flex;
   align-items: center;
   gap: 0.85rem;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .sidebar-nav-item {
   display: flex;
   align-items: center;
   gap: 0.9rem;
-  padding: 0.82rem 1.25rem;
-  color: #cbd5e1;
+  padding: 0.78rem 1.25rem;
+  color: #6E86A5;
   text-decoration: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
   font-weight: 500;
-  border-radius: var(--radius-sm);
-  margin: 0.18rem 0.75rem;
-  transition: var(--transition-smooth);
+  border-radius: 12px;
+  margin: 0.22rem 0.75rem;
+  transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
 }
 
 .sidebar-nav-item:hover {
-  color: #fff;
-  background: rgba(0, 206, 201, 0.12);
-  border-left: 3px solid #00d2d3;
-  transform: translateX(4px);
+  color: #FFFFFF !important;
+  background: rgba(22, 119, 255, 0.24) !important;
+  border: 1px solid rgba(55, 140, 255, 0.45) !important;
+  transform: none !important;
+  box-shadow: 0 4px 18px rgba(22, 119, 255, 0.35);
+}
+
+.sidebar-nav-item:active {
+  filter: brightness(1.15);
+  transform: none !important;
 }
 
 .sidebar-nav-item.active {
-  color: #fff;
-  background: linear-gradient(135deg, #05c46b 0%, #00cec9 100%);
-  box-shadow: 0 4px 20px rgba(0, 206, 201, 0.45);
+  color: #FFFFFF !important;
+  background: linear-gradient(135deg, rgba(22, 119, 255, 0.38) 0%, rgba(91, 92, 255, 0.38) 100%) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(55, 140, 255, 0.65) !important;
+  box-shadow: 0 0 20px rgba(22, 119, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
   font-weight: 700;
 }
 
@@ -474,11 +648,11 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 
 .portal-topbar {
   height: var(--header-height);
-  background: rgba(8, 20, 32, 0.80);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-bottom: 1px solid rgba(0, 206, 201, 0.25);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  background: rgba(3, 17, 38, 0.75) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.05) !important;
   position: sticky;
   top: 0;
   z-index: 1030;
@@ -494,74 +668,108 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   flex: 1;
 }
 
-/* Headings in Main View - Crisp White with Cinematic Shadow */
+/* Headings in Main View - Crisp White with Subtle Shadow (Student Theme) */
 .portal-main-view h1,
 .portal-main-view h2,
 .portal-main-view h3,
 .portal-main-view h4,
 .portal-main-view h5,
+.portal-main-view h6,
 .portal-main-view .view-header h3,
 .portal-main-view .view-header h4,
 .admin-view-section > div > div > h3,
 .admin-view-section > div > div > h4,
 .admin-view-section > .d-flex h3,
-.admin-view-section > .d-flex h4 {
-  color: #ffffff !important;
-  font-weight: 800;
+.admin-view-section > .d-flex h4,
+.glass-card h1, .glass-card h2, .glass-card h3, .glass-card h4, .glass-card h5, .glass-card h6,
+.modal-content h1, .modal-content h2, .modal-content h3, .modal-content h4, .modal-content h5, .modal-content h6,
+.portal-content .text-dark,
+.glass-card .text-dark,
+.modal-content .text-dark,
+.table-glass .text-dark {
+  color: #FFFFFF !important;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   letter-spacing: -0.02em;
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.75);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45) !important;
 }
 
 .portal-main-view p.text-secondary,
 .portal-main-view p.text-muted,
 .admin-view-section > div > div > small.text-secondary,
-.admin-view-section > .d-flex small.text-secondary {
-  color: rgba(226, 232, 240, 0.90) !important;
-  font-size: 0.95rem;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
-}
-
-/* Inside White Glass Cards, Tables, and Modals, text is crisp dark */
-.glass-card h1, .glass-card h2, .glass-card h3, .glass-card h4, .glass-card h5, .glass-card h6,
-.modal-content h1, .modal-content h2, .modal-content h3, .modal-content h4, .modal-content h5, .modal-content h6 {
-  color: #07192c !important;
-  text-shadow: none !important;
-}
-
+.admin-view-section > .d-flex small.text-secondary,
 .glass-card .text-secondary,
+.glass-card .text-muted,
 .modal-content .text-secondary,
-.table-glass td .text-muted {
-  color: #64748b !important;
+.modal-content .text-muted,
+.table-glass td .text-muted,
+.portal-content .text-muted,
+.form-text {
+  color: #AFC4DF !important;
+  font-size: 0.92rem;
   text-shadow: none !important;
+}
+
+/* Overrides for generic Bootstrap white & light backgrounds */
+.portal-content .bg-white,
+.glass-card .bg-white,
+.modal-content .bg-white,
+.card.bg-white {
+  background: rgba(7, 27, 53, 0.65) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.portal-content .bg-light,
+.glass-card .bg-light,
+.modal-content .bg-light,
+.card.bg-light {
+  background: rgba(4, 18, 36, 0.70) !important;
+  color: #AFC4DF !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+.portal-content .card:not(.glass-card) {
+  background: rgba(7, 27, 53, 0.58) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+  border-radius: var(--radius-md);
 }
 
 /* ==========================================================================
-   GLASS TABLES & FILTER BARS
+   GLASS TABLES & FILTER BARS (Student Website Dark Navy Glass)
    ========================================================================== */
 .table-glass-container {
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: rgba(7, 27, 53, 0.65) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(55, 140, 255, 0.28) !important;
   border-radius: var(--radius-md);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 20px 50px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
   overflow-x: auto !important;
   -webkit-overflow-scrolling: touch;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.table-glass-container:hover {
+  box-shadow: 0 20px 50px rgba(22, 119, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
 }
 
 .table-glass {
   margin-bottom: 0;
   width: 100%;
+  color: #FFFFFF !important;
 }
 
 .table-glass thead th {
-  background: linear-gradient(135deg, rgba(8, 20, 32, 0.08) 0%, rgba(15, 76, 129, 0.08) 100%);
+  background: rgba(3, 17, 38, 0.92) !important;
   font-weight: 800;
   font-size: 0.82rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #07192c;
-  border-bottom: 2px solid rgba(0, 206, 201, 0.35);
+  letter-spacing: 0.06em;
+  color: #38A7FF !important;
+  border-bottom: 2px solid rgba(55, 140, 255, 0.45) !important;
   padding: 0.95rem 1rem;
   white-space: nowrap;
 }
@@ -569,32 +777,120 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 .table-glass tbody td {
   padding: 0.9rem 1rem;
   vertical-align: middle;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   font-size: 0.92rem;
-  color: #1a202c;
+  color: #E2E8F0 !important;
+  background: transparent !important;
+}
+
+.table-glass tbody tr {
+  transition: background 0.2s ease;
 }
 
 .table-glass tbody tr:hover {
-  background: rgba(0, 206, 201, 0.07);
+  background: rgba(22, 119, 255, 0.14) !important;
 }
 
-/* Modern Glass Form Controls */
-.form-control-glass, .form-select-glass {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.65);
+/* Modern Glass Form Controls (Student Website Dark Theme Inputs) */
+.form-control-glass,
+.form-select-glass,
+.form-control,
+.form-select,
+.input-dark,
+select.input-dark {
+  background: rgba(5, 19, 38, 0.75) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
   border-radius: var(--radius-sm);
   padding: 0.75rem 1rem;
   transition: var(--transition-smooth);
-  color: #0f172a;
+  color: #FFFFFF !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.form-control-glass:focus, .form-select-glass:focus {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: var(--sports-cyan);
-  box-shadow: 0 0 0 0.25rem rgba(0, 206, 201, 0.25);
+.form-control-glass::placeholder,
+.form-control::placeholder {
+  color: #6E86A5 !important;
+}
+
+.form-control-glass:focus,
+.form-select-glass:focus,
+.form-control:focus,
+.form-select:focus {
+  background: rgba(7, 27, 53, 0.92) !important;
+  border-color: #1677FF !important;
+  box-shadow: 0 0 0 0.25rem rgba(22, 119, 255, 0.25), 0 0 16px rgba(22, 119, 255, 0.45) !important;
+  color: #FFFFFF !important;
   outline: none;
 }
+
+.form-select-glass option,
+.form-select option {
+  background: #06152B !important;
+  color: #FFFFFF !important;
+}
+
+/* Glass Modal Enhancements (Student Website Navy Glass Dialogs) */
+.modal {
+  pointer-events: auto !important;
+}
+.modal-backdrop.show {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background-color: rgba(2, 8, 23, 0.75);
+}
+.modal-dialog {
+  pointer-events: auto !important;
+}
+.modal-content {
+  pointer-events: auto !important;
+  background: rgba(6, 21, 43, 0.94) !important;
+  backdrop-filter: blur(36px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(200%) !important;
+  border: 1px solid rgba(55, 140, 255, 0.35) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+  overflow: hidden;
+  color: #FFFFFF !important;
+}
+.modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+  background: rgba(3, 17, 38, 0.88) !important;
+  padding: 1.25rem 1.5rem;
+}
+.modal-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+  background: rgba(3, 17, 38, 0.78) !important;
+  padding: 1rem 1.5rem;
+}
+.modal-content input,
+.modal-content textarea,
+.modal-content select {
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* Glass Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(7, 20, 36, 0.2);
+  backdrop-filter: blur(10px);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 206, 201, 0.45);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 206, 201, 0.8);
+}
+
 
 /* Toast Container */
 #toast-container {
@@ -612,15 +908,17 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   pointer-events: auto;
   min-width: 320px;
   max-width: 420px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(22px);
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  background: rgba(7, 27, 53, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(55, 140, 255, 0.40);
   border-radius: var(--radius-md);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
   padding: 1rem 1.25rem;
   display: flex;
   align-items: flex-start;
   gap: 0.9rem;
+  color: #FFFFFF;
   animation: slideInToast 0.3s ease-out forwards;
 }
 
@@ -633,19 +931,21 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 .empty-state {
   text-align: center;
   padding: 3.5rem 1.5rem;
+  color: #AFC4DF;
 }
 
 .empty-state-icon {
   font-size: 3.5rem;
-  color: #a0aec0;
+  color: #6E86A5;
   margin-bottom: 1rem;
 }
 
 /* AI Insights Ribbon Card */
 .ai-insight-card {
   border-left: 5px solid var(--sports-cyan);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94) 0%, rgba(240, 253, 250, 0.94) 100%);
+  background: linear-gradient(135deg, rgba(7, 27, 53, 0.75) 0%, rgba(11, 35, 66, 0.75) 100%);
   border-radius: var(--radius-md);
+  color: #FFFFFF;
 }
 
 /* ==========================================================================
@@ -1006,45 +1306,48 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 .matrix-badge-cell.has-data:hover {
   background: #0284c7;
   color: #ffffff;
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+  transform: none !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
 }
 
 .matrix-badge-cell.zero-data {
-  color: #94a3b8;
+  color: #6E86A5;
   font-weight: 500;
-  background: rgba(241, 245, 249, 0.6);
-  border: 1px dashed rgba(203, 213, 225, 0.8);
+  background: rgba(5, 19, 38, 0.45);
+  border: 1px dashed rgba(55, 140, 255, 0.25);
   cursor: default;
 }
 
-/* Player Selection Checkbox List */
+/* Player Selection Checkbox List (Dark Navy Glass) */
 .player-select-item {
   border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: rgba(7, 27, 53, 0.65);
+  border: 1px solid rgba(55, 140, 255, 0.25);
   padding: 0.75rem 1rem;
   margin-bottom: 0.5rem;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  color: #FFFFFF;
 }
 
 .player-select-item:hover {
-  border-color: #38bdf8;
-  background: #f8fafc;
+  border-color: rgba(56, 167, 255, 0.60);
+  background: rgba(12, 38, 74, 0.85);
+  transform: none !important;
 }
 
 .player-select-item.selected {
-  border-color: #0284c7;
-  background: rgba(2, 132, 199, 0.05);
+  border-color: #1677FF;
+  background: rgba(22, 119, 255, 0.25);
+  box-shadow: 0 0 16px rgba(22, 119, 255, 0.35);
 }
 
 .player-select-item.already-assigned {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  opacity: 0.7;
+  background: rgba(5, 19, 38, 0.45);
+  border-color: rgba(255, 255, 255, 0.10);
+  opacity: 0.55;
 }
 
 /* Live counter pulse */
@@ -1497,6 +1800,148 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
     width: auto !important;
   }
 }
+/* ==========================================================================
+   INTER-COLLEGE CHAMPIONSHIPS & QR MANAGEMENT PREMIUM GLASS STYLING
+   ========================================================================== */
 
+/* Segmented Modern Glass Tab Bar */
+.inter-college-tab-bar {
+  background: rgba(5, 19, 38, 0.78) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(55, 140, 255, 0.28) !important;
+  border-radius: 16px !important;
+}
 
+.inter-college-tab-bar .nav-link {
+  color: #AFC4DF !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  padding: 0.55rem 1rem !important;
+}
 
+.inter-college-tab-bar .nav-link:hover {
+  color: #FFFFFF !important;
+  background: rgba(22, 119, 255, 0.18) !important;
+  border-color: rgba(55, 140, 255, 0.35) !important;
+  transform: none !important;
+}
+
+.inter-college-tab-bar .nav-link.active {
+  color: #FFFFFF !important;
+  background: linear-gradient(135deg, rgba(22, 119, 255, 0.45) 0%, rgba(91, 92, 255, 0.45) 100%) !important;
+  border: 1px solid rgba(55, 140, 255, 0.65) !important;
+  box-shadow: 0 4px 18px rgba(22, 119, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  transform: none !important;
+}
+
+.inter-college-tab-bar .nav-link .badge {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  font-size: 0.72rem !important;
+  padding: 0.25rem 0.55rem !important;
+}
+
+.inter-college-tab-bar .nav-link.active .badge {
+  background: #1677FF !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* Inter-College Modern Championship Station Cards */
+.inter-comp-card {
+  background: rgba(7, 27, 53, 0.72) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(55, 140, 255, 0.28) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  transition: all 0.22s ease !important;
+}
+
+.inter-comp-card:hover {
+  background: rgba(10, 34, 66, 0.80) !important;
+  border-color: rgba(56, 167, 255, 0.55) !important;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.52), 0 0 20px rgba(22, 119, 255, 0.25) !important;
+  transform: none !important;
+}
+
+.inter-comp-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #1677FF 0%, #22D3EE 100%);
+}
+
+.inter-comp-card.closed::before {
+  background: linear-gradient(90deg, #64748B 0%, #475569 100%);
+}
+
+.inter-qr-pod {
+  background: rgba(3, 17, 38, 0.82) !important;
+  border: 1px solid rgba(55, 140, 255, 0.22) !important;
+  border-radius: 16px !important;
+  padding: 1.15rem !important;
+}
+
+.qr-code-plate {
+  background: #FFFFFF !important;
+  border-radius: 14px !important;
+  padding: 8px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.qr-code-plate img {
+  border-radius: 6px !important;
+}
+
+.btn-icon-del {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-icon-del:hover {
+  color: #FFFFFF;
+  background: #EF4444;
+  border-color: #EF4444;
+  transform: none !important;
+}
+
+.status-dot-pulse {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 8px #10B981;
+  animation: pulseGreen 1.8s infinite;
+}
+
+@keyframes pulseGreen {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}

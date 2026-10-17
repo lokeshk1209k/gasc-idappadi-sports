@@ -331,6 +331,26 @@ function populateCompFilterOptions() {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Category Label and Badge Normalizers
+// ─────────────────────────────────────────────────────────────
+function normalizeCategoryLabel(raw) {
+  if (!raw) return 'Men';
+  const s = String(raw).trim();
+  if (/^boys?|^men$/i.test(s)) return 'Men';
+  if (/^girls?|^women$/i.test(s)) return 'Women';
+  if (/^mixed|^all$/i.test(s)) return 'Mixed';
+  return s;
+}
+
+function getCategoryBadgeClass(cat) {
+  const c = normalizeCategoryLabel(cat);
+  if (c === 'Men') return 'bg-primary text-white';
+  if (c === 'Women') return 'bg-danger text-white';
+  if (c === 'Mixed') return 'bg-success text-white';
+  return 'bg-secondary text-white';
+}
+
+// ─────────────────────────────────────────────────────────────
 // 3. SUB-TAB 1: COMPETITIONS & QR CODES
 // ─────────────────────────────────────────────────────────────
 function renderExtCompetitionsCards() {
@@ -375,63 +395,85 @@ function renderExtCompetitionsCards() {
     // Count registrations for this competition
     const regsForComp = extRegistrationsCache.filter(r => String(r.competition_id) === String(compId));
 
+    const rawCat = c.category || c.gender || '';
+    let catLabel = normalizeCategoryLabel(rawCat);
+    const showCatBadge = catLabel && catLabel.toLowerCase() !== 'team sport' && catLabel.toLowerCase() !== compMode.toLowerCase();
+
     html += `
       <div class="col-xl-6 col-lg-12">
-        <div class="glass-card p-3.5 h-100 d-flex flex-column justify-content-between border border-warning border-opacity-30 shadow-sm">
+        <div class="inter-comp-card ${isOpen ? '' : 'closed'} p-4 h-100 d-flex flex-column justify-content-between">
           <div>
-            <!-- Card Header -->
-            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-              <div>
-                <span class="badge ${isTeam ? 'bg-primary' : 'bg-info'} text-white fw-bold me-1 text-xs">
-                  <i class="bi ${isTeam ? 'bi-shield-shaded' : 'bi-person-fill'} me-1"></i>${compMode}
+            <!-- Card Header: Badges & Quick Status -->
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+              <div class="d-flex flex-wrap gap-1.5 align-items-center">
+                <span class="badge px-2.5 py-1.5 fw-bold" style="background: rgba(22, 119, 255, 0.22); color: #38A7FF; border: 1px solid rgba(55, 140, 255, 0.45); font-size: 0.75rem;">
+                  <i class="bi ${isTeam ? 'bi-shield-shaded' : 'bi-person-fill'} me-1"></i>${isTeam ? 'Team Tournament' : 'Individual Sport'}
                 </span>
-                <span class="badge bg-warning text-dark fw-bold text-xs">
+                <span class="badge px-2.5 py-1.5 fw-bold" style="background: rgba(245, 158, 11, 0.2); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.45); font-size: 0.75rem;">
                   <i class="bi bi-trophy-fill me-1"></i>${sportName}
                 </span>
+                ${showCatBadge ? `
+                  <span class="badge px-2.5 py-1.5 fw-bold" style="background: rgba(34, 211, 238, 0.18); color: #22D3EE; border: 1px solid rgba(34, 211, 238, 0.4); font-size: 0.75rem;">
+                    ${catLabel}
+                  </span>
+                ` : ''}
               </div>
-              <div class="d-flex align-items-center gap-1.5">
-                <span class="badge ${isOpen ? 'bg-success' : 'bg-secondary'} px-2.5 py-1 text-xs fw-bold">
-                  ${isOpen ? '<i class="bi bi-check-circle-fill me-1"></i>REGISTRATION OPEN' : '<i class="bi bi-pause-circle me-1"></i>REGISTRATION CLOSED'}
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge px-3 py-1.5 fw-bold" style="${isOpen ? 'background: rgba(16, 185, 129, 0.18); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.45);' : 'background: rgba(148, 163, 184, 0.18); color: #94A3B8; border: 1px solid rgba(148, 163, 184, 0.35);'}; font-size: 0.72rem;">
+                  ${isOpen ? '<span class="status-dot-pulse me-1.5"></span>REGISTRATION OPEN' : '<i class="bi bi-lock-fill me-1"></i>CLOSED'}
                 </span>
-                <button class="btn btn-sm btn-outline-danger p-0 px-2 rounded-pill fw-bold" onclick="deleteInterCollegeCompetition('${compId}', decodeURIComponent('${encodeURIComponent(compName)}'))" title="Delete Competition" style="font-size:0.75rem; height:24px; line-height:22px;">
+                <button class="btn-icon-del" onclick="deleteInterCollegeCompetition('${compId}', decodeURIComponent('${encodeURIComponent(compName)}'))" title="Delete Championship">
                   <i class="bi bi-trash3-fill"></i>
                 </button>
               </div>
             </div>
 
-            <!-- Title & Info -->
-            <h5 class="fw-bold text-dark mb-1">${compName}</h5>
-            <div class="text-secondary small mb-3">
-              <i class="bi bi-geo-alt-fill text-danger me-1"></i>${venue} &bull; 
-              <i class="bi bi-calendar-event text-primary me-1"></i>${compDate}
+            <!-- Title & Location/Date Meta -->
+            <h5 class="fw-bold text-white mb-2" style="font-size: 1.25rem; letter-spacing: -0.01em;">${compName}</h5>
+            <div class="d-flex flex-wrap gap-3 mb-3 small" style="color: #AFC4DF;">
+              <span><i class="bi bi-geo-alt-fill text-danger me-1"></i>${venue}</span>
+              <span><i class="bi bi-calendar-event text-primary me-1"></i>${compDate}</span>
             </div>
 
-            <!-- QR Code & Quick Meta Grid -->
-            <div class="row g-3 align-items-center mb-3 p-2.5 rounded-3 bg-light bg-opacity-75 border">
-              <div class="col-sm-4 text-center">
-                <div class="bg-white p-1.5 rounded-3 border d-inline-block shadow-sm">
-                  <img src="${qrThumbSrc}" alt="Registration QR" class="img-fluid" style="width: 100px; height: 100px; object-fit: contain;" onerror="this.onerror=null; this.src='images/college-logo.png';">
+            <!-- QR Code & Tournament Parameter Pod -->
+            <div class="inter-qr-pod mb-3">
+              <div class="row g-3 align-items-center">
+                <div class="col-sm-4 text-center">
+                  <div class="qr-code-plate">
+                    <img src="${qrThumbSrc}" alt="Registration QR" style="width: 100px; height: 100px; object-fit: contain;" onerror="this.onerror=null; this.src='images/college-logo.png';">
+                  </div>
+                  <div class="mt-2">
+                    <span class="badge font-monospace" style="background: rgba(34, 211, 238, 0.12); color: #22D3EE; border: 1px solid rgba(34, 211, 238, 0.3); font-size: 0.68rem; letter-spacing: 0.04em;">
+                      <i class="bi bi-qr-code me-1"></i>PASS #${token.substring(0, 8)}
+                    </span>
+                  </div>
                 </div>
-                <div class="mt-1">
-                  <span class="badge bg-dark bg-opacity-75 text-white font-monospace text-xs" style="font-size: 0.65rem;">
-                    ${token.substring(0, 10)}...
-                  </span>
-                </div>
-              </div>
-              <div class="col-sm-8 small text-dark">
-                <div class="row g-1">
-                  <div class="col-5 text-muted">Reg. Deadline:</div>
-                  <div class="col-7 fw-bold text-danger">${deadlineStr}</div>
-                  <div class="col-5 text-muted">Registrations:</div>
-                  <div class="col-7 fw-bold text-primary">${regsForComp.length} External Applications</div>
-                  <div class="col-5 text-muted">Squad Rules:</div>
-                  <div class="col-7">${isTeam ? (c.required_players || 11) + ' Main + ' + (c.substitutes || 4) + ' Subs' : 'Single Athlete'}</div>
-                  <div class="col-12 mt-1">
-                    <div class="input-group input-group-sm">
-                      <input type="text" class="form-control font-monospace" style="font-size:0.75rem;" value="${regUrl}" readonly>
-                      <button class="btn btn-outline-secondary btn-sm" type="button" onclick="copyQrRegistrationLink('${token}')" title="Copy Link">
-                        <i class="bi bi-clipboard"></i>
-                      </button>
+                <div class="col-sm-8">
+                  <div class="row g-2.5">
+                    <div class="col-6">
+                      <small class="text-muted d-block text-uppercase" style="font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;">Reg. Deadline</small>
+                      <span class="fw-bold text-danger" style="font-size: 0.9rem;">${deadlineStr}</span>
+                    </div>
+                    <div class="col-6">
+                      <small class="text-muted d-block text-uppercase" style="font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;">Applications</small>
+                      <span class="fw-bold text-primary" style="font-size: 0.9rem; cursor: pointer;" onclick="switchExtTab('registrations'); filterAdminExtRegistrations();">
+                        <i class="bi bi-people-fill me-1"></i>${regsForComp.length} External
+                      </span>
+                    </div>
+                    <div class="col-12">
+                      <small class="text-muted d-block text-uppercase" style="font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;">Squad Format</small>
+                      <span class="text-white fw-semibold" style="font-size: 0.85rem;">
+                        ${isTeam ? (c.required_players || 11) + ' Main + ' + (c.substitutes || 4) + ' Substitutes' : 'Single Athlete (Individual Entry)'}
+                      </span>
+                    </div>
+                    <div class="col-12 mt-1">
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-transparent border-end-0" style="border-color: rgba(55, 140, 255, 0.3); color: #38A7FF;"><i class="bi bi-link-45deg"></i></span>
+                        <input type="text" class="form-control border-start-0 border-end-0 font-monospace text-truncate" style="background: rgba(5, 19, 38, 0.85); border-color: rgba(55, 140, 255, 0.3); color: #22D3EE; font-size: 0.75rem;" value="${regUrl}" readonly>
+                        <button class="btn btn-outline-primary btn-sm px-2.5" type="button" onclick="copyQrRegistrationLink('${token}')" title="Copy Registration Link">
+                          <i class="bi bi-clipboard-check me-1"></i>Copy
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -439,19 +481,16 @@ function renderExtCompetitionsCards() {
             </div>
           </div>
 
-          <!-- Action Buttons Bar -->
-          <div class="d-flex flex-wrap gap-2 pt-2 border-top border-secondary border-opacity-25 mt-2">
-            <button class="btn btn-sm btn-primary rounded-pill px-3 fw-bold flex-grow-1" onclick="openInterCollegeQrModalById('${compId}')">
-              <i class="bi bi-qr-code-scan me-1"></i> Preview & Download QR
+          <!-- Bottom Action Buttons Toolbar -->
+          <div class="d-flex flex-wrap gap-2 pt-2.5 border-top border-white border-opacity-10 mt-1 align-items-center">
+            <button class="btn btn-sports-primary btn-sm rounded-pill px-3.5 py-1.5 fw-bold flex-grow-1" onclick="openInterCollegeQrModalById('${compId}')">
+              <i class="bi bi-qr-code-scan me-1.5"></i>Preview & Download QR
             </button>
-            <button class="btn btn-sm btn-warning text-dark rounded-pill px-3 fw-bold" onclick="openInterCollegePosterModalById('${compId}')">
-              <i class="bi bi-file-earmark-richtext-fill me-1"></i> A4 Poster
+            <button class="btn btn-warning text-dark btn-sm rounded-pill px-3.5 py-1.5 fw-bold" onclick="openInterCollegePosterModalById('${compId}')">
+              <i class="bi bi-file-earmark-richtext-fill me-1.5"></i>A4 Poster
             </button>
-            <button class="btn btn-sm ${isOpen ? 'btn-outline-secondary' : 'btn-outline-success'} rounded-pill px-3" onclick="toggleCompetitionRegistrationState('${compId}', '${status}')">
-              ${isOpen ? '<i class="bi bi-pause-circle me-1"></i> Disable' : '<i class="bi bi-play-circle me-1"></i> Enable'}
-            </button>
-            <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold" onclick="deleteInterCollegeCompetition('${compId}', decodeURIComponent('${encodeURIComponent(compName)}'))" title="Delete Competition">
-              <i class="bi bi-trash3-fill me-1"></i> Delete
+            <button class="btn btn-sm ${isOpen ? 'btn-outline-secondary text-white' : 'btn-outline-success'} rounded-pill px-3 py-1.5" onclick="toggleCompetitionRegistrationState('${compId}', '${status}')">
+              ${isOpen ? '<i class="bi bi-pause-circle me-1"></i>Disable' : '<i class="bi bi-play-circle me-1"></i>Enable'}
             </button>
           </div>
         </div>
@@ -484,7 +523,10 @@ function renderExtRegistrationsTable() {
     list = list.filter(r => (r.status || '').toUpperCase() === statusFilter.toUpperCase());
   }
   if (genderFilter !== 'All') {
-    list = list.filter(r => (r.gender || '').toLowerCase() === genderFilter.toLowerCase());
+    list = list.filter(r => {
+      const g = normalizeCategoryLabel(r.category || r.gender || (r.competition && (r.competition.category || r.competition.gender)));
+      return g.toLowerCase() === genderFilter.toLowerCase();
+    });
   }
   if (search) {
     list = list.filter(r => 
@@ -519,6 +561,8 @@ function renderExtRegistrationsTable() {
     const participantName = isTeam ? (r.team_name || 'College Squad') : (r.player_name || r.contact_person || 'Athlete');
     const status = (r.status || 'PENDING').toUpperCase();
     const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+    const cat = normalizeCategoryLabel(r.category || r.gender || (r.competition && (r.competition.category || r.competition.gender)));
+    const catBadge = getCategoryBadgeClass(cat);
 
     let badgeClass = 'bg-warning text-dark';
     if (status === 'APPROVED') badgeClass = 'bg-success text-white';
@@ -529,18 +573,18 @@ function renderExtRegistrationsTable() {
       <tr>
         <td class="font-monospace fw-bold text-primary">${regId}</td>
         <td>
-          <div class="fw-bold text-dark">${compName}</div>
-          <small class="text-muted"><i class="bi bi-trophy-fill text-warning me-1"></i>${sport}</small>
+          <div class="fw-bold text-white">${compName}</div>
+          <small style="color: #AFC4DF;"><i class="bi bi-trophy-fill text-warning me-1"></i>${sport}</small>
         </td>
         <td>
-          <div class="fw-bold">${college}</div>
-          <small class="text-muted">${r.district || ''} ${r.state ? '(' + r.state + ')' : ''}</small>
+          <div class="fw-bold text-white">${college}</div>
+          <small style="color: #AFC4DF;">${r.district || ''} ${r.state ? '(' + r.state + ')' : ''}</small>
         </td>
         <td>
           <span class="badge ${isTeam ? 'bg-primary' : 'bg-info'} me-1">${isTeam ? 'Team' : 'Individual'}</span>
           <strong>${participantName}</strong>
         </td>
-        <td>${r.gender || 'Boys'}</td>
+        <td><span class="badge ${catBadge}">${cat}</span></td>
         <td>
           <div class="small">${r.participant_email || '-'}</div>
           <small class="text-muted">${r.participant_phone || '-'}</small>
@@ -598,27 +642,27 @@ function renderExtTeamsCards() {
 
     html += `
       <div class="col-lg-4 col-md-6">
-        <div class="glass-card p-3 h-100 d-flex flex-column justify-content-between border border-primary border-opacity-25 shadow-sm">
+        <div class="glass-card p-3.5 h-100 d-flex flex-column justify-content-between" style="border: 1px solid rgba(55, 140, 255, 0.28); border-radius: 16px; background: rgba(7, 27, 53, 0.72);">
           <div>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="badge bg-primary text-white"><i class="bi bi-trophy-fill me-1"></i>${sport}</span>
-              <span class="badge ${badgeClass}">${status}</span>
+            <div class="d-flex justify-content-between align-items-center mb-2.5">
+              <span class="badge px-2.5 py-1 fw-bold" style="background: rgba(22, 119, 255, 0.22); color: #38A7FF; border: 1px solid rgba(55, 140, 255, 0.45);"><i class="bi bi-trophy-fill me-1"></i>${sport}</span>
+              <span class="badge ${badgeClass} px-2.5 py-1">${status}</span>
             </div>
-            <h6 class="fw-bold text-dark mb-1"><i class="bi bi-shield-shaded text-primary me-1"></i>${teamName}</h6>
-            <div class="text-secondary small fw-bold mb-2"><i class="bi bi-building me-1"></i>${college}</div>
+            <h6 class="fw-bold text-white mb-1"><i class="bi bi-shield-shaded text-primary me-1"></i>${teamName}</h6>
+            <div class="small fw-semibold mb-2.5" style="color: #AFC4DF;"><i class="bi bi-building me-1"></i>${college}</div>
 
-            <div class="p-2.5 rounded-3 bg-light border small mb-3">
-              <div class="row g-1 text-dark">
+            <div class="p-3 rounded-3 small mb-3" style="background: rgba(3, 17, 38, 0.82); border: 1px solid rgba(55, 140, 255, 0.2);">
+              <div class="row g-1.5">
                 <div class="col-5 text-muted">Tournament:</div>
-                <div class="col-7 fw-bold">${compName}</div>
+                <div class="col-7 fw-bold text-white">${compName}</div>
                 <div class="col-5 text-muted">Category:</div>
-                <div class="col-7">${t.gender || 'Boys'}</div>
+                <div class="col-7"><span class="badge px-2 py-0.5" style="background: rgba(34, 211, 238, 0.18); color: #22D3EE; border: 1px solid rgba(34, 211, 238, 0.4);">${normalizeCategoryLabel(t.category || t.gender)}</span></div>
                 <div class="col-5 text-muted">Squad Size:</div>
                 <div class="col-7 fw-bold text-primary">${playersCount} Registered Players</div>
                 <div class="col-5 text-muted">Coach / Incharge:</div>
-                <div class="col-7">${coach}</div>
+                <div class="col-7 text-white">${coach}</div>
                 <div class="col-5 text-muted">Manager:</div>
-                <div class="col-7">${manager}</div>
+                <div class="col-7 text-white">${manager}</div>
               </div>
             </div>
           </div>
@@ -672,11 +716,11 @@ function renderExtPlayersTable() {
     html += `
       <tr>
         <td>${idx + 1}</td>
-        <td class="fw-bold text-dark">${p.player_name || '-'}</td>
+        <td class="fw-bold text-white">${p.player_name || '-'}</td>
         <td class="font-monospace text-primary">${p.college_register_number || '-'}</td>
-        <td>${p.college_name || '-'}</td>
+        <td class="text-white">${p.college_name || '-'}</td>
         <td>${p.department || '-'} ${p.year ? '(' + p.year + ')' : ''}</td>
-        <td><span class="badge bg-light text-dark border">${p.sport_name || 'Sports'}</span></td>
+        <td><span class="badge" style="background: rgba(34, 211, 238, 0.16); color: #22D3EE; border: 1px solid rgba(34, 211, 238, 0.35);">${p.sport_name || 'Sports'}</span></td>
         <td>${p.player_role || 'Athlete'}</td>
         <td class="font-monospace small text-muted">${p.registration_id || '-'}</td>
         <td>
@@ -709,8 +753,8 @@ function renderExtApprovalsTable() {
       <tr>
         <td colspan="7" class="text-center py-5 text-muted">
           <i class="bi bi-check2-all fs-1 text-success d-block mb-2"></i>
-          <h5>All Caught Up!</h5>
-          <p class="small text-secondary">There are currently no external applications pending review.</p>
+          <h5 class="text-white">All Caught Up!</h5>
+          <p class="small" style="color: #AFC4DF;">There are currently no external applications pending review.</p>
         </td>
       </tr>
     `;
@@ -729,12 +773,12 @@ function renderExtApprovalsTable() {
       <tr>
         <td class="font-monospace fw-bold text-primary">${r.registration_id || r.id}</td>
         <td>
-          <div class="fw-bold">${r.college_name || '-'}</div>
-          <small class="text-muted">${r.district || ''}, ${r.state || ''}</small>
+          <div class="fw-bold text-white">${r.college_name || '-'}</div>
+          <small style="color: #AFC4DF;">${r.district || ''}, ${r.state || ''}</small>
         </td>
         <td>
-          <div class="fw-bold">${compName}</div>
-          <small class="text-muted"><i class="bi bi-trophy-fill text-warning me-1"></i>${sport} (${r.gender || 'Boys'})</small>
+          <div class="fw-bold text-white">${compName}</div>
+          <small style="color: #AFC4DF;"><i class="bi bi-trophy-fill text-warning me-1"></i>${sport} (${r.gender || 'Boys'})</small>
         </td>
         <td>
           <span class="badge ${isTeam ? 'bg-primary' : 'bg-info'} me-1">${isTeam ? 'Team' : 'Individual'}</span>
@@ -867,7 +911,12 @@ function generateAdminExtReport() {
   let list = extRegistrationsCache;
   if (compId !== 'All') list = list.filter(r => String(r.competition_id) === String(compId));
   if (status !== 'All') list = list.filter(r => (r.status || '').toUpperCase() === status.toUpperCase());
-  if (gender !== 'All') list = list.filter(r => (r.gender || '').toLowerCase() === gender.toLowerCase());
+  if (gender !== 'All') {
+    list = list.filter(r => {
+      const g = normalizeCategoryLabel(r.category || r.gender || (r.competition && (r.competition.category || r.competition.gender)));
+      return g.toLowerCase() === gender.toLowerCase();
+    });
+  }
 
   let selectedCompName = 'All Inter-College Tournaments';
   let qrCodeSnippet = '';
@@ -892,20 +941,30 @@ function generateAdminExtReport() {
 
   let rowsHtml = '';
   if (list.length === 0) {
-    rowsHtml = `<tr><td colspan="7" class="text-center py-4 text-muted">No records found matching criteria.</td></tr>`;
+    rowsHtml = `<tr><td colspan="10" class="text-center py-4 text-muted">No records found matching criteria.</td></tr>`;
   } else {
     list.forEach((r, idx) => {
       const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
       const participant = isTeam ? (r.team_name || 'Team') : (r.player_name || 'Athlete');
+      const tourName = (r.tournament && r.tournament.name) || r.tournament_name || (r.competition && (r.competition.tournamentName || r.competition.tournament_name)) || 'GASC Tournament';
+      const sport = r.sport_name || (r.competition && (r.competition.sportName || r.competition.sport_name)) || 'Sports';
+      const compName = (r.competition && r.competition.name) || r.competition_name || 'Event';
+      const cat = normalizeCategoryLabel(r.category || r.gender || (r.competition && (r.competition.category || r.competition.gender)));
+      const catBadge = getCategoryBadgeClass(cat);
+      const statusBadge = (r.status || 'PENDING').toUpperCase() === 'APPROVED' ? 'bg-success' : ((r.status || '').toUpperCase() === 'REJECTED' ? 'bg-danger' : 'bg-warning text-dark');
+
       rowsHtml += `
         <tr>
           <td>${idx + 1}</td>
-          <td class="font-monospace">${r.registration_id || r.id}</td>
-          <td><strong>${r.college_name}</strong><br><small class="text-muted">${r.district || ''}</small></td>
-          <td>${participant} <span class="badge bg-light text-dark">${isTeam ? 'Team' : 'Individual'}</span></td>
-          <td>${r.gender || 'Boys'}</td>
+          <td class="font-monospace fw-bold text-primary">${r.registration_id || r.id}</td>
+          <td>${tourName}</td>
+          <td><span class="badge bg-warning text-dark">${sport}</span></td>
+          <td class="fw-bold">${compName}</td>
+          <td><span class="badge ${catBadge}">${cat}</span></td>
+          <td><strong>${r.college_name || r.department || '-'}</strong><br><small class="text-muted">${r.district || ''}</small></td>
+          <td>${participant} <small class="text-muted">(${isTeam ? 'Team' : 'Individual'})</small></td>
           <td>${r.participant_phone || '-'}<br><small class="text-muted">${r.participant_email || '-'}</small></td>
-          <td><span class="badge bg-secondary">${r.status}</span></td>
+          <td><span class="badge ${statusBadge}">${r.status || 'PENDING'}</span></td>
         </tr>
       `;
     });
@@ -931,9 +990,12 @@ function generateAdminExtReport() {
             <tr>
               <th style="width: 45px;">S.No</th>
               <th>Reg ID</th>
-              <th>College Name & District</th>
-              <th>Team / Athlete Name</th>
+              <th>Tournament</th>
+              <th>Sport</th>
+              <th>Competition / Event</th>
               <th>Category</th>
+              <th>College / Department</th>
+              <th>Player or Team Name</th>
               <th>Contact Details</th>
               <th>Status</th>
             </tr>

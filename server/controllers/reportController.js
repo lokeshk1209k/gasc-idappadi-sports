@@ -202,15 +202,25 @@ exports.getTournamentRegistrationReport = async (req, res) => {
       });
     }
 
-    // Apply gender filter
+    // Apply gender / category filter
     if (gender && gender !== 'All') {
+      const gLower = gender.toLowerCase();
       filtered = filtered.filter(r => {
         const regNumKey = (r.register_number || '').trim().toUpperCase();
         const u = usersMap[r.student_id] || (regNumKey ? usersMap[regNumKey] : null);
+        const c = compsMap[r.competition_id] || compsMap[r.tournament_id] || {};
+        const compCat = (c.category || c.gender || '').toLowerCase();
         const uGender = ((u && u.gender) ? u.gender : (r.gender || '')).toLowerCase();
-        const gLower = gender.toLowerCase();
-        if (gLower === 'boys') return uGender === 'male' || uGender === 'boy' || uGender === 'boys';
-        if (gLower === 'girls') return uGender === 'female' || uGender === 'girl' || uGender === 'girls';
+
+        if (gLower === 'men' || gLower === 'boys') {
+          return compCat === 'men' || compCat === 'boys' || uGender === 'male' || uGender === 'boy' || uGender === 'boys' || uGender === 'men';
+        }
+        if (gLower === 'women' || gLower === 'girls') {
+          return compCat === 'women' || compCat === 'girls' || uGender === 'female' || uGender === 'girl' || uGender === 'girls' || uGender === 'women';
+        }
+        if (gLower === 'mixed') {
+          return compCat === 'mixed';
+        }
         return true;
       });
     }
@@ -282,6 +292,10 @@ exports.getTournamentRegistrationReport = async (req, res) => {
       const genderVal = (rawGender.toLowerCase() === 'male' || rawGender.toLowerCase() === 'boys') ? 'Boys' :
                         (rawGender.toLowerCase() === 'female' || rawGender.toLowerCase() === 'girls') ? 'Girls' : rawGender;
 
+      const categoryName = (c.category || c.gender || (genderVal === 'Boys' ? 'Men' : (genderVal === 'Girls' ? 'Women' : genderVal)) || 'Mixed');
+      const compTitle = c.name || `${sportName} — ${categoryName}`;
+      const parentTourn = r.tournament_name || c.tournament_name || tournamentName;
+
       if (isTeamSport(sportName, c.type)) {
         teamSports.add(sportName);
         const assignment = teamAssignMap[r.student_id] || teamAssignMap[u.id] || (regNumKey ? teamAssignMap[regNumKey] : null);
@@ -293,25 +307,31 @@ exports.getTournamentRegistrationReport = async (req, res) => {
 
         teamRows.push({
           sNo: teamRows.length + 1,
+          tournamentName: parentTourn,
           sportName,
+          competitionName: compTitle,
+          category: categoryName,
           teamName: teamNameVal || 'Not Assigned',
           registerNumber,
           playerName: studentName,
           year: yr,
           department: dept,
-          gender: genderVal,
+          gender: categoryName,
           teamStatus: teamNameVal ? 'Selected' : 'Not Assigned',
           registrationStatus: r.status || 'Registered'
         });
       } else {
         individualRows.push({
           sNo: individualRows.length + 1,
+          tournamentName: parentTourn,
           sportName,
+          competitionName: compTitle,
+          category: categoryName,
           registerNumber,
           playerName: studentName,
           year: yr,
           department: dept,
-          gender: genderVal,
+          gender: categoryName,
           registrationStatus: r.status || 'Registered'
         });
       }

@@ -1,6 +1,6 @@
 {
   "name": "gasc-idappadi-sports-management",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Smart Sports Management System for Government Arts and Science College, Idappadi",
   "main": "electron/main.js",
   "scripts": {
@@ -103,7 +103,7 @@
       "uninstallerIcon": "build-resources/icon.ico",
       "installerHeaderIcon": "build-resources/icon.ico",
       "deleteAppDataOnUninstall": false,
-      "artifactName": "GASC-Sports-Admin-Setup-1.3.0.exe"
+      "artifactName": "GASC-Sports-Admin-Setup-1.4.0.exe"
     }
   },
   "engines": {
