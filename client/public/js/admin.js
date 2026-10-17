@@ -2261,9 +2261,16 @@ async function submitCreateCompetition(event) {
     }
     formData.set('status', computedStatus);
 
+    const payload = {};
+    formData.forEach((val, key) => {
+      if (typeof val === 'string') {
+        payload[key] = val;
+      }
+    });
+
     let res = null;
     try {
-      res = await apiRequest('/competitions', 'POST', formData, true);
+      res = await apiRequest('/competitions', 'POST', payload, false);
     } catch (apiErr) {
       console.warn('API save notice (using offline local fallback):', apiErr.message);
     }
@@ -2387,9 +2394,16 @@ async function submitAddSportToTournament(event) {
     }
     formData.set('status', sportStatus);
 
+    const payload = {};
+    formData.forEach((val, key) => {
+      if (typeof val === 'string') {
+        payload[key] = val;
+      }
+    });
+
     let res = null;
     try {
-      res = await apiRequest('/competitions', 'POST', formData, true);
+      res = await apiRequest('/competitions', 'POST', payload, false);
     } catch (apiErr) {
       console.warn('API save notice for add sport:', apiErr.message);
     }

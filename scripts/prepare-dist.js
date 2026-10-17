@@ -62,13 +62,6 @@ console.log('[prepare-dist] 2. Merging client/public assets to root dist and stu
       }, null, 2);
 
       fs.writeFileSync(path.join(targetDir, 'competitions.json'), competitionsPayload, 'utf8');
-
-      // Also create an api/competitions static route if static fallback is queried
-      const apiDir = path.join(targetDir, 'api');
-      if (!fs.existsSync(apiDir)) fs.mkdirSync(apiDir, { recursive: true });
-      fs.writeFileSync(path.join(apiDir, 'competitions'), competitionsPayload, 'utf8');
-      fs.writeFileSync(path.join(apiDir, 'competitions.json'), competitionsPayload, 'utf8');
-
       console.log(`[prepare-dist] 🏆 Exported ${(db.competitions || []).length} tournaments to competitions.json`);
     } catch (e) {
       console.warn('[prepare-dist] Could not export competitions payload:', e.message);
