@@ -498,12 +498,30 @@ exports.submitRegistration = async (req, res) => {
       } catch (tErr) {}
     }
 
-    // Check deadline & status
-    const deadline = comp.registration_end || comp.registration_deadline || comp.date;
-    if (deadline && new Date() > new Date(deadline)) {
-      return res.status(400).json({ success: false, message: 'Registration deadline has passed for this competition.' });
+    // Check registration start & deadline & status
+    const now = new Date();
+    const regStart = comp.registration_start || comp.registrationStart;
+    if (regStart) {
+      const sDate = new Date(regStart);
+      if (!isNaN(sDate.getTime()) && now < sDate) {
+        return res.status(400).json({
+          success: false,
+          message: `Online registration has not opened yet for this competition. It will open on ${sDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+        });
+      }
     }
-    if (comp.external_registration_enabled === false || comp.status === 'Registration Closed') {
+
+    const deadline = comp.registration_end || comp.registration_deadline || comp.date;
+    if (deadline) {
+      let dDate = new Date(deadline);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(deadline).trim())) {
+        dDate = new Date(`${String(deadline).trim()}T23:59:59.999Z`);
+      }
+      if (!isNaN(dDate.getTime()) && now > dDate) {
+        return res.status(400).json({ success: false, message: 'Registration deadline has passed for this competition.' });
+      }
+    }
+    if (comp.external_registration_enabled === false || comp.status === 'Registration Closed' || comp.status === 'Cancelled' || comp.status === 'Completed') {
       return res.status(400).json({ success: false, message: 'Registration is currently closed for this competition.' });
     }
 

@@ -545,9 +545,25 @@ async function handleRegister(req, res) {
 
     // 3. Backend deadline & competition status validation
     const now = new Date();
+    
+    // Check registration start condition (Auto Open validation)
+    const regStart = comp.registration_start || comp.registrationStart;
+    if (regStart) {
+      const sDate = new Date(regStart);
+      if (!isNaN(sDate.getTime()) && now < sDate) {
+        return res.status(400).json({
+          success: false,
+          message: `Online registration for this competition has not opened yet. It will automatically open on ${sDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+        });
+      }
+    }
+
     const deadline = comp.registration_end || comp.registration_deadline;
     if (deadline) {
-      const dDate = new Date(deadline);
+      let dDate = new Date(deadline);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(deadline).trim())) {
+        dDate = new Date(`${String(deadline).trim()}T23:59:59.999Z`);
+      }
       if (!isNaN(dDate.getTime()) && now > dDate) {
         return res.status(400).json({ success: false, message: `Registration for this competition closed on ${dDate.toLocaleDateString('en-IN')}.` });
       }

@@ -1984,9 +1984,10 @@ async function loadAdminCompetitions() {
                       <span class="badge ${catBadgeClass} bg-opacity-90 position-absolute shadow-sm" style="top: 10px; left: 10px; backdrop-filter: blur(4px); font-size: 0.72rem;">
                         <i class="bi bi-gender-ambiguous me-1"></i>${compCat}
                       </span>
-                      <span class="badge bg-success bg-opacity-90 text-white border border-success border-opacity-40 position-absolute shadow-sm" style="top: 10px; right: 10px; backdrop-filter: blur(4px);">
-                        ${c.status || 'Open'}
-                      </span>
+                      ${(() => {
+                        const dyn = (typeof window.getAdminDynamicStatus === 'function') ? window.getAdminDynamicStatus(c) : { label: (c.status || 'Open'), badgeClass: 'bg-success text-white border-success' };
+                        return `<span class="badge ${dyn.badgeClass} bg-opacity-95 text-white border position-absolute shadow-sm" style="top: 10px; right: 10px; backdrop-filter: blur(4px); font-size: 0.72rem; font-weight: 700;">${dyn.label}</span>`;
+                      })()}
                     </div>
                     <div class="p-3 flex-grow-1 d-flex flex-column justify-content-between" style="background: #0b1736 !important;">
                       <h6 class="fw-bold mb-2" style="color: #ffffff !important; font-size: 1.05rem; letter-spacing: 0.3px;">${compDisplayTitle}</h6>
@@ -2029,6 +2030,66 @@ async function loadAdminCompetitions() {
   }
 }
 
+window.getAdminDynamicStatus = function(c) {
+  const now = new Date();
+  const startRaw = c.registrationStart || c.registration_start;
+  const endRaw = c.registrationEnd || c.registration_end || c.registration_deadline;
+  
+  if (startRaw) {
+    const sDate = new Date(startRaw);
+    if (!isNaN(sDate.getTime()) && now < sDate) {
+      return { label: `Upcoming (Opens ${formatDate(startRaw)})`, badgeClass: 'bg-warning text-dark border-warning' };
+    }
+  }
+  if (endRaw) {
+    let eDate = new Date(endRaw);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(endRaw).trim())) {
+      eDate = new Date(`${String(endRaw).trim()}T23:59:59.999Z`);
+    }
+    if (!isNaN(eDate.getTime()) && now > eDate) {
+      return { label: 'Closed (Expired)', badgeClass: 'bg-danger text-white border-danger' };
+    }
+  }
+  return { label: 'Registration Open', badgeClass: 'bg-success text-white border-success' };
+};
+
+window.updateRegSchedulePreview = function() {
+  const startEl = document.getElementById('ctm-reg-start');
+  const endEl = document.getElementById('ctm-reg-end');
+  const badgeEl = document.getElementById('ctm-reg-condition-badge');
+  const textEl = document.getElementById('ctm-reg-status-text');
+  if (!badgeEl || !textEl) return;
+
+  const now = new Date();
+  const startVal = startEl ? startEl.value : '';
+  const endVal = endEl ? endEl.value : '';
+
+  if (!startVal && !endVal) {
+    badgeEl.className = 'badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-40 font-monospace';
+    badgeEl.innerHTML = '<i class="bi bi-lightning-charge-fill me-1"></i>Automatic Mode';
+    textEl.innerHTML = 'Registration will automatically open immediately and close on the deadline.';
+    return;
+  }
+
+  const sDate = startVal ? new Date(startVal) : null;
+  const eDate = endVal ? new Date(endVal) : null;
+
+  if (sDate && !isNaN(sDate.getTime()) && now < sDate) {
+    badgeEl.className = 'badge bg-warning text-dark border border-warning font-monospace';
+    badgeEl.innerHTML = '<i class="bi bi-clock-history me-1"></i>Status: UPCOMING';
+    textEl.innerHTML = `⏰ Registration will automatically <strong>OPEN on ${sDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</strong>.`;
+  } else if (eDate && !isNaN(eDate.getTime()) && now > eDate) {
+    badgeEl.className = 'badge bg-danger text-white border border-danger font-monospace';
+    badgeEl.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Status: CLOSED';
+    textEl.innerHTML = `🔴 Registration is set to <strong>CLOSED</strong> (Deadline ${eDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} has passed).`;
+  } else {
+    badgeEl.className = 'badge bg-success text-white border border-success font-monospace';
+    badgeEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Status: REGISTRATION OPEN';
+    const closeInfo = eDate ? `Will automatically close on ${eDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}` : 'Active';
+    textEl.innerHTML = `🟢 Registration will be <strong>OPEN immediately</strong>. (${closeInfo})`;
+  }
+};
+
 function openCreateTournamentModal() {
   populateSelectDropdowns();
 
@@ -2038,6 +2099,26 @@ function openCreateTournamentModal() {
   if (startDateInput && !startDateInput.value) startDateInput.value = today;
   const endDateInput = document.getElementById('ctm-end-date');
   if (endDateInput && !endDateInput.value) endDateInput.value = today;
+
+  // Set default registration open & close datetimes
+  const now = new Date();
+  const formatDT = (d) => {
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const regStartEl = document.getElementById('ctm-reg-start');
+  if (regStartEl && !regStartEl.value) {
+    regStartEl.value = formatDT(now);
+  }
+  const regEndEl = document.getElementById('ctm-reg-end');
+  if (regEndEl && !regEndEl.value) {
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    nextWeek.setHours(23, 59, 0, 0);
+    regEndEl.value = formatDT(nextWeek);
+  }
+  if (typeof window.updateRegSchedulePreview === 'function') {
+    window.updateRegSchedulePreview();
+  }
 
   // Auto-select first sport if not chosen
   const sportSel = document.getElementById('create-tournament-sport-id');
@@ -2160,6 +2241,25 @@ async function submitCreateCompetition(event) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating Tournament...';
 
+    // Compute dynamic automatic registration status
+    const now = new Date();
+    const regStartVal = formData.get('registrationStart');
+    const regEndVal = formData.get('registrationEnd') || formData.get('date');
+
+    let computedStatus = 'Registration Open';
+    if (regStartVal && new Date(regStartVal) > now) {
+      computedStatus = 'Upcoming';
+    } else if (regEndVal) {
+      let eDate = new Date(regEndVal);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(regEndVal).trim())) {
+        eDate = new Date(`${String(regEndVal).trim()}T23:59:59.999Z`);
+      }
+      if (now > eDate) {
+        computedStatus = 'Registration Closed';
+      }
+    }
+    formData.set('status', computedStatus);
+
     let res = null;
     try {
       res = await apiRequest('/competitions', 'POST', formData, true);
@@ -2181,9 +2281,10 @@ async function submitCreateCompetition(event) {
       gender: normCat,
       type: formData.get('type') || formData.get('sportType') || 'Team Event',
       date: formData.get('date') || new Date().toISOString(),
-      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
+      registrationStart: regStartVal || now.toISOString(),
+      registrationEnd: regEndVal,
       venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
-      status: formData.get('status') || 'Registration Open',
+      status: computedStatus,
       bannerImage: coverUrl,
       description: formData.get('description') || `Annual collegiate ${tName} competition.`
     };
@@ -2261,6 +2362,30 @@ async function submitAddSportToTournament(event) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Adding Sport...';
 
+    // Compute dynamic automatic registration status for added sport
+    const nowSport = new Date();
+    const sportRegStart = formData.get('registrationStart');
+    const sportRegEnd = formData.get('registrationEnd') || formData.get('date');
+    let sportStatus = formData.get('status') || 'AUTO';
+    if (sportStatus === 'AUTO') {
+      if (sportRegStart && new Date(sportRegStart) > nowSport) {
+        sportStatus = 'Upcoming';
+      } else if (sportRegEnd) {
+        let eDate = new Date(sportRegEnd);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(String(sportRegEnd).trim())) {
+          eDate = new Date(`${String(sportRegEnd).trim()}T23:59:59.999Z`);
+        }
+        if (nowSport > eDate) {
+          sportStatus = 'Registration Closed';
+        } else {
+          sportStatus = 'Registration Open';
+        }
+      } else {
+        sportStatus = 'Registration Open';
+      }
+    }
+    formData.set('status', sportStatus);
+
     let res = null;
     try {
       res = await apiRequest('/competitions', 'POST', formData, true);
@@ -2280,12 +2405,13 @@ async function submitAddSportToTournament(event) {
       gender: normSportCat,
       type: formData.get('type') || 'Team Event',
       date: formData.get('date') || new Date().toISOString(),
-      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
+      registrationStart: sportRegStart || nowSport.toISOString(),
+      registrationEnd: sportRegEnd,
       startTime: formData.get('startTime') || '09:00 AM',
       endTime: formData.get('endTime') || '05:00 PM',
       venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
       maxParticipants: Number(formData.get('maxParticipants')) || 50,
-      status: formData.get('status') || 'Registration Open',
+      status: sportStatus,
       description: formData.get('description') || `${sportName} competition inside ${tName}.`
     };
 

@@ -2731,13 +2731,47 @@
               </div>
 
               <div class="col-6">
-                <label class="form-label small fw-bold">Start Date *</label>
+                <label class="form-label small fw-bold">Tournament Start Date *</label>
                 <input type="date" name="date" id="ctm-start-date" class="form-control form-control-glass" required>
               </div>
 
               <div class="col-6">
-                <label class="form-label small fw-bold">End Date *</label>
-                <input type="date" name="registrationEnd" id="ctm-end-date" class="form-control form-control-glass" required>
+                <label class="form-label small fw-bold">Tournament End Date *</label>
+                <input type="date" name="endDate" id="ctm-end-date" class="form-control form-control-glass" required>
+              </div>
+
+              <!-- Dedicated Registration Schedule Card with Automatic Open & Close Conditions -->
+              <div class="col-12 p-3 rounded-3 border border-warning border-opacity-30" style="background: rgba(245, 158, 11, 0.08);">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="text-xs fw-bold text-uppercase" style="color: #fbbf24;">
+                    <i class="bi bi-clock-history me-1"></i> Registration Window (Automatic Open & Close)
+                  </span>
+                  <span class="badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-40 font-monospace" id="ctm-reg-condition-badge" style="font-size:0.68rem;">
+                    <i class="bi bi-lightning-charge-fill me-1"></i>Automatic Mode
+                  </span>
+                </div>
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
+                      <i class="bi bi-calendar-check text-success me-1"></i> Registration Open Date & Time *
+                    </label>
+                    <input type="datetime-local" name="registrationStart" id="ctm-reg-start" class="form-control form-control-glass form-control-sm" required onchange="updateRegSchedulePreview()">
+                    <div class="form-text text-light opacity-75" style="font-size:0.68rem;">Registration activates automatically at this moment.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
+                      <i class="bi bi-calendar-x text-danger me-1"></i> Registration Close Date & Time (Deadline) *
+                    </label>
+                    <input type="datetime-local" name="registrationEnd" id="ctm-reg-end" class="form-control form-control-glass form-control-sm" required onchange="updateRegSchedulePreview()">
+                    <div class="form-text text-light opacity-75" style="font-size:0.68rem;">Registration terminates automatically after this deadline.</div>
+                  </div>
+                  <div class="col-12 mt-2">
+                    <div class="p-2 rounded bg-dark bg-opacity-60 border border-white border-opacity-15 text-xs text-light d-flex align-items-center gap-2" id="ctm-reg-status-preview">
+                      <i class="bi bi-info-circle text-info"></i>
+                      <span id="ctm-reg-status-text">Status will automatically compute based on current date & time.</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="col-12">
@@ -3050,9 +3084,15 @@
                 <label class="form-label small fw-bold">Substitutes</label>
                 <input type="number" name="substitutes" class="form-control form-control-glass" value="4" min="0">
               </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Registration Deadline *</label>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold"><i class="bi bi-calendar-check text-success me-1"></i> Registration Open Date</label>
+                <input type="date" name="registrationStart" class="form-control form-control-glass" placeholder="Immediate if empty">
+                <div class="form-text text-muted" style="font-size:0.7rem;">Leave empty for immediate opening.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label small fw-bold"><i class="bi bi-calendar-x text-danger me-1"></i> Registration Deadline (Close) *</label>
                 <input type="date" name="registrationEnd" class="form-control form-control-glass" required>
+                <div class="form-text text-muted" style="font-size:0.7rem;">Auto-closes after this date.</div>
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Start Time</label>
@@ -3071,10 +3111,12 @@
                 <input type="number" name="maxParticipants" class="form-control form-control-glass" value="50">
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold">Registration Status</label>
+                <label class="form-label small fw-bold">Registration Condition</label>
                 <select name="status" class="form-select form-select-glass">
-                  <option value="Registration Open" selected>Registration Open</option>
-                  <option value="Registration Closed">Closed</option>
+                  <option value="AUTO" selected>⚡ Automatic (Opens & Closes on dates)</option>
+                  <option value="Registration Open">Force Open</option>
+                  <option value="Upcoming">Force Upcoming (Not Started)</option>
+                  <option value="Registration Closed">Force Closed</option>
                 </select>
               </div>
               <div class="col-12">

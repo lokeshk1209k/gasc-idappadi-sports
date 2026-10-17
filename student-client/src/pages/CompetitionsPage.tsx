@@ -39,6 +39,7 @@ interface SportCompetition {
   date: string;
   startTime?: string;
   endTime?: string;
+  registrationStart?: string;
   registrationEnd: string;
   venue: string;
   maxParticipants?: number;
@@ -54,11 +55,106 @@ interface Tournament {
   description: string;
   startDate: string;
   endDate: string;
+  registrationStart?: string;
+  registrationEnd?: string;
   venue: string;
   bannerImage: string;
   status: string;
   sports: SportCompetition[];
 }
+
+export const getDynamicRegistrationStatus = (item: {
+  registrationStart?: string;
+  registration_start?: string;
+  registrationStartDate?: string;
+  registrationEnd?: string;
+  registration_end?: string;
+  registrationDeadline?: string;
+  registration_deadline?: string;
+  startDate?: string;
+  start_date?: string;
+  endDate?: string;
+  end_date?: string;
+  date?: string;
+  status?: string;
+}) => {
+  const currentStatus = String(item?.status || '').trim();
+  if (/^cancelled$|^canceled$/i.test(currentStatus)) {
+    return {
+      status: 'Cancelled',
+      label: 'Cancelled',
+      badgeClass: 'badge-gray',
+      badgeColor: '#64748b',
+      isOpen: false,
+      isUpcoming: false,
+      isClosed: true,
+      message: 'Tournament Cancelled'
+    };
+  }
+  if (/^completed$/i.test(currentStatus)) {
+    return {
+      status: 'Completed',
+      label: 'Completed',
+      badgeClass: 'badge-gray',
+      badgeColor: '#64748b',
+      isOpen: false,
+      isUpcoming: false,
+      isClosed: true,
+      message: 'Tournament Completed'
+    };
+  }
+
+  const now = new Date();
+  const startRaw = item?.registrationStart || (item as any)?.registration_start || (item as any)?.registrationStartDate;
+  if (startRaw) {
+    const startDate = new Date(startRaw);
+    if (!isNaN(startDate.getTime()) && now < startDate) {
+      const formatted = startDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+      return {
+        status: 'Upcoming',
+        label: `Opens ${formatted}`,
+        badgeClass: 'badge-yellow',
+        badgeColor: '#f59e0b',
+        isOpen: false,
+        isUpcoming: true,
+        isClosed: false,
+        message: `Opens on ${formatted}`
+      };
+    }
+  }
+
+  const endRaw = item?.registrationEnd || (item as any)?.registration_end || (item as any)?.registrationDeadline || (item as any)?.registration_deadline || item?.endDate;
+  if (endRaw) {
+    let endDate = new Date(endRaw);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(endRaw).trim())) {
+      endDate = new Date(`${String(endRaw).trim()}T23:59:59.999Z`);
+    }
+    if (!isNaN(endDate.getTime()) && now > endDate) {
+      const formatted = endDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+      return {
+        status: 'Registration Closed',
+        label: 'Closed',
+        badgeClass: 'badge-red',
+        badgeColor: '#ef4444',
+        isOpen: false,
+        isUpcoming: false,
+        isClosed: true,
+        message: `Closed on ${formatted}`
+      };
+    }
+  }
+
+  return {
+    status: 'Registration Open',
+    label: 'Registration Open',
+    badgeClass: 'badge-green',
+    badgeColor: '#22c55e',
+    isOpen: true,
+    isUpcoming: false,
+    isClosed: false,
+    message: 'Registration is Open'
+  };
+};
 
 const DEFAULT_SPORTS: SportCompetition[] = [
   { id: 'spark_cricket', name: 'Cricket — Men', sportName: 'Cricket', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-12', registrationEnd: '2026-10-08', venue: 'College Main Ground', maxParticipants: 60, currentRegistrations: 14, status: 'Registration Open', description: 'Inter-department T20 Cricket championship.' },
@@ -544,9 +640,10 @@ const CompetitionsPage = () => {
 
   // Filtered Tournaments
   const filteredTournaments = tournaments.filter(t => {
-    if (activeTab === 'Upcoming') return t.status === 'Upcoming';
-    if (activeTab === 'Open') return t.status === 'Registration Open' || t.status === 'Open';
-    if (activeTab === 'Closed') return t.status === 'Registration Closed' || t.status === 'Completed';
+    const dyn = getDynamicRegistrationStatus(t);
+    if (activeTab === 'Upcoming') return dyn.isUpcoming;
+    if (activeTab === 'Open') return dyn.isOpen;
+    if (activeTab === 'Closed') return dyn.isClosed;
     return true;
   });
 
@@ -848,9 +945,14 @@ const CompetitionsPage = () => {
                   <span className="badge badge-blue">
                     🏆 OFFICIAL TOURNAMENT CONTAINER
                   </span>
-                  <span className="badge badge-green">
-                    {activeTournament.status}
-                  </span>
+                  {(() => {
+                    const dynT = getDynamicRegistrationStatus(activeTournament);
+                    return (
+                      <span className={`badge ${dynT.badgeClass}`} style={{ background: dynT.isOpen ? 'rgba(34,197,94,0.2)' : (dynT.isUpcoming ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'), color: dynT.badgeColor, border: `1px solid ${dynT.badgeColor}55`, fontWeight: 800 }}>
+                        {dynT.label}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <h1 style={{ fontSize: 32, fontWeight: 900, color: '#FFFFFF', margin: '0 0 10px', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
                   {activeTournament.tournamentName}
@@ -982,6 +1084,14 @@ const CompetitionsPage = () => {
                           >
                             {s.category || 'Men'}
                           </span>
+                          {(() => {
+                            const dynS = getDynamicRegistrationStatus(s);
+                            return (
+                              <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 8, background: dynS.isOpen ? 'rgba(34,197,94,0.15)' : (dynS.isUpcoming ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)'), color: dynS.badgeColor, border: `1px solid ${dynS.badgeColor}40` }}>
+                                {dynS.label}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -1024,15 +1134,40 @@ const CompetitionsPage = () => {
                             View Registration
                           </button>
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => { setSelectedSport(s); setShowConfirmModal(true); }}
-                          className="btn btn-primary"
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
-                        >
-                          Select Sport <ArrowRight style={{ width: 14, height: 14 }} />
-                        </button>
-                      )}
+                      ) : (() => {
+                        const dynS = getDynamicRegistrationStatus(s);
+                        if (dynS.isUpcoming) {
+                          return (
+                            <button
+                              disabled
+                              className="btn btn-outline"
+                              style={{ width: '100%', opacity: 0.8, cursor: 'not-allowed', color: '#f59e0b', borderColor: 'rgba(245,158,11,0.4)', background: 'rgba(245,158,11,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, fontWeight: 700 }}
+                            >
+                              <Clock style={{ width: 14, height: 14 }} /> {dynS.message}
+                            </button>
+                          );
+                        }
+                        if (dynS.isClosed) {
+                          return (
+                            <button
+                              disabled
+                              className="btn btn-outline"
+                              style={{ width: '100%', opacity: 0.7, cursor: 'not-allowed', color: '#ef4444', borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, fontWeight: 700 }}
+                            >
+                              <AlertCircle style={{ width: 14, height: 14 }} /> {dynS.message}
+                            </button>
+                          );
+                        }
+                        return (
+                          <button
+                            onClick={() => { setSelectedSport(s); setShowConfirmModal(true); }}
+                            className="btn btn-primary"
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
+                          >
+                            Select Sport <ArrowRight style={{ width: 14, height: 14 }} />
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -1100,9 +1235,14 @@ const CompetitionsPage = () => {
                     </span>
                   </div>
                   <div style={{ position: 'absolute', top: 12, right: 12 }}>
-                    <span className="badge badge-green">
-                      {t.status}
-                    </span>
+                    {(() => {
+                      const dynT = getDynamicRegistrationStatus(t);
+                      return (
+                        <span className={`badge ${dynT.badgeClass}`} style={{ background: dynT.isOpen ? 'rgba(34,197,94,0.2)' : (dynT.isUpcoming ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'), color: dynT.badgeColor, border: `1px solid ${dynT.badgeColor}55`, fontWeight: 800 }}>
+                          {dynT.label}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div style={{ position: 'absolute', bottom: 12, left: 14 }}>
@@ -1218,11 +1358,11 @@ const CompetitionsPage = () => {
               </button>
               <button
                 onClick={handleConfirmRegistration}
-                disabled={registering}
+                disabled={registering || (selectedSport && !getDynamicRegistrationStatus(selectedSport).isOpen)}
                 className="btn btn-primary"
-                style={{ flex: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                style={{ flex: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (selectedSport && !getDynamicRegistrationStatus(selectedSport).isOpen) ? 0.6 : 1 }}
               >
-                {registering ? 'Registering...' : 'Confirm Registration'}
+                {registering ? 'Registering...' : (selectedSport && !getDynamicRegistrationStatus(selectedSport).isOpen ? getDynamicRegistrationStatus(selectedSport).label : 'Confirm Registration')}
               </button>
             </div>
           </div>

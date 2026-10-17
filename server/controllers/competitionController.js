@@ -2,6 +2,47 @@ const { supabase, toCamelCase, toSnakeCase } = require('../utils/supabaseHelper'
 const NotificationService = require('../services/notificationService');
 const { invalidateCache } = require('../middleware/cacheMiddleware');
 
+// Compute dynamic registration status based on open & close conditions
+function computeRegistrationStatus(item) {
+  if (!item) return 'Registration Open';
+  
+  const currentStatus = String(item.status || '').trim();
+  if (/^cancelled$|^canceled$/i.test(currentStatus)) return 'Cancelled';
+  if (/^completed$/i.test(currentStatus)) return 'Completed';
+
+  const now = new Date();
+  
+  // 1. Check Registration Start Condition (Auto Open)
+  const startRaw = item.registration_start || item.registrationStart || item.registrationStartDate;
+  if (startRaw) {
+    const startDate = new Date(startRaw);
+    if (!isNaN(startDate.getTime()) && now < startDate) {
+      return 'Upcoming';
+    }
+  }
+
+  // 2. Check Registration End Condition / Deadline (Auto Close)
+  const endRaw = item.registration_end || item.registrationEnd || item.registration_deadline || item.registrationDeadline || item.endDate;
+  if (endRaw) {
+    let endDate = new Date(endRaw);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(endRaw).trim())) {
+      endDate = new Date(`${String(endRaw).trim()}T23:59:59.999Z`);
+    }
+    if (!isNaN(endDate.getTime()) && now > endDate) {
+      return 'Registration Closed';
+    }
+  }
+
+  // If status is explicit (other than AUTO / empty) and not expired, keep it
+  if (currentStatus && currentStatus !== 'AUTO' && currentStatus !== 'null' && currentStatus !== 'undefined' && currentStatus !== '') {
+    return currentStatus;
+  }
+
+  return 'Registration Open';
+}
+
+exports.computeRegistrationStatus = computeRegistrationStatus;
+
 // @desc    Get all competitions
 // @route   GET /api/competitions
 // @access  Public
@@ -33,6 +74,14 @@ exports.getAllCompetitions = async (req, res) => {
       if (!item.bannerImage || item.bannerImage.includes('unsplash') || item.bannerImage.includes('default') || item.bannerImage === 'null' || item.bannerImage === 'undefined' || item.bannerImage.startsWith('/images/sports/')) {
         item.bannerImage = '/images/sports/tournament.png';
       }
+
+      // Automatically determine real-time registration status based on open & close conditions
+      const dynStatus = computeRegistrationStatus(c);
+      item.status = dynStatus;
+      item.isRegistrationOpen = (dynStatus === 'Registration Open');
+      item.isRegistrationUpcoming = (dynStatus === 'Upcoming');
+      item.isRegistrationClosed = (dynStatus === 'Registration Closed');
+
       return item;
     });
 
@@ -65,6 +114,12 @@ exports.getCompetitionById = async (req, res) => {
 
     const competition = toCamelCase(compRaw);
     if (compRaw.sports) competition.sportId = toCamelCase(compRaw.sports);
+
+    const dynStatus = computeRegistrationStatus(compRaw);
+    competition.status = dynStatus;
+    competition.isRegistrationOpen = (dynStatus === 'Registration Open');
+    competition.isRegistrationUpcoming = (dynStatus === 'Upcoming');
+    competition.isRegistrationClosed = (dynStatus === 'Registration Closed');
 
     const { data: regsRaw } = await supabase
       .from('competition_registrations')
@@ -143,6 +198,13 @@ exports.createCompetition = async (req, res) => {
     const cMode = req.body.competitionMode || req.body.competition_mode || (type === 'Team Event' || type === 'TEAM' ? 'TEAM' : 'INDIVIDUAL');
 
     // Ensure parent tournament exists in tournaments table for public portal
+    const parentComputedStatus = computeRegistrationStatus({
+      registration_start: registrationStart,
+      registration_end: registrationEnd,
+      registration_deadline: registrationEnd,
+      status: req.body.status
+    });
+
     try {
       const tourToken = tId.replace(/^tour_/, '');
       await supabase.from('tournaments').upsert({
@@ -154,7 +216,7 @@ exports.createCompetition = async (req, res) => {
         end_date: new Date(registrationEnd).toISOString(),
         registration_deadline: new Date(registrationEnd).toISOString(),
         venue: venue || 'GASC Idappadi Main Stadium',
-        status: 'Registration Open',
+        status: parentComputedStatus,
         banner_image: bannerImage,
         participation_type: pType,
         external_registration_enabled: pType === 'INTER_COLLEGE',
@@ -197,7 +259,7 @@ exports.createCompetition = async (req, res) => {
       max_participants: maxParticipants ? Number(maxParticipants) : 50,
       description: description || '',
       banner_image: bannerImage,
-      status: 'Registration Open',
+      status: parentComputedStatus,
       participation_type: pType,
       competition_mode: cMode,
       registration_token: token,
@@ -466,18 +528,47 @@ exports.registerForCompetition = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Sport competition not found.' });
     }
 
-    if (compRaw.status === 'Registration Closed' || compRaw.status === 'Cancelled' || compRaw.status === 'Draft') {
-      return res.status(400).json({ success: false, message: 'Registration is currently closed for this sport competition.' });
+    const now = new Date();
+
+    // Check registration start condition (Auto Open validation)
+    if (compRaw.registration_start) {
+      const regStart = new Date(compRaw.registration_start);
+      if (!isNaN(regStart.getTime()) && now < regStart) {
+        return res.status(400).json({
+          success: false,
+          message: `Registration has not opened yet for ${compRaw.name || compRaw.sport_name}. It will automatically open on ${regStart.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+        });
+      }
     }
 
-    if (compRaw.registration_end) {
-      const regEndDate = new Date(compRaw.registration_end);
-      if (regEndDate.getFullYear() < 2000) {
-        regEndDate.setFullYear(regEndDate.getFullYear() + 2000);
+    // Check registration deadline (Auto Close validation)
+    if (compRaw.registration_end || compRaw.registration_deadline) {
+      const deadlineRaw = compRaw.registration_end || compRaw.registration_deadline;
+      let deadline = new Date(deadlineRaw);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(deadlineRaw).trim())) {
+        deadline = new Date(`${String(deadlineRaw).trim()}T23:59:59.999Z`);
       }
-      if (compRaw.status !== 'Registration Open' && new Date() > regEndDate) {
-        return res.status(400).json({ success: false, message: 'Registration deadline has passed for this competition.' });
+      if (!isNaN(deadline.getTime()) && now > deadline) {
+        return res.status(400).json({
+          success: false,
+          message: `Registration has automatically closed for ${compRaw.name || compRaw.sport_name}. Deadline was ${deadline.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+        });
       }
+    }
+
+    // Check status flags
+    const cStatus = (compRaw.status || '').toLowerCase();
+    if (cStatus === 'upcoming' || cStatus === 'draft') {
+      return res.status(400).json({
+        success: false,
+        message: `Registration has not opened yet for ${compRaw.name || compRaw.sport_name} (Status: Upcoming).`
+      });
+    }
+    if (cStatus === 'cancelled' || cStatus === 'completed' || cStatus === 'closed' || cStatus === 'registration closed') {
+      return res.status(400).json({
+        success: false,
+        message: `Registration is currently closed for ${compRaw.name || compRaw.sport_name} (Status: ${compRaw.status}).`
+      });
     }
 
     if (compRaw.max_participants && (compRaw.current_registrations || 0) >= compRaw.max_participants) {
@@ -487,12 +578,12 @@ exports.registerForCompetition = async (req, res) => {
     // 2. Resolve or Auto-Provision Student Record in `users`
     const regNo = (
       req.body.registerNumber ||
-      req.headers['x-register-number'] ||
+      (req.headers && req.headers['x-register-number']) ||
       (req.user && (req.user.register_number || req.user.registerNumber)) ||
       'C24UG183CSC013'
     ).trim().toUpperCase();
 
-    const reqStudentId = (req.user && req.user.id) || req.body.studentId || req.headers['x-student-id'];
+    const reqStudentId = (req.user && req.user.id) || req.body.studentId || (req.headers && req.headers['x-student-id']);
 
     let { data: studentUser } = await supabase
       .from('users')
@@ -571,16 +662,6 @@ exports.registerForCompetition = async (req, res) => {
       });
     }
 
-    // Check registration deadline
-    if (compRaw.registration_end || compRaw.registration_deadline) {
-      const deadline = new Date(compRaw.registration_end || compRaw.registration_deadline);
-      if (!isNaN(deadline.getTime()) && new Date() > deadline) {
-        return res.status(400).json({
-          success: false,
-          message: `Registration has closed for ${compRaw.name || compRaw.sport_name}. Deadline was ${deadline.toLocaleDateString('en-IN')}.`
-        });
-      }
-    }
 
     // 4. Duplicate Check
     const { data: existing } = await supabase
