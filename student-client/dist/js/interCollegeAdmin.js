@@ -51,7 +51,7 @@ function getPublicPortalBaseUrl() {
   if (origin && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
     return origin.replace(/\/+$/, '');
   }
-  return 'https://gasc-student-portal.vercel.app';
+  return 'https://gasc-idappadi-sports.vercel.app';
 }
 
 function getPublicRegistrationUrl(token) {
@@ -311,6 +311,37 @@ async function loadAdminInterCollegeData() {
 }
 
 function populateCompFilterOptions() {
+  const tourSelect = document.getElementById('ext-reg-filter-tournament');
+  if (tourSelect) {
+    const currentTour = tourSelect.value;
+    const tourMap = new Map();
+    if (window.allTournamentsCache && Array.isArray(window.allTournamentsCache)) {
+      window.allTournamentsCache.forEach(t => {
+        const id = t.id || t.registration_token || t.name;
+        const name = t.name || t.tournament_name;
+        if (id && name) tourMap.set(String(id), name);
+      });
+    }
+    extCompetitionsCache.forEach(c => {
+      const tId = c.tournament_id || `tour_${(c.tournament_name || c.tournamentName || '').toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      const tName = c.tournament_name || c.tournamentName;
+      if (tName) tourMap.set(String(tId), tName);
+    });
+    extRegistrationsCache.forEach(r => {
+      const tId = r.tournament_id;
+      const tName = r.tournament_name || (r.tournament && r.tournament.name);
+      if (tId && tName) tourMap.set(String(tId), tName);
+    });
+
+    let tourHtml = '<option value="All">All Tournaments</option>';
+    tourMap.forEach((tName, tId) => {
+      tourHtml += `<option value="${tId}">${tName}</option>`;
+    });
+    tourSelect.innerHTML = tourHtml;
+    if (currentTour) tourSelect.value = currentTour;
+  }
+
+  const selectedTour = tourSelect ? tourSelect.value : 'All';
   const compSelects = [
     document.getElementById('ext-reg-filter-comp'),
     document.getElementById('report-ext-comp')
@@ -320,7 +351,17 @@ function populateCompFilterOptions() {
     if (!sel) return;
     const current = sel.value;
     let html = '<option value="All">All Competitions</option>';
-    extCompetitionsCache.forEach(c => {
+    let compsToUse = extCompetitionsCache;
+    if (selectedTour !== 'All') {
+      compsToUse = compsToUse.filter(c => {
+        const tId = c.tournament_id || `tour_${(c.tournament_name || c.tournamentName || '').toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        return String(tId).toLowerCase() === String(selectedTour).toLowerCase() ||
+               String(c.tournament_id).toLowerCase() === String(selectedTour).toLowerCase() ||
+               (c.tournament_name && c.tournament_name.toLowerCase() === selectedTour.toLowerCase()) ||
+               (c.tournamentName && c.tournamentName.toLowerCase() === selectedTour.toLowerCase());
+      });
+    }
+    compsToUse.forEach(c => {
       const cId = c.id || c._id;
       const cName = c.name || c.tournamentName || 'Inter-College Competition';
       html += `<option value="${cId}">${cName}</option>`;
@@ -329,6 +370,12 @@ function populateCompFilterOptions() {
     if (current) sel.value = current;
   });
 }
+
+function onAdminTournamentFilterChange() {
+  populateCompFilterOptions();
+  renderExtRegistrationsTable();
+}
+window.onAdminTournamentFilterChange = onAdminTournamentFilterChange;
 
 // ─────────────────────────────────────────────────────────────
 // Category Label and Badge Normalizers
@@ -510,12 +557,21 @@ function renderExtRegistrationsTable() {
   if (!tbody) return;
 
   const search = (document.getElementById('ext-reg-search')?.value || '').toLowerCase().trim();
+  const tourFilter = document.getElementById('ext-reg-filter-tournament')?.value || 'All';
   const compFilter = document.getElementById('ext-reg-filter-comp')?.value || 'All';
   const statusFilter = document.getElementById('ext-reg-filter-status')?.value || 'All';
   const genderFilter = document.getElementById('ext-reg-filter-gender')?.value || 'All';
 
   let list = extRegistrationsCache;
 
+  if (tourFilter !== 'All') {
+    list = list.filter(r => {
+      const rTourId = r.tournament_id || (r.competition && r.competition.tournament_id);
+      const rTourName = r.tournament_name || (r.tournament && r.tournament.name) || (r.competition && (r.competition.tournament_name || r.competition.tournamentName));
+      return (rTourId && String(rTourId).toLowerCase() === tourFilter.toLowerCase()) ||
+             (rTourName && rTourName.toLowerCase() === tourFilter.toLowerCase());
+    });
+  }
   if (compFilter !== 'All') {
     list = list.filter(r => String(r.competition_id) === String(compFilter));
   }
@@ -1064,8 +1120,10 @@ function openInterCollegeQrModal(comp) {
   const sport = comp.isParentTournament ? 'All Tournament Sports' : (comp.sportName || comp.sport_name || (comp.name ? comp.name.split('-')[0].trim() : 'Sports'));
   const compMode = comp.isParentTournament ? 'INTER-COLLEGE TOURNAMENT' : (comp.competition_mode || comp.competitionMode || comp.type || 'TEAM').toUpperCase();
   const token = comp.registration_token || comp.registrationToken || comp.id;
-  const status = (comp.registration_status || comp.registrationStatus || comp.status || 'OPEN').toUpperCase();
-  const isOpen = status.includes('OPEN') || status.includes('PUBLISHED');
+  const isEnabled = comp.external_registration_enabled !== false;
+  const statusStr = (comp.registration_status || comp.registrationStatus || comp.status || 'OPEN').toUpperCase();
+  const isClosed = statusStr.includes('CLOSED') || statusStr.includes('CANCELLED');
+  const isOpen = isEnabled && !isClosed;
   const compDate = comp.date ? new Date(comp.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'TBA';
   const deadline = comp.registration_deadline || comp.registrationEnd || comp.date;
   const deadlineStr = deadline ? new Date(deadline).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'TBA';
@@ -1080,7 +1138,7 @@ function openInterCollegeQrModal(comp) {
 
   if (domainSelect) {
     if (currentBase.includes('vercel.app')) {
-      domainSelect.value = 'https://gasc-student-portal.vercel.app';
+      domainSelect.value = 'https://gasc-idappadi-sports.vercel.app';
       if (badge) {
         badge.textContent = 'PUBLIC CLOUD (PHONE READY)';
         badge.className = 'badge bg-success text-white';
@@ -1135,7 +1193,13 @@ function openInterCollegeQrModal(comp) {
 
   const statusBadge = document.getElementById('qr-modal-status-badge');
   if (statusBadge) {
-    statusBadge.innerHTML = `<span class="badge ${isOpen ? 'bg-success' : 'bg-danger'}">${isOpen ? 'OPEN' : 'CLOSED'}</span>`;
+    if (!isEnabled) {
+      statusBadge.innerHTML = '<span class="badge bg-secondary text-white">DISABLED</span>';
+    } else if (isClosed) {
+      statusBadge.innerHTML = '<span class="badge bg-danger text-white">CLOSED</span>';
+    } else {
+      statusBadge.innerHTML = '<span class="badge bg-success text-white">OPEN</span>';
+    }
   }
 
   const linkInput = document.getElementById('qr-modal-link-input');
@@ -1143,10 +1207,10 @@ function openInterCollegeQrModal(comp) {
 
   const toggleBtn = document.getElementById('btn-toggle-reg-status');
   if (toggleBtn) {
-    toggleBtn.innerHTML = isOpen ? 
+    toggleBtn.innerHTML = isEnabled ? 
       '<i class="bi bi-pause-circle me-1"></i> Disable Registration' : 
       '<i class="bi bi-play-circle me-1"></i> Enable Registration';
-    toggleBtn.className = `btn btn-sm ${isOpen ? 'btn-outline-danger' : 'btn-outline-success'} rounded-pill`;
+    toggleBtn.className = `btn btn-sm ${isEnabled ? 'btn-outline-danger' : 'btn-outline-success'} rounded-pill`;
   }
 
   const modalEl = document.getElementById('qrPreviewModal');
@@ -1338,9 +1402,19 @@ async function toggleCompetitionRegistrationState(compId, currentStatus) {
     notifyUser(res.message || 'Registration state updated successfully!', 'success');
     
     // Refresh modal if open
-    if (res.competition && selectedExtCompForQr && String(selectedExtCompForQr.id || selectedExtCompForQr._id) === String(targetId)) {
-      selectedExtCompForQr = res.competition;
-      openInterCollegeQrModal(res.competition);
+    if (selectedExtCompForQr && String(selectedExtCompForQr.id || selectedExtCompForQr._id) === String(targetId)) {
+      if (res.tournament) {
+        selectedExtCompForQr = {
+          ...selectedExtCompForQr,
+          ...res.tournament,
+          isParentTournament: true,
+          external_registration_enabled: res.externalRegistrationEnabled !== false
+        };
+        openInterCollegeQrModal(selectedExtCompForQr);
+      } else if (res.competition) {
+        selectedExtCompForQr = res.competition;
+        openInterCollegeQrModal(res.competition);
+      }
     }
     
     // Refresh data in background
@@ -1462,7 +1536,15 @@ async function promptRegenerateQrToken(compId, compName) {
     const res = await apiRequest(`/inter-college/admin/competition/${targetId}/regenerate-token`, 'POST', {});
     notifyUser('New QR token generated successfully!', 'success');
     
-    if (res.competition) {
+    if (res.tournament) {
+      selectedExtCompForQr = {
+        ...selectedExtCompForQr,
+        ...res.tournament,
+        registration_token: res.registrationToken,
+        isParentTournament: true
+      };
+      openInterCollegeQrModal(selectedExtCompForQr);
+    } else if (res.competition) {
       selectedExtCompForQr = res.competition;
       openInterCollegeQrModal(res.competition);
     }

@@ -1815,6 +1815,7 @@ async function loadAdminCompetitions() {
       const res = await apiRequest('/competitions');
       competitions = res.competitions || res.data || [];
       apiTournaments = res.tournaments || [];
+      window.allTournamentsCache = apiTournaments;
     } catch (apiErr) {
       try {
         const fallbackRes = await fetch('/competitions.json');
@@ -1928,8 +1929,8 @@ async function loadAdminCompetitions() {
             </div>
             <div class="col-md-4 text-md-end">
               <div class="d-flex flex-column flex-sm-row gap-2 justify-content-md-end">
-                <button class="btn btn-warning text-dark btn-sm fw-bold shadow-sm" onclick="showParentTournamentQrModal(decodeURIComponent('${encodeURIComponent(tName)}'))" title="View, Print & Download QR Code">
-                  <i class="bi bi-qr-code-scan me-1"></i> QR Code
+                <button class="btn btn-warning text-dark btn-sm fw-bold shadow-sm" onclick="showParentTournamentQrModal(decodeURIComponent('${encodeURIComponent(tName)}'))" title="Generate, View, Print & Download Tournament QR Code">
+                  <i class="bi bi-qr-code-scan me-1"></i> Generate QR Code
                 </button>
                 <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal(decodeURIComponent('${encodeURIComponent(tName)}'))">
                   <i class="bi bi-plus-circle-fill me-1"></i> Add Sport
@@ -6016,7 +6017,8 @@ window.showParentTournamentQrModal = function(rawTournamentName) {
     registration_deadline: tourObj?.endDate || tourObj?.end_date || anySport?.registration_deadline,
     registration_token: tokenToUse,
     isParentTournament: true,
-    status: 'Registration Open'
+    status: tourObj?.status || 'Registration Open',
+    external_registration_enabled: tourObj ? (tourObj.external_registration_enabled !== false) : true
   };
 
   if (typeof openInterCollegeQrModal === 'function') {

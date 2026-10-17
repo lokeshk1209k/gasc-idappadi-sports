@@ -1111,8 +1111,13 @@
             <!-- Filter Bar -->
             <div class="glass-card p-3 mb-3">
               <div class="row g-2 align-items-center">
-                <div class="col-md-3">
-                  <input type="text" id="ext-reg-search" class="form-control form-control-glass form-control-sm" placeholder="Search Registration ID, College, Team..." onkeyup="filterAdminExtRegistrations()">
+                <div class="col-md-2">
+                  <input type="text" id="ext-reg-search" class="form-control form-control-glass form-control-sm" placeholder="Search ID, College, Team..." onkeyup="filterAdminExtRegistrations()">
+                </div>
+                <div class="col-md-2">
+                  <select id="ext-reg-filter-tournament" class="form-select form-select-glass form-select-sm" onchange="onAdminTournamentFilterChange()">
+                    <option value="All">All Tournaments</option>
+                  </select>
                 </div>
                 <div class="col-md-2">
                   <select id="ext-reg-filter-comp" class="form-select form-select-glass form-select-sm" onchange="filterAdminExtRegistrations()">
@@ -3762,7 +3767,7 @@
                   <span class="badge bg-success" id="qr-target-mode-badge" style="font-size:0.65rem;">PUBLIC CLOUD (PHONE READY)</span>
                 </div>
                 <select id="qr-portal-domain-select" class="form-select form-select-glass form-select-sm mb-1" onchange="onQrPortalDomainChange(this.value)">
-                  <option value="https://gasc-student-portal.vercel.app" selected>🌐 Live Website (https://gasc-student-portal.vercel.app) [Scan Anywhere]</option>
+                  <option value="https://gasc-idappadi-sports.vercel.app" selected>🌐 Live Website (https://gasc-idappadi-sports.vercel.app) [Scan Anywhere]</option>
                   <option value="LOCAL_LAN">📶 Campus Wi-Fi (Same Wi-Fi network)</option>
                   <option value="CUSTOM">⚙️ Custom Web Address / Domain...</option>
                 </select>

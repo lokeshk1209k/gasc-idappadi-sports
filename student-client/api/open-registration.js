@@ -195,8 +195,6 @@ async function handleTournament(req, res, tokenParam) {
 
   const cleanToken = token.trim();
   const lowerToken = cleanToken.toLowerCase();
-  const tokenSlug = lowerToken.replace(/[^a-z0-9]/g, '_');
-  const tourPrefixed = lowerToken.startsWith('tour_') ? lowerToken : `tour_${tokenSlug}`;
 
   try {
     const supabase = getSupabase();
@@ -205,7 +203,7 @@ async function handleTournament(req, res, tokenParam) {
     const { data: tList, error: tErr } = await supabase
       .from('tournaments')
       .select('*')
-      .or(`registration_token.eq.${cleanToken},registration_token.eq.${lowerToken},id.eq.${cleanToken},id.eq.${tourPrefixed},tournament_name.ilike.${cleanToken},name.ilike.${cleanToken}`)
+      .or(`registration_token.eq.${cleanToken},id.eq.${cleanToken}`)
       .limit(5);
 
     if (tErr) {
@@ -217,8 +215,7 @@ async function handleTournament(req, res, tokenParam) {
     if (!tournament && Array.isArray(tList)) {
       tournament = tList.find(t =>
         (t.registration_token && t.registration_token.toLowerCase() === lowerToken) ||
-        (t.id && t.id.toLowerCase() === lowerToken) ||
-        (t.id && t.id.toLowerCase() === tourPrefixed)
+        (t.id && t.id.toLowerCase() === lowerToken)
       );
     }
 
@@ -523,24 +520,38 @@ async function handleRegister(req, res) {
       const lowerTour = cleanTour.toLowerCase();
       const tourPrefixed = lowerTour.startsWith('tour_') ? lowerTour : `tour_${lowerTour.replace(/[^a-z0-9]/g, '_')}`;
 
+      let tFound = null;
       try {
-        const { data: tFound } = await supabase
+        const { data } = await supabase
           .from('tournaments')
           .select('*')
           .or(`id.eq.${cleanTour},id.eq.${tourPrefixed},registration_token.eq.${cleanTour},registration_token.eq.${lowerTour}`)
           .maybeSingle();
-
-        if (tFound) {
-          const belongs = (comp.tournament_id && comp.tournament_id.toLowerCase() === tFound.id.toLowerCase()) ||
-                          (comp.tournament_name && comp.tournament_name.toLowerCase().trim() === (tFound.tournament_name || tFound.name || '').toLowerCase().trim());
-          if (!belongs) {
-            return res.status(400).json({
-              success: false,
-              message: 'Validation failed: The selected competition does not belong to the tournament identified by this registration link.'
-            });
-          }
-        }
+        if (data) tFound = data;
       } catch (tErr) {}
+
+      if (!tFound) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed: The tournament specified in this registration link does not exist.'
+        });
+      }
+
+      if (tFound.external_registration_enabled === false || (tFound.status && tFound.status.toLowerCase().includes('disabled'))) {
+        return res.status(403).json({
+          success: false,
+          message: 'Public registration for this tournament has been disabled by the administrator.'
+        });
+      }
+
+      const belongs = (comp.tournament_id && comp.tournament_id.toLowerCase() === tFound.id.toLowerCase()) ||
+                      (comp.tournament_name && comp.tournament_name.toLowerCase().trim() === (tFound.tournament_name || tFound.name || '').toLowerCase().trim());
+      if (!belongs) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed: The selected competition does not belong to the tournament identified by this registration link.'
+        });
+      }
     }
 
     // 3. Backend deadline & competition status validation
@@ -1018,7 +1029,7 @@ function generateOfficialReceiptHtml(reg, players = [], comp = null, tournament 
     <table class="header-table">
       <tr>
         <td style="width: 85px;">
-          <img src="/images/college-logo.png" alt="GASC Emblem" class="logo-img" onerror="this.onerror=null;this.src='https://gasc-student-portal.vercel.app/images/college-logo.png'">
+          <img src="/images/college-logo.png" alt="GASC Emblem" class="logo-img" onerror="this.onerror=null;this.src='https://gasc-idappadi-sports.vercel.app/images/college-logo.png'">
         </td>
         <td class="title-area">
           <div style="font-size: 11px; font-weight: 700; color: #475569; letter-spacing: 1px; text-transform: uppercase;">Government of Tamil Nadu</div>
@@ -1185,7 +1196,7 @@ async function handleQr(req, res, tokenParam) {
   }
   if (!token) return res.status(400).json({ success: false, message: 'QR token is required' });
 
-  let baseUrl = req.query.baseUrl || 'https://gasc-student-portal.vercel.app';
+  let baseUrl = req.query.baseUrl || 'https://gasc-idappadi-sports.vercel.app';
   baseUrl = baseUrl.replace(/\/+$/, '');
   const targetPath = req.query.path || `/open-registration/${token}`;
   const registrationUrl = `${baseUrl}${targetPath.startsWith('/') ? '' : '/'}${targetPath}`;
