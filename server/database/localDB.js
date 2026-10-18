@@ -296,6 +296,11 @@ function createTables() {
       player_name TEXT, player_register_number TEXT, department TEXT, year TEXT,
       participant_email TEXT NOT NULL, participant_phone TEXT NOT NULL, supporting_document TEXT,
       otp_verified INTEGER DEFAULT 0, status TEXT DEFAULT 'PENDING',
+      fee_amount REAL DEFAULT 0, payment_method TEXT DEFAULT 'MANUAL_UPI',
+      payment_status TEXT DEFAULT 'PENDING_VERIFICATION', transaction_ref TEXT,
+      payment_screenshot TEXT, payment_config_version INTEGER DEFAULT 1,
+      payment_config_receiver TEXT, payment_config_upi_id TEXT,
+      payment_verified_by TEXT, payment_verified_at INTEGER, payment_remarks TEXT,
       rejection_reason TEXT, correction_message TEXT, remarks TEXT,
       sync_status TEXT DEFAULT 'synced',
       created_at INTEGER DEFAULT (strftime('%s','now')),
@@ -314,7 +319,74 @@ function createTables() {
       verified INTEGER DEFAULT 0,
       created_at INTEGER DEFAULT (strftime('%s','now'))
     );
+    CREATE TABLE IF NOT EXISTS payment_settings (
+      id TEXT PRIMARY KEY, receiver_name TEXT NOT NULL,
+      gpay_number TEXT NOT NULL, upi_id TEXT NOT NULL, qr_image_url TEXT,
+      payment_instructions TEXT, payment_mode TEXT DEFAULT 'MANUAL_UPI',
+      is_enabled INTEGER DEFAULT 1, is_active INTEGER DEFAULT 1,
+      valid_from TEXT, valid_until TEXT, version INTEGER DEFAULT 1,
+      updated_by TEXT DEFAULT 'Admin',
+      created_at INTEGER DEFAULT (strftime('%s','now')),
+      updated_at INTEGER DEFAULT (strftime('%s','now'))
+    );
+    CREATE TABLE IF NOT EXISTS payment_settings_history (
+      id TEXT PRIMARY KEY, setting_id TEXT, version INTEGER,
+      receiver_name TEXT, gpay_number TEXT, upi_id TEXT, qr_image_url TEXT,
+      payment_mode TEXT, is_enabled INTEGER, change_summary TEXT,
+      changed_by TEXT,
+      created_at INTEGER DEFAULT (strftime('%s','now'))
+    );
+    CREATE TABLE IF NOT EXISTS payments (
+      id TEXT PRIMARY KEY, registration_id TEXT, registration_code TEXT,
+      tournament_id TEXT, tournament_name TEXT, competition_id TEXT, competition_name TEXT,
+      provider TEXT DEFAULT 'RAZORPAY', provider_order_id TEXT, provider_payment_id TEXT,
+      provider_signature TEXT, amount REAL DEFAULT 0, amount_paise INTEGER DEFAULT 0,
+      currency TEXT DEFAULT 'INR', status TEXT DEFAULT 'CREATED',
+      payer_name TEXT, payer_email TEXT, payer_phone TEXT, college_name TEXT,
+      registration_type TEXT DEFAULT 'INDIVIDUAL', payment_method TEXT, payment_method_detail TEXT,
+      fee_breakdown TEXT, error_code TEXT, error_description TEXT,
+      refund_id TEXT, refund_status TEXT, refund_amount REAL DEFAULT 0, refund_reason TEXT,
+      refunded_at TEXT, refunded_by TEXT, verified_at TEXT,
+      raw_order_payload TEXT, raw_payment_payload TEXT,
+      sync_status TEXT DEFAULT 'synced',
+      created_at INTEGER DEFAULT (strftime('%s','now')),
+      updated_at INTEGER DEFAULT (strftime('%s','now'))
+    );
+    CREATE TABLE IF NOT EXISTS payment_webhook_events (
+      id TEXT PRIMARY KEY, event_type TEXT NOT NULL, provider TEXT DEFAULT 'RAZORPAY',
+      provider_order_id TEXT, provider_payment_id TEXT, payload TEXT,
+      processed INTEGER DEFAULT 1, processing_error TEXT,
+      received_at INTEGER DEFAULT (strftime('%s','now'))
+    );
   `);
+
+  // Safe migrations for separate registration fees and per-tournament receiver fields
+  const safeColumns = [
+    { table: 'competitions', col: 'our_college_fee_enabled INTEGER DEFAULT 0' },
+    { table: 'competitions', col: 'our_college_fee REAL DEFAULT 0' },
+    { table: 'competitions', col: 'other_college_fee_enabled INTEGER DEFAULT 0' },
+    { table: 'competitions', col: 'other_college_fee REAL DEFAULT 0' },
+    { table: 'competitions', col: 'upi_id TEXT' },
+    { table: 'competitions', col: 'gpay_number TEXT' },
+    { table: 'competitions', col: 'receiver_name TEXT' },
+    { table: 'tournaments', col: 'our_college_fee_enabled INTEGER DEFAULT 0' },
+    { table: 'tournaments', col: 'our_college_fee REAL DEFAULT 0' },
+    { table: 'tournaments', col: 'other_college_fee_enabled INTEGER DEFAULT 0' },
+    { table: 'tournaments', col: 'other_college_fee REAL DEFAULT 0' },
+    { table: 'tournaments', col: 'upi_id TEXT' },
+    { table: 'tournaments', col: 'gpay_number TEXT' },
+    { table: 'tournaments', col: 'receiver_name TEXT' },
+    { table: 'registrations', col: 'student_category TEXT DEFAULT "OUR_COLLEGE"' },
+    { table: 'registrations', col: 'fee_amount REAL DEFAULT 0' },
+    { table: 'registrations', col: 'payment_status TEXT DEFAULT "FREE"' },
+    { table: 'registrations', col: 'transaction_ref TEXT' },
+    { table: 'registrations', col: 'payment_id TEXT' },
+    { table: 'registrations', col: 'order_id TEXT' }
+  ];
+  for (const { table, col } of safeColumns) {
+    try { db.run(`ALTER TABLE ${table} ADD COLUMN ${col}`); } catch(e) {}
+  }
+
   seedFromLocalStore(db);
   saveDB();
 }

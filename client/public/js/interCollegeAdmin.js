@@ -192,6 +192,7 @@ function switchExtTab(tabName) {
   else if (tabName === 'approvals') renderExtApprovalsTable();
   else if (tabName === 'analytics') renderExtAnalytics();
   else if (tabName === 'reports') initExtReportsView();
+  else if (tabName === 'payment-settings') loadAdminPaymentSettings();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -633,6 +634,18 @@ function renderExtRegistrationsTable() {
     else if (status === 'REJECTED') badgeClass = 'bg-danger text-white';
     else if (status === 'CORRECTION_REQUIRED') badgeClass = 'bg-info text-dark';
 
+    const payStatus = (r.payment_status || (r.fee_amount > 0 ? 'PENDING_VERIFICATION' : 'FREE')).toUpperCase();
+    let payHtml = '';
+    if (payStatus === 'VERIFIED') {
+      payHtml = `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25 px-2 py-0.5" title="UTR: ${r.transaction_ref || 'Verified'}"><i class="bi bi-check-circle-fill me-1"></i>Paid ₹${r.fee_amount || ''}</span>`;
+    } else if (payStatus === 'PENDING_VERIFICATION') {
+      payHtml = `<button class="btn btn-warning btn-sm py-0.5 px-2 fw-bold shadow-sm" style="font-size:11px;" onclick="openVerifyPaymentModal('${r.id}')" title="Click to verify UTR ${r.transaction_ref || ''}"><i class="bi bi-patch-exclamation me-1"></i>Verify ₹${r.fee_amount || ''}</button>`;
+    } else if (payStatus === 'REJECTED') {
+      payHtml = `<span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-25 px-2 py-0.5"><i class="bi bi-x-circle me-1"></i>Failed</span>`;
+    } else {
+      payHtml = `<span class="badge bg-secondary bg-opacity-10 text-muted px-2 py-0.5">Free</span>`;
+    }
+
     html += `
       <tr>
         <td class="font-monospace fw-bold text-primary">${regId}</td>
@@ -654,6 +667,7 @@ function renderExtRegistrationsTable() {
           <small class="text-muted">${r.participant_phone || '-'}</small>
         </td>
         <td class="small text-muted">${dateStr}</td>
+        <td>${payHtml}</td>
         <td><span class="badge ${badgeClass} px-2 py-1">${status}</span></td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-0.5" onclick="openExtRegDetails('${r.id}')" title="View Full Details">
@@ -833,6 +847,18 @@ function renderExtApprovalsTable() {
     const participant = isTeam ? (r.team_name || 'College Squad') : (r.player_name || r.contact_person || 'Athlete');
     const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
+    const payStatus = (r.payment_status || (r.fee_amount > 0 ? 'PENDING_VERIFICATION' : 'FREE')).toUpperCase();
+    let payHtml = '';
+    if (payStatus === 'VERIFIED') {
+      payHtml = `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25 px-2 py-0.5" title="UTR: ${r.transaction_ref || 'Verified'}"><i class="bi bi-check-circle-fill me-1"></i>Paid ₹${r.fee_amount || ''}</span>`;
+    } else if (payStatus === 'PENDING_VERIFICATION') {
+      payHtml = `<button class="btn btn-warning btn-sm py-0.5 px-2 fw-bold shadow-sm" style="font-size:11px;" onclick="openVerifyPaymentModal('${r.id}')" title="Click to verify UTR ${r.transaction_ref || ''}"><i class="bi bi-patch-exclamation me-1"></i>Verify ₹${r.fee_amount || ''}</button>`;
+    } else if (payStatus === 'REJECTED') {
+      payHtml = `<span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-25 px-2 py-0.5"><i class="bi bi-x-circle me-1"></i>Failed</span>`;
+    } else {
+      payHtml = `<span class="badge bg-secondary bg-opacity-10 text-muted px-2 py-0.5">Free</span>`;
+    }
+
     html += `
       <tr>
         <td class="font-monospace fw-bold text-primary">${r.registration_id || r.id}</td>
@@ -853,6 +879,7 @@ function renderExtApprovalsTable() {
           <small class="text-muted">${r.participant_phone || '-'}</small>
         </td>
         <td class="small text-muted">${dateStr}</td>
+        <td>${payHtml}</td>
         <td class="text-center">
           <div class="btn-group btn-group-sm">
             <button class="btn btn-outline-primary" onclick="openExtRegDetails('${r.id}')" title="Review Full Application">
@@ -1957,3 +1984,424 @@ function openSelectedExtReportQrModal() {
 }
 window.openSelectedExtReportQrModal = openSelectedExtReportQrModal;
 
+// ─────────────────────────────────────────────────────────────
+// 12. SUB-TAB 8: DYNAMIC GPAY, UPI & QR CODE MANAGEMENT
+// ─────────────────────────────────────────────────────────────
+
+let currentPaymentConfigCache = null;
+
+async function loadAdminPaymentSettings() {
+  try {
+    const statusText = document.getElementById('pay-last-updated-text');
+    if (statusText) statusText.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Fetching live payment configuration...';
+
+    const res = await fetch('/api/inter-college/admin/payment-settings');
+    const data = await res.json();
+
+    if (data.success && data.config) {
+      currentPaymentConfigCache = data.config;
+      const c = data.config;
+
+      // Fill Inputs
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val !== undefined && val !== null ? val : ''; };
+      setVal('pay-receiver-name', c.receiverName);
+      setVal('pay-gpay-number', c.gpayNumber);
+      setVal('pay-upi-id', c.upiId);
+      setVal('pay-mode-select', c.paymentMode || 'MANUAL_UPI');
+      setVal('pay-team-fee', c.teamFee !== undefined ? c.teamFee : 500);
+      setVal('pay-ind-fee', c.individualFee !== undefined ? c.individualFee : 100);
+      setVal('pay-instructions', c.instructions);
+      setVal('pay-qr-code-url', c.qrCodeUrl || '');
+
+      if (c.validFrom) {
+        try { document.getElementById('pay-valid-from').value = new Date(c.validFrom).toISOString().slice(0, 16); } catch (e) {}
+      }
+      if (c.validUntil) {
+        try { document.getElementById('pay-valid-until').value = new Date(c.validUntil).toISOString().slice(0, 16); } catch (e) {}
+      }
+
+      const activeToggle = document.getElementById('pay-is-active-toggle');
+      if (activeToggle) activeToggle.checked = Boolean(c.isActive);
+
+      if (statusText) {
+        const dateStr = c.updatedAt ? new Date(c.updatedAt).toLocaleString('en-IN') : 'Recently';
+        statusText.innerHTML = `<i class="bi bi-check2-circle text-success me-1"></i>Published: <strong>v${c.configVersion || 1}</strong> by ${c.updatedBy || 'Admin'} on ${dateStr}`;
+      }
+
+      updatePaymentPreview();
+    }
+  } catch (err) {
+    console.error('loadAdminPaymentSettings error:', err);
+    notifyUser('Failed to load payment settings: ' + err.message, 'danger');
+  }
+}
+
+function updatePaymentPreview() {
+  const receiverName = document.getElementById('pay-receiver-name')?.value || 'Dr. R. ANITHA (Physical Director)';
+  const gpayNumber = document.getElementById('pay-gpay-number')?.value || '9443218765';
+  const upiId = document.getElementById('pay-upi-id')?.value || 'sportsgasc@sbi';
+  const instructions = document.getElementById('pay-instructions')?.value || 'Scan QR or pay to GPay / UPI. Enter 12-digit UTR.';
+  const isActive = document.getElementById('pay-is-active-toggle')?.checked;
+  const qrCodeUrl = document.getElementById('pay-qr-code-url')?.value;
+
+  // Toggle label
+  const statusLabel = document.getElementById('pay-status-label');
+  if (statusLabel) {
+    statusLabel.innerText = isActive ? 'Enabled' : 'Disabled (Paused)';
+    statusLabel.className = isActive ? 'form-check-label small fw-bold text-success' : 'form-check-label small fw-bold text-danger';
+  }
+
+  // Preview elements
+  const pRec = document.getElementById('preview-receiver-name');
+  if (pRec) pRec.innerText = receiverName;
+
+  const pGpay = document.getElementById('preview-gpay-number');
+  if (pGpay) pGpay.innerText = gpayNumber ? `+91 ${gpayNumber}` : '+91 9443218765';
+
+  const pUpi = document.getElementById('preview-upi-id');
+  if (pUpi) pUpi.innerText = upiId || 'sportsgasc@sbi';
+
+  const pInst = document.getElementById('preview-instructions');
+  if (pInst) pInst.innerText = instructions;
+
+  const pPill = document.getElementById('preview-active-pill');
+  if (pPill) {
+    pPill.innerText = isActive ? 'ACTIVE' : 'PAUSED / DISABLED';
+    pPill.style.background = isActive ? '#10b981' : '#ef4444';
+  }
+
+  const pVer = document.getElementById('preview-version-badge');
+  if (pVer) {
+    const v = currentPaymentConfigCache?.configVersion || 1;
+    pVer.innerText = `Version ${v} (Live)`;
+  }
+
+  // Update QR Image in preview
+  const qrImg = document.getElementById('preview-qr-img');
+  const qrPlaceholder = document.getElementById('preview-qr-placeholder');
+
+  if (qrCodeUrl) {
+    if (qrImg) { qrImg.src = qrCodeUrl; qrImg.classList.remove('d-none'); }
+    if (qrPlaceholder) qrPlaceholder.classList.add('d-none');
+  } else if (currentPaymentConfigCache?.qrPreview) {
+    if (qrImg) { qrImg.src = currentPaymentConfigCache.qrPreview; qrImg.classList.remove('d-none'); }
+    if (qrPlaceholder) qrPlaceholder.classList.add('d-none');
+  } else {
+    // Generate QR preview on the fly using standard UPI URI
+    const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(receiverName)}&cu=INR`;
+    if (window.QRCode && typeof window.QRCode.toDataURL === 'function') {
+      window.QRCode.toDataURL(upiUri, { width: 300, margin: 2 }).then(url => {
+        if (qrImg) { qrImg.src = url; qrImg.classList.remove('d-none'); }
+        if (qrPlaceholder) qrPlaceholder.classList.add('d-none');
+      }).catch(() => {});
+    }
+  }
+}
+
+function handleQrImageUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    notifyUser('QR Image file exceeds 5MB limit. Please choose a smaller image.', 'warning');
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    notifyUser('Please select a valid image file (PNG, JPG, WEBP).', 'warning');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    document.getElementById('pay-qr-code-url').value = dataUrl;
+    updatePaymentPreview();
+    notifyUser('Custom QR image uploaded successfully! Click "Save & Publish Changes" to make it live.', 'info');
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearCustomQrImage() {
+  document.getElementById('pay-qr-code-url').value = '';
+  const fileInput = document.getElementById('pay-qr-file-input');
+  if (fileInput) fileInput.value = '';
+  updatePaymentPreview();
+  notifyUser('Switched to autogenerated standard UPI QR code. Save to publish.', 'info');
+}
+
+function resetPaymentForm() {
+  if (currentPaymentConfigCache) {
+    loadAdminPaymentSettings();
+    notifyUser('Payment settings form restored to published state.', 'info');
+  }
+}
+
+async function saveAdminPaymentSettings() {
+  try {
+    const receiverName = document.getElementById('pay-receiver-name')?.value?.trim();
+    const gpayNumber = document.getElementById('pay-gpay-number')?.value?.trim();
+    const upiId = document.getElementById('pay-upi-id')?.value?.trim();
+    const paymentMode = document.getElementById('pay-mode-select')?.value || 'MANUAL_UPI';
+    const teamFee = Number(document.getElementById('pay-team-fee')?.value || 500);
+    const individualFee = Number(document.getElementById('pay-ind-fee')?.value || 100);
+    const instructions = document.getElementById('pay-instructions')?.value;
+    const isActive = document.getElementById('pay-is-active-toggle')?.checked;
+    const qrCodeUrl = document.getElementById('pay-qr-code-url')?.value;
+    const validFrom = document.getElementById('pay-valid-from')?.value || null;
+    const validUntil = document.getElementById('pay-valid-until')?.value || null;
+
+    // Validation
+    if (!receiverName) {
+      notifyUser('Please enter the payment receiver name.', 'warning');
+      document.getElementById('pay-receiver-name')?.focus();
+      return;
+    }
+
+    const cleanPhone = (gpayNumber || '').replace(/[\s\-\+]/g, '').replace(/^91/, '');
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      notifyUser('Invalid GPay mobile number. Must be a 10-digit Indian mobile number starting with 6, 7, 8, or 9.', 'warning');
+      document.getElementById('pay-gpay-number')?.focus();
+      return;
+    }
+
+    const upiRegex = /^[a-zA-Z0-9.\-_]{2,64}@[a-zA-Z]{2,32}$/;
+    if (!upiRegex.test(upiId)) {
+      notifyUser('Invalid UPI ID format. Must follow standard UPI VPA pattern (e.g., sportsgasc@sbi). Do not enter only a phone number.', 'warning');
+      document.getElementById('pay-upi-id')?.focus();
+      return;
+    }
+
+    const payload = {
+      receiverName,
+      gpayNumber: cleanPhone,
+      upiId,
+      paymentMode,
+      teamFee,
+      individualFee,
+      instructions,
+      isActive,
+      qrCodeUrl,
+      validFrom,
+      validUntil,
+      updatedBy: (window.currentUser && (window.currentUser.name || window.currentUser.username)) || 'Sports Incharge Admin'
+    };
+
+    const res = await fetch('/api/inter-college/admin/payment-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      notifyUser('🎉 Payment settings successfully updated and published! Student Portal now reflects the new GPay / UPI details.', 'success');
+      loadAdminPaymentSettings();
+    } else {
+      notifyUser('Error saving payment settings: ' + (data.message || 'Unknown error'), 'danger');
+    }
+  } catch (err) {
+    console.error('saveAdminPaymentSettings error:', err);
+    notifyUser('Error publishing payment settings: ' + err.message, 'danger');
+  }
+}
+
+async function openPaymentHistoryModal() {
+  try {
+    const modalEl = document.getElementById('modal-payment-history');
+    if (!modalEl) return;
+
+    const tbody = document.getElementById('payment-history-table-body');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading audit history...</td></tr>';
+
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+
+    const res = await fetch('/api/inter-college/admin/payment-settings');
+    const data = await res.json();
+
+    if (data.success && Array.isArray(data.history) && data.history.length > 0) {
+      let html = '';
+      data.history.forEach(h => {
+        const v = h.configVersion || h.config_version || 1;
+        const rec = h.receiverName || h.receiver_name || '-';
+        const gpay = h.gpayNumber || h.gpay_number || '-';
+        const upi = h.upiId || h.upi_id || '-';
+        const mode = h.paymentMode || h.payment_mode || 'MANUAL_UPI';
+        const by = h.updatedBy || h.updated_by || 'Admin';
+        const dateStr = (h.createdAt || h.created_at) ? new Date(h.createdAt || h.created_at).toLocaleString('en-IN') : '-';
+        const summary = h.changeSummary || h.change_summary || 'Updated payment details';
+        const active = h.isActive !== undefined ? Boolean(h.isActive) : (h.is_active !== undefined ? Boolean(h.is_active) : true);
+
+        html += `
+          <tr>
+            <td class="font-monospace fw-bold text-primary">v${v}</td>
+            <td class="fw-bold">${rec}</td>
+            <td class="font-monospace">+91 ${gpay}</td>
+            <td class="font-monospace text-warning">${upi}</td>
+            <td><span class="badge ${active ? 'bg-success' : 'bg-danger'}">${active ? 'Active' : 'Disabled'}</span></td>
+            <td>${by}</td>
+            <td class="small text-muted">${dateStr}</td>
+            <td class="small">${summary}</td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    } else {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No configuration history records found yet.</td></tr>';
+    }
+  } catch (err) {
+    console.error('openPaymentHistoryModal error:', err);
+  }
+}
+
+function copyPreviewText(type) {
+  let text = '';
+  if (type === 'gpay') {
+    text = document.getElementById('pay-gpay-number')?.value || '9443218765';
+  } else {
+    text = document.getElementById('pay-upi-id')?.value || 'sportsgasc@sbi';
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text);
+    notifyUser(`Copied "${text}" to clipboard!`, 'info');
+  }
+}
+
+function copyUtrToClipboard() {
+  const utr = document.getElementById('vp-utr-number')?.innerText;
+  if (utr && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(utr);
+    notifyUser(`Copied UTR "${utr}" to clipboard!`, 'info');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 13. MANUAL PAYMENT RECONCILIATION & VERIFICATION MODAL
+// ─────────────────────────────────────────────────────────────
+
+function openVerifyPaymentModal(regId) {
+  const reg = extRegistrationsCache.find(r => String(r.id) === String(regId) || String(r.registration_id) === String(regId));
+  if (!reg) {
+    notifyUser('Registration record not found.', 'warning');
+    return;
+  }
+
+  document.getElementById('verify-payment-reg-id').value = reg.id;
+  document.getElementById('vp-reg-id').innerText = reg.registration_id || `GASC-IC-${reg.id}`;
+  document.getElementById('vp-college-name').innerText = reg.college_name || 'External College';
+  
+  const compName = (reg.competition && reg.competition.name) || reg.sport_name || 'Sports Competition';
+  document.getElementById('vp-comp-name').innerText = `Competition: ${compName} (${reg.gender || 'All'})`;
+  document.getElementById('vp-participant').innerText = `Contact: ${reg.participant_email || ''} | ${reg.participant_phone || ''}`;
+
+  const fee = reg.fee_amount !== undefined ? reg.fee_amount : (reg.feeAmount !== undefined ? reg.feeAmount : 500);
+  document.getElementById('vp-fee-amount').innerText = `₹${fee}`;
+
+  const utr = reg.transaction_ref || reg.transactionRef || 'N/A';
+  document.getElementById('vp-utr-number').innerText = utr;
+
+  const ver = reg.payment_config_version || reg.paymentConfigVersion || 1;
+  document.getElementById('vp-config-version').innerText = `Active Payment Config Version: v${ver}`;
+
+  const status = (reg.payment_status || (reg.status === 'APPROVED' ? 'VERIFIED' : 'PENDING_VERIFICATION')).toUpperCase();
+  const statusEl = document.getElementById('vp-payment-status');
+  if (statusEl) {
+    statusEl.innerText = status;
+    statusEl.className = status === 'VERIFIED' ? 'badge bg-success' : (status === 'REJECTED' ? 'badge bg-danger' : 'badge bg-warning text-dark');
+  }
+
+  const sBox = document.getElementById('vp-screenshot-box');
+  const sImg = document.getElementById('vp-screenshot-img');
+  const screenshot = reg.payment_screenshot || reg.paymentScreenshot;
+  if (screenshot) {
+    sImg.src = screenshot;
+    sBox.classList.remove('d-none');
+  } else {
+    sBox.classList.add('d-none');
+  }
+
+  document.getElementById('vp-admin-remarks').value = reg.payment_remarks || '';
+
+  const modalEl = document.getElementById('modal-verify-payment');
+  if (modalEl) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+}
+
+async function confirmRegistrationPayment() {
+  try {
+    const regId = document.getElementById('verify-payment-reg-id').value;
+    const remarks = document.getElementById('vp-admin-remarks').value;
+
+    const res = await fetch('/api/inter-college/admin/verify-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        registrationId: regId,
+        paymentStatus: 'VERIFIED',
+        remarks: remarks || 'Payment reconciled & verified by Sports Department.',
+        verifiedBy: (window.currentUser && (window.currentUser.name || window.currentUser.username)) || 'Sports Admin'
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      notifyUser('✅ Payment successfully verified! Registration approved and confirmation email sent.', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('modal-verify-payment'))?.hide();
+      loadAdminInterCollegeData();
+    } else {
+      notifyUser('Error verifying payment: ' + (data.message || 'Unknown error'), 'danger');
+    }
+  } catch (err) {
+    console.error('confirmRegistrationPayment error:', err);
+    notifyUser('Error confirming payment: ' + err.message, 'danger');
+  }
+}
+
+async function rejectRegistrationPayment() {
+  const reason = prompt('Please specify why this payment is being rejected (e.g. UTR not found in bank statement, incorrect amount):');
+  if (!reason || !reason.trim()) return;
+
+  try {
+    const regId = document.getElementById('verify-payment-reg-id').value;
+    const res = await fetch('/api/inter-college/admin/verify-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        registrationId: regId,
+        paymentStatus: 'REJECTED',
+        remarks: reason.trim(),
+        verifiedBy: (window.currentUser && (window.currentUser.name || window.currentUser.username)) || 'Sports Admin'
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      notifyUser('Payment marked as REJECTED. Notice sent to participant.', 'warning');
+      bootstrap.Modal.getInstance(document.getElementById('modal-verify-payment'))?.hide();
+      loadAdminInterCollegeData();
+    } else {
+      notifyUser('Error updating payment status: ' + (data.message || 'Unknown error'), 'danger');
+    }
+  } catch (err) {
+    console.error('rejectRegistrationPayment error:', err);
+    notifyUser('Error rejecting payment: ' + err.message, 'danger');
+  }
+}
+
+// Expose to window
+window.loadAdminPaymentSettings = loadAdminPaymentSettings;
+window.updatePaymentPreview = updatePaymentPreview;
+window.handleQrImageUpload = handleQrImageUpload;
+window.clearCustomQrImage = clearCustomQrImage;
+window.resetPaymentForm = resetPaymentForm;
+window.saveAdminPaymentSettings = saveAdminPaymentSettings;
+window.openPaymentHistoryModal = openPaymentHistoryModal;
+window.copyPreviewText = copyPreviewText;
+window.copyUtrToClipboard = copyUtrToClipboard;
+window.openVerifyPaymentModal = openVerifyPaymentModal;
+window.confirmRegistrationPayment = confirmRegistrationPayment;
+window.rejectRegistrationPayment = rejectRegistrationPayment;

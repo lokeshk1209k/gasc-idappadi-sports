@@ -29,6 +29,7 @@ const externalCompetitionRoutes = require('./routes/externalCompetitionRoutes');
 const interCollegeRoutes = require('./routes/interCollegeRoutes');
 const sportsNewsRoutes = require('./routes/sportsNewsRoutes');
 const cmTrophyRoutes = require('./routes/cmTrophyRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 let compression;
 try {
   compression = require('compression');
@@ -55,7 +56,12 @@ try {
 
 // Middlewares
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // HTTP caching strategy for high concurrency (10,000 users peak load)
@@ -119,6 +125,7 @@ app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
 app.use('/api/inter-college', interCollegeRoutes);
 app.use('/api/open-registration', interCollegeRoutes);
 app.use('/api/cm-trophy', cmTrophyRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 2. Static Assets & File Hosting
 app.use('/css', express.static(path.join(clientPublic, 'css')));

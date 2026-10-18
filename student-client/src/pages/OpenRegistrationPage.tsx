@@ -4,8 +4,25 @@ import {
   Trophy, Calendar, MapPin, Users, User, Shield, AlertCircle,
   CheckCircle2, ArrowRight, ArrowLeft, Mail, Phone, Building,
   RefreshCw, FileText, Plus, Trash2, Award, Clock, Sparkles,
-  ExternalLink, Printer, Download, Check
+  ExternalLink, Printer, Download, Check, QrCode, Copy, CreditCard, Lock, Upload, Image
 } from 'lucide-react';
+
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+
+interface VerifiedPaymentData {
+  paymentId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  date: string;
+  method?: string;
+  receiptNumber?: string;
+}
 
 interface TournamentData {
   id: string;
@@ -22,7 +39,25 @@ interface TournamentData {
   contactPhone?: string;
   contactEmail?: string;
   rules?: string;
+  entryFee?: number;
+  hasPayment?: boolean;
+  isPaid?: boolean;
   competitionsCount?: number;
+}
+
+interface PaymentSettingsData {
+  receiverName: string;
+  gpayNumber: string;
+  upiId: string;
+  qrCodeUrl: string;
+  instructions: string;
+  paymentMode: string;
+  isEnabled: boolean;
+  teamFee: number;
+  individualFee: number;
+  configVersion: number;
+  validFrom?: string | null;
+  validUntil?: string | null;
 }
 
 interface CompetitionItem {
@@ -48,6 +83,17 @@ interface CompetitionItem {
   maxTeams: number;
   currentRegistrations: number;
   status: 'UPCOMING' | 'OPEN' | 'CLOSED' | 'FULL' | 'COMPLETED';
+  entryFee?: number;
+  feeType?: string;
+  hasPayment?: boolean;
+  isPaid?: boolean;
+  ourCollegeFeeEnabled?: boolean;
+  ourCollegeFee?: number;
+  otherCollegeFeeEnabled?: boolean;
+  otherCollegeFee?: number;
+  upiId?: string;
+  gpayNumber?: string;
+  receiverName?: string;
   description?: string;
   bannerImage: string;
   rules?: string;
@@ -126,6 +172,172 @@ const OpenRegistrationPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [submittedRegId, setSubmittedRegId] = useState<string | null>(null);
+
+  // Dynamic Payment Settings & Verification State
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettingsData | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [transactionRef, setTransactionRef] = useState('');
+  const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
+  const [screenshotUploading, setScreenshotUploading] = useState(false);
+  const [paymentAgreed, setPaymentAgreed] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [paymentConfigMismatch, setPaymentConfigMismatch] = useState<string | null>(null);
+  const [submittedPaymentData, setSubmittedPaymentData] = useState<{
+    utr: string;
+    amount: number;
+    status: string;
+    method: string;
+  } | null>(null);
+
+  // Online Razorpay Payment States
+  const [paymentModeTab, setPaymentModeTab] = useState<'GATEWAY' | 'MANUAL_UPI'>('GATEWAY');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [verifiedPaymentData, setVerifiedPaymentData] = useState<VerifiedPaymentData | null>(null);
+  const [activeOrderData, setActiveOrderData] = useState<any>(null);
+  const [showSandboxModal, setShowSandboxModal] = useState(false);
+  const [simulatedPaying, setSimulatedPaying] = useState(false);
+
+  // Helper: Load Razorpay Checkout SDK Script Dynamically
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (typeof window !== 'undefined' && window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  // Helper: Fetch dynamic payment settings from serverless / local server
+  const fetchPaymentSettings = async (silent = false): Promise<PaymentSettingsData | null> => {
+    if (!silent) setPaymentLoading(true);
+    try {
+      let res = await fetch('/api/open-registration/payment-settings');
+      let data = await res.json().catch(() => null);
+      if (!data || !data.success) {
+        res = await fetch('/api/inter-college/payment-settings');
+        data = await res.json().catch(() => null);
+      }
+      if (data && data.success && data.settings) {
+        setPaymentSettings(data.settings);
+        return data.settings as PaymentSettingsData;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch payment settings:', e);
+    } finally {
+      if (!silent) setPaymentLoading(false);
+    }
+    return null;
+  };
+
+  // Helper: Get payable fee for current competition (External / Other College Students)
+  const getPayableFee = (): number => {
+    if (!selectedComp) return 0;
+
+    // 1. Independent fee setting for Other College Students on Competition
+    if (selectedComp.otherCollegeFeeEnabled !== undefined && selectedComp.otherCollegeFeeEnabled !== null) {
+      if (!selectedComp.otherCollegeFeeEnabled) return 0;
+      return Math.max(0, Number(selectedComp.otherCollegeFee !== undefined ? selectedComp.otherCollegeFee : (selectedComp.entryFee || 0)));
+    }
+
+    // 2. Independent fee setting for Other College Students on Parent Tournament
+    if (currentTournament && (currentTournament as any).otherCollegeFeeEnabled !== undefined && (currentTournament as any).otherCollegeFeeEnabled !== null) {
+      if (!(currentTournament as any).otherCollegeFeeEnabled) return 0;
+      return Math.max(0, Number((currentTournament as any).otherCollegeFee !== undefined ? (currentTournament as any).otherCollegeFee : (currentTournament.entryFee || 0)));
+    }
+
+    // 3. Explicit Free checks on Competition or Parent Tournament
+    if (selectedComp.entryFee === 0 || selectedComp.hasPayment === false || selectedComp.isPaid === false) {
+      return 0;
+    }
+    if (currentTournament && (currentTournament.entryFee === 0 || currentTournament.hasPayment === false || currentTournament.isPaid === false)) {
+      return 0;
+    }
+
+    // 4. Explicit fee configured on Competition
+    if (selectedComp.entryFee !== undefined && selectedComp.entryFee !== null && Number(selectedComp.entryFee) > 0) {
+      return Number(selectedComp.entryFee);
+    }
+
+    // 5. Explicit fee configured on Parent Tournament
+    if (currentTournament && currentTournament.entryFee !== undefined && currentTournament.entryFee !== null && Number(currentTournament.entryFee) > 0) {
+      return Number(currentTournament.entryFee);
+    }
+
+    // 6. If tournament or competition is explicitly marked as paid without fixed fee amount
+    if (selectedComp.hasPayment === true || selectedComp.isPaid === true || (currentTournament && (currentTournament.hasPayment === true || currentTournament.isPaid === true))) {
+      if (paymentSettings) {
+        return selectedComp.competitionMode === 'TEAM'
+          ? Number(paymentSettings.teamFee || 500)
+          : Number(paymentSettings.individualFee || 100);
+      }
+      return selectedComp.competitionMode === 'TEAM' ? 500 : 100;
+    }
+
+    // 7. Default: If payment is enabled globally and not explicitly disabled on the tournament
+    if (paymentSettings && paymentSettings.isEnabled && currentTournament?.hasPayment !== false && selectedComp.hasPayment !== false) {
+      return selectedComp.competitionMode === 'TEAM'
+        ? Number(paymentSettings.teamFee || 500)
+        : Number(paymentSettings.individualFee || 100);
+    }
+
+    return 0;
+  };
+
+  // Helper: Copy string to clipboard with visual feedback
+  const copyToClipboard = (text: string, key: string) => {
+    if (!text) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          setCopiedKey(key);
+          setTimeout(() => setCopiedKey(null), 2000);
+        });
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setCopiedKey(key);
+        setTimeout(() => setCopiedKey(null), 2000);
+      }
+    } catch (e) {
+      console.warn('Clipboard write failed:', e);
+    }
+  };
+
+  // Helper: Process screenshot image file into Base64
+  const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Payment screenshot size must be less than 5MB.');
+      return;
+    }
+    setScreenshotUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPaymentScreenshot(reader.result as string);
+      setScreenshotUploading(false);
+    };
+    reader.onerror = () => {
+      alert('Error reading screenshot image.');
+      setScreenshotUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Load payment settings on initial mount
+  useEffect(() => {
+    fetchPaymentSettings();
+  }, []);
 
   // OTP Timer countdown
   useEffect(() => {
@@ -222,6 +434,12 @@ const OpenRegistrationPage: React.FC = () => {
     setOtpVerified(false);
     setOtpCode('');
     setSubmittedRegId(null);
+    setTransactionRef('');
+    setPaymentScreenshot(null);
+    setPaymentAgreed(false);
+    setPaymentConfigMismatch(null);
+    setSubmittedPaymentData(null);
+    fetchPaymentSettings(true);
 
     // If Team event, initialize required players list
     const compCat = comp.category || comp.gender || 'Men';
@@ -364,9 +582,43 @@ const OpenRegistrationPage: React.FC = () => {
   const handleSubmitRegistration = async () => {
     if (!selectedComp || !currentTournament) return;
     setFormError(null);
+    setPaymentConfigMismatch(null);
+
+    const fee = getPayableFee();
+    const cleanUtr = transactionRef.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+    // Validate payment credentials if fee is applicable
+    if (fee > 0 && paymentSettings && paymentSettings.isEnabled) {
+      if (!cleanUtr || cleanUtr.length < 10) {
+        setFormError('Please enter a valid 12-digit UPI / GPay Transaction Reference (UTR) number from your transfer receipt.');
+        return;
+      }
+      if (!paymentAgreed) {
+        setFormError('Please tick the confirmation checkbox to declare that you have transferred the entry fee and provided a genuine 12-digit UTR.');
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
+      // Re-fetch latest payment settings dynamically before submitting to ensure no mid-flight config changes
+      let latestConfig = await fetchPaymentSettings(true);
+      if (latestConfig && paymentSettings) {
+        if (latestConfig.configVersion !== paymentSettings.configVersion) {
+          setPaymentSettings(latestConfig);
+          setPaymentConfigMismatch('Notice: The Sports Admin updated the payment details (UPI/GPay). Please verify your transfer against the updated receiver details shown above.');
+          setFormError('Payment settings were updated by the administrator during your session. Please verify the updated payment receiver details before submitting.');
+          setSubmitting(false);
+          return;
+        }
+        if (!latestConfig.isEnabled && fee > 0) {
+          setFormError('Registration fee payment is currently disabled or temporarily paused by the Sports Department. Please contact the administrator.');
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const payload = {
         competitionToken: selectedComp.registrationToken || selectedComp.id,
         tournamentToken: currentTournament.registrationToken || currentTournament.id,
@@ -409,7 +661,15 @@ const OpenRegistrationPage: React.FC = () => {
 
         // OTP verification token
         otpToken,
-        otpVerified: true
+        otpVerified: true,
+
+        // Payment Details (Dynamic GPay / UPI)
+        entryFee: fee,
+        feeAmount: fee,
+        paymentMethod: 'UPI',
+        transactionRef: cleanUtr || null,
+        paymentScreenshot: paymentScreenshot || null,
+        paymentConfigVersion: latestConfig?.configVersion || paymentSettings?.configVersion || 1
       };
 
       const res = await fetch('/api/open-registration/register', {
@@ -417,10 +677,23 @@ const OpenRegistrationPage: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ success: false, message: 'Server communication error.' }));
+
+      // Handle duplicate UTR error explicitly
+      if (res.status === 409 || data.code === 'DUPLICATE_UTR' || (data.message && data.message.toLowerCase().includes('already registered'))) {
+        setFormError(data.message || 'Duplicate UTR Detected: This Transaction Reference (UTR) has already been submitted for another registration. Please double check your GPay/UPI transfer receipt.');
+        setSubmitting(false);
+        return;
+      }
 
       if (data.success && data.registrationId) {
         setSubmittedRegId(data.registrationId);
+        setSubmittedPaymentData({
+          utr: cleanUtr,
+          amount: fee,
+          status: 'PENDING_VERIFICATION',
+          method: 'UPI'
+        });
         setStep(7); // Success Step
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
@@ -432,6 +705,217 @@ const OpenRegistrationPage: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  // Online Payment: Verify server signature and confirm entry
+  const handleVerifyOnlinePayment = async (orderId: string, paymentId: string, signature: string) => {
+    if (!selectedComp || !currentTournament) return;
+    setIsProcessingPayment(true);
+    setFormError(null);
+
+    const fee = getPayableFee();
+
+    const payload = {
+      orderId,
+      paymentId,
+      signature,
+      competitionToken: selectedComp.registrationToken || selectedComp.id,
+      tournamentToken: currentTournament.registrationToken || currentTournament.id,
+      competitionId: selectedComp.id,
+      tournamentId: currentTournament.id,
+      tournamentName: currentTournament.name,
+      sportName: selectedComp.sportName,
+      eventName: selectedComp.eventName || selectedComp.name,
+      registrationType: selectedComp.competitionMode,
+
+      collegeName: collegeName.trim(),
+      collegeAddress: collegeAddress.trim(),
+      district: district.trim(),
+      state: state.trim(),
+      collegePhone: collegePhone.trim(),
+      collegeEmail: collegeEmail.trim(),
+
+      teamName: selectedComp.competitionMode === 'TEAM' ? teamName.trim() : null,
+      teamGender: selectedComp.competitionMode === 'TEAM' ? teamGender : null,
+      coachName: coachName.trim(),
+      coachPhone: coachPhone.trim(),
+      managerName: managerName.trim(),
+      managerPhone: managerPhone.trim(),
+
+      playerName: selectedComp.competitionMode === 'INDIVIDUAL' ? playerName.trim() : null,
+      playerRollNumber: selectedComp.competitionMode === 'INDIVIDUAL' ? playerRollNumber.trim() : null,
+      department: selectedComp.competitionMode === 'INDIVIDUAL' ? department.trim() : null,
+      year: selectedComp.competitionMode === 'INDIVIDUAL' ? year : null,
+      gender: selectedComp.competitionMode === 'INDIVIDUAL' ? individualGender : teamGender,
+
+      participantEmail: participantEmail.trim(),
+      participantPhone: participantPhone.trim(),
+      players: selectedComp.competitionMode === 'TEAM' ? players : [],
+      otpToken,
+      entryFee: fee
+    };
+
+    try {
+      let res = await fetch('/api/payments/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      let data = await res.json().catch(() => null);
+
+      if (!data || !data.success) {
+        res = await fetch('/api/open-registration/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        data = await res.json().catch(() => null);
+      }
+
+      if (data && data.success && data.verified) {
+        setSubmittedRegId(data.registrationId);
+        setVerifiedPaymentData({
+          paymentId: data.paymentId || paymentId,
+          orderId: data.orderId || orderId,
+          amount: fee,
+          currency: 'INR',
+          status: 'SUCCESS',
+          date: new Date().toISOString(),
+          receiptNumber: data.receiptNumber || `RCP-${Date.now().toString().slice(-6)}`
+        });
+        setShowSandboxModal(false);
+        setStep(7);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        setFormError(data?.message || 'Payment verification failed on the server. If your money was deducted, please contact the physical education department with your payment ID.');
+      }
+    } catch (err: any) {
+      setFormError(err.message || 'Payment verification server error.');
+    } finally {
+      setIsProcessingPayment(false);
+      setSimulatedPaying(false);
+    }
+  };
+
+  // Online Payment: Create order and open Razorpay checkout
+  const handleProceedToOnlinePayment = async () => {
+    if (!selectedComp || !currentTournament) return;
+    setFormError(null);
+    setIsProcessingPayment(true);
+
+    const fee = getPayableFee();
+
+    // If free registration, directly submit
+    if (fee <= 0) {
+      await handleSubmitRegistration();
+      setIsProcessingPayment(false);
+      return;
+    }
+
+    try {
+      const orderPayload = {
+        competitionId: selectedComp.id,
+        tournamentId: currentTournament.id,
+        registrationType: selectedComp.competitionMode,
+        studentName: selectedComp.competitionMode === 'INDIVIDUAL' ? playerName.trim() : teamName.trim(),
+        collegeName: collegeName.trim(),
+        email: participantEmail.trim(),
+        phone: participantPhone.trim()
+      };
+
+      let res = await fetch('/api/payments/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
+      let data = await res.json().catch(() => null);
+
+      if (!data || !data.success) {
+        res = await fetch('/api/open-registration/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderPayload)
+        });
+        data = await res.json().catch(() => null);
+      }
+
+      if (!data || !data.success) {
+        setFormError(data?.message || 'Could not initiate payment order from server.');
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      setActiveOrderData(data);
+
+      // Check if running in simulator mode (e.g. initial setup before keys configured in .env)
+      if (data.isSandbox && (!data.keyId || data.keyId.includes('simulator') || !window.Razorpay)) {
+        setShowSandboxModal(true);
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || !window.Razorpay) {
+        setShowSandboxModal(true);
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      const options = {
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency || 'INR',
+        name: 'Government Arts and Science College, Idappadi',
+        description: `Entry Fee: ${selectedComp.name} (${selectedComp.competitionMode})`,
+        image: '/images/college-logo.png',
+        order_id: data.orderId,
+        prefill: {
+          name: selectedComp.competitionMode === 'INDIVIDUAL' ? playerName.trim() : teamName.trim(),
+          email: participantEmail.trim(),
+          contact: participantPhone.trim()
+        },
+        notes: {
+          college: collegeName.trim(),
+          competition: selectedComp.name,
+          tournament: currentTournament.name
+        },
+        theme: {
+          color: '#2563eb'
+        },
+        handler: function (response: any) {
+          handleVerifyOnlinePayment(
+            response.razorpay_order_id || data.orderId,
+            response.razorpay_payment_id,
+            response.razorpay_signature
+          );
+        },
+        modal: {
+          ondismiss: function () {
+            setIsProcessingPayment(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response: any) {
+        setFormError(response.error?.description || 'Payment failed at gateway.');
+        setIsProcessingPayment(false);
+      });
+      rzp.open();
+    } catch (err: any) {
+      setFormError(err.message || 'Payment initiation error.');
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Test Sandbox Simulation: Simulate success during testing
+  const handleSimulatedSandboxSuccess = async () => {
+    if (!activeOrderData) return;
+    setSimulatedPaying(true);
+    const simPaymentId = 'pay_sim_' + Math.random().toString(36).substring(2, 12);
+    const simSignature = 'sim_sig_' + Math.random().toString(36).substring(2, 14);
+    await handleVerifyOnlinePayment(activeOrderData.orderId, simPaymentId, simSignature);
+  };
+
 
   // =========================================================================
   // VIEW A: GENERAL TOURNAMENTS DIRECTORY (Only when /open-registration has NO token)
@@ -656,7 +1140,7 @@ const OpenRegistrationPage: React.FC = () => {
                 { s: 3, label: selectedComp.competitionMode === 'TEAM' ? 'Team & Players' : 'Player Info' },
                 { s: 4, label: 'Contact' },
                 { s: 5, label: 'Email OTP' },
-                { s: 6, label: 'Review' },
+                { s: 6, label: 'Review & Pay' },
                 { s: 7, label: 'Success' }
               ].map(st => (
                 <div key={st.s} className={`flex items-center gap-1.5 shrink-0 ${step === st.s ? 'text-blue-400 font-bold' : (step > st.s ? 'text-emerald-400' : 'text-slate-500')}`}>
@@ -1160,18 +1644,20 @@ const OpenRegistrationPage: React.FC = () => {
                 </div>
               )}
 
-              {/* STEP 6: Review Before Submission */}
+              {/* STEP 6: Review & Payment Before Submission */}
               {step === 6 && (
-                <div className="space-y-4">
+                <div className="space-y-6">
+                  {/* Step Header */}
                   <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                     <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-blue-400" /> Review Registration Details
+                      <FileText className="w-4 h-4 text-blue-400" /> Review & Payment Details
                     </h4>
                     <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Email Verified
                     </span>
                   </div>
 
+                  {/* Summary Details */}
                   <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3 text-xs">
                     <div className="grid grid-cols-2 gap-2 pb-2 border-b border-slate-800/80">
                       <div><span className="text-slate-500">Tournament:</span> <strong className="text-white block">{currentTournament?.name}</strong></div>
@@ -1211,41 +1697,162 @@ const OpenRegistrationPage: React.FC = () => {
                     )}
                   </div>
 
+                  {/* Config Mismatch Notice if updated mid-flight */}
+                  {paymentConfigMismatch && (
+                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                      <span>{paymentConfigMismatch}</span>
+                    </div>
+                  )}
+
+                  {/* Payment Mode Selector & Details */}
+                  <div className="bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-blue-500/30 rounded-2xl p-5 space-y-5 shadow-2xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                          <CreditCard className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                            Tournament Registration Fee & Payment
+                          </h4>
+                          <p className="text-[11px] text-slate-400">Official Gateway: Razorpay (256-bit SSL Secure Checkout)</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-600/20 text-blue-400 border border-blue-500/40">
+                          Payable Fee: ₹{getPayableFee()} INR
+                        </span>
+                        {getPayableFee() > 0 ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                            <Shield className="w-3 h-3" /> Official Gateway
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                            Free Registration
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {getPayableFee() > 0 ? (
+                      /* ──────── MANDATORY SECURE RAZORPAY PAYMENT ──────── */
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-xl bg-slate-950/80 border border-blue-500/30 space-y-3">
+                          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                            <div>
+                              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                                <Lock className="w-3.5 h-3.5 text-emerald-400" /> Mandatory Online Payment
+                              </span>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                Your registration will be confirmed immediately after successful payment verification.
+                              </p>
+                            </div>
+                            <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                              <Shield className="w-3 h-3" /> 256-Bit SSL Encrypted
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                              <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider">Authorized Payee</span>
+                              <strong className="text-white">Physical Education Dept, GASC Idappadi</strong>
+                            </div>
+                            <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
+                              <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider">Accepted Payment Methods</span>
+                              <span className="text-slate-300 font-semibold">GPay, PhonePe, Paytm, Cards, NetBanking</span>
+                            </div>
+                          </div>
+
+                          <div className="p-3.5 rounded-xl bg-blue-950/30 border border-blue-900/50 flex items-center justify-between">
+                            <div>
+                              <span className="text-xs text-slate-300 font-bold block">Total Amount to Pay</span>
+                              <span className="text-[10px] text-slate-400">Includes all tournament administrative charges</span>
+                            </div>
+                            <span className="text-xl font-black text-emerald-400">₹{getPayableFee()} <span className="text-xs font-normal text-slate-400">INR</span></span>
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                          <span>Important: Entry passes are issued strictly upon payment completion. Registrations without payment will not be accepted.</span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ──────── FREE ENTRY CONFIRMATION ──────── */
+                      <div className="py-4 px-4 rounded-xl bg-slate-950/60 border border-slate-800 text-center space-y-1">
+                        <span className="text-xs font-bold text-emerald-400 flex items-center justify-center gap-1">
+                          <Check className="w-4 h-4" /> Free Competition Entry
+                        </span>
+                        <p className="text-xs text-slate-400">
+                          No registration fee is required for this competition. Click below to complete your registration.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Navigation Buttons */}
                   <div className="flex gap-3 pt-3">
                     <button
                       type="button"
-                      onClick={() => setStep(4)}
+                      onClick={() => setStep(5)}
                       className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
                     >
                       Back
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleSubmitRegistration}
-                      disabled={submitting}
-                      className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
-                    >
-                      {submitting ? 'Submitting...' : 'Confirm & Submit Registration'}
-                      <Check className="w-4 h-4" />
-                    </button>
+                    {getPayableFee() > 0 ? (
+                      <button
+                        type="button"
+                        onClick={handleProceedToOnlinePayment}
+                        disabled={isProcessingPayment}
+                        className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xl shadow-blue-600/30 cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-800"
+                      >
+                        {isProcessingPayment ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Opening Secure Payment Gateway...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="w-4 h-4" />
+                            <span>Pay ₹{getPayableFee()} & Complete Registration</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleSubmitRegistration}
+                        disabled={submitting}
+                        className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xl shadow-emerald-600/20 cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-800"
+                      >
+                        {submitting ? 'Confirming Entry...' : 'Complete Free Registration'}
+                        <Check className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* STEP 7: Success Screen */}
+              {/* STEP 7: Success Screen with Verified Payment Pass */}
               {step === 7 && submittedRegId && (
                 <div className="text-center py-6 space-y-5">
                   <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
                     <CheckCircle2 className="w-10 h-10" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-black text-white">Registration Submitted!</h3>
+                    <h3 className="text-2xl font-black text-white">
+                      {verifiedPaymentData ? 'Payment Verified & Registration Confirmed!' : 'Registration Submitted!'}
+                    </h3>
                     <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                      Your entry has been registered successfully. A confirmation email has been dispatched.
+                      {verifiedPaymentData
+                        ? 'Your entry fee has been cryptographically verified. An official digital receipt has been sent to your email.'
+                        : 'Your entry has been recorded in the tournament registry. A confirmation email has been dispatched.'}
                     </p>
                   </div>
 
-                  <div className="max-w-md mx-auto p-5 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs space-y-2 text-left">
+                  <div className="max-w-md mx-auto p-5 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs space-y-2 text-left shadow-lg">
                     <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                       <span className="text-slate-500 font-bold">Registration ID:</span>
                       <span className="font-mono font-black text-sm text-amber-400">{submittedRegId}</span>
@@ -1262,13 +1869,72 @@ const OpenRegistrationPage: React.FC = () => {
                       <span className="text-slate-500">College:</span>
                       <span className="font-semibold text-white">{collegeName}</span>
                     </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                      <span className="text-slate-500">Status:</span>
-                      <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                        PENDING APPROVAL
-                      </span>
-                    </div>
+
+                    {/* Verified Online Gateway Payment Info */}
+                    {verifiedPaymentData ? (
+                      <>
+                        <div className="flex justify-between items-center pt-2 border-t border-slate-800">
+                          <span className="text-slate-500">Amount Paid:</span>
+                          <span className="font-bold text-emerald-400">₹{verifiedPaymentData.amount} INR</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">Payment ID:</span>
+                          <span className="font-mono font-bold text-blue-400">{verifiedPaymentData.paymentId}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">Receipt No:</span>
+                          <span className="font-mono text-slate-300">{verifiedPaymentData.receiptNumber}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-slate-800">
+                          <span className="text-slate-500">Payment Status:</span>
+                          <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> VERIFIED & CONFIRMED
+                          </span>
+                        </div>
+                      </>
+                    ) : submittedPaymentData && submittedPaymentData.amount > 0 ? (
+                      <>
+                        <div className="flex justify-between items-center pt-2 border-t border-slate-800">
+                          <span className="text-slate-500">Registration Fee:</span>
+                          <span className="font-bold text-white">₹{submittedPaymentData.amount}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">Transaction UTR:</span>
+                          <span className="font-mono font-bold text-emerald-400">{submittedPaymentData.utr}</span>
+                        </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-slate-800">
+                          <span className="text-slate-500">Payment Status:</span>
+                          <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> PENDING VERIFICATION
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-between items-center pt-2 border-t border-slate-800">
+                        <span className="text-slate-500">Status:</span>
+                        <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/20 text-emerald-400">
+                          FREE ENTRY CONFIRMED
+                        </span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Informational Notice */}
+                  {verifiedPaymentData ? (
+                    <div className="max-w-md mx-auto p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-900/40 text-left text-[11px] text-emerald-300 flex items-start gap-2.5">
+                      <Shield className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <p>
+                        Your online payment has been authenticated and deposited directly into the official Physical Education Department account. Present your Registration ID upon reporting at the venue.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="max-w-md mx-auto p-3.5 rounded-xl bg-blue-950/20 border border-blue-900/40 text-left text-[11px] text-slate-400 flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                      <p>
+                        Your payment reference (UTR: <strong className="text-slate-200">{submittedPaymentData?.utr || transactionRef}</strong>) has been submitted for board verification.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
                     <a
@@ -1290,7 +1956,7 @@ const OpenRegistrationPage: React.FC = () => {
                       <span>Official Receipt (PDF)</span>
                     </a>
                     <button
-                      onClick={() => { setSelectedComp(null); setStep(1); }}
+                      onClick={() => { setSelectedComp(null); setStep(1); setVerifiedPaymentData(null); }}
                       className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-bold text-slate-300"
                     >
                       Back to Competitions
@@ -1298,6 +1964,93 @@ const OpenRegistrationPage: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* ──────── INTERACTIVE RAZORPAY TEST SANDBOX SIMULATOR MODAL ──────── */}
+              {showSandboxModal && activeOrderData && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+                  <div className="w-full max-w-md bg-slate-900 border border-blue-500/40 rounded-2xl shadow-2xl p-6 space-y-5 text-left text-slate-100">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-white">Razorpay Payment Gateway</h3>
+                          <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">
+                            Sandbox Test Simulator
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowSandboxModal(false)}
+                        className="text-slate-400 hover:text-white text-xs p-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
+                      <div className="flex justify-between text-slate-400">
+                        <span>Recipient:</span>
+                        <strong className="text-white">GASC Idappadi Sports Dept</strong>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>Competition:</span>
+                        <strong className="text-white">{selectedComp?.name}</strong>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>Order ID:</span>
+                        <span className="font-mono text-blue-400 text-[11px]">{activeOrderData.orderId}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400 pt-2 border-t border-slate-800/80">
+                        <span className="font-bold text-white">Payable Amount:</span>
+                        <strong className="text-emerald-400 text-sm font-black">
+                          ₹{activeOrderData.amountInRupees || getPayableFee()} INR
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300">
+                      <p>
+                        <strong>Test Mode Notice:</strong> Razorpay credentials are currently running in test sandbox mode. No real money will be charged. You can test instant verification and entry pass generation below.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={handleSimulatedSandboxSuccess}
+                        disabled={simulatedPaying}
+                        className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                      >
+                        {simulatedPaying ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <span>Verifying Cryptographic Signature...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>Simulate Successful Payment (Instant Approval)</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormError('Simulated payment was cancelled by user.');
+                          setShowSandboxModal(false);
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
+                      >
+                        Cancel Checkout
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         ) : (

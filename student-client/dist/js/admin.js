@@ -211,6 +211,9 @@ function switchAdminView(viewId) {
     loadAdminCompetitions();
     if (window.loadAdminInterCollegeData) window.loadAdminInterCollegeData();
   }
+  else if (viewId === 'payments') {
+    if (window.loadAdminPayments) window.loadAdminPayments();
+  }
   else if (viewId === 'inter-college') {
     switchAdminView('competitions');
     if (typeof switchExtTab === 'function') switchExtTab('competitions');
@@ -2275,6 +2278,54 @@ function onTournamentCategoryChange(cat) {
   }
 }
 
+function toggleOurCollegeFee(enabled) {
+  const cont = document.getElementById('ctm-our-fee-container');
+  const freeMsg = document.getElementById('ctm-our-fee-free-msg');
+  const lbl = document.getElementById('ctm-our-fee-toggle-lbl');
+  if (cont && freeMsg && lbl) {
+    cont.style.display = enabled ? 'block' : 'none';
+    freeMsg.style.display = enabled ? 'none' : 'block';
+    lbl.textContent = enabled ? 'Fee Enabled' : 'Free (Disabled)';
+    lbl.className = enabled ? 'form-check-label text-xs fw-bold text-success' : 'form-check-label text-xs fw-bold text-light';
+  }
+}
+window.toggleOurCollegeFee = toggleOurCollegeFee;
+
+function toggleOtherCollegeFee(enabled) {
+  const cont = document.getElementById('ctm-other-fee-container');
+  const freeMsg = document.getElementById('ctm-other-fee-free-msg');
+  const lbl = document.getElementById('ctm-other-fee-toggle-lbl');
+  if (cont && freeMsg && lbl) {
+    cont.style.display = enabled ? 'block' : 'none';
+    freeMsg.style.display = enabled ? 'none' : 'block';
+    lbl.textContent = enabled ? 'Fee Enabled' : 'Free (Disabled)';
+    lbl.className = enabled ? 'form-check-label text-xs fw-bold text-warning' : 'form-check-label text-xs fw-bold text-light';
+  }
+}
+window.toggleOtherCollegeFee = toggleOtherCollegeFee;
+
+function toggleAddSportOurFee(enabled) {
+  const cont = document.getElementById('add-sport-our-fee-cont');
+  const lbl = document.getElementById('add-sport-our-fee-lbl');
+  if (cont && lbl) {
+    cont.style.display = enabled ? 'block' : 'none';
+    lbl.textContent = enabled ? 'Fee Enabled' : 'Free';
+    lbl.className = enabled ? 'form-check-label text-xs fw-bold text-success' : 'form-check-label text-xs fw-bold text-light';
+  }
+}
+window.toggleAddSportOurFee = toggleAddSportOurFee;
+
+function toggleAddSportOtherFee(enabled) {
+  const cont = document.getElementById('add-sport-other-fee-cont');
+  const lbl = document.getElementById('add-sport-other-fee-lbl');
+  if (cont && lbl) {
+    cont.style.display = enabled ? 'block' : 'none';
+    lbl.textContent = enabled ? 'Fee Enabled' : 'Free';
+    lbl.className = enabled ? 'form-check-label text-xs fw-bold text-warning' : 'form-check-label text-xs fw-bold text-light';
+  }
+}
+window.toggleAddSportOtherFee = toggleAddSportOtherFee;
+
 function onAddSportSelectChange(sel) {
   const compNameInput = document.getElementById('add-sport-comp-name') || document.querySelector('#addSportCompetitionModal input[name="name"]');
   const catSel = document.getElementById('add-sport-gender');
@@ -2332,6 +2383,44 @@ async function submitCreateCompetition(event) {
   formData.set('gender', normCat);
   formData.set('category', normCat);
 
+  // Independent Fee Handling: Our College Students vs Other College Students
+  const ourFeeToggleEl = document.getElementById('ctm-our-fee-toggle');
+  const ourFeeEnabled = ourFeeToggleEl ? ourFeeToggleEl.checked : (formData.get('ourCollegeFeeEnabled') === 'on' || formData.get('ourCollegeFeeEnabled') === 'true');
+  let ourFee = ourFeeEnabled ? Number(formData.get('ourCollegeFee') || 50) : 0;
+  if (isNaN(ourFee) || ourFee < 0) ourFee = 0;
+
+  const otherFeeToggleEl = document.getElementById('ctm-other-fee-toggle');
+  const otherFeeEnabled = otherFeeToggleEl ? otherFeeToggleEl.checked : (formData.get('otherCollegeFeeEnabled') === 'on' || formData.get('otherCollegeFeeEnabled') === 'true');
+  let otherFee = otherFeeEnabled ? Number(formData.get('otherCollegeFee') || 100) : 0;
+  if (isNaN(otherFee) || otherFee < 0) otherFee = 0;
+
+  const upiId = (formData.get('upiId') || '9443218765@sbi').trim();
+  const gpayNumber = (formData.get('gpayNumber') || '+91 94432 18765').trim();
+  const receiverName = (formData.get('receiverName') || 'Physical Education Dept, GASC Idappadi').trim();
+
+  formData.set('ourCollegeFeeEnabled', ourFeeEnabled);
+  formData.set('our_college_fee_enabled', ourFeeEnabled);
+  formData.set('ourCollegeFee', ourFee);
+  formData.set('our_college_fee', ourFee);
+
+  formData.set('otherCollegeFeeEnabled', otherFeeEnabled);
+  formData.set('other_college_fee_enabled', otherFeeEnabled);
+  formData.set('otherCollegeFee', otherFee);
+  formData.set('other_college_fee', otherFee);
+  formData.set('entryFee', otherFee);
+  formData.set('entry_fee', otherFee);
+  formData.set('hasPayment', (ourFeeEnabled || otherFeeEnabled));
+  formData.set('has_payment', (ourFeeEnabled || otherFeeEnabled));
+  formData.set('isPaid', (ourFeeEnabled || otherFeeEnabled));
+  formData.set('is_paid', (ourFeeEnabled || otherFeeEnabled));
+
+  formData.set('upiId', upiId);
+  formData.set('upi_id', upiId);
+  formData.set('gpayNumber', gpayNumber);
+  formData.set('gpay_number', gpayNumber);
+  formData.set('receiverName', receiverName);
+  formData.set('receiver_name', receiverName);
+
   const uniqueCompId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   formData.set('id', uniqueCompId);
   const tId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -2366,6 +2455,28 @@ async function submitCreateCompetition(event) {
         payload[key] = val;
       }
     });
+    payload.ourCollegeFeeEnabled = ourFeeEnabled;
+    payload.our_college_fee_enabled = ourFeeEnabled;
+    payload.ourCollegeFee = ourFee;
+    payload.our_college_fee = ourFee;
+
+    payload.otherCollegeFeeEnabled = otherFeeEnabled;
+    payload.other_college_fee_enabled = otherFeeEnabled;
+    payload.otherCollegeFee = otherFee;
+    payload.other_college_fee = otherFee;
+    payload.entryFee = otherFee;
+    payload.entry_fee = otherFee;
+    payload.hasPayment = (ourFeeEnabled || otherFeeEnabled);
+    payload.has_payment = (ourFeeEnabled || otherFeeEnabled);
+    payload.isPaid = (ourFeeEnabled || otherFeeEnabled);
+    payload.is_paid = (ourFeeEnabled || otherFeeEnabled);
+
+    payload.upiId = upiId;
+    payload.upi_id = upiId;
+    payload.gpayNumber = gpayNumber;
+    payload.gpay_number = gpayNumber;
+    payload.receiverName = receiverName;
+    payload.receiver_name = receiverName;
 
     let res = null;
     try {
@@ -2393,7 +2504,27 @@ async function submitCreateCompetition(event) {
       venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
       status: computedStatus,
       bannerImage: coverUrl,
-      description: formData.get('description') || `Annual collegiate ${tName} competition.`
+      description: formData.get('description') || `Annual collegiate ${tName} competition.`,
+      ourCollegeFeeEnabled: ourFeeEnabled,
+      our_college_fee_enabled: ourFeeEnabled,
+      ourCollegeFee: ourFee,
+      our_college_fee: ourFee,
+      otherCollegeFeeEnabled: otherFeeEnabled,
+      other_college_fee_enabled: otherFeeEnabled,
+      otherCollegeFee: otherFee,
+      other_college_fee: otherFee,
+      entryFee: otherFee,
+      entry_fee: otherFee,
+      hasPayment: (ourFeeEnabled || otherFeeEnabled),
+      has_payment: (ourFeeEnabled || otherFeeEnabled),
+      isPaid: (ourFeeEnabled || otherFeeEnabled),
+      is_paid: (ourFeeEnabled || otherFeeEnabled),
+      upiId: upiId,
+      upi_id: upiId,
+      gpayNumber: gpayNumber,
+      gpay_number: gpayNumber,
+      receiverName: receiverName,
+      receiver_name: receiverName
     };
 
     try {
@@ -2404,7 +2535,7 @@ async function submitCreateCompetition(event) {
       window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
     } catch (e) {}
 
-    showToast(`Tournament "${tName}" created with sport "${sportName}"!`, 'success');
+    showToast(`Tournament "${tName}" created! Our College: ${ourFeeEnabled ? '₹' + ourFee : 'Free'}, Other College: ${otherFeeEnabled ? '₹' + otherFee : 'Free'}`, 'success');
     form.reset();
     try {
       const modalEl = document.getElementById('addCompetitionModal');
@@ -2460,6 +2591,33 @@ async function submitAddSportToTournament(event) {
   formData.set('gender', normSportCat);
   formData.set('category', normSportCat);
 
+  // Independent Fee Handling for Added Sport: Our College vs Other College
+  const addSportOurToggleEl = document.getElementById('add-sport-our-fee-toggle');
+  const addSportOurFeeEnabled = addSportOurToggleEl ? addSportOurToggleEl.checked : (formData.get('ourCollegeFeeEnabled') === 'on' || formData.get('ourCollegeFeeEnabled') === 'true');
+  let addSportOurFee = addSportOurFeeEnabled ? Number(formData.get('ourCollegeFee') || 50) : 0;
+  if (isNaN(addSportOurFee) || addSportOurFee < 0) addSportOurFee = 0;
+
+  const addSportOtherToggleEl = document.getElementById('add-sport-other-fee-toggle');
+  const addSportOtherFeeEnabled = addSportOtherToggleEl ? addSportOtherToggleEl.checked : (formData.get('otherCollegeFeeEnabled') === 'on' || formData.get('otherCollegeFeeEnabled') === 'true');
+  let addSportOtherFee = addSportOtherFeeEnabled ? Number(formData.get('otherCollegeFee') || 100) : 0;
+  if (isNaN(addSportOtherFee) || addSportOtherFee < 0) addSportOtherFee = 0;
+
+  formData.set('ourCollegeFeeEnabled', addSportOurFeeEnabled);
+  formData.set('our_college_fee_enabled', addSportOurFeeEnabled);
+  formData.set('ourCollegeFee', addSportOurFee);
+  formData.set('our_college_fee', addSportOurFee);
+
+  formData.set('otherCollegeFeeEnabled', addSportOtherFeeEnabled);
+  formData.set('other_college_fee_enabled', addSportOtherFeeEnabled);
+  formData.set('otherCollegeFee', addSportOtherFee);
+  formData.set('other_college_fee', addSportOtherFee);
+  formData.set('entryFee', addSportOtherFee);
+  formData.set('entry_fee', addSportOtherFee);
+  formData.set('hasPayment', (addSportOurFeeEnabled || addSportOtherFeeEnabled));
+  formData.set('has_payment', (addSportOurFeeEnabled || addSportOtherFeeEnabled));
+  formData.set('isPaid', (addSportOurFeeEnabled || addSportOtherFeeEnabled));
+  formData.set('is_paid', (addSportOurFeeEnabled || addSportOtherFeeEnabled));
+
   const uniqueSportId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   formData.set('id', uniqueSportId);
   const sportTId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -2499,6 +2657,21 @@ async function submitAddSportToTournament(event) {
         payload[key] = val;
       }
     });
+    payload.ourCollegeFeeEnabled = addSportOurFeeEnabled;
+    payload.our_college_fee_enabled = addSportOurFeeEnabled;
+    payload.ourCollegeFee = addSportOurFee;
+    payload.our_college_fee = addSportOurFee;
+
+    payload.otherCollegeFeeEnabled = addSportOtherFeeEnabled;
+    payload.other_college_fee_enabled = addSportOtherFeeEnabled;
+    payload.otherCollegeFee = addSportOtherFee;
+    payload.other_college_fee = addSportOtherFee;
+    payload.entryFee = addSportOtherFee;
+    payload.entry_fee = addSportOtherFee;
+    payload.hasPayment = (addSportOurFeeEnabled || addSportOtherFeeEnabled);
+    payload.has_payment = (addSportOurFeeEnabled || addSportOtherFeeEnabled);
+    payload.isPaid = (addSportOurFeeEnabled || addSportOtherFeeEnabled);
+    payload.is_paid = (addSportOurFeeEnabled || addSportOtherFeeEnabled);
 
     let res = null;
     try {
@@ -2526,7 +2699,21 @@ async function submitAddSportToTournament(event) {
       venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
       maxParticipants: Number(formData.get('maxParticipants')) || 50,
       status: sportStatus,
-      description: formData.get('description') || `${sportName} competition inside ${tName}.`
+      description: formData.get('description') || `${sportName} competition inside ${tName}.`,
+      ourCollegeFeeEnabled: addSportOurFeeEnabled,
+      our_college_fee_enabled: addSportOurFeeEnabled,
+      ourCollegeFee: addSportOurFee,
+      our_college_fee: addSportOurFee,
+      otherCollegeFeeEnabled: addSportOtherFeeEnabled,
+      other_college_fee_enabled: addSportOtherFeeEnabled,
+      otherCollegeFee: addSportOtherFee,
+      other_college_fee: addSportOtherFee,
+      entryFee: addSportOtherFee,
+      entry_fee: addSportOtherFee,
+      hasPayment: (addSportOurFeeEnabled || addSportOtherFeeEnabled),
+      has_payment: (addSportOurFeeEnabled || addSportOtherFeeEnabled),
+      isPaid: (addSportOurFeeEnabled || addSportOtherFeeEnabled),
+      is_paid: (addSportOurFeeEnabled || addSportOtherFeeEnabled)
     };
 
     try {

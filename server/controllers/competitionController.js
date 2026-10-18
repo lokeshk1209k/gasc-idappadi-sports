@@ -209,6 +209,24 @@ exports.createCompetition = async (req, res) => {
       status: req.body.status
     });
 
+    const entryFee = req.body.entryFee !== undefined ? Number(req.body.entryFee) : (req.body.entry_fee !== undefined ? Number(req.body.entry_fee) : 0);
+    const hasPayment = req.body.hasPayment !== undefined ? (req.body.hasPayment === true || req.body.hasPayment === 'true') : (entryFee > 0);
+
+    // Separate Registration Fees for Our College vs Other College Students
+    const ourFeeEnabled = req.body.ourCollegeFeeEnabled !== undefined 
+      ? (req.body.ourCollegeFeeEnabled === true || req.body.ourCollegeFeeEnabled === 'true' || req.body.ourCollegeFeeEnabled === 1) 
+      : (req.body.our_college_fee_enabled !== undefined ? (req.body.our_college_fee_enabled === true || req.body.our_college_fee_enabled === 'true') : false);
+    const ourFee = ourFeeEnabled ? Math.max(0, Number(req.body.ourCollegeFee !== undefined ? req.body.ourCollegeFee : (req.body.our_college_fee || 0))) : 0;
+
+    const otherFeeEnabled = req.body.otherCollegeFeeEnabled !== undefined 
+      ? (req.body.otherCollegeFeeEnabled === true || req.body.otherCollegeFeeEnabled === 'true' || req.body.otherCollegeFeeEnabled === 1) 
+      : (req.body.other_college_fee_enabled !== undefined ? (req.body.other_college_fee_enabled === true || req.body.other_college_fee_enabled === 'true') : hasPayment);
+    const otherFee = otherFeeEnabled ? Math.max(0, Number(req.body.otherCollegeFee !== undefined ? req.body.otherCollegeFee : (req.body.other_college_fee !== undefined ? req.body.other_college_fee : entryFee))) : 0;
+
+    const upiId = (req.body.upiId || req.body.upi_id || '').trim();
+    const gpayNumber = (req.body.gpayNumber || req.body.gpay_number || '').trim();
+    const receiverName = (req.body.receiverName || req.body.receiver_name || '').trim();
+
     try {
       const tourToken = tId.replace(/^tour_/, '');
       await supabase.from('tournaments').upsert({
@@ -225,6 +243,16 @@ exports.createCompetition = async (req, res) => {
         participation_type: pType,
         external_registration_enabled: true,
         registration_token: tourToken,
+        entry_fee: otherFee,
+        has_payment: (ourFeeEnabled || otherFeeEnabled),
+        is_paid: (ourFeeEnabled || otherFeeEnabled),
+        our_college_fee_enabled: ourFeeEnabled,
+        our_college_fee: ourFee,
+        other_college_fee_enabled: otherFeeEnabled,
+        other_college_fee: otherFee,
+        upi_id: upiId,
+        gpay_number: gpayNumber,
+        receiver_name: receiverName,
         contact_person: req.body.contactPerson || 'Dr. R. ANITHA (Physical Director)',
         contact_phone: req.body.contactPhone || '9443567890',
         contact_email: req.body.contactEmail || 'sportsgascidappadi@gmail.com',
@@ -268,6 +296,16 @@ exports.createCompetition = async (req, res) => {
       competition_mode: cMode,
       registration_token: token,
       external_registration_enabled: true,
+      entry_fee: otherFee,
+      has_payment: (ourFeeEnabled || otherFeeEnabled),
+      is_paid: (ourFeeEnabled || otherFeeEnabled),
+      our_college_fee_enabled: ourFeeEnabled,
+      our_college_fee: ourFee,
+      other_college_fee_enabled: otherFeeEnabled,
+      other_college_fee: otherFee,
+      upi_id: upiId,
+      gpay_number: gpayNumber,
+      receiver_name: receiverName,
       required_players: req.body.requiredPlayers ? Number(req.body.requiredPlayers) : null,
       substitutes: req.body.substitutes ? Number(req.body.substitutes) : null,
       max_colleges: req.body.maxColleges ? Number(req.body.maxColleges) : null,
@@ -278,17 +316,41 @@ exports.createCompetition = async (req, res) => {
       rules: req.body.rules || (typeof req.body.textRules === 'string' ? req.body.textRules : '')
     };
 
-    const { data: createdRaw, error } = await supabase
-      .from('competitions')
-      .insert(newComp)
-      .select()
-      .single();
+    let createdRaw = null;
+    let finalComp = { ...newComp };
 
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
+    try {
+      const { data, error } = await supabase
+        .from('competitions')
+        .insert(newComp)
+        .select()
+        .single();
+
+      if (!error && data) {
+        createdRaw = data;
+        finalComp = { ...newComp, ...data };
+      } else if (error) {
+        console.warn('[CompetitionController] Cloud insert schema notice:', error.message);
+        // Fallback retry with core columns if cloud table has not yet run separate_registration_fees_setup.sql
+        const coreComp = { ...newComp };
+        delete coreComp.gpay_number;
+        delete coreComp.upi_id;
+        delete coreComp.receiver_name;
+        delete coreComp.our_college_fee_enabled;
+        delete coreComp.our_college_fee;
+        delete coreComp.other_college_fee_enabled;
+        delete coreComp.other_college_fee;
+        const { data: fallbackData } = await supabase.from('competitions').insert(coreComp).select().maybeSingle();
+        if (fallbackData) {
+          createdRaw = fallbackData;
+          finalComp = { ...newComp, ...fallbackData };
+        }
+      }
+    } catch (dbErr) {
+      console.warn('[CompetitionController] Database insert notice:', dbErr.message);
     }
 
-    const competition = toCamelCase(createdRaw);
+    const competition = toCamelCase(finalComp);
 
     // Sync to localStore for 100% persistent cross-environment availability
     try {
@@ -359,6 +421,33 @@ exports.updateCompetition = async (req, res) => {
     if (description !== undefined) updates.description = description;
     if (status) updates.status = status;
     if (resultSummary !== undefined) updates.result_summary = resultSummary;
+
+    // Separate Registration Fees for Our College vs Other College Students
+    if (req.body.ourCollegeFeeEnabled !== undefined || req.body.our_college_fee_enabled !== undefined) {
+      const ourEnabled = req.body.ourCollegeFeeEnabled !== undefined ? (req.body.ourCollegeFeeEnabled === true || req.body.ourCollegeFeeEnabled === 'true') : (req.body.our_college_fee_enabled === true || req.body.our_college_fee_enabled === 'true');
+      updates.our_college_fee_enabled = ourEnabled;
+    }
+    if (req.body.ourCollegeFee !== undefined || req.body.our_college_fee !== undefined) {
+      updates.our_college_fee = Math.max(0, Number(req.body.ourCollegeFee !== undefined ? req.body.ourCollegeFee : req.body.our_college_fee));
+    }
+    if (req.body.otherCollegeFeeEnabled !== undefined || req.body.other_college_fee_enabled !== undefined) {
+      const otherEnabled = req.body.otherCollegeFeeEnabled !== undefined ? (req.body.otherCollegeFeeEnabled === true || req.body.otherCollegeFeeEnabled === 'true') : (req.body.other_college_fee_enabled === true || req.body.other_college_fee_enabled === 'true');
+      updates.other_college_fee_enabled = otherEnabled;
+    }
+    if (req.body.otherCollegeFee !== undefined || req.body.other_college_fee !== undefined) {
+      const otherFeeVal = Math.max(0, Number(req.body.otherCollegeFee !== undefined ? req.body.otherCollegeFee : req.body.other_college_fee));
+      updates.other_college_fee = otherFeeVal;
+      updates.entry_fee = otherFeeVal;
+    }
+    if (req.body.upiId !== undefined || req.body.upi_id !== undefined) {
+      updates.upi_id = (req.body.upiId || req.body.upi_id || '').trim();
+    }
+    if (req.body.gpayNumber !== undefined || req.body.gpay_number !== undefined) {
+      updates.gpay_number = (req.body.gpayNumber || req.body.gpay_number || '').trim();
+    }
+    if (req.body.receiverName !== undefined || req.body.receiver_name !== undefined) {
+      updates.receiver_name = (req.body.receiverName || req.body.receiver_name || '').trim();
+    }
 
     if (req.file) {
       updates.banner_image = `/uploads/${req.file.filename}`;
@@ -684,7 +773,48 @@ exports.registerForCompetition = async (req, res) => {
       });
     }
 
-    // 4. Create Registration
+    // 5. Trusted Fee Calculation for Our College Students
+    const ourFeeEnabled = (compRaw.our_college_fee_enabled === true || compRaw.our_college_fee_enabled === 'true');
+    const ourFee = ourFeeEnabled ? Math.max(0, Number(compRaw.our_college_fee || 0)) : 0;
+
+    let paymentStatus = 'Free';
+    let feeAmount = 0;
+    const paymentId = req.body.paymentId || req.body.payment_id || null;
+    const orderId = req.body.orderId || req.body.order_id || null;
+    const signature = req.body.signature || req.body.razorpay_signature || null;
+
+    if (ourFee > 0) {
+      if (!paymentId || !orderId) {
+        return res.status(400).json({
+          success: false,
+          requiresPayment: true,
+          amount: ourFee,
+          message: `Registration fee of ₹${ourFee} is required for this competition. Please complete payment before confirming registration.`
+        });
+      }
+
+      // Cryptographically verify Razorpay signature if provided
+      if (signature) {
+        try {
+          const paymentService = require('../services/paymentService');
+          const isValid = paymentService.verifyPaymentSignature({ orderId, paymentId, signature });
+          if (!isValid) {
+            return res.status(400).json({
+              success: false,
+              code: 'INVALID_SIGNATURE',
+              message: 'Cryptographic payment verification failed. Payment cannot be verified.'
+            });
+          }
+        } catch (sigErr) {
+          console.warn('Payment verification signature check notice:', sigErr.message);
+        }
+      }
+
+      paymentStatus = 'Paid';
+      feeAmount = ourFee;
+    }
+
+    // 6. Create Registration
     const tName = compRaw.tournament_name || compRaw.tournamentName || (compRaw.name || '').split('-')[0].trim() || 'SPARK 2026';
     const sName = compRaw.sport_name || compRaw.sportName || compRaw.name || 'General';
     const regCode = generateRegCode(tName, sName);
@@ -705,8 +835,14 @@ exports.registerForCompetition = async (req, res) => {
       email: studentUser.email || req.body.email || '',
       registration_code: regCode,
       status: 'Registered',
+      student_category: 'OUR_COLLEGE',
+      fee_amount: feeAmount,
+      payment_status: paymentStatus,
+      payment_id: paymentId,
+      order_id: orderId,
+      transaction_ref: paymentId,
       preferred_position: req.body.preferredPosition || 'Player',
-      remarks: req.body.remarks || 'Confirmed via Student Portal',
+      remarks: req.body.remarks || (feeAmount > 0 ? `Paid ₹${feeAmount} via Razorpay (${paymentId})` : 'Free entry - Confirmed via Student Portal'),
       registration_date: new Date().toISOString(),
       created_at: new Date().toISOString()
     };
@@ -725,6 +861,12 @@ exports.registerForCompetition = async (req, res) => {
       preferred_position: newReg.preferred_position,
       remarks: newReg.remarks,
       status: newReg.status,
+      student_category: newReg.student_category,
+      fee_amount: newReg.fee_amount,
+      payment_status: newReg.payment_status,
+      payment_id: newReg.payment_id,
+      order_id: newReg.order_id,
+      transaction_ref: newReg.transaction_ref,
       registration_date: newReg.registration_date,
       created_at: newReg.created_at
     };

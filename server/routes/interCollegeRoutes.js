@@ -16,6 +16,7 @@ router.post('/send-otp', ctrl.sendOtp);
 router.post('/verify-otp', ctrl.verifyOtp);
 router.post('/register', ctrl.submitRegistration);
 router.get('/receipt/:id', ctrl.getRegistrationDetails);
+router.get('/payment-settings', ctrl.getPublicPaymentSettings);
 
 // ── Admin-Only Routes (For Sports Incharge / Admin Portal) ──
 // In offline or local dev, if auth headers are optional, provide safe access
@@ -32,6 +33,11 @@ const adminAuth = (req, res, next) => {
 };
 
 router.get('/admin/all', adminAuth, ctrl.getAdminAllData);
+router.get('/admin/payment-settings', adminAuth, ctrl.getAdminPaymentSettings);
+router.post('/admin/payment-settings', adminAuth, ctrl.savePaymentSettings);
+router.put('/admin/payment-settings', adminAuth, ctrl.savePaymentSettings);
+router.post('/admin/verify-payment', adminAuth, ctrl.verifyRegistrationPayment);
+router.patch('/admin/verify-payment', adminAuth, ctrl.verifyRegistrationPayment);
 router.get('/admin/registrations', adminAuth, ctrl.getAllRegistrations);
 router.get('/admin/registrations/:id', adminAuth, ctrl.getRegistrationDetails);
 router.get('/admin/registration/:id', adminAuth, ctrl.getRegistrationDetails);

@@ -3,6 +3,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/api/payments/(.*)", "destination": "/api/open-registration" },
+    { "source": "/api/payments", "destination": "/api/open-registration" },
     { "source": "/api/open-registration/(.*)", "destination": "/api/open-registration" },
     { "source": "/api/open-registration", "destination": "/api/open-registration" },
     { "source": "/api/inter-college/(.*)", "destination": "/api/open-registration" },

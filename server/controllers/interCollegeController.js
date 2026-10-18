@@ -675,6 +675,78 @@ exports.submitRegistration = async (req, res) => {
       }
     }
 
+    // ── Payment Details & Validation ──
+    const reqFee = Number(req.body.feeAmount || comp.entry_fee || comp.entryFee || 0);
+    const submittedUtr = (req.body.transactionRef || req.body.utrNumber || '').trim().toUpperCase();
+    const submittedScreenshot = req.body.paymentScreenshot || null;
+    const submittedConfigVersion = Number(req.body.paymentConfigVersion || 1);
+    const submittedMethod = req.body.paymentMethod || (reqFee > 0 ? 'MANUAL_UPI' : 'FREE');
+
+    if (reqFee > 0) {
+      if (!submittedUtr) {
+        return res.status(400).json({
+          success: false,
+          message: `Registration fee of ₹${reqFee} is required. Please transfer the amount via GPay / UPI and enter the 12-digit UTR reference number.`
+        });
+      }
+
+      if (submittedUtr.length < 6 || submittedUtr.length > 30) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid UPI Transaction Reference Number (UTR). Please enter a valid transaction reference from your UPI payment app.'
+        });
+      }
+
+      // Prevent duplicate transaction reference numbers across registrations
+      let isDuplicateUtr = false;
+      try {
+        const { data: dupSupa } = await supabase
+          .from('external_registrations')
+          .select('id, registration_id, transaction_ref')
+          .eq('transaction_ref', submittedUtr)
+          .limit(1);
+        if (dupSupa && dupSupa.length > 0) isDuplicateUtr = true;
+      } catch (e) {}
+
+      if (!isDuplicateUtr) {
+        const allRegs = localStore.storeInstance.getTable('external_registrations') || [];
+        const found = allRegs.find(r => {
+          if (r.transaction_ref && r.transaction_ref.toUpperCase() === submittedUtr) return true;
+          if (r.remarks && typeof r.remarks === 'string' && r.remarks.includes(submittedUtr)) return true;
+          return false;
+        });
+        if (found) isDuplicateUtr = true;
+      }
+
+      if (!isDuplicateUtr) {
+        try {
+          const sqliteDups = localDB.query("SELECT id, registration_id FROM external_registrations WHERE transaction_ref = ? LIMIT 1", [submittedUtr]);
+          if (sqliteDups && sqliteDups.length > 0) isDuplicateUtr = true;
+        } catch (e) {}
+      }
+
+      if (isDuplicateUtr) {
+        return res.status(409).json({
+          success: false,
+          code: 'DUPLICATE_TRANSACTION_REF',
+          message: `This UPI Transaction Reference Number (${submittedUtr}) has already been submitted for another registration. Duplicate transaction references are strictly rejected.`
+        });
+      }
+    }
+
+    const initialPaymentStatus = reqFee > 0 ? 'PENDING_VERIFICATION' : 'FREE';
+    const remarksPayload = {
+      fee_amount: reqFee,
+      payment_method: submittedMethod,
+      payment_status: initialPaymentStatus,
+      transaction_ref: submittedUtr || null,
+      payment_screenshot: submittedScreenshot,
+      payment_config_version: submittedConfigVersion,
+      payment_verified_by: null,
+      payment_verified_at: null,
+      payment_remarks: null
+    };
+
     // 3. Generate Registration ID
     const registrationId = exports.generateRegistrationId();
     const primaryId = `ereg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -707,6 +779,13 @@ exports.submitRegistration = async (req, res) => {
       supporting_document: supportingDocument || null,
       otp_verified: true,
       status: 'PENDING',
+      fee_amount: reqFee,
+      payment_method: submittedMethod,
+      payment_status: initialPaymentStatus,
+      transaction_ref: submittedUtr || null,
+      payment_screenshot: submittedScreenshot,
+      payment_config_version: submittedConfigVersion,
+      remarks: JSON.stringify(remarksPayload),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -721,7 +800,20 @@ exports.submitRegistration = async (req, res) => {
         .single();
       if (!error && data) savedInSupa = true;
     } catch (e) {
-      console.warn('Supabase external_registrations insert notice:', e.message);
+      // Fallback: insert with legacy columns if payment columns not yet in DB schema
+      try {
+        const legacyRecord = { ...registrationRecord };
+        delete legacyRecord.fee_amount;
+        delete legacyRecord.payment_method;
+        delete legacyRecord.payment_status;
+        delete legacyRecord.transaction_ref;
+        delete legacyRecord.payment_screenshot;
+        delete legacyRecord.payment_config_version;
+        await supabase.from('external_registrations').insert(legacyRecord);
+        savedInSupa = true;
+      } catch (legacyErr) {
+        console.warn('Supabase external_registrations fallback insert notice:', legacyErr.message);
+      }
     }
 
     // Always mirror to localStore & SQLite for offline resilience
@@ -733,8 +825,11 @@ exports.submitRegistration = async (req, res) => {
 
     try {
       localDB.run(
-        `INSERT OR REPLACE INTO external_registrations (id, registration_id, competition_id, college_name, college_address, district, state, college_phone, college_email, registration_type, sport_name, gender, team_name, coach_name, coach_phone, manager_name, manager_phone, player_name, player_register_number, department, year, participant_email, participant_phone, otp_verified, status, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,'PENDING',strftime('%s','now'),strftime('%s','now'))`,
-        [primaryId, registrationId, comp.id, cleanCollege, collegeAddress, district, state, collegePhone || '', collegeEmail || '', mode, comp.sport_name || comp.name, gender || 'All', registrationRecord.team_name || '', coachName || '', coachPhone || '', managerName || '', managerPhone || '', registrationRecord.player_name || '', registrationRecord.player_register_number || '', department || '', year || '', cleanEmail, participantPhone]
+        `INSERT OR REPLACE INTO external_registrations (id, registration_id, competition_id, college_name, college_address, district, state, college_phone, college_email, registration_type, sport_name, gender, team_name, coach_name, coach_phone, manager_name, manager_phone, player_name, player_register_number, department, year, participant_email, participant_phone, otp_verified, status, fee_amount, payment_method, payment_status, transaction_ref, payment_screenshot, payment_config_version, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,'PENDING',?,?,?,?,?,?,strftime('%s','now'),strftime('%s','now'))`,
+        [
+          primaryId, registrationId, comp.id, cleanCollege, collegeAddress, district, state, collegePhone || '', collegeEmail || '', mode, comp.sport_name || comp.name, gender || 'All', registrationRecord.team_name || '', coachName || '', coachPhone || '', managerName || '', managerPhone || '', registrationRecord.player_name || '', registrationRecord.player_register_number || '', department || '', year || '', cleanEmail, participantPhone,
+          reqFee, submittedMethod, initialPaymentStatus, submittedUtr || '', submittedScreenshot || '', submittedConfigVersion
+        ]
       );
       localDB.saveDB();
     } catch (e) {}
@@ -880,6 +975,50 @@ exports.submitRegistration = async (req, res) => {
   }
 };
 
+// Helper: Enrich raw registration record with standardized payment properties
+function enrichRegistrationWithPayment(r) {
+  if (!r) return r;
+  let paymentStatus = r.payment_status;
+  let feeAmount = r.fee_amount;
+  let transactionRef = r.transaction_ref;
+  let paymentMethod = r.payment_method;
+  let paymentScreenshot = r.payment_screenshot;
+  let paymentConfigVersion = r.payment_config_version;
+  let paymentVerifiedBy = r.payment_verified_by;
+  let paymentVerifiedAt = r.payment_verified_at;
+  let paymentRemarks = r.payment_remarks;
+
+  if (r.remarks && typeof r.remarks === 'string' && r.remarks.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(r.remarks);
+      if (parsed && typeof parsed === 'object') {
+        if (!paymentStatus && parsed.payment_status) paymentStatus = parsed.payment_status;
+        if (feeAmount == null && parsed.fee_amount != null) feeAmount = parsed.fee_amount;
+        if (!transactionRef && parsed.transaction_ref) transactionRef = parsed.transaction_ref;
+        if (!paymentMethod && parsed.payment_method) paymentMethod = parsed.payment_method;
+        if (!paymentScreenshot && parsed.payment_screenshot) paymentScreenshot = parsed.payment_screenshot;
+        if (!paymentConfigVersion && parsed.payment_config_version) paymentConfigVersion = parsed.payment_config_version;
+        if (!paymentVerifiedBy && parsed.payment_verified_by) paymentVerifiedBy = parsed.payment_verified_by;
+        if (!paymentVerifiedAt && parsed.payment_verified_at) paymentVerifiedAt = parsed.payment_verified_at;
+        if (!paymentRemarks && parsed.payment_remarks) paymentRemarks = parsed.payment_remarks;
+      }
+    } catch (e) {}
+  }
+
+  return {
+    ...r,
+    payment_status: paymentStatus || (r.status === 'CONFIRMED' || r.status === 'APPROVED' ? 'VERIFIED' : 'PENDING_VERIFICATION'),
+    fee_amount: feeAmount != null ? Number(feeAmount) : 0,
+    transaction_ref: transactionRef || null,
+    payment_method: paymentMethod || 'MANUAL_UPI',
+    payment_screenshot: paymentScreenshot || null,
+    payment_config_version: Number(paymentConfigVersion || 1),
+    payment_verified_by: paymentVerifiedBy || null,
+    payment_verified_at: paymentVerifiedAt || null,
+    payment_remarks: paymentRemarks || null
+  };
+}
+
 // =========================================================================
 // 5. ADMIN: GET ALL EXTERNAL REGISTRATIONS
 // =========================================================================
@@ -917,7 +1056,7 @@ exports.getAllRegistrations = async (req, res) => {
     return res.json({
       success: true,
       count: registrations.length,
-      registrations: registrations.map(toCamelCase)
+      registrations: registrations.map(enrichRegistrationWithPayment).map(toCamelCase)
     });
   } catch (err) {
     console.error('getAllRegistrations error:', err);
@@ -953,6 +1092,8 @@ exports.getRegistrationDetails = async (req, res) => {
     if (!registration) {
       return res.status(404).json({ success: false, message: 'Registration not found.' });
     }
+
+    registration = enrichRegistrationWithPayment(registration);
 
     // Fetch players
     try {
@@ -1742,7 +1883,7 @@ exports.getAdminAllData = async (req, res) => {
       }
     });
 
-    regs = regs.map(r => ({
+    regs = regs.map(r => enrichRegistrationWithPayment({
       ...r,
       players: allPlayers.filter(p => String(p.external_registration_id) === String(r.id))
     }));
@@ -2106,5 +2247,551 @@ exports.deleteCompetition = async (req, res) => {
   }
 };
 
+// =========================================================================
+// 10. DYNAMIC GPAY / UPI PAYMENT SETTINGS & VERIFICATION MODULE
+// =========================================================================
 
+const DEFAULT_PAYMENT_CONFIG = {
+  id: 'default',
+  receiver_name: 'Dr. R. ANITHA (Physical Director) / GASC Sports Account',
+  gpay_number: '9443218765',
+  upi_id: 'sportsgasc@sbi',
+  qr_code_url: '',
+  payment_mode: 'MANUAL_UPI', // 'MANUAL_UPI' | 'GATEWAY' | 'BOTH'
+  is_active: true,
+  payment_instructions: '1. Open Google Pay, PhonePe, Paytm, or any UPI app.\n2. Scan the QR code or enter the UPI ID / GPay number.\n3. Complete the payment and note down the 12-digit UPI / UTR Transaction Reference Number.\n4. Enter the UTR number in the registration form and submit.',
+  team_fee: 500,
+  individual_fee: 100,
+  valid_from: null,
+  valid_until: null,
+  config_version: 1,
+  updated_by: 'Super Admin',
+  updated_at: new Date().toISOString()
+};
 
+/**
+ * Internal Helper: Get latest active payment configuration
+ * Checks Supabase payment_settings, admin_settings fallback, local SQLite, and localStore.
+ */
+async function fetchCurrentPaymentConfig() {
+  let config = null;
+
+  // 1. Try Supabase payment_settings table
+  try {
+    const { data, error } = await supabase
+      .from('payment_settings')
+      .select('*')
+      .eq('id', 'default')
+      .maybeSingle();
+    if (!error && data) config = data;
+  } catch (e) {}
+
+  // 2. Try Supabase admin_settings table (generic key-value fallback)
+  if (!config) {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('*')
+        .eq('id', 'payment_config')
+        .maybeSingle();
+      if (!error && data && data.value) {
+        config = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+      }
+    } catch (e) {}
+  }
+
+  // 3. Try local SQLite
+  if (!config) {
+    try {
+      const rows = localDB.query("SELECT * FROM payment_settings WHERE id = 'default' LIMIT 1");
+      if (rows && rows.length > 0) {
+        config = rows[0];
+        if (config.is_active !== undefined) config.is_active = Boolean(config.is_active);
+      }
+    } catch (e) {}
+  }
+
+  // 4. Try localStore
+  if (!config) {
+    const table = localStore.storeInstance.getTable('payment_settings') || [];
+    config = table.find(p => p.id === 'default');
+  }
+
+  // Fallback to default
+  if (!config) {
+    config = { ...DEFAULT_PAYMENT_CONFIG };
+  }
+
+  // Ensure config_version is a number
+  config.config_version = Number(config.config_version || 1);
+  return config;
+}
+
+/**
+ * PUBLIC: Fetch current active payment details for student registration
+ * Returns only public fields needed for payment.
+ */
+exports.getPublicPaymentSettings = async (req, res) => {
+  try {
+    const config = await fetchCurrentPaymentConfig();
+
+    // Check validity window if configured
+    let isValidWindow = true;
+    const now = new Date();
+    if (config.valid_from) {
+      const fromDate = new Date(config.valid_from);
+      if (!isNaN(fromDate.getTime()) && now < fromDate) isValidWindow = false;
+    }
+    if (config.valid_until) {
+      const untilDate = new Date(config.valid_until);
+      if (!isNaN(untilDate.getTime()) && now > untilDate) isValidWindow = false;
+    }
+
+    const isEnabled = Boolean(config.is_active) && isValidWindow;
+
+    // Generate dynamic QR code if custom QR is not provided
+    let qrUrl = config.qr_code_url || '';
+    if (!qrUrl && config.upi_id) {
+      try {
+        const upiUri = `upi://pay?pa=${encodeURIComponent(config.upi_id)}&pn=${encodeURIComponent(config.receiver_name || 'GASC Sports')}&cu=INR`;
+        qrUrl = await QRCode.toDataURL(upiUri, { width: 300, margin: 2 });
+      } catch (qrErr) {
+        console.warn('QRCode generation fallback:', qrErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      settings: {
+        receiverName: config.receiver_name || 'Physical Director, GASC',
+        gpayNumber: config.gpay_number || '',
+        upiId: config.upi_id || '',
+        qrCodeUrl: qrUrl,
+        instructions: config.payment_instructions || DEFAULT_PAYMENT_CONFIG.payment_instructions,
+        paymentMode: config.payment_mode || 'MANUAL_UPI',
+        isEnabled: isEnabled,
+        teamFee: Number(config.team_fee || 500),
+        individualFee: Number(config.individual_fee || 100),
+        configVersion: config.config_version || 1,
+        validFrom: config.valid_from || null,
+        validUntil: config.valid_until || null
+      }
+    });
+  } catch (err) {
+    console.error('getPublicPaymentSettings error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * ADMIN: Get full payment settings including audit history
+ */
+exports.getAdminPaymentSettings = async (req, res) => {
+  try {
+    const config = await fetchCurrentPaymentConfig();
+
+    // Fetch history
+    let history = [];
+    try {
+      const { data, error } = await supabase
+        .from('payment_settings_history')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (!error && data) history = data;
+    } catch (e) {}
+
+    if (history.length === 0) {
+      try {
+        const { data } = await supabase
+          .from('admin_settings')
+          .select('*')
+          .eq('id', 'payment_history')
+          .maybeSingle();
+        if (data && data.value) {
+          history = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+        }
+      } catch (e) {}
+    }
+
+    if (history.length === 0) {
+      try {
+        const rows = localDB.query('SELECT * FROM payment_settings_history ORDER BY created_at DESC LIMIT 20');
+        if (rows && rows.length > 0) history = rows;
+      } catch (e) {}
+    }
+
+    // Auto-generate standard QR if none exists
+    let qrPreview = config.qr_code_url || '';
+    if (!qrPreview && config.upi_id) {
+      try {
+        const upiUri = `upi://pay?pa=${encodeURIComponent(config.upi_id)}&pn=${encodeURIComponent(config.receiver_name || 'GASC Sports')}&cu=INR`;
+        qrPreview = await QRCode.toDataURL(upiUri, { width: 300, margin: 2 });
+      } catch (e) {}
+    }
+
+    return res.json({
+      success: true,
+      config: {
+        id: config.id || 'default',
+        receiverName: config.receiver_name,
+        gpayNumber: config.gpay_number,
+        upiId: config.upi_id,
+        qrCodeUrl: config.qr_code_url || '',
+        qrPreview: qrPreview,
+        paymentMode: config.payment_mode || 'MANUAL_UPI',
+        isActive: Boolean(config.is_active),
+        instructions: config.payment_instructions,
+        teamFee: Number(config.team_fee || 500),
+        individualFee: Number(config.individual_fee || 100),
+        validFrom: config.valid_from,
+        validUntil: config.valid_until,
+        configVersion: config.config_version,
+        updatedBy: config.updated_by || 'Admin',
+        updatedAt: config.updated_at || config.created_at
+      },
+      history: history.map(toCamelCase)
+    });
+  } catch (err) {
+    console.error('getAdminPaymentSettings error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * ADMIN: Save and publish new payment settings
+ * Validates GPay phone number and UPI ID strictly.
+ * Creates audit log and increments config_version.
+ */
+exports.savePaymentSettings = async (req, res) => {
+  try {
+    const {
+      receiverName,
+      gpayNumber,
+      upiId,
+      qrCodeUrl,
+      paymentMode,
+      isActive,
+      instructions,
+      teamFee,
+      individualFee,
+      validFrom,
+      validUntil,
+      updatedBy
+    } = req.body;
+
+    // 1. Validation
+    if (!receiverName || !receiverName.trim()) {
+      return res.status(400).json({ success: false, message: 'Payment receiver name is required.' });
+    }
+
+    // Clean and validate Phone number (10 digits Indian format)
+    const cleanPhone = (gpayNumber || '').replace(/[\s\-\+]/g, '').replace(/^91/, '');
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid GPay mobile number. Must be a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.'
+      });
+    }
+
+    // Validate UPI ID format: username@bank
+    const cleanUpi = (upiId || '').trim().toLowerCase();
+    const upiRegex = /^[a-zA-Z0-9.\-_]{2,64}@[a-zA-Z]{2,32}$/;
+    if (!upiRegex.test(cleanUpi)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid UPI ID format. Must follow standard UPI VPA pattern like "username@bank" or "mobile@upi". Do not enter only a phone number.'
+      });
+    }
+
+    // 2. Fetch current config to check old values for audit
+    const prevConfig = await fetchCurrentPaymentConfig();
+    const newVersion = (prevConfig.config_version || 1) + 1;
+    const adminUser = updatedBy || req.user?.name || req.user?.email || 'Sports Incharge Admin';
+    const nowIso = new Date().toISOString();
+
+    const newConfigRecord = {
+      id: 'default',
+      receiver_name: receiverName.trim(),
+      gpay_number: cleanPhone,
+      upi_id: cleanUpi,
+      qr_code_url: qrCodeUrl || '',
+      payment_mode: paymentMode || 'MANUAL_UPI',
+      is_active: isActive !== undefined ? Boolean(isActive) : true,
+      payment_instructions: instructions || DEFAULT_PAYMENT_CONFIG.payment_instructions,
+      team_fee: teamFee !== undefined ? Number(teamFee) : 500,
+      individual_fee: individualFee !== undefined ? Number(individualFee) : 100,
+      valid_from: validFrom || null,
+      valid_until: validUntil || null,
+      config_version: newVersion,
+      updated_by: adminUser,
+      updated_at: nowIso
+    };
+
+    // 3. Save to Supabase payment_settings table
+    try {
+      await supabase
+        .from('payment_settings')
+        .upsert(newConfigRecord, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('payment_settings upsert note:', e.message);
+    }
+
+    // Dual-write to Supabase admin_settings table (guaranteed fallback table)
+    try {
+      await supabase
+        .from('admin_settings')
+        .upsert({
+          id: 'payment_config',
+          value: newConfigRecord,
+          updated_at: nowIso
+        }, { onConflict: 'id' });
+    } catch (e) {
+      console.warn('admin_settings payment_config upsert note:', e.message);
+    }
+
+    // 4. Save to local SQLite
+    try {
+      localDB.run(
+        `INSERT OR REPLACE INTO payment_settings (id, receiver_name, gpay_number, upi_id, qr_code_url, payment_mode, is_active, payment_instructions, team_fee, individual_fee, valid_from, valid_until, config_version, updated_by, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          newConfigRecord.id,
+          newConfigRecord.receiver_name,
+          newConfigRecord.gpay_number,
+          newConfigRecord.upi_id,
+          newConfigRecord.qr_code_url,
+          newConfigRecord.payment_mode,
+          newConfigRecord.is_active ? 1 : 0,
+          newConfigRecord.payment_instructions,
+          newConfigRecord.team_fee,
+          newConfigRecord.individual_fee,
+          newConfigRecord.valid_from,
+          newConfigRecord.valid_until,
+          newConfigRecord.config_version,
+          newConfigRecord.updated_by,
+          newConfigRecord.updated_at
+        ]
+      );
+      localDB.saveDB();
+    } catch (e) {}
+
+    // 5. Save to localStore
+    try {
+      const table = localStore.storeInstance.getTable('payment_settings') || [];
+      const idx = table.findIndex(p => p.id === 'default');
+      if (idx >= 0) table[idx] = newConfigRecord;
+      else table.push(newConfigRecord);
+      localStore.storeInstance.save();
+    } catch (e) {}
+
+    // 6. Record Audit History
+    const historyItem = {
+      id: `psh_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      config_version: newVersion,
+      receiver_name: newConfigRecord.receiver_name,
+      gpay_number: newConfigRecord.gpay_number,
+      upi_id: newConfigRecord.upi_id,
+      qr_code_url: newConfigRecord.qr_code_url,
+      payment_mode: newConfigRecord.payment_mode,
+      is_active: newConfigRecord.is_active,
+      team_fee: newConfigRecord.team_fee,
+      individual_fee: newConfigRecord.individual_fee,
+      updated_by: adminUser,
+      change_summary: `Updated payment details to ${newConfigRecord.upi_id} / ${newConfigRecord.gpay_number}`,
+      created_at: nowIso
+    };
+
+    try {
+      await supabase.from('payment_settings_history').insert(historyItem);
+    } catch (e) {}
+
+    try {
+      let existingHistory = [];
+      const { data } = await supabase.from('admin_settings').select('*').eq('id', 'payment_history').maybeSingle();
+      if (data && data.value) {
+        existingHistory = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+      }
+      existingHistory.unshift(historyItem);
+      await supabase.from('admin_settings').upsert({
+        id: 'payment_history',
+        value: existingHistory.slice(0, 50),
+        updated_at: nowIso
+      });
+    } catch (e) {}
+
+    try {
+      localDB.run(
+        `INSERT OR REPLACE INTO payment_settings_history (id, config_version, receiver_name, gpay_number, upi_id, qr_code_url, payment_mode, is_active, team_fee, individual_fee, updated_by, change_summary, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          historyItem.id,
+          historyItem.config_version,
+          historyItem.receiver_name,
+          historyItem.gpay_number,
+          historyItem.upi_id,
+          historyItem.qr_code_url,
+          historyItem.payment_mode,
+          historyItem.is_active ? 1 : 0,
+          historyItem.team_fee,
+          historyItem.individual_fee,
+          historyItem.updated_by,
+          historyItem.change_summary,
+          historyItem.created_at
+        ]
+      );
+      localDB.saveDB();
+    } catch (e) {}
+
+    return res.json({
+      success: true,
+      message: 'Payment settings successfully updated and published!',
+      config: toCamelCase(newConfigRecord)
+    });
+  } catch (err) {
+    console.error('savePaymentSettings error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+/**
+ * ADMIN: Verify and reconcile a manual UPI registration payment
+ * Marks payment as VERIFIED and registration status as APPROVED/CONFIRMED.
+ */
+exports.verifyRegistrationPayment = async (req, res) => {
+  try {
+    const { registrationId, paymentStatus, remarks } = req.body;
+    if (!registrationId) {
+      return res.status(400).json({ success: false, message: 'Registration ID is required.' });
+    }
+
+    const verifiedBy = req.user?.name || req.user?.email || 'Sports Admin';
+    const nowIso = new Date().toISOString();
+    const newPaymentStatus = (paymentStatus || 'VERIFIED').toUpperCase();
+    const newRegStatus = newPaymentStatus === 'VERIFIED' ? 'APPROVED' : (newPaymentStatus === 'REJECTED' ? 'REJECTED' : 'PENDING');
+
+    // 1. Fetch current registration
+    let reg = null;
+    try {
+      const { data } = await supabase
+        .from('external_registrations')
+        .select('*')
+        .or(`id.eq.${registrationId},registration_id.eq.${registrationId}`)
+        .maybeSingle();
+      if (data) reg = data;
+    } catch (e) {}
+
+    if (!reg) {
+      const localList = localStore.storeInstance.getTable('external_registrations') || [];
+      reg = localList.find(r => r.id === registrationId || r.registration_id === registrationId);
+    }
+
+    if (!reg) {
+      return res.status(404).json({ success: false, message: 'Registration not found.' });
+    }
+
+    // Build serialized remarks payload
+    let existingRemarksObj = {};
+    if (reg.remarks && typeof reg.remarks === 'string' && reg.remarks.startsWith('{')) {
+      try { existingRemarksObj = JSON.parse(reg.remarks); } catch (e) {}
+    }
+
+    const updatedRemarksPayload = {
+      ...existingRemarksObj,
+      payment_status: newPaymentStatus,
+      payment_verified_by: verifiedBy,
+      payment_verified_at: nowIso,
+      payment_remarks: remarks || existingRemarksObj.payment_remarks || ''
+    };
+
+    const updatePayload = {
+      status: newRegStatus,
+      payment_status: newPaymentStatus,
+      payment_verified_by: verifiedBy,
+      payment_verified_at: nowIso,
+      payment_remarks: remarks || null,
+      remarks: JSON.stringify(updatedRemarksPayload),
+      updated_at: nowIso
+    };
+
+    // Update Supabase
+    try {
+      await supabase
+        .from('external_registrations')
+        .update(updatePayload)
+        .eq('id', reg.id);
+    } catch (e) {
+      // Fallback if specific payment columns are not created in Supabase yet
+      try {
+        await supabase
+          .from('external_registrations')
+          .update({
+            status: newRegStatus,
+            remarks: JSON.stringify(updatedRemarksPayload),
+            updated_at: nowIso
+          })
+          .eq('id', reg.id);
+      } catch (err2) {}
+    }
+
+    // Update localStore
+    try {
+      const localList = localStore.storeInstance.getTable('external_registrations') || [];
+      const item = localList.find(r => r.id === reg.id || r.registration_id === reg.registration_id);
+      if (item) {
+        Object.assign(item, updatePayload);
+        localStore.storeInstance.save();
+      }
+    } catch (e) {}
+
+    // Update SQLite
+    try {
+      localDB.run(
+        `UPDATE external_registrations SET status = ?, payment_status = ?, payment_verified_by = ?, payment_verified_at = ?, payment_remarks = ?, updated_at = strftime('%s','now') WHERE id = ? OR registration_id = ?`,
+        [newRegStatus, newPaymentStatus, verifiedBy, nowIso, remarks || '', reg.id, reg.registration_id]
+      );
+      localDB.saveDB();
+    } catch (e) {}
+
+    // Send confirmation email to student
+    try {
+      const targetEmail = reg.participant_email || reg.college_email;
+      if (targetEmail && targetEmail.includes('@')) {
+        const isVerified = newPaymentStatus === 'VERIFIED';
+        await transporter.sendMail({
+          from: `"${COLLEGE_NAME} Sports" <${process.env.EMAIL_USER || 'sportsgascidappadi@gmail.com'}>`,
+          to: targetEmail,
+          subject: isVerified
+            ? `[GASC Sports] Payment Verified & Registration Approved: ${reg.registration_id}`
+            : `[GASC Sports] Payment Update for Registration: ${reg.registration_id}`,
+          text: isVerified
+            ? `Your payment has been successfully verified by the sports department. Your registration ${reg.registration_id} is now APPROVED.`
+            : `Payment status update for ${reg.registration_id}: ${newPaymentStatus}. Remarks: ${remarks || 'None'}`,
+          html: `
+            <div style="font-family:sans-serif;padding:20px;color:#0f172a;">
+              <h2 style="color:${isVerified ? '#16a34a' : '#dc2626'};">${isVerified ? '✅ Payment Verified & Approved' : '⚠️ Payment Status Update'}</h2>
+              <p>Registration ID: <strong>${reg.registration_id}</strong></p>
+              <p>College: <strong>${reg.college_name}</strong></p>
+              <p>Competition: <strong>${reg.sport_name || 'Sports Competition'}</strong></p>
+              <p>Payment Status: <strong>${newPaymentStatus}</strong></p>
+              <p>Verified By: <strong>${verifiedBy}</strong> on ${new Date(nowIso).toLocaleString('en-IN')}</p>
+              ${remarks ? `<p>Admin Remarks: <em>${remarks}</em></p>` : ''}
+              <p style="margin-top:20px;font-size:12px;color:#64748b;">Government Arts and Science College, Idappadi.</p>
+            </div>
+          `
+        });
+      }
+    } catch (mailErr) {
+      console.warn('verifyRegistrationPayment mail exception:', mailErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: `Payment status updated to ${newPaymentStatus} successfully.`,
+      registrationId: reg.registration_id,
+      paymentStatus: newPaymentStatus,
+      status: newRegStatus
+    });
+  } catch (err) {
+    console.error('verifyRegistrationPayment error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};

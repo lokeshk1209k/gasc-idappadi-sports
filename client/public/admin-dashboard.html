@@ -73,6 +73,10 @@
           <i class="bi bi-trophy-fill text-warning"></i> <span>Competitions & Inter-College</span>
           <span class="badge bg-warning text-dark ms-auto" id="nav-ext-pending-badge" style="display:none;font-size:0.65rem;">0</span>
         </a>
+        <a class="sidebar-nav-item admin-nav-item" data-view="payments" id="nav-item-payments">
+          <i class="bi bi-credit-card-2-front-fill text-success"></i> <span>Payment Management</span>
+          <span class="badge bg-success ms-auto" id="nav-payment-mode-badge" style="font-size:0.65rem;">TEST MODE</span>
+        </a>
         <a class="sidebar-nav-item admin-nav-item d-none" data-view="inter-college">
           <i class="bi bi-qr-code-scan text-warning"></i> <span>Inter-College</span>
         </a>
@@ -1057,6 +1061,11 @@
                 <i class="bi bi-graph-up-arrow me-1.5 text-info"></i> Analytics
               </button>
             </li>
+            <li class="nav-item">
+              <button class="nav-link" onclick="switchExtTab('payment-settings')">
+                <i class="bi bi-wallet2 me-1.5 text-warning"></i> GPay & UPI Settings
+              </button>
+            </li>
           </ul>
 
           <!-- ══════════════════════════════════════════════════
@@ -1169,6 +1178,7 @@
                     <th>Category</th>
                     <th>Contact</th>
                     <th>Date</th>
+                    <th>Payment</th>
                     <th>Status</th>
                     <th class="text-end">Actions</th>
                   </tr>
@@ -1237,6 +1247,7 @@
                     <th>Participant / Team</th>
                     <th>Contact Email & Phone</th>
                     <th>Submitted</th>
+                    <th>Fee Payment</th>
                     <th class="text-center" style="min-width: 220px;">Review Actions</th>
                   </tr>
                 </thead>
@@ -1361,10 +1372,375 @@
               <div class="text-center text-muted py-4">Click "Generate" above to load official report sheet.</div>
             </div>
           </div>
+
+          <!-- ══════════════════════════════════════════════════
+               SUB-VIEW 8: DYNAMIC GPAY, UPI & QR CODE SETTINGS
+               ══════════════════════════════════════════════════ -->
+          <div id="ext-tab-pane-payment-settings" class="ext-tab-pane d-none">
+            <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+              <div>
+                <h4 class="fw-black text-dark mb-1">
+                  <i class="bi bi-wallet2 text-success me-2"></i>Dynamic GPay, UPI ID & QR Code Management
+                </h4>
+                <p class="text-muted small mb-0">
+                  Update payment credentials anytime. Changes reflect instantly on the Student Portal without recompiling or redeploying code.
+                </p>
+              </div>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" onclick="openPaymentHistoryModal()">
+                  <i class="bi bi-clock-history me-1 text-primary"></i> Settings History
+                </button>
+                <button type="button" class="btn btn-primary btn-sm fw-bold shadow-sm px-3" onclick="saveAdminPaymentSettings()">
+                  <i class="bi bi-cloud-arrow-up-fill me-1"></i> Save & Publish Changes
+                </button>
+              </div>
+            </div>
+
+            <!-- Configuration Grid -->
+            <div class="row g-4">
+              <!-- Left Form Column -->
+              <div class="col-lg-7">
+                <div class="glass-card p-4 border border-light border-opacity-40 shadow-sm rounded-4 h-100">
+                  <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom border-secondary border-opacity-10">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                      <i class="bi bi-sliders text-warning"></i> Payment Receiver Configuration
+                    </h5>
+                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
+                      <input class="form-check-input" type="checkbox" id="pay-is-active-toggle" checked style="width:2.5em; height:1.3em; cursor:pointer;" onchange="updatePaymentPreview()">
+                      <label class="form-check-label small fw-bold" for="pay-is-active-toggle" id="pay-status-label">Enabled</label>
+                    </div>
+                  </div>
+
+                  <form id="admin-payment-form" onsubmit="event.preventDefault(); saveAdminPaymentSettings();">
+                    <div class="row g-3">
+                      <!-- Receiver Name -->
+                      <div class="col-12">
+                        <label class="form-label small fw-bold text-secondary">
+                          Payment Receiver Name / Organization <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" id="pay-receiver-name" class="form-control form-control-glass" placeholder="e.g. Dr. R. ANITHA (Physical Director) / GASC Sports Account" required oninput="updatePaymentPreview()">
+                        <div class="form-text small text-muted">Official collegiate title shown on the student checkout screen.</div>
+                      </div>
+
+                      <!-- GPay Mobile Number -->
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-secondary">
+                          GPay Registered Mobile Number <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                          <span class="input-group-text bg-light text-muted fw-bold">+91</span>
+                          <input type="tel" id="pay-gpay-number" class="form-control form-control-glass" placeholder="9443218765" maxlength="10" required oninput="updatePaymentPreview()">
+                        </div>
+                        <div class="form-text small text-muted">10-digit Indian phone number linked with Google Pay.</div>
+                      </div>
+
+                      <!-- UPI ID / VPA -->
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-secondary">
+                          UPI ID / VPA <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                          <span class="input-group-text bg-light text-muted"><i class="bi bi-at"></i></span>
+                          <input type="text" id="pay-upi-id" class="form-control form-control-glass" placeholder="e.g. sportsgasc@sbi" required oninput="updatePaymentPreview()">
+                        </div>
+                        <div class="form-text small text-muted">Must be a valid VPA (username@bank). Do not enter just a phone number.</div>
+                      </div>
+
+                      <!-- Payment Mode & Instructions -->
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-secondary">Payment Method</label>
+                        <select id="pay-mode-select" class="form-select form-select-glass" onchange="updatePaymentPreview()">
+                          <option value="MANUAL_UPI">Manual GPay / UPI QR (UTR Verification)</option>
+                          <option value="GATEWAY">Integrated Payment Gateway</option>
+                          <option value="BOTH">Both (UPI QR + Gateway)</option>
+                        </select>
+                      </div>
+
+                      <!-- Entry Fees Defaults -->
+                      <div class="col-md-3">
+                        <label class="form-label small fw-bold text-secondary">Team Entry Fee (₹)</label>
+                        <input type="number" id="pay-team-fee" class="form-control form-control-glass" min="0" step="10" value="500" oninput="updatePaymentPreview()">
+                      </div>
+                      <div class="col-md-3">
+                        <label class="form-label small fw-bold text-secondary">Individual Fee (₹)</label>
+                        <input type="number" id="pay-ind-fee" class="form-control form-control-glass" min="0" step="10" value="100" oninput="updatePaymentPreview()">
+                      </div>
+
+                      <!-- Optional Validity Window -->
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-secondary">Valid From (Optional)</label>
+                        <input type="datetime-local" id="pay-valid-from" class="form-control form-control-glass">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-secondary">Valid Until (Optional)</label>
+                        <input type="datetime-local" id="pay-valid-until" class="form-control form-control-glass">
+                      </div>
+
+                      <!-- Payment QR Code Image Upload -->
+                      <div class="col-12">
+                        <label class="form-label small fw-bold text-secondary">Custom Merchant / GPay QR Code Image</label>
+                        <div class="input-group">
+                          <input type="file" id="pay-qr-file-input" class="form-control form-control-glass" accept="image/png,image/jpeg,image/webp" onchange="handleQrImageUpload(event)">
+                          <button class="btn btn-outline-danger btn-sm" type="button" onclick="clearCustomQrImage()">
+                            <i class="bi bi-trash me-1"></i> Use Auto-Generated QR
+                          </button>
+                        </div>
+                        <input type="hidden" id="pay-qr-code-url">
+                        <div class="form-text small text-muted">Upload your official bank / merchant standee QR photo or leave blank to automatically generate dynamic UPI QR.</div>
+                      </div>
+
+                      <!-- Payment Instructions -->
+                      <div class="col-12">
+                        <label class="form-label small fw-bold text-secondary">Payment Instructions For Students</label>
+                        <textarea id="pay-instructions" class="form-control form-control-glass" rows="3" placeholder="Step-by-step instructions displayed on the student checkout screen..." oninput="updatePaymentPreview()"></textarea>
+                      </div>
+                    </div>
+
+                    <!-- Action Bar -->
+                    <div class="d-flex align-items-center justify-content-between pt-4 mt-2 border-top border-secondary border-opacity-10 flex-wrap gap-2">
+                      <div class="text-muted small">
+                        <span id="pay-last-updated-text"><i class="bi bi-clock me-1"></i>Loading config status...</span>
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="resetPaymentForm()">
+                          <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm fw-bold px-4 shadow" onclick="saveAdminPaymentSettings()">
+                          <i class="bi bi-check2-circle me-1"></i> Save & Publish
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Right Preview Column: Live Student View -->
+              <div class="col-lg-5">
+                <div class="glass-card p-4 border border-light border-opacity-40 shadow-sm rounded-4 h-100 d-flex flex-column">
+                  <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom border-secondary border-opacity-10">
+                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                      <i class="bi bi-phone text-primary"></i> Live Student View Preview
+                    </h5>
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" id="preview-version-badge">Version 1</span>
+                  </div>
+
+                  <!-- Simulated Student Card -->
+                  <div class="p-4 rounded-4 text-white shadow-lg flex-grow-1 d-flex flex-column justify-content-between" style="background: linear-gradient(145deg, #0b192c 0%, #1e3e62 100%); border: 1px solid rgba(255,255,255,0.12);">
+                    <div>
+                      <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                          <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold" style="width:34px; height:34px; font-size:16px;">
+                            ₹
+                          </div>
+                          <div>
+                            <div class="small text-warning text-uppercase fw-bold letter-spacing-1" style="font-size:10px;">Inter-College Sports Fee</div>
+                            <div class="fw-bold text-white small" id="preview-receiver-name">Dr. R. ANITHA (Physical Director)</div>
+                          </div>
+                        </div>
+                        <span class="badge bg-emerald-500 text-white px-2.5 py-1 fw-bold rounded-pill" id="preview-active-pill" style="font-size:11px; background:#10b981;">ACTIVE</span>
+                      </div>
+
+                      <!-- QR Display Box -->
+                      <div class="text-center my-3 p-3 rounded-3" style="background: rgba(255,255,255,0.06); border: 1px dashed rgba(255,255,255,0.2);">
+                        <div class="position-relative d-inline-block">
+                          <img id="preview-qr-img" src="" alt="Payment QR Code" class="img-fluid rounded-3 bg-white p-2 shadow" style="max-height:190px; max-width:190px; object-fit:contain;">
+                          <div id="preview-qr-placeholder" class="bg-dark rounded-3 d-flex flex-column align-items-center justify-content-center p-3 text-muted d-none" style="height:190px; width:190px;">
+                            <i class="bi bi-qr-code fs-1 text-warning mb-2"></i>
+                            <div class="small">QR Preview</div>
+                          </div>
+                        </div>
+                        <div class="text-slate-300 small mt-2 fw-semibold" style="font-size:11px;">
+                          Scan using GPay, PhonePe, Paytm, or BHIM UPI
+                        </div>
+                      </div>
+
+                      <!-- Credentials Copy Cards -->
+                      <div class="row g-2 mb-3">
+                        <div class="col-12">
+                          <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                            <div>
+                              <div class="text-white-50" style="font-size:10px; text-transform:uppercase;">GPay Mobile Number</div>
+                              <div class="fw-bold text-white font-monospace" id="preview-gpay-number">+91 9443218765</div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-light py-1 px-2.5 rounded-pill" style="font-size:11px;" onclick="copyPreviewText('gpay')">
+                              <i class="bi bi-clipboard me-1"></i> Copy
+                            </button>
+                          </div>
+                        </div>
+                        <div class="col-12">
+                          <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
+                            <div>
+                              <div class="text-white-50" style="font-size:10px; text-transform:uppercase;">UPI ID / VPA</div>
+                              <div class="fw-bold text-warning font-monospace" id="preview-upi-id">sportsgasc@sbi</div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-warning py-1 px-2.5 rounded-pill" style="font-size:11px;" onclick="copyPreviewText('upi')">
+                              <i class="bi bi-clipboard me-1"></i> Copy
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Instructions Preview -->
+                      <div class="p-2.5 rounded-3 mb-2" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); font-size:11px;">
+                        <strong class="text-warning d-block mb-1"><i class="bi bi-info-circle me-1"></i> Instructions:</strong>
+                        <div id="preview-instructions" class="text-white-50" style="white-space:pre-line;">
+                          1. Open your UPI app and pay the entry fee.
+                          2. Copy the 12-digit UTR reference number.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="pt-2 text-center text-white-50 small border-top border-white border-opacity-10" style="font-size:10px;">
+                      Live preview updates instantly as you edit the settings.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- BACKWARD COMPATIBILITY STUB FOR INTER-COLLEGE VIEW -->
         <section id="view-inter-college" class="admin-view-section d-none"></section>
+
+        <!-- VIEW 6B: PAYMENT GATEWAY MANAGEMENT & TRANSACTIONS DASHBOARD -->
+        <section id="view-payments" class="admin-view-section d-none">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge px-2.5 py-1 fw-bold bg-success bg-opacity-20 text-success border border-success border-opacity-30">
+                  <i class="bi bi-shield-check me-1"></i> SECURE RAZORPAY GATEWAY
+                </span>
+                <span id="pay-gateway-status-pill" class="badge bg-warning text-dark px-2.5 py-1 fw-bold">
+                  TEST MODE
+                </span>
+              </div>
+              <h4 class="fw-bold text-white mb-1">
+                Online Payment Gateway & Fee Management
+              </h4>
+              <small style="color: #AFC4DF;">
+                Official Razorpay online collections, transaction ledger, reconciliation, verified receipts, and settlement account configuration.
+              </small>
+            </div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              <button class="btn btn-outline-secondary btn-sm px-3 text-white" onclick="loadAdminPayments()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Refresh Ledger
+              </button>
+              <button class="btn btn-outline-info btn-sm px-3 text-info" onclick="openPaymentAuditHistoryModal()">
+                <i class="bi bi-clock-history me-1"></i> Audit Trail
+              </button>
+              <button class="btn btn-outline-success btn-sm px-3 text-success" onclick="exportPaymentsToCsv()">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV
+              </button>
+              <button class="btn btn-sports-primary btn-sm px-3 shadow-sm text-nowrap" onclick="openPaymentSettingsModal()">
+                <i class="bi bi-sliders me-1"></i> Receiving Account Settings
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Summary Ribbon -->
+          <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card border-success border-opacity-30">
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-currency-rupee"></i></div>
+                <div>
+                  <div class="stat-value text-success" id="kpi-pay-total-collections">₹0</div>
+                  <div class="stat-label">Total Verified Collections</div>
+                  <small class="text-white-50"><span id="kpi-pay-success-count">0 Successful</span></small>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card border-warning border-opacity-30">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-clock-history"></i></div>
+                <div>
+                  <div class="stat-value text-warning" id="kpi-pay-pending-count">0</div>
+                  <div class="stat-label">Pending In-Checkout</div>
+                  <small class="text-white-50">Awaiting gateway capture</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card border-danger border-opacity-30">
+                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-x-circle-fill"></i></div>
+                <div>
+                  <div class="stat-value text-danger" id="kpi-pay-failed-count">0</div>
+                  <div class="stat-label">Failed / Cancelled</div>
+                  <small class="text-white-50">Gateway decline or timeout</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card border-info border-opacity-30">
+                <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-arrow-counterclockwise"></i></div>
+                <div>
+                  <div class="stat-value text-info" id="kpi-pay-refund-count">0</div>
+                  <div class="stat-label">Authorized Refunds</div>
+                  <small class="text-white-50">Processed back to payer</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter & Search Toolbar -->
+          <div class="glass-card p-3 mb-4 border border-secondary border-opacity-25 shadow-sm">
+            <div class="row g-2 align-items-center">
+              <div class="col-md-3">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-transparent text-secondary border-secondary border-opacity-25"><i class="bi bi-search"></i></span>
+                  <input type="text" id="pay-search-input" class="form-control form-control-glass" placeholder="Search Reg ID, Student, Payment ID, College..." onkeyup="if(event.key==='Enter') loadAdminPayments()">
+                </div>
+              </div>
+              <div class="col-md-2">
+                <select id="pay-filter-tournament" class="form-select form-select-glass form-select-sm" onchange="loadAdminPayments()">
+                  <option value="ALL">All Tournaments</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select id="pay-filter-competition" class="form-select form-select-glass form-select-sm" onchange="loadAdminPayments()">
+                  <option value="ALL">All Competitions</option>
+                </select>
+              </div>
+              <div class="col-md-2">
+                <select id="pay-filter-status" class="form-select form-select-glass form-select-sm" onchange="loadAdminPayments()">
+                  <option value="ALL">All Statuses</option>
+                  <option value="SUCCESS">Success Only</option>
+                  <option value="CREATED">Pending In-Checkout</option>
+                  <option value="FAILED">Failed</option>
+                  <option value="REFUNDED">Refunded</option>
+                </select>
+              </div>
+              <div class="col-md-3 d-flex gap-2">
+                <input type="date" id="pay-filter-date-from" class="form-control form-control-glass form-control-sm" title="From Date" onchange="loadAdminPayments()">
+                <input type="date" id="pay-filter-date-to" class="form-control form-control-glass form-control-sm" title="To Date" onchange="loadAdminPayments()">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetPaymentFilters()" title="Reset Filters">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transactions Table -->
+          <div class="table-responsive table-glass-container">
+            <table class="table table-glass align-middle">
+              <thead>
+                <tr>
+                  <th style="width:40px;">#</th>
+                  <th>Registration Reference</th>
+                  <th>Participant & College</th>
+                  <th>Competition & Category</th>
+                  <th>Amount (INR)</th>
+                  <th>Gateway Identifiers</th>
+                  <th>Payment Status</th>
+                  <th style="width:110px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="payments-table-body">
+                <!-- Loaded via paymentAdmin.js -->
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <!-- VIEW 7: APPLICATIONS REVIEW -->
         <section id="view-applications" class="admin-view-section d-none">
@@ -2886,6 +3262,127 @@
                 </div>
               </div>
 
+              <!-- Tournament Registration Fees & Payment Receiver Details -->
+              <div class="col-12 p-3 rounded-3 border border-primary border-opacity-30 shadow-sm" style="background: rgba(30, 41, 59, 0.45);">
+                <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom border-secondary border-opacity-25">
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="p-1.5 rounded-2 bg-primary bg-opacity-20 text-primary">
+                      <i class="bi bi-cash-coin fs-6"></i>
+                    </div>
+                    <div>
+                      <h6 class="text-xs fw-bold text-uppercase text-white mb-0 tracking-wide">
+                        Registration Fees & Payment Configuration
+                      </h6>
+                      <span class="text-muted" style="font-size:0.68rem;">Configure independent fees for Our College vs Other College + UPI / GPay Details</span>
+                    </div>
+                  </div>
+                  <span class="badge bg-primary bg-opacity-20 text-info border border-info border-opacity-30" style="font-size:0.68rem;">
+                    <i class="bi bi-shield-check me-1"></i>Official Fee System
+                  </span>
+                </div>
+
+                <!-- Independent Fee Cards: A. Our College vs B. Other College -->
+                <div class="row g-2">
+                  <!-- CARD A: OUR COLLEGE STUDENTS (GASC IDAPPADI) -->
+                  <div class="col-md-6">
+                    <div class="p-2.5 rounded-3 border border-success border-opacity-30 h-100" style="background: rgba(16, 185, 129, 0.06);">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-xs fw-bold text-success text-uppercase">
+                          <i class="bi bi-building-check me-1"></i> Our College Students (GASC)
+                        </span>
+                        <div class="form-check form-switch m-0">
+                          <input class="form-check-input" type="checkbox" role="switch" id="ctm-our-fee-toggle" name="ourCollegeFeeEnabled" onchange="toggleOurCollegeFee(this.checked)">
+                          <label class="form-check-label text-xs fw-bold text-light" for="ctm-our-fee-toggle" id="ctm-our-fee-toggle-lbl" style="font-size:0.7rem;">Free (Disabled)</label>
+                        </div>
+                      </div>
+
+                      <div id="ctm-our-fee-container" style="display: none;">
+                        <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
+                          Registration Fee for Our College (₹ INR) *
+                        </label>
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text fw-bold bg-dark text-success border-secondary">₹</span>
+                          <input type="number" name="ourCollegeFee" id="ctm-our-fee-input" class="form-control form-control-glass fw-bold text-success" value="50" min="0" step="5" placeholder="50">
+                          <span class="input-group-text small bg-dark text-muted border-secondary">INR</span>
+                        </div>
+                        <div class="text-muted" style="font-size:0.65rem;">GASC students will pay this fee via Gateway before registration.</div>
+                      </div>
+
+                      <div id="ctm-our-fee-free-msg" class="p-2 rounded bg-dark bg-opacity-40 border border-success border-opacity-20 text-center">
+                        <span class="text-xs text-success fw-bold"><i class="bi bi-gift-fill me-1"></i>Free Registration for Our College</span>
+                        <div class="text-muted" style="font-size:0.65rem;">No fee required for internal college students.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CARD B: OTHER COLLEGE STUDENTS (EXTERNAL VIA QR) -->
+                  <div class="col-md-6">
+                    <div class="p-2.5 rounded-3 border border-warning border-opacity-30 h-100" style="background: rgba(245, 158, 11, 0.06);">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-xs fw-bold text-warning text-uppercase">
+                          <i class="bi bi-qr-code-scan me-1"></i> Other College Students
+                        </span>
+                        <div class="form-check form-switch m-0">
+                          <input class="form-check-input" type="checkbox" role="switch" id="ctm-other-fee-toggle" name="otherCollegeFeeEnabled" checked onchange="toggleOtherCollegeFee(this.checked)">
+                          <label class="form-check-label text-xs fw-bold text-warning" for="ctm-other-fee-toggle" id="ctm-other-fee-toggle-lbl" style="font-size:0.7rem;">Fee Enabled</label>
+                        </div>
+                      </div>
+
+                      <div id="ctm-other-fee-container">
+                        <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
+                          Registration Fee for Other College (₹ INR) *
+                        </label>
+                        <div class="input-group input-group-sm mb-1">
+                          <span class="input-group-text fw-bold bg-dark text-warning border-secondary">₹</span>
+                          <input type="number" name="otherCollegeFee" id="ctm-other-fee-input" class="form-control form-control-glass fw-bold text-warning" value="100" min="0" step="10" placeholder="100">
+                          <span class="input-group-text small bg-dark text-muted border-secondary">INR</span>
+                        </div>
+                        <div class="text-muted" style="font-size:0.65rem;">External college participants must pay this fee to confirm entry.</div>
+                      </div>
+
+                      <div id="ctm-other-fee-free-msg" class="p-2 rounded bg-dark bg-opacity-40 border border-warning border-opacity-20 text-center" style="display: none;">
+                        <span class="text-xs text-warning fw-bold"><i class="bi bi-gift-fill me-1"></i>Free Entry for Other College</span>
+                        <div class="text-muted" style="font-size:0.65rem;">External colleges can register free without payment.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- PAYMENT RECEIVER DETAILS (GPAY NUMBER & UPI ID) -->
+                  <div class="col-12 mt-2">
+                    <div class="p-2.5 rounded-3 border border-info border-opacity-30" style="background: rgba(6, 182, 212, 0.05);">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-xs fw-bold text-info text-uppercase">
+                          <i class="bi bi-phone-fill me-1"></i> Receiving Account Details (GPay & UPI ID for this Tournament)
+                        </span>
+                        <span class="badge bg-dark text-info border border-info border-opacity-30" style="font-size:0.65rem;">
+                          Configured Directly Here
+                        </span>
+                      </div>
+                      <div class="row g-2">
+                        <div class="col-md-4">
+                          <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
+                            <i class="bi bi-qr-code text-info me-1"></i> Receiver UPI ID *
+                          </label>
+                          <input type="text" name="upiId" id="ctm-upi-id" class="form-control form-control-glass form-control-sm" placeholder="e.g. 9443218765@sbi" value="9443218765@sbi">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
+                            <i class="bi bi-google-play text-info me-1"></i> Google Pay / Mobile No *
+                          </label>
+                          <input type="tel" name="gpayNumber" id="ctm-gpay-number" class="form-control form-control-glass form-control-sm" placeholder="e.g. +91 94432 18765" value="+91 94432 18765">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
+                            <i class="bi bi-person-check-fill text-info me-1"></i> Authorized Receiver Name *
+                          </label>
+                          <input type="text" name="receiverName" id="ctm-receiver-name" class="form-control form-control-glass form-control-sm" placeholder="Physical Education Dept" value="Physical Education Dept, GASC Idappadi">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="col-6">
                 <label class="form-label small fw-bold">Tournament Level / Type</label>
                 <select name="type" id="ctm-type-select" class="form-select form-select-glass form-select-sm">
@@ -3137,6 +3634,59 @@
                   <option value="Registration Closed">Force Closed</option>
                 </select>
               </div>
+              <!-- Sport Specific Dual Registration Fee Options -->
+              <div class="col-12 p-3 rounded-3 border border-primary border-opacity-30 shadow-sm" style="background: rgba(30, 41, 59, 0.45);">
+                <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom border-secondary border-opacity-25">
+                  <span class="text-xs fw-bold text-uppercase text-white">
+                    <i class="bi bi-cash-coin me-1 text-primary"></i> Competition Entry Fee Settings
+                  </span>
+                  <span class="badge bg-primary bg-opacity-20 text-info border border-info border-opacity-30" style="font-size:0.65rem;">
+                    Independent Settings
+                  </span>
+                </div>
+                <div class="row g-2">
+                  <!-- OUR COLLEGE -->
+                  <div class="col-md-6">
+                    <div class="p-2.5 rounded-3 border border-success border-opacity-30 h-100" style="background: rgba(16, 185, 129, 0.06);">
+                      <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="text-xs fw-bold text-success" style="font-size:0.72rem;">Our College (GASC)</span>
+                        <div class="form-check form-switch m-0">
+                          <input class="form-check-input" type="checkbox" role="switch" id="add-sport-our-fee-toggle" name="ourCollegeFeeEnabled" onchange="toggleAddSportOurFee(this.checked)">
+                          <label class="form-check-label text-xs fw-bold text-light" for="add-sport-our-fee-toggle" id="add-sport-our-fee-lbl" style="font-size:0.68rem;">Free</label>
+                        </div>
+                      </div>
+                      <div id="add-sport-our-fee-cont" style="display:none;">
+                        <div class="input-group input-group-sm">
+                          <span class="input-group-text fw-bold bg-dark text-success border-secondary">₹</span>
+                          <input type="number" name="ourCollegeFee" id="add-sport-our-fee-input" class="form-control form-control-glass fw-bold text-success" value="50" min="0" step="5" placeholder="50">
+                          <span class="input-group-text small bg-dark text-muted border-secondary">INR</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- OTHER COLLEGE -->
+                  <div class="col-md-6">
+                    <div class="p-2.5 rounded-3 border border-warning border-opacity-30 h-100" style="background: rgba(245, 158, 11, 0.06);">
+                      <div class="d-flex align-items-center justify-content-between mb-1">
+                        <span class="text-xs fw-bold text-warning" style="font-size:0.72rem;">Other College (External)</span>
+                        <div class="form-check form-switch m-0">
+                          <input class="form-check-input" type="checkbox" role="switch" id="add-sport-other-fee-toggle" name="otherCollegeFeeEnabled" checked onchange="toggleAddSportOtherFee(this.checked)">
+                          <label class="form-check-label text-xs fw-bold text-warning" for="add-sport-other-fee-toggle" id="add-sport-other-fee-lbl" style="font-size:0.68rem;">Fee Enabled</label>
+                        </div>
+                      </div>
+                      <div id="add-sport-other-fee-cont">
+                        <div class="input-group input-group-sm">
+                          <span class="input-group-text fw-bold bg-dark text-warning border-secondary">₹</span>
+                          <input type="number" name="otherCollegeFee" id="add-sport-other-fee-input" class="form-control form-control-glass fw-bold text-warning" value="100" min="0" step="10" placeholder="100">
+                          <span class="input-group-text small bg-dark text-muted border-secondary">INR</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="col-12">
                 <label class="form-label small fw-bold">Rules & Eligibility Instructions</label>
                 <textarea name="description" class="form-control form-control-glass" rows="2" placeholder="Eligibility details, rules..."></textarea>
@@ -4109,6 +4659,130 @@
     </div>
   </div>
 
+  <!-- ================= MODAL: PAYMENT SETTINGS HISTORY AUDIT ================= -->
+  <div class="modal fade" id="modal-payment-history" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content glass-card p-4 shadow-2xl border border-light border-opacity-40 rounded-4">
+        <div class="modal-header border-0 pb-2">
+          <div>
+            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+              <i class="bi bi-clock-history text-primary"></i> Payment Settings Audit History
+            </h5>
+            <div class="text-muted small">Complete trail of GPay number, UPI ID, receiver name, and QR code revisions.</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-3">
+          <div class="table-responsive rounded-3 border border-secondary border-opacity-10">
+            <table class="table table-hover align-middle mb-0 text-nowrap" style="font-size:12.5px;">
+              <thead class="table-light">
+                <tr>
+                  <th>Ver</th>
+                  <th>Receiver Name</th>
+                  <th>GPay Number</th>
+                  <th>UPI ID</th>
+                  <th>Status</th>
+                  <th>Updated By</th>
+                  <th>Date & Time</th>
+                  <th>Audit Summary</th>
+                </tr>
+              </thead>
+              <tbody id="payment-history-table-body">
+                <tr><td colspan="8" class="text-center py-4 text-muted">Loading audit records...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-secondary rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL: RECONCILE & VERIFY MANUAL PAYMENT ================= -->
+  <div class="modal fade" id="modal-verify-payment" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card p-4 shadow-2xl border border-light border-opacity-40 rounded-4">
+        <div class="modal-header border-0 pb-2">
+          <div>
+            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+              <i class="bi bi-patch-check-fill text-success"></i> Verify & Reconcile Registration Fee
+            </h5>
+            <div class="text-muted small">Verify submitted UPI Transaction Reference Number (UTR) against bank records before confirming entry.</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-3">
+          <input type="hidden" id="verify-payment-reg-id">
+          
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="p-3 rounded-3 bg-light border border-secondary border-opacity-10 h-100">
+                <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size:10px;">Registration Details</div>
+                <div class="fw-bold text-dark fs-6" id="vp-reg-id">GASC-IC-2026-XXXX</div>
+                <div class="text-secondary small fw-semibold" id="vp-college-name">College Name</div>
+                <div class="text-muted small mt-1" id="vp-comp-name">Competition: Cricket (Men)</div>
+                <div class="text-muted small" id="vp-participant">Contact: Participant Phone</div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="p-3 rounded-3 bg-light border border-secondary border-opacity-10 h-100">
+                <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size:10px;">Submitted Payment Record</div>
+                <div class="d-flex align-items-baseline gap-2">
+                  <span class="fs-4 fw-black text-success" id="vp-fee-amount">₹500</span>
+                  <span class="badge bg-warning text-dark" id="vp-payment-status">PENDING VERIFICATION</span>
+                </div>
+                <div class="mt-2">
+                  <span class="text-muted small">UTR / Transaction Ref:</span>
+                  <div class="d-flex align-items-center gap-2 mt-1">
+                    <code class="fs-6 fw-bold text-primary p-1 rounded bg-white border" id="vp-utr-number">123456789012</code>
+                    <button type="button" class="btn btn-sm btn-outline-secondary py-0.5 px-2" onclick="copyUtrToClipboard()" title="Copy UTR">
+                      <i class="bi bi-clipboard"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="text-muted small mt-2" id="vp-config-version">Payment Config Version: v1</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Screenshot / Receipt Preview if uploaded -->
+          <div id="vp-screenshot-box" class="p-3 rounded-3 bg-light border border-secondary border-opacity-10 mb-3 d-none">
+            <div class="text-muted small fw-bold mb-2"><i class="bi bi-image me-1"></i> Uploaded Payment Receipt / Screenshot</div>
+            <div class="text-center">
+              <img id="vp-screenshot-img" src="" alt="Payment Receipt" class="img-fluid rounded border shadow-sm" style="max-height:260px; object-fit:contain;">
+            </div>
+          </div>
+
+          <!-- Admin Remarks -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-dark">Reconciliation Remarks (Optional)</label>
+            <input type="text" id="vp-admin-remarks" class="form-control form-control-glass" placeholder="e.g. Verified with SBI sports account passbook entry on Oct 17.">
+            <div class="form-text small text-muted">Will be included in the confirmation email dispatched to the college.</div>
+          </div>
+
+          <div class="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-0">
+            <i class="bi bi-shield-exclamation fs-5 flex-shrink-0 text-warning"></i>
+            <span><strong>Reconciliation policy:</strong> Only click "Confirm & Verify" after matching the 12-digit UTR against the college bank or GPay transaction history.</span>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 d-flex justify-content-between flex-wrap gap-2">
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3 fw-bold btn-sm" onclick="rejectRegistrationPayment()">
+            <i class="bi bi-x-circle me-1"></i> Reject Payment
+          </button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-success rounded-pill px-4 fw-bold btn-sm shadow" onclick="confirmRegistrationPayment()">
+              <i class="bi bi-check2-circle me-1"></i> Confirm & Verify Payment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= MODAL: CM TROPHY ANNOUNCEMENT (CREATE / EDIT) ================= -->
   <div class="modal fade" id="cmTrophyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -4306,6 +4980,260 @@
     </div>
   </div>
 
+  <!-- ================= MODALS: PAYMENT MANAGEMENT & RECONCILIATION ================= -->
+  <!-- 1. OFFICIAL PRINTABLE RECEIPT MODAL -->
+  <div class="modal fade" id="modal-payment-receipt" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card shadow-lg border border-secondary border-opacity-25">
+        <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-receipt text-success"></i> Official Payment Receipt & Registration Record
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4" id="receipt-modal-content">
+          <!-- Populated by paymentAdmin.js -->
+        </div>
+        <div class="modal-footer border-top border-secondary border-opacity-10 py-2">
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-success rounded-pill px-4 fw-bold btn-sm shadow-sm" onclick="printReceipt()">
+            <i class="bi bi-printer-fill me-1"></i> Print / Save PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. AUTHORIZED REFUND INITIATION MODAL -->
+  <div class="modal fade" id="modal-initiate-refund" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-card shadow-lg border border-danger border-opacity-25">
+        <div class="modal-header border-bottom border-danger border-opacity-10 py-3">
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-arrow-counterclockwise text-danger"></i> Authorize Payment Refund (Razorpay)
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-warning d-flex align-items-start gap-2 text-start small mb-3">
+            <i class="bi bi-exclamation-triangle-fill fs-5 text-warning shrink-0 mt-0.5"></i>
+            <div>
+              <strong>Gateway Refund Policy:</strong> This action initiates a secure refund through the Razorpay API. Returned funds are credited directly back to the student's original payment source (UPI, Debit Card, or Netbanking) within standard banking settlement timeframes (5-7 business days).
+            </div>
+          </div>
+
+          <form onsubmit="event.preventDefault(); submitAuthorizedRefund();">
+            <input type="hidden" id="refund-payment-id">
+
+            <div class="bg-light p-3 rounded-3 mb-3 border small">
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">Registration Code:</span>
+                <span class="fw-bold font-monospace text-primary" id="refund-reg-code">-</span>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">Maximum Refundable Amount:</span>
+                <span class="fw-bold text-success" id="refund-max-amount">₹0</span>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Refund Amount (₹ INR) <span class="text-danger">*</span></label>
+              <input type="number" id="refund-amount-input" class="form-control form-control-glass" min="1" step="any" required>
+              <div class="form-text small">Full or partial refund amount.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Official Reason for Refund <span class="text-danger">*</span></label>
+              <textarea id="refund-reason-input" class="form-control form-control-glass" rows="2" placeholder="e.g. Tournament cancelled, accidental double registration, medical withdrawal" required></textarea>
+              <div class="form-text small">Recorded in the audit log and sent in the Razorpay transaction notes.</div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 pt-2">
+              <button type="button" class="btn btn-outline-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" id="btn-confirm-refund" class="btn btn-danger rounded-pill px-4 fw-bold btn-sm shadow-sm">
+                <i class="bi bi-arrow-counterclockwise me-1"></i> Confirm Authorized Refund
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. DYNAMIC RECEIVING ACCOUNT & GATEWAY SETTINGS MODAL -->
+  <div class="modal fade" id="modal-payment-settings" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card shadow-lg border border-secondary border-opacity-25">
+        <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-sliders text-warning"></i> Dynamic Receiving Account & Gateway Settings
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <!-- Settlement Security Alert -->
+          <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-20 text-dark small mb-4">
+            <div class="fw-bold d-flex align-items-center gap-1.5 text-primary mb-1">
+              <i class="bi bi-shield-lock-fill"></i> Settlement Destination Security Notice
+            </div>
+            <div>
+              Changing display information or contact numbers below updates collegiate presentation and receipt titles only. Payment gateway settlements are directed <strong>strictly</strong> to the bank account verified and approved via KYC inside the official Razorpay Merchant Dashboard.
+            </div>
+          </div>
+
+          <form onsubmit="event.preventDefault(); savePaymentSettingsFromModal();">
+            <div class="row g-3">
+              <!-- Mode Switches -->
+              <div class="col-md-6">
+                <div class="p-3 rounded-3 bg-light border d-flex justify-content-between align-items-center">
+                  <div>
+                    <label class="fw-bold mb-0 text-dark small">Gateway Mode</label>
+                    <div class="text-muted small" style="font-size:0.75rem;">Toggle Test Mode vs Live Production</div>
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="cfg-is-test-mode" style="width:2.5em; height:1.3em;">
+                    <label class="form-check-label small fw-bold text-warning" for="cfg-is-test-mode">Test</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <div class="p-3 rounded-3 bg-light border d-flex justify-content-between align-items-center">
+                  <div>
+                    <label class="fw-bold mb-0 text-dark small">Allow Free Registrations</label>
+                    <div class="text-muted small" style="font-size:0.75rem;">Permit ₹0 fee entry without checkout</div>
+                  </div>
+                  <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="cfg-allow-free" checked style="width:2.5em; height:1.3em;">
+                    <label class="form-check-label small fw-bold text-success" for="cfg-allow-free">Allowed</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Receiving Account & Merchant ID -->
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Authorized Recipient Display Name <span class="text-danger">*</span></label>
+                <input type="text" id="cfg-receiver-name" class="form-control form-control-glass form-control-sm" required>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Receiving Department / Unit</label>
+                <input type="text" id="cfg-receiver-dept" class="form-control form-control-glass form-control-sm">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Institution / College Name</label>
+                <input type="text" id="cfg-institution-name" class="form-control form-control-glass form-control-sm">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Merchant Account Identifier (MID)</label>
+                <input type="text" id="cfg-merchant-id" class="form-control form-control-glass form-control-sm font-monospace">
+              </div>
+
+              <!-- Settlement Account Metadata -->
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Settlement Bank Name</label>
+                <input type="text" id="cfg-settlement-bank" class="form-control form-control-glass form-control-sm" placeholder="e.g. State Bank of India">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Settlement Branch</label>
+                <input type="text" id="cfg-settlement-branch" class="form-control form-control-glass form-control-sm" placeholder="e.g. Idappadi Branch">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Settlement Account Status</label>
+                <select id="cfg-settlement-status" class="form-select form-select-glass form-select-sm">
+                  <option value="KYC_VERIFIED">KYC Verified in Provider Dashboard</option>
+                  <option value="PENDING_APPROVAL">Pending Merchant Onboarding</option>
+                  <option value="DOCUMENTS_REQUIRED">Collegiate Documentation Required</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Masked Account Number</label>
+                <input type="text" id="cfg-settlement-mask" class="form-control form-control-glass form-control-sm font-monospace" placeholder="••••••••4892">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Settlement Account Title</label>
+                <input type="text" id="cfg-settlement-title" class="form-control form-control-glass form-control-sm" placeholder="Sports Fund Account">
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label small fw-bold text-secondary">Default Team Fee (₹)</label>
+                <input type="number" id="cfg-team-fee" class="form-control form-control-glass form-control-sm" min="0">
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label small fw-bold text-secondary">Default Individual Fee (₹)</label>
+                <input type="number" id="cfg-individual-fee" class="form-control form-control-glass form-control-sm" min="0">
+              </div>
+
+              <!-- Public Key Display -->
+              <div class="col-12">
+                <div class="p-2.5 rounded-3 bg-light border small">
+                  <span class="text-muted">Configured Public Key ID:</span>
+                  <span class="font-monospace fw-bold text-primary ms-2" id="cfg-public-key-display">-</span>
+                  <div class="text-muted" style="font-size:0.7rem; margin-top:2px;">(Gateway secrets are kept in protected environment variables and are never displayed)</div>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-bold text-secondary">Change Summary (Audit Reason)</label>
+                <input type="text" id="cfg-change-summary" class="form-control form-control-glass form-control-sm" placeholder="e.g. Switched to Test Mode for championship verification">
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 pt-4">
+              <button type="button" class="btn btn-outline-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold btn-sm shadow-sm">
+                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Save Configuration
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. PAYMENT AUDIT HISTORY MODAL -->
+  <div class="modal fade" id="modal-payment-audit-history" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card shadow-lg border border-secondary border-opacity-25">
+        <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
+          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history text-info"></i> Payment Configuration Audit Trail
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-0">
+          <div class="table-responsive" style="max-height:400px;">
+            <table class="table table-hover table-sm align-middle mb-0 small">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>Ver</th>
+                  <th>Receiver Name</th>
+                  <th>Mode</th>
+                  <th>Settlement Status</th>
+                  <th>Date & Time</th>
+                  <th>Change Summary</th>
+                </tr>
+              </thead>
+              <tbody id="payment-audit-history-tbody">
+                <!-- Populated by paymentAdmin.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer border-top border-secondary border-opacity-10 py-2">
+          <button type="button" class="btn btn-outline-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script src="vendor/bootstrap.bundle.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js';"></script>
   <script src="js/config.js?v=20260927_emoji_v6"></script>
@@ -4313,8 +5241,10 @@
   <script src="js/charts.js?v=20260927_emoji_v6"></script>
   <script src="js/admin.js?v=20260927_emoji_v6"></script>
   <script src="js/interCollegeAdmin.js?v=20261008_v1"></script>
+  <script src="js/paymentAdmin.js?v=20261017_v1"></script>
   <script src="js/offlineStatus.js?v=20260928_offline_v1"></script>
   <script src="js/touchEffects.js"></script>
 </body>
 
 </html>
+

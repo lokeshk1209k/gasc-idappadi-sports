@@ -47,6 +47,10 @@ interface SportCompetition {
   status: string;
   description?: string;
   bannerImage?: string;
+  ourCollegeFeeEnabled?: boolean;
+  ourCollegeFee?: number;
+  otherCollegeFeeEnabled?: boolean;
+  otherCollegeFee?: number;
 }
 
 interface Tournament {
@@ -427,7 +431,11 @@ const CompetitionsPage = () => {
             maxParticipants: c.maxParticipants || 50,
             currentRegistrations: c.currentRegistrations || 0,
             status: c.status || 'Registration Open',
-            description: c.description || `${sName} competition inside ${tName}.`
+            description: c.description || `${sName} competition inside ${tName}.`,
+            ourCollegeFeeEnabled: c.ourCollegeFeeEnabled !== undefined ? Boolean(c.ourCollegeFeeEnabled) : (c.our_college_fee_enabled !== undefined ? Boolean(c.our_college_fee_enabled) : false),
+            ourCollegeFee: c.ourCollegeFee !== undefined ? Number(c.ourCollegeFee) : (c.our_college_fee !== undefined ? Number(c.our_college_fee) : 0),
+            otherCollegeFeeEnabled: c.otherCollegeFeeEnabled !== undefined ? Boolean(c.otherCollegeFeeEnabled) : (c.other_college_fee_enabled !== undefined ? Boolean(c.other_college_fee_enabled) : false),
+            otherCollegeFee: c.otherCollegeFee !== undefined ? Number(c.otherCollegeFee) : (c.other_college_fee !== undefined ? Number(c.other_college_fee) : 0)
           });
         });
 
@@ -559,6 +567,107 @@ const CompetitionsPage = () => {
     const hex = Math.random().toString(16).substring(2, 8).toUpperCase();
     const generatedCode = `${tCode}-${sCode}-${hex}`;
 
+    // Check if Our College Fee applies
+    const fee = (selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0) ? Number(selectedSport.ourCollegeFee) : 0;
+    let paymentId: string | null = null;
+    let orderId: string | null = null;
+    let signature: string | null = null;
+
+    if (fee > 0) {
+      try {
+        // 1. Create order
+        let orderRes = await fetch('/api/payments/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            competitionId: compId,
+            studentCategory: 'OUR_COLLEGE',
+            studentName: studentUser.name || 'Lokesh Krishnan',
+            collegeName: 'Government Arts and Science College, Idappadi',
+            email: studentUser.email || 'c24ug183csc013@gascidappadi.edu.in',
+            phone: studentUser.mobile || '+91 98421 54321'
+          })
+        });
+        let orderData = await orderRes.json().catch(() => null);
+        if (!orderData || !orderData.success) {
+          orderRes = await fetch('/api/open-registration/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              competitionId: compId,
+              studentCategory: 'OUR_COLLEGE',
+              studentName: studentUser.name || 'Lokesh Krishnan',
+              collegeName: 'Government Arts and Science College, Idappadi',
+              email: studentUser.email || 'c24ug183csc013@gascidappadi.edu.in',
+              phone: studentUser.mobile || '+91 98421 54321'
+            })
+          });
+          orderData = await orderRes.json().catch(() => null);
+        }
+
+        if (!orderData || !orderData.success) {
+          showToast(orderData?.message || 'Could not initialize payment order.', 'error');
+          setRegistering(false);
+          return;
+        }
+
+        orderId = orderData.orderId;
+
+        // Load Razorpay Script dynamically if needed
+        const isLoaded = await (async () => {
+          if ((window as any).Razorpay) return true;
+          return new Promise<boolean>((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+          });
+        })();
+
+        if (isLoaded && (window as any).Razorpay && orderData.keyId && !orderData.keyId.includes('simulator')) {
+          const paymentResult: any = await new Promise((resolve, reject) => {
+            const rzp = new (window as any).Razorpay({
+              key: orderData.keyId,
+              amount: orderData.amount,
+              currency: 'INR',
+              name: 'GASC Idappadi Sports',
+              description: `Registration Fee: ${selectedSport.name}`,
+              order_id: orderData.orderId,
+              prefill: {
+                name: studentUser.name,
+                email: studentUser.email,
+                contact: studentUser.mobile
+              },
+              theme: { color: '#0284c7' },
+              handler: (res: any) => resolve(res),
+              modal: { ondismiss: () => reject(new Error('Payment cancelled.')) }
+            });
+            rzp.open();
+          }).catch(err => {
+            showToast(err.message || 'Payment cancelled.', 'error');
+            return null;
+          });
+
+          if (!paymentResult) {
+            setRegistering(false);
+            return;
+          }
+          paymentId = paymentResult.razorpay_payment_id;
+          orderId = paymentResult.razorpay_order_id || orderId;
+          signature = paymentResult.razorpay_signature;
+        } else {
+          // Simulation fallback for sandbox development testing
+          paymentId = `pay_sim_${Date.now().toString(36)}`;
+          signature = `sig_sim_${Date.now().toString(36)}`;
+        }
+      } catch (payErr: any) {
+        showToast(payErr.message || 'Payment processing error.', 'error');
+        setRegistering(false);
+        return;
+      }
+    }
+
     try {
       let token = localStorage.getItem('gasc_token') || localStorage.getItem('token') || localStorage.getItem('studentToken');
 
@@ -588,7 +697,7 @@ const CompetitionsPage = () => {
           'x-student-id': studentUser.id || 'usr_lokesh_csc013'
         },
         body: JSON.stringify({
-          remarks: 'Confirmed via Student 1-Click Registration',
+          remarks: fee > 0 ? `Paid ₹${fee} via Online Gateway (${paymentId})` : 'Confirmed via Student 1-Click Registration',
           registerNumber: studentUser.registerNumber || 'C24UG183CSC013',
           studentId: studentUser.id || 'usr_lokesh_csc013',
           studentName: studentUser.name || 'Lokesh Krishnan',
@@ -596,7 +705,11 @@ const CompetitionsPage = () => {
           year: studentUser.year || 'III Year',
           gender: studentUser.gender || 'Male',
           mobile: studentUser.mobile || '+91 98421 54321',
-          email: studentUser.email || `${(studentUser.registerNumber || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`
+          email: studentUser.email || `${(studentUser.registerNumber || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`,
+          paymentId,
+          orderId,
+          signature,
+          studentCategory: 'OUR_COLLEGE'
         })
       });
 
@@ -1084,6 +1197,16 @@ const CompetitionsPage = () => {
                           >
                             {s.category || 'Men'}
                           </span>
+                          {/* Our College Fee Badge */}
+                          {s.ourCollegeFeeEnabled && (s.ourCollegeFee || 0) > 0 ? (
+                            <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 8, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)' }}>
+                              Fee: ₹{s.ourCollegeFee}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 8px', borderRadius: 8, background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.4)' }}>
+                              Free (₹0)
+                            </span>
+                          )}
                           {(() => {
                             const dynS = getDynamicRegistrationStatus(s);
                             return (
@@ -1351,6 +1474,26 @@ const CompetitionsPage = () => {
               </div>
             </div>
 
+            {/* Registration Fee & Student Category Summary */}
+            <div style={{ background: 'rgba(15,23,42,0.85)', borderRadius: 16, padding: 16, border: '1px solid rgba(56,167,255,0.25)', marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
+                <span style={{ color: '#6E86A5' }}>Student Category:</span>
+                <strong style={{ color: '#38A7FF' }}>Our College (GASC Idappadi)</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
+                <span style={{ color: '#6E86A5' }}>Registration Fee:</span>
+                <strong style={{ color: selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? '#f59e0b' : '#4ade80' }}>
+                  {selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? `₹${selectedSport.ourCollegeFee} INR` : 'Free (₹0)'}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 14 }}>
+                <span style={{ color: '#FFF', fontWeight: 700 }}>Total Payable Amount:</span>
+                <strong style={{ color: selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? '#4ade80' : '#38A7FF', fontSize: 16 }}>
+                  {selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? `₹${selectedSport.ourCollegeFee} INR` : '₹0 INR'}
+                </strong>
+              </div>
+            </div>
+
             {/* Actions */}
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={() => setShowConfirmModal(false)} className="btn btn-outline" style={{ flex: 1 }}>
@@ -1362,7 +1505,13 @@ const CompetitionsPage = () => {
                 className="btn btn-primary"
                 style={{ flex: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (selectedSport && !getDynamicRegistrationStatus(selectedSport).isOpen) ? 0.6 : 1 }}
               >
-                {registering ? 'Registering...' : (selectedSport && !getDynamicRegistrationStatus(selectedSport).isOpen ? getDynamicRegistrationStatus(selectedSport).label : 'Confirm Registration')}
+                {registering
+                  ? 'Processing...'
+                  : (selectedSport && !getDynamicRegistrationStatus(selectedSport).isOpen
+                      ? getDynamicRegistrationStatus(selectedSport).label
+                      : (selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0
+                          ? `Pay ₹${selectedSport.ourCollegeFee} & Register`
+                          : 'Confirm Free Registration'))}
               </button>
             </div>
           </div>

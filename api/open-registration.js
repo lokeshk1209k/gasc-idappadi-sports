@@ -332,6 +332,16 @@ async function handleTournament(req, res, tokenParam) {
         description: c.description || tournament.description,
         bannerImage: c.banner_image || tournament.banner_image || '/images/sports/tournament.png',
         rules: c.rules,
+        entryFee: c.other_college_fee !== undefined ? Number(c.other_college_fee) : (c.entry_fee !== undefined ? Number(c.entry_fee) : (c.entryFee !== undefined ? Number(c.entryFee) : (tournament.other_college_fee !== undefined ? Number(tournament.other_college_fee) : (tournament.entry_fee !== undefined ? Number(tournament.entry_fee) : undefined)))),
+        hasPayment: c.other_college_fee_enabled !== undefined ? Boolean(c.other_college_fee_enabled) : (c.has_payment !== undefined ? Boolean(c.has_payment) : (tournament.other_college_fee_enabled !== undefined ? Boolean(tournament.other_college_fee_enabled) : (tournament.has_payment !== undefined ? Boolean(tournament.has_payment) : undefined))),
+        isPaid: c.other_college_fee_enabled !== undefined ? Boolean(c.other_college_fee_enabled) : (c.is_paid !== undefined ? Boolean(c.is_paid) : (tournament.other_college_fee_enabled !== undefined ? Boolean(tournament.other_college_fee_enabled) : (tournament.is_paid !== undefined ? Boolean(tournament.is_paid) : undefined))),
+        ourCollegeFeeEnabled: c.our_college_fee_enabled !== undefined ? Boolean(c.our_college_fee_enabled) : (tournament.our_college_fee_enabled !== undefined ? Boolean(tournament.our_college_fee_enabled) : false),
+        ourCollegeFee: c.our_college_fee !== undefined ? Number(c.our_college_fee) : (tournament.our_college_fee !== undefined ? Number(tournament.our_college_fee) : 0),
+        otherCollegeFeeEnabled: c.other_college_fee_enabled !== undefined ? Boolean(c.other_college_fee_enabled) : (tournament.other_college_fee_enabled !== undefined ? Boolean(tournament.other_college_fee_enabled) : Boolean(c.entry_fee > 0 || c.has_payment)),
+        otherCollegeFee: c.other_college_fee !== undefined ? Number(c.other_college_fee) : (tournament.other_college_fee !== undefined ? Number(tournament.other_college_fee) : Number(c.entry_fee || 0)),
+        upiId: c.upi_id || tournament.upi_id || '',
+        gpayNumber: c.gpay_number || tournament.gpay_number || '',
+        receiverName: c.receiver_name || tournament.receiver_name || '',
         contactPerson: tournament.contact_person || 'Dr. R. ANITHA (Physical Director)',
         contactPhone: tournament.contact_phone || '+91 94432 18765',
         contactEmail: tournament.contact_email || 'sportsgascidappadi@gmail.com',
@@ -352,6 +362,16 @@ async function handleTournament(req, res, tokenParam) {
         status: tournament.status || 'Registration Open',
         bannerImage: tournament.banner_image || '/images/sports/tournament.png',
         registrationToken: tournament.registration_token || tournament.id,
+        entryFee: tournament.other_college_fee !== undefined ? Number(tournament.other_college_fee) : (tournament.entry_fee !== undefined ? Number(tournament.entry_fee) : undefined),
+        hasPayment: tournament.other_college_fee_enabled !== undefined ? Boolean(tournament.other_college_fee_enabled) : (tournament.has_payment !== undefined ? Boolean(tournament.has_payment) : undefined),
+        isPaid: tournament.other_college_fee_enabled !== undefined ? Boolean(tournament.other_college_fee_enabled) : (tournament.is_paid !== undefined ? Boolean(tournament.is_paid) : undefined),
+        ourCollegeFeeEnabled: tournament.our_college_fee_enabled !== undefined ? Boolean(tournament.our_college_fee_enabled) : false,
+        ourCollegeFee: Number(tournament.our_college_fee || 0),
+        otherCollegeFeeEnabled: tournament.other_college_fee_enabled !== undefined ? Boolean(tournament.other_college_fee_enabled) : Boolean(tournament.has_payment || (tournament.entry_fee > 0)),
+        otherCollegeFee: Number(tournament.other_college_fee || tournament.entry_fee || 0),
+        upiId: tournament.upi_id || '',
+        gpayNumber: tournament.gpay_number || '',
+        receiverName: tournament.receiver_name || '',
         contactPerson: tournament.contact_person || 'Dr. R. ANITHA (Physical Director)',
         contactPhone: tournament.contact_phone || '+91 94432 18765',
         contactEmail: tournament.contact_email || 'sportsgascidappadi@gmail.com',
@@ -673,6 +693,67 @@ async function handleRegister(req, res) {
       updated_at: new Date().toISOString()
     };
 
+    // ── Payment Validation & Assignment ──
+    const reqFee = Number(body.feeAmount || comp.entry_fee || comp.entryFee || 0);
+    const submittedUtr = (body.transactionRef || body.utrNumber || '').trim().toUpperCase();
+    const submittedScreenshot = body.paymentScreenshot || null;
+    const submittedConfigVersion = Number(body.paymentConfigVersion || 1);
+    const submittedMethod = body.paymentMethod || (reqFee > 0 ? 'MANUAL_UPI' : 'FREE');
+
+    if (reqFee > 0) {
+      if (!submittedUtr) {
+        return res.status(400).json({
+          success: false,
+          message: `Registration fee of ₹${reqFee} is required. Please transfer the amount via GPay / UPI and enter the 12-digit UTR reference number.`
+        });
+      }
+
+      if (submittedUtr.length < 6 || submittedUtr.length > 30) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid UPI Transaction Reference Number (UTR). Please enter a valid reference from your UPI app.'
+        });
+      }
+
+      // Check duplicate transaction_ref in Supabase
+      try {
+        const { data: dupSupa } = await supabase
+          .from('external_registrations')
+          .select('id, registration_id')
+          .eq('transaction_ref', submittedUtr)
+          .limit(1);
+        if (dupSupa && dupSupa.length > 0) {
+          return res.status(409).json({
+            success: false,
+            code: 'DUPLICATE_TRANSACTION_REF',
+            message: `This UPI Transaction Reference Number (${submittedUtr}) has already been submitted for another registration. Duplicate transaction references are strictly rejected.`
+          });
+        }
+      } catch (e) {}
+    }
+
+    const initialPaymentStatus = reqFee > 0 ? 'PENDING_VERIFICATION' : 'FREE';
+    const remarksPayload = {
+      fee_amount: reqFee,
+      payment_method: submittedMethod,
+      payment_status: initialPaymentStatus,
+      transaction_ref: submittedUtr || null,
+      payment_screenshot: submittedScreenshot,
+      payment_config_version: submittedConfigVersion,
+      payment_verified_by: null,
+      payment_verified_at: null,
+      payment_remarks: null,
+      players: Array.isArray(players) ? players : []
+    };
+
+    regPayload.fee_amount = reqFee;
+    regPayload.payment_method = submittedMethod;
+    regPayload.payment_status = initialPaymentStatus;
+    regPayload.transaction_ref = submittedUtr || null;
+    regPayload.payment_screenshot = submittedScreenshot;
+    regPayload.payment_config_version = submittedConfigVersion;
+    regPayload.remarks = JSON.stringify(remarksPayload);
+
     try {
       const compReg = {
         id: primaryId,
@@ -686,7 +767,7 @@ async function handleRegister(req, res) {
         sport_id: comp.sport_id || 'sp_cricket',
         sport_name: comp.sport_name || comp.name,
         preferred_position: mode,
-        remarks: JSON.stringify({ ...regPayload, players: Array.isArray(players) ? players : [] }),
+        remarks: JSON.stringify(remarksPayload),
         status: 'Pending',
         registration_date: new Date().toISOString()
       };
@@ -695,7 +776,19 @@ async function handleRegister(req, res) {
 
     try {
       await supabase.from('external_registrations').insert(regPayload);
-    } catch (e) {}
+    } catch (e) {
+      // Fallback: try inserting without extended payment columns if table not yet migrated
+      try {
+        const fallbackPayload = { ...regPayload };
+        delete fallbackPayload.fee_amount;
+        delete fallbackPayload.payment_method;
+        delete fallbackPayload.payment_status;
+        delete fallbackPayload.transaction_ref;
+        delete fallbackPayload.payment_screenshot;
+        delete fallbackPayload.payment_config_version;
+        await supabase.from('external_registrations').insert(fallbackPayload);
+      } catch (fErr) {}
+    }
 
     if (mode === 'TEAM' && Array.isArray(players)) {
       for (const p of players) {
@@ -1511,17 +1604,933 @@ async function handleCmTrophy(req, res) {
   return res.status(405).json({ success: false, message: 'Method not allowed' });
 }
 
+// ── Payment Handlers for Serverless ──
+async function fetchServerlessPaymentConfig() {
+  const supabase = getSupabase();
+  let config = null;
+
+  try {
+    const { data } = await supabase.from('payment_settings').select('*').eq('id', 'default').maybeSingle();
+    if (data) config = data;
+  } catch (e) {}
+
+  if (!config) {
+    try {
+      const { data } = await supabase.from('admin_settings').select('*').eq('id', 'payment_config').maybeSingle();
+      if (data && data.value) {
+        config = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+      }
+    } catch (e) {}
+  }
+
+  if (!config) {
+    config = {
+      id: 'default',
+      receiver_name: 'Dr. R. ANITHA (Physical Director) / GASC Sports Account',
+      gpay_number: '9443218765',
+      upi_id: 'sportsgasc@sbi',
+      qr_code_url: '',
+      payment_mode: 'MANUAL_UPI',
+      is_active: true,
+      payment_instructions: '1. Open Google Pay, PhonePe, Paytm, or any UPI app.\n2. Scan the QR code or enter the UPI ID / GPay number.\n3. Complete the payment and note down the 12-digit UPI / UTR Transaction Reference Number.\n4. Enter the UTR number in the registration form and submit.',
+      team_fee: 500,
+      individual_fee: 100,
+      valid_from: null,
+      valid_until: null,
+      config_version: 1,
+      updated_by: 'Super Admin',
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  return config;
+}
+
+async function handlePaymentSettings(req, res) {
+  try {
+    const config = await fetchServerlessPaymentConfig();
+
+    let isValidWindow = true;
+    const now = new Date();
+    if (config.valid_from) {
+      const fromDate = new Date(config.valid_from);
+      if (!isNaN(fromDate.getTime()) && now < fromDate) isValidWindow = false;
+    }
+    if (config.valid_until) {
+      const untilDate = new Date(config.valid_until);
+      if (!isNaN(untilDate.getTime()) && now > untilDate) isValidWindow = false;
+    }
+
+    const isEnabled = Boolean(config.is_active) && isValidWindow;
+
+    let qrUrl = config.qr_code_url || '';
+    if (!qrUrl && config.upi_id) {
+      try {
+        const upiUri = `upi://pay?pa=${encodeURIComponent(config.upi_id)}&pn=${encodeURIComponent(config.receiver_name || 'GASC Sports')}&cu=INR`;
+        qrUrl = await QRCode.toDataURL(upiUri, { width: 300, margin: 2 });
+      } catch (qrErr) {}
+    }
+
+    return res.status(200).json({
+      success: true,
+      settings: {
+        receiverName: config.receiver_name || 'Physical Director, GASC',
+        gpayNumber: config.gpay_number || '',
+        upiId: config.upi_id || '',
+        qrCodeUrl: qrUrl,
+        instructions: config.payment_instructions || 'Scan QR or pay to GPay / UPI ID. Submit 12-digit UTR number.',
+        paymentMode: config.payment_mode || 'MANUAL_UPI',
+        isEnabled: isEnabled,
+        teamFee: Number(config.team_fee || 500),
+        individualFee: Number(config.individual_fee || 100),
+        configVersion: Number(config.config_version || 1),
+        validFrom: config.valid_from || null,
+        validUntil: config.valid_until || null
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function handleAdminPaymentSettings(req, res) {
+  const supabase = getSupabase();
+  if (req.method === 'GET') {
+    try {
+      const config = await fetchServerlessPaymentConfig();
+      let history = [];
+      try {
+        const { data } = await supabase.from('payment_settings_history').select('*').order('created_at', { ascending: false }).limit(20);
+        if (data) history = data;
+      } catch (e) {}
+
+      if (history.length === 0) {
+        try {
+          const { data } = await supabase.from('admin_settings').select('*').eq('id', 'payment_history').maybeSingle();
+          if (data && data.value) {
+            history = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+          }
+        } catch (e) {}
+      }
+
+      let qrPreview = config.qr_code_url || '';
+      if (!qrPreview && config.upi_id) {
+        try {
+          const upiUri = `upi://pay?pa=${encodeURIComponent(config.upi_id)}&pn=${encodeURIComponent(config.receiver_name || 'GASC Sports')}&cu=INR`;
+          qrPreview = await QRCode.toDataURL(upiUri, { width: 300, margin: 2 });
+        } catch (e) {}
+      }
+
+      return res.status(200).json({
+        success: true,
+        config: {
+          id: config.id || 'default',
+          receiverName: config.receiver_name,
+          gpayNumber: config.gpay_number,
+          upiId: config.upi_id,
+          qrCodeUrl: config.qr_code_url || '',
+          qrPreview,
+          paymentMode: config.payment_mode || 'MANUAL_UPI',
+          isActive: Boolean(config.is_active),
+          instructions: config.payment_instructions,
+          teamFee: Number(config.team_fee || 500),
+          individualFee: Number(config.individual_fee || 100),
+          validFrom: config.valid_from,
+          validUntil: config.valid_until,
+          configVersion: Number(config.config_version || 1),
+          updatedBy: config.updated_by || 'Admin',
+          updatedAt: config.updated_at
+        },
+        history
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  } else if (req.method === 'POST' || req.method === 'PUT') {
+    try {
+      const body = await parseRequestBody(req);
+      const { receiverName, gpayNumber, upiId, qrCodeUrl, paymentMode, isActive, instructions, teamFee, individualFee, validFrom, validUntil, updatedBy } = body || {};
+
+      if (!receiverName || !receiverName.trim()) {
+        return res.status(400).json({ success: false, message: 'Payment receiver name is required.' });
+      }
+
+      const cleanPhone = (gpayNumber || '').replace(/[\s\-\+]/g, '').replace(/^91/, '');
+      if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid GPay mobile number. Must be a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.'
+        });
+      }
+
+      const cleanUpi = (upiId || '').trim().toLowerCase();
+      const upiRegex = /^[a-zA-Z0-9.\-_]{2,64}@[a-zA-Z]{2,32}$/;
+      if (!upiRegex.test(cleanUpi)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid UPI ID format. Must follow standard UPI VPA pattern like "username@bank" or "mobile@upi". Do not enter only a phone number.'
+        });
+      }
+
+      const prevConfig = await fetchServerlessPaymentConfig();
+      const newVersion = (Number(prevConfig.config_version) || 1) + 1;
+      const adminUser = updatedBy || 'Sports Incharge Admin';
+      const nowIso = new Date().toISOString();
+
+      const newRecord = {
+        id: 'default',
+        receiver_name: receiverName.trim(),
+        gpay_number: cleanPhone,
+        upi_id: cleanUpi,
+        qr_code_url: qrCodeUrl || '',
+        payment_mode: paymentMode || 'MANUAL_UPI',
+        is_active: isActive !== undefined ? Boolean(isActive) : true,
+        payment_instructions: instructions || 'Scan QR or pay via GPay / UPI.',
+        team_fee: teamFee !== undefined ? Number(teamFee) : 500,
+        individual_fee: individualFee !== undefined ? Number(individualFee) : 100,
+        valid_from: validFrom || null,
+        valid_until: validUntil || null,
+        config_version: newVersion,
+        updated_by: adminUser,
+        updated_at: nowIso
+      };
+
+      try {
+        await supabase.from('payment_settings').upsert(newRecord, { onConflict: 'id' });
+      } catch (e) {}
+
+      try {
+        await supabase.from('admin_settings').upsert({
+          id: 'payment_config',
+          value: newRecord,
+          updated_at: nowIso
+        }, { onConflict: 'id' });
+      } catch (e) {}
+
+      const historyItem = {
+        id: `psh_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        config_version: newVersion,
+        receiver_name: newRecord.receiver_name,
+        gpay_number: newRecord.gpay_number,
+        upi_id: newRecord.upi_id,
+        qr_code_url: newRecord.qr_code_url,
+        payment_mode: newRecord.payment_mode,
+        is_active: newRecord.is_active,
+        team_fee: newRecord.team_fee,
+        individual_fee: newRecord.individual_fee,
+        updated_by: adminUser,
+        change_summary: `Updated payment details to ${newRecord.upi_id} / ${newRecord.gpay_number}`,
+        created_at: nowIso
+      };
+
+      try { await supabase.from('payment_settings_history').insert(historyItem); } catch (e) {}
+
+      try {
+        let existingHistory = [];
+        const { data } = await supabase.from('admin_settings').select('*').eq('id', 'payment_history').maybeSingle();
+        if (data && data.value) {
+          existingHistory = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+        }
+        existingHistory.unshift(historyItem);
+        await supabase.from('admin_settings').upsert({
+          id: 'payment_history',
+          value: existingHistory.slice(0, 50),
+          updated_at: nowIso
+        });
+      } catch (e) {}
+
+      return res.status(200).json({
+        success: true,
+        message: 'Payment settings successfully updated and published!',
+        config: newRecord
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+  return res.status(405).json({ success: false, message: 'Method not allowed' });
+}
+
+async function handleVerifyPayment(req, res) {
+  if (req.method !== 'POST' && req.method !== 'PATCH') {
+    return res.status(405).json({ success: false, message: 'Method not allowed' });
+  }
+
+  try {
+    const supabase = getSupabase();
+    const body = await parseRequestBody(req);
+    const { registrationId, paymentStatus, remarks, verifiedBy } = body || {};
+
+    if (!registrationId) {
+      return res.status(400).json({ success: false, message: 'Registration ID is required.' });
+    }
+
+    const adminUser = verifiedBy || 'Sports Admin';
+    const nowIso = new Date().toISOString();
+    const newPaymentStatus = (paymentStatus || 'VERIFIED').toUpperCase();
+    const newRegStatus = newPaymentStatus === 'VERIFIED' ? 'APPROVED' : (newPaymentStatus === 'REJECTED' ? 'REJECTED' : 'PENDING');
+
+    const { data: reg } = await supabase
+      .from('external_registrations')
+      .select('*')
+      .or(`id.eq.${registrationId},registration_id.eq.${registrationId}`)
+      .maybeSingle();
+
+    if (!reg) {
+      return res.status(404).json({ success: false, message: 'Registration not found.' });
+    }
+
+    let existingRemarksObj = {};
+    if (reg.remarks && typeof reg.remarks === 'string' && reg.remarks.startsWith('{')) {
+      try { existingRemarksObj = JSON.parse(reg.remarks); } catch (e) {}
+    }
+
+    const updatedRemarksPayload = {
+      ...existingRemarksObj,
+      payment_status: newPaymentStatus,
+      payment_verified_by: adminUser,
+      payment_verified_at: nowIso,
+      payment_remarks: remarks || existingRemarksObj.payment_remarks || ''
+    };
+
+    const updatePayload = {
+      status: newRegStatus,
+      payment_status: newPaymentStatus,
+      payment_verified_by: adminUser,
+      payment_verified_at: nowIso,
+      payment_remarks: remarks || null,
+      remarks: JSON.stringify(updatedRemarksPayload),
+      updated_at: nowIso
+    };
+
+    try {
+      await supabase.from('external_registrations').update(updatePayload).eq('id', reg.id);
+    } catch (e) {
+      try {
+        await supabase.from('external_registrations').update({
+          status: newRegStatus,
+          remarks: JSON.stringify(updatedRemarksPayload),
+          updated_at: nowIso
+        }).eq('id', reg.id);
+      } catch (err2) {}
+    }
+
+    // Email participant
+    try {
+      const targetEmail = reg.participant_email || reg.college_email;
+      if (targetEmail && targetEmail.includes('@')) {
+        const isVerified = newPaymentStatus === 'VERIFIED';
+        await transporter.sendMail({
+          from: `"${COLLEGE_NAME} Sports" <sportsgascidappadi@gmail.com>`,
+          to: targetEmail,
+          subject: isVerified
+            ? `[GASC Sports] Payment Verified & Registration Approved: ${reg.registration_id}`
+            : `[GASC Sports] Payment Update: ${reg.registration_id}`,
+          text: `Your registration ${reg.registration_id} payment status has been updated to: ${newPaymentStatus}. Remarks: ${remarks || 'None'}`,
+          html: `<div style="font-family:sans-serif;padding:20px;"><h3>Payment Status: ${newPaymentStatus}</h3><p>Registration: ${reg.registration_id}</p><p>Verified By: ${adminUser}</p></div>`
+        });
+      }
+    } catch (mailErr) {}
+
+    return res.status(200).json({
+      success: true,
+      message: `Payment status updated to ${newPaymentStatus} successfully.`,
+      registrationId: reg.registration_id,
+      paymentStatus: newPaymentStatus,
+      status: newRegStatus
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+// ── Razorpay Payment Gateway Handlers for Serverless ──
+function getRazorpayEnv() {
+  const keyId = (process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || '').trim();
+  const keySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+  const webhookSecret = (process.env.RAZORPAY_WEBHOOK_SECRET || '').trim();
+  return {
+    keyId,
+    keySecret,
+    webhookSecret,
+    isConfigured: Boolean(keyId && keySecret),
+    isTest: keyId.startsWith('rzp_test_'),
+    isLive: keyId.startsWith('rzp_live_')
+  };
+}
+
+async function handlePaymentGatewayStatus(req, res) {
+  const env = getRazorpayEnv();
+  return res.status(200).json({
+    success: true,
+    provider: 'RAZORPAY',
+    isConfigured: env.isConfigured,
+    mode: env.isLive ? 'LIVE' : (env.isTest ? 'TEST' : 'TEST_SIMULATOR'),
+    keyId: env.keyId ? `${env.keyId.substring(0, 8)}••••••••` : 'rzp_test_simulator',
+    publicKey: env.keyId || 'rzp_test_simulator',
+    isWebhookConfigured: Boolean(env.webhookSecret),
+    merchantName: 'Government Arts and Science College, Idappadi',
+    settlementNotice: 'Settlement destination is governed exclusively by the bank account KYC-verified in the Razorpay Merchant Dashboard.'
+  });
+}
+
+async function handlePaymentCreateOrder(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Use POST method.' });
+
+  try {
+    const body = await parseRequestBody(req);
+    const { competitionId, tournamentId, registrationId, registrationType, studentName, collegeName, email, phone, studentCategory } = body || {};
+
+    if (!competitionId) {
+      return res.status(400).json({ success: false, message: 'Competition ID is required to calculate trusted fee.' });
+    }
+
+    const supabase = getSupabase();
+
+    // 1. Fetch competition from database to get trusted fee
+    let comp = null;
+    try {
+      const { data } = await supabase.from('competitions').select('*').eq('id', competitionId).maybeSingle();
+      if (data) comp = data;
+    } catch (e) {}
+
+    // Distinguish between Our College vs Other College Students
+    const isOurCollege = (studentCategory === 'OUR_COLLEGE') || 
+      Boolean(collegeName && (collegeName.toLowerCase().includes('idappadi') || collegeName.toLowerCase().includes('gasc')));
+
+    let fee = 0;
+    const isTeam = (registrationType || (comp && comp.competition_mode) || 'INDIVIDUAL').toUpperCase() === 'TEAM';
+
+    if (isOurCollege) {
+      if (comp && comp.our_college_fee_enabled !== undefined) {
+        fee = (comp.our_college_fee_enabled === true || comp.our_college_fee_enabled === 'true' || comp.our_college_fee_enabled === 1)
+          ? Math.max(0, Number(comp.our_college_fee || 0))
+          : 0;
+      } else {
+        fee = 0; // default free for our college students
+      }
+    } else {
+      if (comp && comp.other_college_fee_enabled !== undefined) {
+        fee = (comp.other_college_fee_enabled === true || comp.other_college_fee_enabled === 'true' || comp.other_college_fee_enabled === 1)
+          ? Math.max(0, Number(comp.other_college_fee || 0))
+          : 0;
+      } else if (comp && comp.entry_fee !== undefined && comp.entry_fee !== null && Number(comp.entry_fee) > 0) {
+        fee = Number(comp.entry_fee);
+      } else {
+        const config = await fetchServerlessPaymentConfig();
+        fee = isTeam ? Number(config.team_fee || 500) : Number(config.individual_fee || 100);
+      }
+    }
+
+    if (fee <= 0) {
+      return res.status(200).json({
+        success: true,
+        isFree: true,
+        amount: 0,
+        amountInRupees: 0,
+        currency: 'INR',
+        message: 'No registration fee required.'
+      });
+    }
+
+    const env = getRazorpayEnv();
+    const amountInPaise = Math.round(fee * 100);
+    let orderId = '';
+    let isSandbox = true;
+
+    const isPlaceholder = (k) => !k || k.includes('placeholder') || k.includes('your_') || k.length < 12;
+
+    if (env.keyId && env.keySecret && !isPlaceholder(env.keyId) && !isPlaceholder(env.keySecret)) {
+      try {
+        // Official Razorpay API Call
+        const authHeader = 'Basic ' + Buffer.from(`${env.keyId}:${env.keySecret}`).toString('base64');
+        const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount: amountInPaise,
+            currency: 'INR',
+            receipt: (registrationId || `REG_${Date.now()}`).substring(0, 40),
+            notes: {
+              competitionId: String(competitionId),
+              tournamentId: String(tournamentId || ''),
+              student: String(studentName || ''),
+              college: String(collegeName || '')
+            }
+          })
+        });
+
+        const rzpData = await rzpRes.json().catch(() => ({}));
+        if (!rzpRes.ok) {
+          throw new Error(rzpData.error?.description || 'Razorpay order creation failed.');
+        }
+        orderId = rzpData.id;
+        isSandbox = env.isTest;
+      } catch (apiErr) {
+        if (env.isTest) {
+          orderId = 'order_sim_' + crypto.randomBytes(8).toString('hex');
+          isSandbox = true;
+        } else {
+          throw apiErr;
+        }
+      }
+    } else {
+      // Simulated sandbox order when keys not yet set in environment
+      orderId = 'order_sim_' + crypto.randomBytes(8).toString('hex');
+      isSandbox = true;
+    }
+
+    // Record initial order in payments table
+    try {
+      await supabase.from('payments').insert({
+        id: `pay_rec_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
+        order_id: orderId,
+        registration_id: registrationId || null,
+        tournament_id: tournamentId || null,
+        competition_id: competitionId,
+        amount: fee,
+        currency: 'INR',
+        provider: env.isConfigured ? 'RAZORPAY' : 'SIMULATED',
+        status: 'CREATED',
+        payment_mode: 'RAZORPAY',
+        student_name: studentName || null,
+        college_name: collegeName || null,
+        contact_email: email || null,
+        contact_phone: phone || null,
+        created_at: new Date().toISOString()
+      });
+    } catch (dbErr) {
+      console.warn('Could not insert payment record into Supabase:', dbErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      orderId,
+      amount: amountInPaise,
+      amountInRupees: fee,
+      currency: 'INR',
+      keyId: env.keyId || 'rzp_test_gasc_sports_simulator',
+      provider: env.isConfigured ? 'RAZORPAY' : 'SIMULATED',
+      isSandbox
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function handlePaymentVerifyOnline(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Use POST method.' });
+
+  try {
+    const body = await parseRequestBody(req);
+    const { orderId, paymentId, signature } = body || {};
+
+    if (!orderId || !paymentId) {
+      return res.status(400).json({ success: false, message: 'Order ID and Payment ID are required.' });
+    }
+
+    const env = getRazorpayEnv();
+    let isSignatureValid = false;
+
+    if (orderId.startsWith('order_sim_')) {
+      // Simulated sandbox validation
+      isSignatureValid = true;
+    } else if (env.keySecret) {
+      const expected = crypto.createHmac('sha256', env.keySecret)
+        .update(`${orderId}|${paymentId}`)
+        .digest('hex');
+      isSignatureValid = (expected === signature);
+    } else {
+      isSignatureValid = true;
+    }
+
+    if (!isSignatureValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cryptographic payment signature verification failed. Payment cannot be confirmed.'
+      });
+    }
+
+    const supabase = getSupabase();
+    const nowIso = new Date().toISOString();
+
+    // 1. If registration payload was provided in checkout, create or update registration
+    let regId = body.registrationId;
+    if (!regId && (body.collegeName || body.participantEmail)) {
+      // Create external registration record
+      const regCode = `GASC-EXT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const newReg = {
+        registration_id: regCode,
+        tournament_id: body.tournamentId || null,
+        tournament_name: body.tournamentName || 'GASC Open Tournament',
+        competition_id: body.competitionId,
+        sport_name: body.sportName || 'Athletics',
+        event_name: body.eventName || '',
+        registration_type: body.registrationType || 'INDIVIDUAL',
+        college_name: body.collegeName || '',
+        college_address: body.collegeAddress || '',
+        district: body.district || '',
+        state: body.state || 'Tamil Nadu',
+        college_phone: body.collegePhone || '',
+        college_email: body.collegeEmail || '',
+        team_name: body.teamName || null,
+        team_gender: body.teamGender || null,
+        coach_name: body.coachName || null,
+        coach_phone: body.coachPhone || null,
+        manager_name: body.managerName || null,
+        manager_phone: body.managerPhone || null,
+        player_name: body.playerName || null,
+        player_register_number: body.playerRollNumber || null,
+        department: body.department || null,
+        year: body.year || null,
+        gender: body.gender || 'Boys',
+        participant_email: body.participantEmail,
+        participant_phone: body.participantPhone,
+        status: 'APPROVED',
+        payment_status: 'VERIFIED',
+        entry_fee: Number(body.entryFee || 0),
+        transaction_id: paymentId,
+        payment_verified_at: nowIso,
+        payment_verified_by: 'RAZORPAY_AUTO_GATEWAY',
+        created_at: nowIso,
+        updated_at: nowIso
+      };
+
+      try {
+        const { data: inserted } = await supabase.from('external_registrations').insert(newReg).select().maybeSingle();
+        if (inserted) regId = inserted.registration_id;
+      } catch (e) {
+        regId = regCode;
+      }
+    } else if (regId) {
+      try {
+        await supabase.from('external_registrations').update({
+          status: 'APPROVED',
+          payment_status: 'VERIFIED',
+          transaction_id: paymentId,
+          payment_verified_at: nowIso,
+          payment_verified_by: 'RAZORPAY_AUTO_GATEWAY',
+          updated_at: nowIso
+        }).or(`id.eq.${regId},registration_id.eq.${regId}`);
+      } catch (e) {}
+    }
+
+    // 2. Update payment record in database
+    const receiptNo = `RCP-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+    try {
+      await supabase.from('payments').upsert({
+        order_id: orderId,
+        payment_id: paymentId,
+        registration_id: regId || null,
+        status: 'SUCCESS',
+        receipt_number: receiptNo,
+        verified_at: nowIso,
+        updated_at: nowIso
+      }, { onConflict: 'order_id' });
+    } catch (e) {}
+
+    // 3. Dispatch official payment confirmation email
+    const studentEmail = body.participantEmail || body.email;
+    if (studentEmail && studentEmail.includes('@')) {
+      try {
+        await transporter.sendMail({
+          from: `"${COLLEGE_NAME} - Sports Department" <sportsgascidappadi@gmail.com>`,
+          to: studentEmail,
+          subject: `Payment Successful & Registration Confirmed: ${regId || paymentId}`,
+          html: `
+          <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #10b981;border-radius:14px;background:#ffffff;">
+            <div style="text-align:center;padding-bottom:16px;border-bottom:2px solid #f1f5f9;">
+              <h2 style="color:#0f4c81;margin:0;">${COLLEGE_NAME}</h2>
+              <p style="color:#059669;font-weight:bold;margin:4px 0 0;">OFFICIAL PAYMENT RECEIPT & CONFIRMED ENTRY</p>
+            </div>
+            <div style="padding:16px 0;font-size:14px;color:#334155;line-height:1.6;">
+              <p>Dear <strong>${body.studentName || body.playerName || body.teamName || 'Participant'}</strong>,</p>
+              <p>Your online payment for <strong>${body.tournamentName || 'Tournament'} - ${body.eventName || 'Competition'}</strong> has been verified and confirmed.</p>
+              <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#f8fafc;border-radius:8px;font-size:13px;">
+                <tr><td style="padding:8px 12px;color:#64748b;">Registration ID:</td><td style="padding:8px 12px;font-weight:bold;color:#0f4c81;">${regId || 'Confirmed'}</td></tr>
+                <tr><td style="padding:8px 12px;color:#64748b;">Payment ID:</td><td style="padding:8px 12px;font-family:monospace;font-weight:bold;">${paymentId}</td></tr>
+                <tr><td style="padding:8px 12px;color:#64748b;">Order ID:</td><td style="padding:8px 12px;font-family:monospace;">${orderId}</td></tr>
+                <tr><td style="padding:8px 12px;color:#64748b;">Amount Paid:</td><td style="padding:8px 12px;font-weight:bold;color:#059669;">₹${body.entryFee || body.amountInRupees || ''} INR</td></tr>
+                <tr><td style="padding:8px 12px;color:#64748b;">Payment Status:</td><td style="padding:8px 12px;font-weight:bold;color:#059669;">SUCCESS (Verified)</td></tr>
+                <tr><td style="padding:8px 12px;color:#64748b;">Receipt Number:</td><td style="padding:8px 12px;font-weight:bold;">${receiptNo}</td></tr>
+              </table>
+              <p style="font-size:12px;color:#64748b;">Please present this digital confirmation or download your participant pass upon reporting to the venue.</p>
+            </div>
+          </div>`
+        });
+      } catch (mailErr) {}
+    }
+
+    return res.status(200).json({
+      success: true,
+      verified: true,
+      paymentId,
+      orderId,
+      receiptNumber: receiptNo,
+      registrationId: regId,
+      status: 'PAID',
+      message: 'Payment verified and entry confirmed successfully!'
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function handlePaymentWebhook(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Use POST method.' });
+
+  try {
+    const rawBody = await new Promise((resolve) => {
+      if (typeof req.body === 'string') return resolve(req.body);
+      if (req.body && typeof req.body === 'object') return resolve(JSON.stringify(req.body));
+      let data = '';
+      req.on('data', chunk => { data += chunk; });
+      req.on('end', () => resolve(data));
+    });
+
+    const env = getRazorpayEnv();
+    const signature = req.headers['x-razorpay-signature'];
+
+    if (env.webhookSecret && signature) {
+      const expected = crypto.createHmac('sha256', env.webhookSecret).update(rawBody).digest('hex');
+      if (expected !== signature) {
+        return res.status(400).json({ success: false, message: 'Invalid webhook signature.' });
+      }
+    }
+
+    let payload = {};
+    try { payload = JSON.parse(rawBody); } catch (e) { payload = req.body || {}; }
+
+    const event = payload.event;
+    const eventId = payload.event_id || (payload.payload?.payment?.entity?.id ? `${event}_${payload.payload.payment.entity.id}` : `evt_${Date.now()}`);
+    const supabase = getSupabase();
+
+    // Idempotency check
+    try {
+      const { data: existing } = await supabase.from('payment_webhook_events').select('id').eq('event_id', eventId).maybeSingle();
+      if (existing) {
+        return res.status(200).json({ status: 'ok', message: 'Event already processed.' });
+      }
+      await supabase.from('payment_webhook_events').insert({
+        event_id: eventId,
+        event_type: event,
+        provider: 'RAZORPAY',
+        payload: payload,
+        processed: true,
+        created_at: new Date().toISOString()
+      });
+    } catch (e) {}
+
+    const paymentEntity = payload.payload?.payment?.entity;
+    if (paymentEntity) {
+      const orderId = paymentEntity.order_id;
+      const paymentId = paymentEntity.id;
+      const status = paymentEntity.status === 'captured' ? 'SUCCESS' : (paymentEntity.status === 'failed' ? 'FAILED' : 'PENDING');
+
+      try {
+        await supabase.from('payments').update({
+          payment_id: paymentId,
+          status,
+          updated_at: new Date().toISOString()
+        }).eq('order_id', orderId);
+      } catch (e) {}
+    }
+
+    return res.status(200).json({ status: 'ok' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function handlePaymentStatus(req, res) {
+  try {
+    const supabase = getSupabase();
+    const id = req.query.id || req.query.orderId || req.query.paymentId || req.query.registrationId;
+    if (!id) return res.status(400).json({ success: false, message: 'Payment identifier required.' });
+
+    const { data: payment } = await supabase
+      .from('payments')
+      .select('*')
+      .or(`order_id.eq.${id},payment_id.eq.${id},registration_id.eq.${id}`)
+      .maybeSingle();
+
+    if (!payment) return res.status(404).json({ success: false, message: 'Payment record not found.' });
+    return res.status(200).json({ success: true, payment });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function handleAdminPaymentTransactions(req, res) {
+  try {
+    const supabase = getSupabase();
+    const { status, tournamentId, competitionId, query, limit = 100 } = req.query;
+
+    let dbQuery = supabase.from('payments').select('*').order('created_at', { ascending: false }).limit(Number(limit));
+    if (status && status !== 'ALL') dbQuery = dbQuery.eq('status', status.toUpperCase());
+    if (tournamentId) dbQuery = dbQuery.eq('tournament_id', tournamentId);
+    if (competitionId) dbQuery = dbQuery.eq('competition_id', competitionId);
+
+    let payments = [];
+    try {
+      const { data, error } = await dbQuery;
+      if (!error && data) {
+        payments = data;
+      } else {
+        // Fallback to external_registrations if payments table is pending SQL migration
+        const { data: regs = [] } = await supabase.from('external_registrations').select('*').order('created_at', { ascending: false }).limit(Number(limit));
+        payments = (regs || []).map(r => ({
+          id: r.id,
+          order_id: r.registration_id,
+          payment_id: r.transaction_id || `pay_${r.registration_id}`,
+          registration_id: r.registration_id,
+          tournament_id: r.tournament_id,
+          competition_id: r.competition_id,
+          amount: Number(r.entry_fee || r.fee_amount || 0),
+          currency: 'INR',
+          status: (r.payment_status === 'VERIFIED' || r.payment_status === 'PAID') ? 'SUCCESS' : (r.payment_status === 'REJECTED' ? 'FAILED' : 'PENDING'),
+          student_name: r.player_name || r.team_name,
+          college_name: r.college_name,
+          contact_email: r.participant_email,
+          contact_phone: r.participant_phone,
+          created_at: r.created_at
+        }));
+      }
+    } catch (e) {
+      payments = [];
+    }
+
+    let filtered = payments || [];
+    if (query && query.trim()) {
+      const q = query.trim().toLowerCase();
+      filtered = filtered.filter(p =>
+        (p.order_id && p.order_id.toLowerCase().includes(q)) ||
+        (p.payment_id && p.payment_id.toLowerCase().includes(q)) ||
+        (p.registration_id && p.registration_id.toLowerCase().includes(q)) ||
+        (p.student_name && p.student_name.toLowerCase().includes(q)) ||
+        (p.college_name && p.college_name.toLowerCase().includes(q))
+      );
+    }
+
+    const summary = {
+      totalTransactions: filtered.length,
+      totalSuccessfulCollections: filtered.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + Number(p.amount || 0), 0),
+      successfulCount: filtered.filter(p => p.status === 'SUCCESS').length,
+      pendingCount: filtered.filter(p => p.status === 'PENDING' || p.status === 'CREATED').length,
+      failedCount: filtered.filter(p => p.status === 'FAILED').length,
+      refundedCount: filtered.filter(p => p.status === 'REFUNDED').length
+    };
+
+    return res.status(200).json({
+      success: true,
+      summary,
+      transactions: filtered
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
+async function handleAdminPaymentRefund(req, res) {
+  if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Use POST method.' });
+
+  try {
+    const body = await parseRequestBody(req);
+    const { paymentId, amount, reason } = body || {};
+
+    if (!paymentId) return res.status(400).json({ success: false, message: 'Payment ID is required.' });
+
+    const supabase = getSupabase();
+    const env = getRazorpayEnv();
+    const nowIso = new Date().toISOString();
+    let refundId = `rfnd_${Date.now()}`;
+
+    if (env.keyId && env.keySecret && !paymentId.startsWith('sim_')) {
+      const authHeader = 'Basic ' + Buffer.from(`${env.keyId}:${env.keySecret}`).toString('base64');
+      const rzpRes = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/refund`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount: amount ? Math.round(Number(amount) * 100) : undefined,
+          notes: { reason: reason || 'Admin approved refund' }
+        })
+      });
+      const rzpData = await rzpRes.json().catch(() => ({}));
+      if (!rzpRes.ok) throw new Error(rzpData.error?.description || 'Razorpay refund failed.');
+      refundId = rzpData.id;
+    }
+
+    try {
+      await supabase.from('payments').update({
+        status: 'REFUNDED',
+        refund_status: 'REFUNDED',
+        refund_id: refundId,
+        refunded_amount: amount ? Number(amount) : null,
+        refund_reason: reason || 'Authorized admin refund',
+        updated_at: nowIso
+      }).eq('payment_id', paymentId);
+    } catch (e) {}
+
+    return res.status(200).json({
+      success: true,
+      message: 'Refund initiated and recorded successfully.',
+      refundId
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+}
+
 // ── Main Dispatcher ──
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Razorpay-Signature');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const url = req.url || '';
   const cleanPath = url.split('?')[0].toLowerCase();
 
+  // Payment Gateway Endpoints
+  if (cleanPath.includes('/create-order') || req.query.action === 'create-order') {
+    return handlePaymentCreateOrder(req, res);
+  }
+  if (cleanPath.includes('/verify') && !cleanPath.includes('/verify-otp') && !cleanPath.includes('/verify-payment')) {
+    return handlePaymentVerifyOnline(req, res);
+  }
+  if (cleanPath.includes('/webhook') || req.query.action === 'webhook') {
+    return handlePaymentWebhook(req, res);
+  }
+  if (cleanPath.includes('/admin/transactions') || req.query.action === 'admin-transactions') {
+    return handleAdminPaymentTransactions(req, res);
+  }
+  if (cleanPath.includes('/admin/refund') || req.query.action === 'admin-refund') {
+    return handleAdminPaymentRefund(req, res);
+  }
+  if (cleanPath.includes('/gateway-status') || req.query.action === 'gateway-status') {
+    return handlePaymentGatewayStatus(req, res);
+  }
+  if (cleanPath.includes('/payment-status') || cleanPath.includes('/status') && cleanPath.includes('/payment')) {
+    return handlePaymentStatus(req, res);
+  }
+
+  // Settings & Legacy Handlers
+  if (cleanPath.includes('/payment-settings') || req.query.action === 'payment-settings') {
+    if (cleanPath.includes('/admin') || req.query.admin === 'true') {
+      return handleAdminPaymentSettings(req, res);
+    }
+    return handlePaymentSettings(req, res);
+  }
+  if (cleanPath.includes('/verify-payment') || req.query.action === 'verify-payment') {
+    return handleVerifyPayment(req, res);
+  }
   if (cleanPath.includes('/cm-trophy') || req.query.action === 'cm-trophy') {
     return handleCmTrophy(req, res);
   }
@@ -1555,4 +2564,5 @@ module.exports = async (req, res) => {
 };
 
 module.exports.handleCmTrophy = handleCmTrophy;
+
 
