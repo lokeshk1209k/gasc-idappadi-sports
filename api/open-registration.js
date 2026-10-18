@@ -337,43 +337,6 @@ async function handleTournament(req, res, tokenParam) {
       }
     }
 
-    // 4. Expected Supabase query logic: Fetch competitions filtered strictly by that tournament's actual ID:
-    // Support: tournament.id, tournament.id without 'tour_', or tournament_name (case-insensitive)
-    const tSlug = String(tournament.id || '').replace(/^tour_/, '');
-    const { data: cData } = await supabase
-      .from('competitions')
-      .select('*')
-      .or(`tournament_id.eq.${tournament.id},tournament_id.eq.${tSlug},tournament_id.eq.tour_${tSlug}`)
-      .order('date', { ascending: true });
-
-    let childComps = Array.isArray(cData) ? cData : [];
-
-    // Fallback: If competitions were created with tournament_name
-    if (childComps.length === 0 && (tournament.tournament_name || tournament.name)) {
-      const tName = String(tournament.tournament_name || tournament.name).trim();
-      const { data: legacyData } = await supabase
-        .from('competitions')
-        .select('*')
-        .ilike('tournament_name', tName)
-        .order('date', { ascending: true });
-      if (Array.isArray(legacyData) && legacyData.length > 0) {
-        childComps = legacyData;
-      }
-    }
-
-    // Fallback 2: If competition name includes tournament name
-    if (childComps.length === 0 && (tournament.tournament_name || tournament.name)) {
-      const tName = String(tournament.tournament_name || tournament.name).trim();
-      const { data: nameMatchData } = await supabase
-        .from('competitions')
-        .select('*')
-        .ilike('name', `%${tName}%`)
-        .order('date', { ascending: true });
-      if (Array.isArray(nameMatchData) && nameMatchData.length > 0) {
-        childComps = nameMatchData;
-      }
-    }
-
     // 5. Format and sanitize output (Do NOT return any other tournaments or unrelated competitions)
     const formattedCompetitions = childComps.map(c => {
       const sportName = c.sport_name || c.sportName || c.name || 'Sports';
