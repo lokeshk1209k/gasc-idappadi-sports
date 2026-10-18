@@ -207,22 +207,13 @@ function switchAdminView(viewId) {
     switchEqTab('active');
     return;
   }
-  else if (viewId === 'competitions') {
-    loadAdminCompetitions();
-    if (window.loadAdminInterCollegeData) window.loadAdminInterCollegeData();
-  }
-  else if (viewId === 'payments') {
-    if (window.loadAdminPayments) window.loadAdminPayments();
-  }
+  else if (viewId === 'competitions') loadAdminCompetitions();
   else if (viewId === 'inter-college') {
-    switchAdminView('competitions');
-    if (typeof switchExtTab === 'function') switchExtTab('competitions');
-    return;
+    if (window.loadAdminInterCollegeData) window.loadAdminInterCollegeData();
   }
   else if (viewId === 'applications') loadAdminApplications();
   else if (viewId === 'teams') loadAdminTeams();
   else if (viewId === 'achievements') loadAdminAchievements();
-  else if (viewId === 'cm-trophy') loadAdminCmTrophy();
   else if (viewId === 'notifications') loadAdminNotifications();
   else if (viewId === 'gallery') loadAdminGallery();
   else if (viewId === 'analytics') loadAdminAnalytics();
@@ -1823,7 +1814,6 @@ async function loadAdminCompetitions() {
       const res = await apiRequest('/competitions');
       competitions = res.competitions || res.data || [];
       apiTournaments = res.tournaments || [];
-      window.allTournamentsCache = apiTournaments;
     } catch (apiErr) {
       try {
         const fallbackRes = await fetch('/competitions.json');
@@ -1893,42 +1883,9 @@ async function loadAdminCompetitions() {
       return;
     }
 
-    // Update tournaments count badge
-    const tournCountBadge = document.getElementById('unified-tournaments-count');
-    if (tournCountBadge) {
-      tournCountBadge.innerText = map.size;
-    }
-
-    // Populate tournament selector options
-    const compTournSelect = document.getElementById('comp-tournament-filter');
-    if (compTournSelect) {
-      const currentVal = compTournSelect.value;
-      let optHtml = '<option value="All">All Tournaments</option>';
-      map.forEach((_, tName) => {
-        optHtml += `<option value="${tName.replace(/"/g, '&quot;')}">${tName}</option>`;
-      });
-      compTournSelect.innerHTML = optHtml;
-      if (currentVal && (currentVal === 'All' || map.has(currentVal))) {
-        compTournSelect.value = currentVal;
-      }
-    }
-
-    const compCategoryFilter = document.getElementById('comp-category-filter') ? document.getElementById('comp-category-filter').value : 'All';
-    const compTournFilter = compTournSelect ? compTournSelect.value : 'All';
-
     let html = '';
     map.forEach((tournData, tName) => {
-      let sports = tournData.sports || [];
-      if (compCategoryFilter !== 'All') {
-        sports = sports.filter(c => {
-          const rawCat = (c.category || c.gender || '').toLowerCase();
-          const target = compCategoryFilter.toLowerCase();
-          if (target === 'men') return rawCat === 'men' || rawCat === 'boys';
-          if (target === 'women') return rawCat === 'women' || rawCat === 'girls';
-          if (target === 'mixed') return rawCat === 'mixed';
-          return true;
-        });
-      }
+      const sports = tournData.sports || [];
       const tInfo = tournData.info || {};
       const firstSport = sports[0] || {};
       const tVenue = tInfo.venue || firstSport.venue || 'GASC Idappadi Main Ground';
@@ -1958,8 +1915,8 @@ async function loadAdminCompetitions() {
             </div>
             <div class="col-md-4 text-md-end">
               <div class="d-flex flex-column flex-sm-row gap-2 justify-content-md-end">
-                <button class="btn btn-warning text-dark btn-sm fw-bold shadow-sm" onclick="showParentTournamentQrModal(decodeURIComponent('${encodeURIComponent(tName)}'))" title="Generate, View, Print & Download Tournament QR Code">
-                  <i class="bi bi-qr-code-scan me-1"></i> Generate QR Code
+                <button class="btn btn-warning text-dark btn-sm fw-bold shadow-sm" onclick="showParentTournamentQrModal(decodeURIComponent('${encodeURIComponent(tName)}'))" title="View, Print & Download QR Code">
+                  <i class="bi bi-qr-code-scan me-1"></i> QR Code
                 </button>
                 <button class="btn btn-sports-primary btn-sm shadow-sm" onclick="openAddSportModal(decodeURIComponent('${encodeURIComponent(tName)}'))">
                   <i class="bi bi-plus-circle-fill me-1"></i> Add Sport
@@ -1994,33 +1951,21 @@ async function loadAdminCompetitions() {
                 const sName = c.sportName || c.name || '';
                 const banner = window.getSportImage(sName, c.bannerImage);
                 const compId = c.id || c._id || '';
-                const rawCat = c.category || c.gender || 'Mixed';
-                let compCat = 'Mixed';
-                if (/^men$|^boys?$/i.test(rawCat)) compCat = 'Men';
-                else if (/^women$|^girls?$/i.test(rawCat)) compCat = 'Women';
-                else compCat = 'Mixed';
-                const compDisplayTitle = (c.name && c.name.includes('—')) ? c.name : `${sName} — ${compCat}`;
-
-                let catBadgeClass = 'bg-primary';
-                if (compCat === 'Women') catBadgeClass = 'bg-danger';
-                else if (compCat === 'Mixed') catBadgeClass = 'bg-warning text-dark';
-
                 return `
                 <div class="col-md-6 col-lg-4">
                   <div class="glass-card-dark rounded-3 border border-info border-opacity-25 h-100 d-flex flex-column justify-content-between overflow-hidden shadow-lg" style="background: #0b1736 !important; border: 1px solid rgba(56, 189, 248, 0.25) !important;">
                     <div style="height: 130px; position: relative; overflow: hidden; background: #071524;">
-                      <img src="${banner}" alt="${compDisplayTitle}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src=window.getSportImage('${sName}');">
+                      <img src="${banner}" alt="${c.name}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null; this.src=window.getSportImage('${sName}');">
                       <div style="position: absolute; inset: 0; background: linear-gradient(to top, #0b1736, transparent 65%);"></div>
-                      <span class="badge ${catBadgeClass} bg-opacity-90 position-absolute shadow-sm" style="top: 10px; left: 10px; backdrop-filter: blur(4px); font-size: 0.72rem;">
-                        <i class="bi bi-gender-ambiguous me-1"></i>${compCat}
+                      <span class="badge bg-primary bg-opacity-90 text-white border border-info border-opacity-40 position-absolute shadow-sm" style="top: 10px; left: 10px; backdrop-filter: blur(4px);">
+                        ${sName}
                       </span>
-                      ${(() => {
-                        const dyn = (typeof window.getAdminDynamicStatus === 'function') ? window.getAdminDynamicStatus(c) : { label: (c.status || 'Open'), badgeClass: 'bg-success text-white border-success' };
-                        return `<span class="badge ${dyn.badgeClass} bg-opacity-95 text-white border position-absolute shadow-sm" style="top: 10px; right: 10px; backdrop-filter: blur(4px); font-size: 0.72rem; font-weight: 700;">${dyn.label}</span>`;
-                      })()}
+                      <span class="badge bg-success bg-opacity-90 text-white border border-success border-opacity-40 position-absolute shadow-sm" style="top: 10px; right: 10px; backdrop-filter: blur(4px);">
+                        ${c.status || 'Open'}
+                      </span>
                     </div>
                     <div class="p-3 flex-grow-1 d-flex flex-column justify-content-between" style="background: #0b1736 !important;">
-                      <h6 class="fw-bold mb-2" style="color: #ffffff !important; font-size: 1.05rem; letter-spacing: 0.3px;">${compDisplayTitle}</h6>
+                      <h6 class="fw-bold mb-2" style="color: #ffffff !important; font-size: 1.05rem; letter-spacing: 0.3px;">${c.name}</h6>
                       <div class="small mb-3" style="font-size: 0.82rem; line-height: 1.6; color: #f8fafc !important;">
                         <div class="mb-1" style="color: #ffffff !important;">
                           <i class="bi bi-calendar3 text-warning me-1.5"></i> <strong style="color: #ffffff !important;">${formatDate(c.date)}</strong> &bull; <span style="color: #cbd5e1 !important;">${c.startTime || '09:00 AM'}</span>
@@ -2033,8 +1978,8 @@ async function loadAdminCompetitions() {
                         </div>
                       </div>
                       <div class="d-flex gap-2 pt-2 border-top border-white border-opacity-15 mt-auto">
-                        <button class="btn btn-sm btn-outline-info flex-grow-1 text-white fw-semibold" onclick="openTournamentRegistrations('${encodeURIComponent(tName)}', '${encodeURIComponent(sName)}')" style="font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.6); background: rgba(56, 189, 248, 0.12);">
-                          <i class="bi bi-card-checklist me-1"></i> Registrations
+                        <button class="btn btn-sm btn-outline-info flex-grow-1 text-white fw-semibold" onclick="switchAdminView('applications'); document.getElementById('app-filter-status').value='All';" style="font-size: 0.78rem; border-color: rgba(56, 189, 248, 0.6); background: rgba(56, 189, 248, 0.12);">
+                          <i class="bi bi-people me-1"></i> Registrations
                         </button>
                         <button class="btn btn-sm btn-warning text-dark fw-bold" onclick="showTournamentQrModal('${compId}')" title="Preview & Download QR Code" style="font-size: 0.78rem;">
                           <i class="bi bi-qr-code-scan me-1"></i> QR
@@ -2060,139 +2005,6 @@ async function loadAdminCompetitions() {
   }
 }
 
-window.openTournamentRegistrations = function(tNameEncoded, sNameEncoded) {
-  const tName = decodeURIComponent(tNameEncoded || '');
-  const sName = decodeURIComponent(sNameEncoded || '');
-  
-  if (typeof switchExtTab === 'function') {
-    switchExtTab('registrations');
-    setTimeout(() => {
-      const tourSelect = document.getElementById('ext-reg-filter-tournament');
-      if (tourSelect) {
-        for (let i = 0; i < tourSelect.options.length; i++) {
-          const optText = tourSelect.options[i].text.toLowerCase();
-          const optVal = tourSelect.options[i].value.toLowerCase();
-          if (optText.includes(tName.toLowerCase()) || optVal.includes(tName.toLowerCase())) {
-            tourSelect.selectedIndex = i;
-            break;
-          }
-        }
-        if (typeof onAdminTournamentFilterChange === 'function') {
-          onAdminTournamentFilterChange();
-        }
-      }
-      const searchInput = document.getElementById('ext-reg-search');
-      if (searchInput && sName) {
-        searchInput.value = sName;
-      }
-      if (typeof filterAdminExtRegistrations === 'function') {
-        filterAdminExtRegistrations();
-      }
-    }, 100);
-  }
-};
-
-window.filterAdminTournamentsList = function() {
-  const search = (document.getElementById('comp-search-filter')?.value || '').toLowerCase().trim();
-  const selectedTourn = document.getElementById('comp-tournament-filter')?.value || 'All';
-  const container = document.getElementById('admin-competitions-list-container');
-  if (!container) return;
-
-  const cards = container.querySelectorAll('.glass-card');
-  cards.forEach(card => {
-    const tTitle = card.querySelector('h4')?.innerText.toLowerCase() || '';
-    const matchesTourn = (selectedTourn === 'All') || (tTitle.includes(selectedTourn.toLowerCase()));
-    
-    const sportCards = card.querySelectorAll('.col-md-6.col-lg-4');
-    let hasMatchingSport = false;
-    
-    sportCards.forEach(sc => {
-      const sportTitle = sc.querySelector('h6')?.innerText.toLowerCase() || '';
-      const sportText = sc.innerText.toLowerCase();
-      const matchesSearch = !search || sportTitle.includes(search) || tTitle.includes(search) || sportText.includes(search);
-      
-      if (matchesSearch && matchesTourn) {
-        sc.style.display = '';
-        hasMatchingSport = true;
-      } else {
-        sc.style.display = 'none';
-      }
-    });
-
-    if (matchesTourn && (!search || hasMatchingSport || tTitle.includes(search))) {
-      card.style.display = '';
-    } else {
-      card.style.display = 'none';
-    }
-  });
-};
-
-window.reloadUnifiedCompetitionsHub = async function() {
-  if (typeof loadAdminCompetitions === 'function') await loadAdminCompetitions();
-  if (typeof loadAdminInterCollegeData === 'function') await loadAdminInterCollegeData();
-  if (typeof showToast === 'function') showToast('Competitions & Inter-College data synchronized!', 'info', 'Hub Refreshed');
-};
-
-window.getAdminDynamicStatus = function(c) {
-  const now = new Date();
-  const startRaw = c.registrationStart || c.registration_start;
-  const endRaw = c.registrationEnd || c.registration_end || c.registration_deadline;
-  
-  if (startRaw) {
-    const sDate = new Date(startRaw);
-    if (!isNaN(sDate.getTime()) && now < sDate) {
-      return { label: `Upcoming (Opens ${formatDate(startRaw)})`, badgeClass: 'bg-warning text-dark border-warning' };
-    }
-  }
-  if (endRaw) {
-    let eDate = new Date(endRaw);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(String(endRaw).trim())) {
-      eDate = new Date(`${String(endRaw).trim()}T23:59:59.999Z`);
-    }
-    if (!isNaN(eDate.getTime()) && now > eDate) {
-      return { label: 'Closed (Expired)', badgeClass: 'bg-danger text-white border-danger' };
-    }
-  }
-  return { label: 'Registration Open', badgeClass: 'bg-success text-white border-success' };
-};
-
-window.updateRegSchedulePreview = function() {
-  const startEl = document.getElementById('ctm-reg-start');
-  const endEl = document.getElementById('ctm-reg-end');
-  const badgeEl = document.getElementById('ctm-reg-condition-badge');
-  const textEl = document.getElementById('ctm-reg-status-text');
-  if (!badgeEl || !textEl) return;
-
-  const now = new Date();
-  const startVal = startEl ? startEl.value : '';
-  const endVal = endEl ? endEl.value : '';
-
-  if (!startVal && !endVal) {
-    badgeEl.className = 'badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-40 font-monospace';
-    badgeEl.innerHTML = '<i class="bi bi-lightning-charge-fill me-1"></i>Automatic Mode';
-    textEl.innerHTML = 'Registration will automatically open immediately and close on the deadline.';
-    return;
-  }
-
-  const sDate = startVal ? new Date(startVal) : null;
-  const eDate = endVal ? new Date(endVal) : null;
-
-  if (sDate && !isNaN(sDate.getTime()) && now < sDate) {
-    badgeEl.className = 'badge bg-warning text-dark border border-warning font-monospace';
-    badgeEl.innerHTML = '<i class="bi bi-clock-history me-1"></i>Status: UPCOMING';
-    textEl.innerHTML = `⏰ Registration will automatically <strong>OPEN on ${sDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</strong>.`;
-  } else if (eDate && !isNaN(eDate.getTime()) && now > eDate) {
-    badgeEl.className = 'badge bg-danger text-white border border-danger font-monospace';
-    badgeEl.innerHTML = '<i class="bi bi-x-circle-fill me-1"></i>Status: CLOSED';
-    textEl.innerHTML = `🔴 Registration is set to <strong>CLOSED</strong> (Deadline ${eDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} has passed).`;
-  } else {
-    badgeEl.className = 'badge bg-success text-white border border-success font-monospace';
-    badgeEl.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Status: REGISTRATION OPEN';
-    const closeInfo = eDate ? `Will automatically close on ${eDate.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}` : 'Active';
-    textEl.innerHTML = `🟢 Registration will be <strong>OPEN immediately</strong>. (${closeInfo})`;
-  }
-};
-
 function openCreateTournamentModal() {
   populateSelectDropdowns();
 
@@ -2202,26 +2014,6 @@ function openCreateTournamentModal() {
   if (startDateInput && !startDateInput.value) startDateInput.value = today;
   const endDateInput = document.getElementById('ctm-end-date');
   if (endDateInput && !endDateInput.value) endDateInput.value = today;
-
-  // Set default registration open & close datetimes
-  const now = new Date();
-  const formatDT = (d) => {
-    const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-  const regStartEl = document.getElementById('ctm-reg-start');
-  if (regStartEl && !regStartEl.value) {
-    regStartEl.value = formatDT(now);
-  }
-  const regEndEl = document.getElementById('ctm-reg-end');
-  if (regEndEl && !regEndEl.value) {
-    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    nextWeek.setHours(23, 59, 0, 0);
-    regEndEl.value = formatDT(nextWeek);
-  }
-  if (typeof window.updateRegSchedulePreview === 'function') {
-    window.updateRegSchedulePreview();
-  }
 
   // Auto-select first sport if not chosen
   const sportSel = document.getElementById('create-tournament-sport-id');
@@ -2260,89 +2052,23 @@ function openAddSportModal(tournamentName) {
 
 function onTournamentSportSelectChange(sel) {
   const compNameInput = document.getElementById('create-tournament-comp-name');
-  const catSel = document.getElementById('create-tournament-gender');
-  const cat = catSel ? catSel.value : 'Men';
   if (compNameInput && sel.selectedIndex > 0) {
     const sportName = sel.options[sel.selectedIndex].text;
-    compNameInput.value = `${sportName} — ${cat}`;
-    compNameInput.dataset.autofilled = 'true';
+    if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
+      compNameInput.value = sportName;
+      compNameInput.dataset.autofilled = 'true';
+    }
   }
 }
-
-function onTournamentCategoryChange(cat) {
-  const compNameInput = document.getElementById('create-tournament-comp-name');
-  const sportSel = document.getElementById('create-tournament-sport-id');
-  if (compNameInput && sportSel && sportSel.selectedIndex > 0) {
-    const sportName = sportSel.options[sportSel.selectedIndex].text;
-    compNameInput.value = `${sportName} — ${cat}`;
-  }
-}
-
-function toggleOurCollegeFee(enabled) {
-  const cont = document.getElementById('ctm-our-fee-container');
-  const freeMsg = document.getElementById('ctm-our-fee-free-msg');
-  const lbl = document.getElementById('ctm-our-fee-toggle-lbl');
-  if (cont && freeMsg && lbl) {
-    cont.style.display = enabled ? 'block' : 'none';
-    freeMsg.style.display = enabled ? 'none' : 'block';
-    lbl.textContent = enabled ? 'Fee Enabled' : 'Free (Disabled)';
-    lbl.className = enabled ? 'form-check-label text-xs fw-bold text-success' : 'form-check-label text-xs fw-bold text-light';
-  }
-}
-window.toggleOurCollegeFee = toggleOurCollegeFee;
-
-function toggleOtherCollegeFee(enabled) {
-  const cont = document.getElementById('ctm-other-fee-container');
-  const freeMsg = document.getElementById('ctm-other-fee-free-msg');
-  const lbl = document.getElementById('ctm-other-fee-toggle-lbl');
-  if (cont && freeMsg && lbl) {
-    cont.style.display = enabled ? 'block' : 'none';
-    freeMsg.style.display = enabled ? 'none' : 'block';
-    lbl.textContent = enabled ? 'Fee Enabled' : 'Free (Disabled)';
-    lbl.className = enabled ? 'form-check-label text-xs fw-bold text-warning' : 'form-check-label text-xs fw-bold text-light';
-  }
-}
-window.toggleOtherCollegeFee = toggleOtherCollegeFee;
-
-function toggleAddSportOurFee(enabled) {
-  const cont = document.getElementById('add-sport-our-fee-cont');
-  const lbl = document.getElementById('add-sport-our-fee-lbl');
-  if (cont && lbl) {
-    cont.style.display = enabled ? 'block' : 'none';
-    lbl.textContent = enabled ? 'Fee Enabled' : 'Free';
-    lbl.className = enabled ? 'form-check-label text-xs fw-bold text-success' : 'form-check-label text-xs fw-bold text-light';
-  }
-}
-window.toggleAddSportOurFee = toggleAddSportOurFee;
-
-function toggleAddSportOtherFee(enabled) {
-  const cont = document.getElementById('add-sport-other-fee-cont');
-  const lbl = document.getElementById('add-sport-other-fee-lbl');
-  if (cont && lbl) {
-    cont.style.display = enabled ? 'block' : 'none';
-    lbl.textContent = enabled ? 'Fee Enabled' : 'Free';
-    lbl.className = enabled ? 'form-check-label text-xs fw-bold text-warning' : 'form-check-label text-xs fw-bold text-light';
-  }
-}
-window.toggleAddSportOtherFee = toggleAddSportOtherFee;
 
 function onAddSportSelectChange(sel) {
   const compNameInput = document.getElementById('add-sport-comp-name') || document.querySelector('#addSportCompetitionModal input[name="name"]');
-  const catSel = document.getElementById('add-sport-gender');
-  const cat = catSel ? catSel.value : 'Men';
   if (compNameInput && sel.selectedIndex > 0) {
     const sportName = sel.options[sel.selectedIndex].text;
-    compNameInput.value = `${sportName} — ${cat}`;
-    compNameInput.dataset.autofilled = 'true';
-  }
-}
-
-function onAddSportCategoryChange(cat) {
-  const compNameInput = document.getElementById('add-sport-comp-name') || document.querySelector('#addSportCompetitionModal input[name="name"]');
-  const sportSel = document.getElementById('add-sport-select-id');
-  if (compNameInput && sportSel && sportSel.selectedIndex > 0) {
-    const sportName = sportSel.options[sportSel.selectedIndex].text;
-    compNameInput.value = `${sportName} — ${cat}`;
+    if (!compNameInput.value || compNameInput.dataset.autofilled === 'true') {
+      compNameInput.value = sportName;
+      compNameInput.dataset.autofilled = 'true';
+    }
   }
 }
 
@@ -2375,52 +2101,6 @@ async function submitCreateCompetition(event) {
     formData.set('type', formData.get('sportType'));
   }
 
-  // Category Extraction & Normalization
-  const rawCat = formData.get('firstSportGender') || formData.get('gender') || 'Men';
-  let normCat = 'Men';
-  if (/^women$|^girls?$/i.test(rawCat)) normCat = 'Women';
-  else if (/^mixed$/i.test(rawCat)) normCat = 'Mixed';
-  formData.set('gender', normCat);
-  formData.set('category', normCat);
-
-  // Independent Fee Handling: Our College Students vs Other College Students
-  const ourFeeToggleEl = document.getElementById('ctm-our-fee-toggle');
-  const ourFeeEnabled = ourFeeToggleEl ? ourFeeToggleEl.checked : (formData.get('ourCollegeFeeEnabled') === 'on' || formData.get('ourCollegeFeeEnabled') === 'true');
-  let ourFee = ourFeeEnabled ? Number(formData.get('ourCollegeFee') || 50) : 0;
-  if (isNaN(ourFee) || ourFee < 0) ourFee = 0;
-
-  const otherFeeToggleEl = document.getElementById('ctm-other-fee-toggle');
-  const otherFeeEnabled = otherFeeToggleEl ? otherFeeToggleEl.checked : (formData.get('otherCollegeFeeEnabled') === 'on' || formData.get('otherCollegeFeeEnabled') === 'true');
-  let otherFee = otherFeeEnabled ? Number(formData.get('otherCollegeFee') || 100) : 0;
-  if (isNaN(otherFee) || otherFee < 0) otherFee = 0;
-
-  const upiId = (formData.get('upiId') || '9443218765@sbi').trim();
-  const gpayNumber = (formData.get('gpayNumber') || '+91 94432 18765').trim();
-  const receiverName = (formData.get('receiverName') || 'Physical Education Dept, GASC Idappadi').trim();
-
-  formData.set('ourCollegeFeeEnabled', ourFeeEnabled);
-  formData.set('our_college_fee_enabled', ourFeeEnabled);
-  formData.set('ourCollegeFee', ourFee);
-  formData.set('our_college_fee', ourFee);
-
-  formData.set('otherCollegeFeeEnabled', otherFeeEnabled);
-  formData.set('other_college_fee_enabled', otherFeeEnabled);
-  formData.set('otherCollegeFee', otherFee);
-  formData.set('other_college_fee', otherFee);
-  formData.set('entryFee', otherFee);
-  formData.set('entry_fee', otherFee);
-  formData.set('hasPayment', (ourFeeEnabled || otherFeeEnabled));
-  formData.set('has_payment', (ourFeeEnabled || otherFeeEnabled));
-  formData.set('isPaid', (ourFeeEnabled || otherFeeEnabled));
-  formData.set('is_paid', (ourFeeEnabled || otherFeeEnabled));
-
-  formData.set('upiId', upiId);
-  formData.set('upi_id', upiId);
-  formData.set('gpayNumber', gpayNumber);
-  formData.set('gpay_number', gpayNumber);
-  formData.set('receiverName', receiverName);
-  formData.set('receiver_name', receiverName);
-
   const uniqueCompId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   formData.set('id', uniqueCompId);
   const tId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -2430,57 +2110,9 @@ async function submitCreateCompetition(event) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Creating Tournament...';
 
-    // Compute dynamic automatic registration status
-    const now = new Date();
-    const regStartVal = formData.get('registrationStart');
-    const regEndVal = formData.get('registrationEnd') || formData.get('date');
-
-    let computedStatus = 'Registration Open';
-    if (regStartVal && new Date(regStartVal) > now) {
-      computedStatus = 'Upcoming';
-    } else if (regEndVal) {
-      let eDate = new Date(regEndVal);
-      if (/^\d{4}-\d{2}-\d{2}$/.test(String(regEndVal).trim())) {
-        eDate = new Date(`${String(regEndVal).trim()}T23:59:59.999Z`);
-      }
-      if (now > eDate) {
-        computedStatus = 'Registration Closed';
-      }
-    }
-    formData.set('status', computedStatus);
-
-    const payload = {};
-    formData.forEach((val, key) => {
-      if (typeof val === 'string') {
-        payload[key] = val;
-      }
-    });
-    payload.ourCollegeFeeEnabled = ourFeeEnabled;
-    payload.our_college_fee_enabled = ourFeeEnabled;
-    payload.ourCollegeFee = ourFee;
-    payload.our_college_fee = ourFee;
-
-    payload.otherCollegeFeeEnabled = otherFeeEnabled;
-    payload.other_college_fee_enabled = otherFeeEnabled;
-    payload.otherCollegeFee = otherFee;
-    payload.other_college_fee = otherFee;
-    payload.entryFee = otherFee;
-    payload.entry_fee = otherFee;
-    payload.hasPayment = (ourFeeEnabled || otherFeeEnabled);
-    payload.has_payment = (ourFeeEnabled || otherFeeEnabled);
-    payload.isPaid = (ourFeeEnabled || otherFeeEnabled);
-    payload.is_paid = (ourFeeEnabled || otherFeeEnabled);
-
-    payload.upiId = upiId;
-    payload.upi_id = upiId;
-    payload.gpayNumber = gpayNumber;
-    payload.gpay_number = gpayNumber;
-    payload.receiverName = receiverName;
-    payload.receiver_name = receiverName;
-
     let res = null;
     try {
-      res = await apiRequest('/competitions', 'POST', payload, false);
+      res = await apiRequest('/competitions', 'POST', formData, true);
     } catch (apiErr) {
       console.warn('API save notice (using offline local fallback):', apiErr.message);
     }
@@ -2495,36 +2127,13 @@ async function submitCreateCompetition(event) {
       tournamentName: tName,
       name: sportName,
       sportName: sportName,
-      category: normCat,
-      gender: normCat,
       type: formData.get('type') || formData.get('sportType') || 'Team Event',
       date: formData.get('date') || new Date().toISOString(),
-      registrationStart: regStartVal || now.toISOString(),
-      registrationEnd: regEndVal,
+      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
       venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
-      status: computedStatus,
+      status: formData.get('status') || 'Registration Open',
       bannerImage: coverUrl,
-      description: formData.get('description') || `Annual collegiate ${tName} competition.`,
-      ourCollegeFeeEnabled: ourFeeEnabled,
-      our_college_fee_enabled: ourFeeEnabled,
-      ourCollegeFee: ourFee,
-      our_college_fee: ourFee,
-      otherCollegeFeeEnabled: otherFeeEnabled,
-      other_college_fee_enabled: otherFeeEnabled,
-      otherCollegeFee: otherFee,
-      other_college_fee: otherFee,
-      entryFee: otherFee,
-      entry_fee: otherFee,
-      hasPayment: (ourFeeEnabled || otherFeeEnabled),
-      has_payment: (ourFeeEnabled || otherFeeEnabled),
-      isPaid: (ourFeeEnabled || otherFeeEnabled),
-      is_paid: (ourFeeEnabled || otherFeeEnabled),
-      upiId: upiId,
-      upi_id: upiId,
-      gpayNumber: gpayNumber,
-      gpay_number: gpayNumber,
-      receiverName: receiverName,
-      receiver_name: receiverName
+      description: formData.get('description') || `Annual collegiate ${tName} competition.`
     };
 
     try {
@@ -2535,7 +2144,7 @@ async function submitCreateCompetition(event) {
       window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
     } catch (e) {}
 
-    showToast(`Tournament "${tName}" created! Our College: ${ourFeeEnabled ? '₹' + ourFee : 'Free'}, Other College: ${otherFeeEnabled ? '₹' + otherFee : 'Free'}`, 'success');
+    showToast(`Tournament "${tName}" created with sport "${sportName}"!`, 'success');
     form.reset();
     try {
       const modalEl = document.getElementById('addCompetitionModal');
@@ -2546,11 +2155,12 @@ async function submitCreateCompetition(event) {
     } catch (mErr) {}
     loadAdminCompetitions();
 
-    // If INTER_COLLEGE, open the QR Code modal specifically for the tournament created
+    // If INTER_COLLEGE, open the QR Code modal automatically so Sports Mam can immediately preview / share / print
     const partType = formData.get('participationType');
-    if (partType === 'INTER_COLLEGE' && window.showParentTournamentQrModal) {
+    if (partType === 'INTER_COLLEGE' && window.openInterCollegeQrModal) {
       setTimeout(() => {
-        window.showParentTournamentQrModal(tName);
+        const compForQr = res?.competition || newT;
+        window.openInterCollegeQrModal(compForQr);
       }, 400);
     }
   } catch (err) {
@@ -2584,40 +2194,6 @@ async function submitAddSportToTournament(event) {
     formData.set('name', sportName);
   }
 
-  const rawSportCat = formData.get('gender') || 'Men';
-  let normSportCat = 'Men';
-  if (/^women$|^girls?$/i.test(rawSportCat)) normSportCat = 'Women';
-  else if (/^mixed$/i.test(rawSportCat)) normSportCat = 'Mixed';
-  formData.set('gender', normSportCat);
-  formData.set('category', normSportCat);
-
-  // Independent Fee Handling for Added Sport: Our College vs Other College
-  const addSportOurToggleEl = document.getElementById('add-sport-our-fee-toggle');
-  const addSportOurFeeEnabled = addSportOurToggleEl ? addSportOurToggleEl.checked : (formData.get('ourCollegeFeeEnabled') === 'on' || formData.get('ourCollegeFeeEnabled') === 'true');
-  let addSportOurFee = addSportOurFeeEnabled ? Number(formData.get('ourCollegeFee') || 50) : 0;
-  if (isNaN(addSportOurFee) || addSportOurFee < 0) addSportOurFee = 0;
-
-  const addSportOtherToggleEl = document.getElementById('add-sport-other-fee-toggle');
-  const addSportOtherFeeEnabled = addSportOtherToggleEl ? addSportOtherToggleEl.checked : (formData.get('otherCollegeFeeEnabled') === 'on' || formData.get('otherCollegeFeeEnabled') === 'true');
-  let addSportOtherFee = addSportOtherFeeEnabled ? Number(formData.get('otherCollegeFee') || 100) : 0;
-  if (isNaN(addSportOtherFee) || addSportOtherFee < 0) addSportOtherFee = 0;
-
-  formData.set('ourCollegeFeeEnabled', addSportOurFeeEnabled);
-  formData.set('our_college_fee_enabled', addSportOurFeeEnabled);
-  formData.set('ourCollegeFee', addSportOurFee);
-  formData.set('our_college_fee', addSportOurFee);
-
-  formData.set('otherCollegeFeeEnabled', addSportOtherFeeEnabled);
-  formData.set('other_college_fee_enabled', addSportOtherFeeEnabled);
-  formData.set('otherCollegeFee', addSportOtherFee);
-  formData.set('other_college_fee', addSportOtherFee);
-  formData.set('entryFee', addSportOtherFee);
-  formData.set('entry_fee', addSportOtherFee);
-  formData.set('hasPayment', (addSportOurFeeEnabled || addSportOtherFeeEnabled));
-  formData.set('has_payment', (addSportOurFeeEnabled || addSportOtherFeeEnabled));
-  formData.set('isPaid', (addSportOurFeeEnabled || addSportOtherFeeEnabled));
-  formData.set('is_paid', (addSportOurFeeEnabled || addSportOtherFeeEnabled));
-
   const uniqueSportId = `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
   formData.set('id', uniqueSportId);
   const sportTId = `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -2627,55 +2203,9 @@ async function submitAddSportToTournament(event) {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Adding Sport...';
 
-    // Compute dynamic automatic registration status for added sport
-    const nowSport = new Date();
-    const sportRegStart = formData.get('registrationStart');
-    const sportRegEnd = formData.get('registrationEnd') || formData.get('date');
-    let sportStatus = formData.get('status') || 'AUTO';
-    if (sportStatus === 'AUTO') {
-      if (sportRegStart && new Date(sportRegStart) > nowSport) {
-        sportStatus = 'Upcoming';
-      } else if (sportRegEnd) {
-        let eDate = new Date(sportRegEnd);
-        if (/^\d{4}-\d{2}-\d{2}$/.test(String(sportRegEnd).trim())) {
-          eDate = new Date(`${String(sportRegEnd).trim()}T23:59:59.999Z`);
-        }
-        if (nowSport > eDate) {
-          sportStatus = 'Registration Closed';
-        } else {
-          sportStatus = 'Registration Open';
-        }
-      } else {
-        sportStatus = 'Registration Open';
-      }
-    }
-    formData.set('status', sportStatus);
-
-    const payload = {};
-    formData.forEach((val, key) => {
-      if (typeof val === 'string') {
-        payload[key] = val;
-      }
-    });
-    payload.ourCollegeFeeEnabled = addSportOurFeeEnabled;
-    payload.our_college_fee_enabled = addSportOurFeeEnabled;
-    payload.ourCollegeFee = addSportOurFee;
-    payload.our_college_fee = addSportOurFee;
-
-    payload.otherCollegeFeeEnabled = addSportOtherFeeEnabled;
-    payload.other_college_fee_enabled = addSportOtherFeeEnabled;
-    payload.otherCollegeFee = addSportOtherFee;
-    payload.other_college_fee = addSportOtherFee;
-    payload.entryFee = addSportOtherFee;
-    payload.entry_fee = addSportOtherFee;
-    payload.hasPayment = (addSportOurFeeEnabled || addSportOtherFeeEnabled);
-    payload.has_payment = (addSportOurFeeEnabled || addSportOtherFeeEnabled);
-    payload.isPaid = (addSportOurFeeEnabled || addSportOtherFeeEnabled);
-    payload.is_paid = (addSportOurFeeEnabled || addSportOtherFeeEnabled);
-
     let res = null;
     try {
-      res = await apiRequest('/competitions', 'POST', payload, false);
+      res = await apiRequest('/competitions', 'POST', formData, true);
     } catch (apiErr) {
       console.warn('API save notice for add sport:', apiErr.message);
     }
@@ -2688,32 +2218,15 @@ async function submitAddSportToTournament(event) {
       name: sportName,
       tournamentName: tName,
       sportName: sportName,
-      category: normSportCat,
-      gender: normSportCat,
       type: formData.get('type') || 'Team Event',
       date: formData.get('date') || new Date().toISOString(),
-      registrationStart: sportRegStart || nowSport.toISOString(),
-      registrationEnd: sportRegEnd,
+      registrationEnd: formData.get('registrationEnd') || formData.get('date'),
       startTime: formData.get('startTime') || '09:00 AM',
       endTime: formData.get('endTime') || '05:00 PM',
       venue: formData.get('venue') || 'GASC Idappadi Sports Ground',
       maxParticipants: Number(formData.get('maxParticipants')) || 50,
-      status: sportStatus,
-      description: formData.get('description') || `${sportName} competition inside ${tName}.`,
-      ourCollegeFeeEnabled: addSportOurFeeEnabled,
-      our_college_fee_enabled: addSportOurFeeEnabled,
-      ourCollegeFee: addSportOurFee,
-      our_college_fee: addSportOurFee,
-      otherCollegeFeeEnabled: addSportOtherFeeEnabled,
-      other_college_fee_enabled: addSportOtherFeeEnabled,
-      otherCollegeFee: addSportOtherFee,
-      other_college_fee: addSportOtherFee,
-      entryFee: addSportOtherFee,
-      entry_fee: addSportOtherFee,
-      hasPayment: (addSportOurFeeEnabled || addSportOtherFeeEnabled),
-      has_payment: (addSportOurFeeEnabled || addSportOtherFeeEnabled),
-      isPaid: (addSportOurFeeEnabled || addSportOtherFeeEnabled),
-      is_paid: (addSportOurFeeEnabled || addSportOtherFeeEnabled)
+      status: formData.get('status') || 'Registration Open',
+      description: formData.get('description') || `${sportName} competition inside ${tName}.`
     };
 
     try {
@@ -2772,14 +2285,7 @@ async function deleteCompetition(id, name) {
 
 async function deleteTournament(tName) {
   if (!tName) return;
-  const confirmed = typeof window.showCustomConfirm === 'function'
-    ? await window.showCustomConfirm(
-        `Delete Tournament "${tName}"?`,
-        `Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`,
-        'Delete Tournament',
-        'Cancel'
-      )
-    : window.confirm(`Are you sure you want to delete tournament "${tName}"?`);
+  const confirmed = window.confirm(`⚠️ Are you sure you want to delete tournament "${tName}" and all its sports disciplines? This will update the student portal immediately.`);
   if (!confirmed) return;
 
   try {
@@ -2819,50 +2325,24 @@ async function deleteTournament(tName) {
 async function loadAdminApplications() {
   const table = document.getElementById('admin-applications-table');
   const status = document.getElementById('app-filter-status') ? document.getElementById('app-filter-status').value : 'All';
-  const categoryFilter = document.getElementById('app-filter-gender') ? document.getElementById('app-filter-gender').value : 'All';
 
   try {
     const res = await apiRequest(`/competitions/registrations/all?status=${status}`);
-    let regs = res.registrations || [];
-
-    if (categoryFilter !== 'All') {
-      regs = regs.filter(r => {
-        const c = r.competitionId || {};
-        const rawCat = (r.category || c.category || r.gender || c.gender || '').toLowerCase();
-        if (categoryFilter === 'Men') return rawCat === 'men' || rawCat === 'boys';
-        if (categoryFilter === 'Women') return rawCat === 'women' || rawCat === 'girls';
-        if (categoryFilter === 'Mixed') return rawCat === 'mixed';
-        return true;
-      });
-    }
-
-    if (regs.length === 0) {
+    if (!res.registrations || res.registrations.length === 0) {
       const emptyMsg = status === 'Pending' 
-        ? 'No pending applications to review matching criteria.'
-        : `No student applications found for status "${status}" and category "${categoryFilter}".`;
-      table.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-inbox me-2 fs-5"></i>${emptyMsg}</td></tr>`;
+        ? 'No pending applications to review. (Select "All Applications" or "Approved" to view reviewed entries).'
+        : `No student applications found for status: ${status}.`;
+      table.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-inbox me-2 fs-5"></i>${emptyMsg}</td></tr>`;
       return;
     }
 
-    table.innerHTML = regs.map((r, idx) => {
+    table.innerHTML = res.registrations.map((r, idx) => {
       const regId = r.id || r._id;
       const studentName = (r.studentId && r.studentId.name) ? r.studentId.name : (r.studentName || 'Student Athlete');
       const regNo = (r.studentId && r.studentId.registerNumber) ? r.studentId.registerNumber : (r.registerNumber || '');
       const dept = (r.studentId && r.studentId.department) ? r.studentId.department : (r.department || '');
-      const tName = r.tournamentName || (r.competitionId && r.competitionId.tournamentName) || 'Inter-Department Fest';
       const compName = (r.competitionId && r.competitionId.name) ? r.competitionId.name : (r.tournamentName || 'Competition');
       const sportName = (r.competitionId && r.competitionId.sportName) ? r.competitionId.sportName : (r.sportName || 'General');
-
-      const c = r.competitionId || {};
-      const rawCat = r.category || c.category || r.gender || c.gender || 'Mixed';
-      let compCat = 'Mixed';
-      if (/^men$|^boys?$/i.test(rawCat)) compCat = 'Men';
-      else if (/^women$|^girls?$/i.test(rawCat)) compCat = 'Women';
-      else compCat = 'Mixed';
-
-      let catBadgeClass = 'bg-primary';
-      if (compCat === 'Women') catBadgeClass = 'bg-danger';
-      else if (compCat === 'Mixed') catBadgeClass = 'bg-warning text-dark';
 
       let statusBadge = `<span class="badge badge-glass-warning text-dark"><i class="bi bi-clock-history me-1"></i>${r.status || 'Registered'}</span>`;
       if (r.status === 'Approved') {
@@ -2912,32 +2392,21 @@ async function loadAdminApplications() {
           <td>${idx + 1}</td>
           <td>
             <strong class="d-block text-dark">${studentName}</strong>
-            <small class="text-muted font-monospace">${regNo}</small>
+            <small class="text-muted">${regNo} &bull; ${dept}</small>
           </td>
           <td>
-            <strong class="d-block text-dark small">${tName}</strong>
-            <small class="text-primary fw-medium"><i class="bi bi-trophy-fill text-warning me-1"></i>${sportName}</small>
+            <strong class="d-block text-dark">${compName}</strong>
+            <small class="text-primary fw-medium">${sportName}</small>
           </td>
-          <td>
-            <span class="fw-semibold text-dark">${compName}</span>
-          </td>
-          <td>
-            <span class="badge ${catBadgeClass} px-2 py-1" style="font-size:0.75rem;">
-              <i class="bi bi-gender-ambiguous me-1"></i>${compCat}
-            </span>
-          </td>
-          <td>
-            <span class="badge bg-light text-dark border me-1">${dept}</span>
-            <small class="text-muted d-block mt-0.5">${r.preferredPosition || 'Player'}</small>
-          </td>
-          <td class="small text-muted">${formatDate(r.registrationDate || r.createdAt)}</td>
+          <td><span class="badge bg-light text-dark border">${r.preferredPosition || 'Player'}</span></td>
+          <td>${formatDate(r.registrationDate || r.createdAt)}</td>
           <td>${statusBadge}</td>
           <td>${actionButtons}</td>
         </tr>
       `;
     }).join('');
   } catch (err) {
-    table.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Failed to load applications.</td></tr>`;
+    table.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Failed to load applications.</td></tr>`;
   }
 }
 
@@ -3732,394 +3201,6 @@ async function deleteAchievement(id) {
     loadAdminAchievements();
   } catch (err) {
     showToast(err.message, 'error');
-  }
-}
-
-// 11b. CM Trophy Updates & Notifications Management
-let allCmTrophyAnnouncements = [];
-
-async function loadAdminCmTrophy() {
-  const tbody = document.getElementById('cm-trophy-table-tbody');
-  if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-muted"><div class="spinner-border text-warning spinner-border-sm me-2"></div> Loading official CM Trophy circulars & announcements...</td></tr>`;
-  }
-
-  try {
-    const res = await apiRequest('/cm-trophy');
-    allCmTrophyAnnouncements = res.data || res.announcements || (Array.isArray(res) ? res : []);
-    updateCmTrophyMetrics(allCmTrophyAnnouncements);
-    filterAdminCmTrophyTable();
-  } catch (err) {
-    console.error('Failed to load CM Trophy announcements:', err);
-    if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle me-1"></i> Failed to load announcements: ${escapeHtml(err.message || 'Network error')}</td></tr>`;
-    }
-  }
-}
-
-function updateCmTrophyMetrics(list) {
-  const total = list.length;
-  const published = list.filter(a => a.status === 'published').length;
-  const drafts = list.filter(a => a.status === 'draft').length;
-  const important = list.filter(a => a.isImportant).length;
-
-  const setVal = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.innerText = val;
-  };
-
-  setVal('cm-stat-total', total);
-  setVal('cm-stat-published', published);
-  setVal('cm-stat-drafts', drafts);
-  setVal('cm-stat-important', important);
-
-  const badge = document.getElementById('nav-cm-trophy-badge');
-  if (badge) {
-    if (published > 0) {
-      badge.innerText = published;
-      badge.style.display = 'inline-block';
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-}
-
-function filterAdminCmTrophyTable() {
-  const query = (document.getElementById('cm-search-input')?.value || '').toLowerCase().trim();
-  const statusFilter = document.getElementById('cm-status-filter')?.value || 'All';
-  const categoryFilter = document.getElementById('cm-category-filter')?.value || 'All';
-
-  let filtered = [...allCmTrophyAnnouncements];
-
-  if (statusFilter !== 'All') {
-    filtered = filtered.filter(a => (a.status || '').toLowerCase() === statusFilter.toLowerCase());
-  }
-
-  if (categoryFilter !== 'All') {
-    filtered = filtered.filter(a => (a.category || '').toLowerCase() === categoryFilter.toLowerCase());
-  }
-
-  if (query) {
-    filtered = filtered.filter(a => 
-      (a.title || '').toLowerCase().includes(query) ||
-      (a.instructions || '').toLowerCase().includes(query) ||
-      (a.category || '').toLowerCase().includes(query)
-    );
-  }
-
-  renderAdminCmTrophyTable(filtered);
-}
-
-function renderAdminCmTrophyTable(list) {
-  const tbody = document.getElementById('cm-trophy-table-tbody');
-  if (!tbody) return;
-
-  if (!list || list.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8" class="text-center py-5 text-muted">
-          <div class="stat-icon bg-warning bg-opacity-10 text-warning mx-auto mb-2" style="width: 48px; height: 48px; font-size: 1.5rem;">
-            <i class="bi bi-trophy-fill"></i>
-          </div>
-          <div class="fw-bold text-dark">No CM Trophy Announcements Found</div>
-          <small class="text-muted">Click "+ New Announcement" above to publish verified SDAT circulars and instructions for students.</small>
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  const fmtDate = (d) => {
-    if (!d) return '-';
-    try {
-      return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch (e) {
-      return String(d);
-    }
-  };
-
-  tbody.innerHTML = list.map((a, idx) => {
-    const isPub = a.status === 'published';
-    const isArch = a.status === 'archived';
-    const statusBadge = isPub
-      ? '<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25"><i class="bi bi-broadcast me-1"></i>Published</span>'
-      : (isArch
-          ? '<span class="badge bg-secondary bg-opacity-25 text-secondary border">Archived</span>'
-          : '<span class="badge bg-warning bg-opacity-15 text-dark border border-warning border-opacity-50"><i class="bi bi-pencil-fill me-1"></i>Draft</span>');
-
-    const priorityBadge = a.isImportant
-      ? '<span class="badge bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-1"></i>HIGH PRIORITY</span>'
-      : '<span class="badge bg-light text-muted border">Standard</span>';
-
-    const datesDisplay = (a.registrationStartDate || a.registrationEndDate)
-      ? `<div class="small fw-semibold text-dark">${fmtDate(a.registrationStartDate)} – ${fmtDate(a.registrationEndDate)}</div>`
-      : '<span class="text-muted small">Pending verification</span>';
-
-    const linkSafe = escapeHtml(a.officialLink || 'https://tncmtrophy.sdat.in/');
-    const safeTitle = escapeHtml(a.title || 'Untitled Notice');
-    const safeSnippet = escapeHtml((a.instructions || '').substring(0, 85)) + ((a.instructions || '').length > 85 ? '...' : '');
-
-    return `
-      <tr>
-        <td class="text-muted small">${idx + 1}</td>
-        <td>
-          <div class="fw-bold text-dark">${safeTitle}</div>
-          <div class="d-flex align-items-center gap-2 mt-1">
-            <span class="badge bg-primary bg-opacity-10 text-primary border" style="font-size: 0.7rem;">${escapeHtml(a.category || 'General')}</span>
-            <a href="${linkSafe}" target="_blank" rel="noopener noreferrer" class="small text-decoration-none text-muted" style="font-size: 0.72rem;">
-              <i class="bi bi-box-arrow-up-right me-1"></i>SDAT Portal
-            </a>
-          </div>
-        </td>
-        <td>
-          <div class="small text-secondary" style="max-width: 280px;">${safeSnippet}</div>
-        </td>
-        <td>${datesDisplay}</td>
-        <td>${priorityBadge}</td>
-        <td>${statusBadge}</td>
-        <td class="small text-muted">${fmtDate(a.publishedAt || a.createdAt)}</td>
-        <td class="text-end">
-          <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-info" onclick="previewSingleCmTrophy('${a.id}')" title="Preview student view">
-              <i class="bi bi-eye"></i>
-            </button>
-            <button class="btn btn-outline-primary" onclick="editCmTrophyAnnouncement('${a.id}')" title="Edit notice">
-              <i class="bi bi-pencil"></i>
-            </button>
-            ${!isPub ? `
-              <button class="btn btn-outline-success" onclick="publishCmTrophyAnnouncement('${a.id}')" title="Publish to students now">
-                <i class="bi bi-send"></i>
-              </button>
-            ` : `
-              <button class="btn btn-outline-secondary" onclick="archiveCmTrophyAnnouncement('${a.id}')" title="Archive announcement">
-                <i class="bi bi-archive"></i>
-              </button>
-            `}
-            <button class="btn btn-outline-danger" onclick="deleteCmTrophyAnnouncement('${a.id}')" title="Delete record">
-              <i class="bi bi-trash"></i>
-            </button>
-          </div>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-function openAddCmTrophyModal() {
-  document.getElementById('cmTrophyForm')?.reset();
-  document.getElementById('cm-trophy-id').value = '';
-  document.getElementById('cm-trophy-official-link').value = 'https://tncmtrophy.sdat.in/';
-  document.getElementById('cm-trophy-modal-title').innerText = 'New CM Trophy Announcement';
-  document.getElementById('cm-trophy-is-important').checked = true;
-  document.getElementById('cm-trophy-notify-students').checked = true;
-
-  const modalEl = document.getElementById('cmTrophyModal');
-  if (modalEl) {
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
-  }
-}
-
-function editCmTrophyAnnouncement(id) {
-  const item = allCmTrophyAnnouncements.find(a => String(a.id) === String(id));
-  if (!item) {
-    showToast('Announcement not found', 'warning');
-    return;
-  }
-
-  document.getElementById('cm-trophy-id').value = item.id;
-  document.getElementById('cm-trophy-title').value = item.title || '';
-  document.getElementById('cm-trophy-category').value = item.category || 'Important Notice';
-  document.getElementById('cm-trophy-official-link').value = item.officialLink || 'https://tncmtrophy.sdat.in/';
-  document.getElementById('cm-trophy-start-date').value = item.registrationStartDate ? item.registrationStartDate.split('T')[0] : '';
-  document.getElementById('cm-trophy-end-date').value = item.registrationEndDate ? item.registrationEndDate.split('T')[0] : '';
-  document.getElementById('cm-trophy-is-important').checked = !!item.isImportant;
-  document.getElementById('cm-trophy-notify-students').checked = true;
-  document.getElementById('cm-trophy-instructions').value = item.instructions || '';
-  document.getElementById('cm-trophy-modal-title').innerText = 'Edit CM Trophy Announcement & Instructions';
-
-  const modalEl = document.getElementById('cmTrophyModal');
-  if (modalEl) {
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
-  }
-}
-
-async function saveCmTrophyAnnouncement(targetStatus) {
-  const id = document.getElementById('cm-trophy-id')?.value;
-  const title = document.getElementById('cm-trophy-title')?.value.trim();
-  const category = document.getElementById('cm-trophy-category')?.value;
-  const officialLink = document.getElementById('cm-trophy-official-link')?.value.trim() || 'https://tncmtrophy.sdat.in/';
-  const registrationStartDate = document.getElementById('cm-trophy-start-date')?.value || null;
-  const registrationEndDate = document.getElementById('cm-trophy-end-date')?.value || null;
-  const isImportant = document.getElementById('cm-trophy-is-important')?.checked;
-  const notifyStudents = document.getElementById('cm-trophy-notify-students')?.checked;
-  const instructions = document.getElementById('cm-trophy-instructions')?.value.trim();
-
-  if (!title) {
-    showToast('Please enter an announcement title.', 'warning');
-    return;
-  }
-
-  if (!instructions) {
-    showToast('Please provide detailed instructions or guidelines for students.', 'warning');
-    return;
-  }
-
-  const payload = {
-    title,
-    instructions,
-    category,
-    officialLink,
-    registrationStartDate,
-    registrationEndDate,
-    isImportant,
-    status: targetStatus || 'published',
-    notifyStudents
-  };
-
-  try {
-    let res;
-    if (id) {
-      res = await apiRequest(`/cm-trophy/${id}`, 'PUT', payload);
-      showToast(res.message || 'CM Trophy announcement updated successfully.', 'success', 'Update Complete');
-    } else {
-      res = await apiRequest('/cm-trophy', 'POST', payload);
-      showToast(res.message || 'CM Trophy announcement created & published!', 'success', 'Published');
-    }
-
-    const modalEl = document.getElementById('cmTrophyModal');
-    if (modalEl) {
-      const modal = bootstrap.Modal.getInstance(modalEl);
-      if (modal) modal.hide();
-    }
-
-    await loadAdminCmTrophy();
-  } catch (err) {
-    console.error('Save CM Trophy error:', err);
-    showToast(err.message || 'Failed to save CM Trophy announcement.', 'error', 'Error');
-  }
-}
-
-function previewCmTrophyModal() {
-  const title = document.getElementById('cm-trophy-title')?.value.trim() || 'Tamil Nadu CM Trophy 2026-27 Registration';
-  const category = document.getElementById('cm-trophy-category')?.value || 'Important Notice';
-  const officialLink = document.getElementById('cm-trophy-official-link')?.value.trim() || 'https://tncmtrophy.sdat.in/';
-  const startDate = document.getElementById('cm-trophy-start-date')?.value;
-  const endDate = document.getElementById('cm-trophy-end-date')?.value;
-  const isImportant = document.getElementById('cm-trophy-is-important')?.checked;
-  const instructions = document.getElementById('cm-trophy-instructions')?.value.trim() || 'Detailed guidelines will appear here for students.';
-
-  populatePreviewModal({
-    title,
-    category,
-    officialLink,
-    registrationStartDate: startDate,
-    registrationEndDate: endDate,
-    isImportant,
-    instructions
-  });
-}
-
-function previewSingleCmTrophy(id) {
-  const item = allCmTrophyAnnouncements.find(a => String(a.id) === String(id));
-  if (!item) return;
-  populatePreviewModal(item);
-}
-
-function populatePreviewModal(data) {
-  const fmt = (d) => {
-    if (!d) return 'Pending SDAT Verification';
-    try {
-      return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-    } catch(e) {
-      return String(d);
-    }
-  };
-
-  document.getElementById('preview-title-display').innerText = data.title;
-  document.getElementById('preview-category-badge').innerText = data.category || 'CM Trophy';
-  document.getElementById('preview-instructions-display').innerText = data.instructions;
-  document.getElementById('preview-start-date').innerText = fmt(data.registrationStartDate);
-  document.getElementById('preview-end-date').innerText = fmt(data.registrationEndDate);
-  document.getElementById('preview-link-btn').href = data.officialLink || 'https://tncmtrophy.sdat.in/';
-
-  const importantBadge = document.getElementById('preview-important-badge');
-  if (importantBadge) {
-    importantBadge.style.display = data.isImportant ? 'inline-block' : 'none';
-  }
-
-  const modalEl = document.getElementById('cmTrophyPreviewModal');
-  if (modalEl) {
-    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-    modal.show();
-  }
-}
-
-async function publishFromPreview() {
-  const modalEl = document.getElementById('cmTrophyPreviewModal');
-  if (modalEl) {
-    const modal = bootstrap.Modal.getInstance(modalEl);
-    if (modal) modal.hide();
-  }
-  await saveCmTrophyAnnouncement('published');
-}
-
-async function publishCmTrophyAnnouncement(id) {
-  try {
-    const res = await apiRequest(`/cm-trophy/${id}/publish`, 'PUT', { notifyStudents: true });
-    showToast(res.message || 'Announcement published to students!', 'success', 'Live Broadcast');
-    await loadAdminCmTrophy();
-  } catch (err) {
-    showToast(err.message || 'Failed to publish announcement', 'error');
-  }
-}
-
-async function archiveCmTrophyAnnouncement(id) {
-  let ok = false;
-  if (window.showConfirm) {
-    ok = await window.showConfirm({
-      title: 'Archive Announcement?',
-      message: 'This will archive the announcement and hide it from the active student view.',
-      isDanger: false,
-      okText: 'Archive'
-    });
-  } else {
-    ok = confirm('Archive this announcement from the student portal?');
-  }
-
-  if (!ok) return;
-
-  try {
-    const res = await apiRequest(`/cm-trophy/${id}/archive`, 'PUT');
-    showToast(res.message || 'Announcement archived.', 'info', 'Archived');
-    await loadAdminCmTrophy();
-  } catch (err) {
-    showToast(err.message || 'Failed to archive', 'error');
-  }
-}
-
-async function deleteCmTrophyAnnouncement(id) {
-  let ok = false;
-  if (window.showConfirm) {
-    ok = await window.showConfirm({
-      title: 'Delete Announcement?',
-      message: 'Are you sure you want to delete this CM Trophy circular permanently?',
-      isDanger: true,
-      okText: 'Delete'
-    });
-  } else {
-    ok = confirm('Permanently delete this announcement?');
-  }
-
-  if (!ok) return;
-
-  try {
-    const res = await apiRequest(`/cm-trophy/${id}`, 'DELETE');
-    showToast(res.message || 'Announcement deleted.', 'info');
-    await loadAdminCmTrophy();
-  } catch (err) {
-    showToast(err.message || 'Failed to delete', 'error');
   }
 }
 
@@ -5280,7 +4361,6 @@ function renderTournamentReportHTML(viewMode = 'sport') {
               <tr>
                 <th style="width:45px">S.No</th>
                 <th>Sport Name</th>
-                <th>Category</th>
                 <th>Register Number</th>
                 <th>Player Name</th>
                 <th>Year</th>
@@ -5294,7 +4374,6 @@ function renderTournamentReportHTML(viewMode = 'sport') {
                 <tr>
                   <td>${r.sNo}</td>
                   <td><strong>${r.sportName}</strong></td>
-                  <td><span class="badge ${r.category === 'Women' ? 'bg-danger' : r.category === 'Mixed' ? 'bg-success' : 'bg-primary'} text-white">${r.category || (r.gender === 'Girls' || r.gender === 'Female' ? 'Women' : 'Men')}</span></td>
                   <td><code>${r.registerNumber}</code></td>
                   <td>${r.playerName}</td>
                   <td>${r.year}</td>
@@ -5321,7 +4400,6 @@ function renderTournamentReportHTML(viewMode = 'sport') {
               <tr>
                 <th style="width:45px">S.No</th>
                 <th>Sport Name</th>
-                <th>Category</th>
                 <th>Team Name</th>
                 <th>Register Number</th>
                 <th>Player Name</th>
@@ -5336,7 +4414,6 @@ function renderTournamentReportHTML(viewMode = 'sport') {
                 <tr class="${r.teamStatus === 'Not Assigned' ? 'table-warning' : ''}">
                   <td>${r.sNo}</td>
                   <td><strong>${r.sportName}</strong></td>
-                  <td><span class="badge ${r.category === 'Women' ? 'bg-danger' : r.category === 'Mixed' ? 'bg-success' : 'bg-primary'} text-white">${r.category || (r.gender === 'Girls' || r.gender === 'Female' ? 'Women' : 'Men')}</span></td>
                   <td>${r.teamStatus === 'Not Assigned'
                     ? '<span class="text-muted fst-italic">Not Assigned</span>'
                     : `<span class="fw-semibold text-success">${r.teamName}</span>`}</td>
@@ -5390,7 +4467,8 @@ function renderTournamentReportHTML(viewMode = 'sport') {
       }
     </div>`;
 
-  const token = tournamentName ? tournamentName.toLowerCase().replace(/[^a-z0-9]/g, '_') : '';
+  const matchedComp = (typeof trrCompetitionsCache !== 'undefined') ? trrCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name) === tournamentName) : null;
+  const token = matchedComp ? (matchedComp.registration_token || matchedComp.registrationToken || matchedComp.id) : (tournamentName ? tournamentName.toLowerCase().replace(/[^a-z0-9]/g, '') : '');
   const qrThumbUrl = (typeof window.getQrImageUrl === 'function' && token) ? window.getQrImageUrl(token, 120) : '';
   const publicRegUrl = (typeof window.getPublicRegistrationUrl === 'function' && token) ? window.getPublicRegistrationUrl(token) : '';
 
@@ -6283,48 +5361,35 @@ window.showTournamentQrModal = function(compId) {
 
 window.showParentTournamentQrModal = function(rawTournamentName) {
   const tName = decodeURIComponent(rawTournamentName || '').trim();
-  const tokenSlug = tName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-  const tId = 'tour_' + tokenSlug;
-
-  // Find if tournament object exists in caches or database list
-  let tourObj = null;
-  if (typeof extTournamentsCache !== 'undefined' && Array.isArray(extTournamentsCache)) {
-    tourObj = extTournamentsCache.find(t => (t.name || t.tournament_name || '').toLowerCase().trim() === tName.toLowerCase().trim());
-  }
-  if (!tourObj && typeof allTournamentsCache !== 'undefined' && Array.isArray(allTournamentsCache)) {
-    tourObj = allTournamentsCache.find(t => (t.name || t.tournament_name || '').toLowerCase().trim() === tName.toLowerCase().trim());
-  }
-
-  // Find one sport in tournament for banner/venue/date fallback if available
-  let anySport = null;
+  let comp = null;
   if (typeof extCompetitionsCache !== 'undefined' && Array.isArray(extCompetitionsCache)) {
-    anySport = extCompetitionsCache.find(c => (c.tournament_id === tId) || (c.tournamentName || c.tournament_name || '').toLowerCase() === tName.toLowerCase());
+    comp = extCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
   }
-  if (!anySport && typeof trrCompetitionsCache !== 'undefined' && Array.isArray(trrCompetitionsCache)) {
-    anySport = trrCompetitionsCache.find(c => (c.tournament_id === tId) || (c.tournamentName || c.tournament_name || '').toLowerCase() === tName.toLowerCase());
+  if (!comp && typeof trrCompetitionsCache !== 'undefined' && Array.isArray(trrCompetitionsCache)) {
+    comp = trrCompetitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
   }
-
-  const tokenToUse = tourObj?.registration_token || tourObj?.registrationToken || tokenSlug;
-
-  const tournamentQrCard = {
-    id: tourObj?.id || tId,
-    name: tName,
-    tournamentName: tName,
-    sportName: 'Inter-College Championship',
-    competition_mode: 'TOURNAMENT',
-    venue: tourObj?.venue || anySport?.venue || 'GASC Idappadi Sports Ground',
-    date: tourObj?.startDate || tourObj?.start_date || anySport?.date || new Date().toISOString(),
-    registration_deadline: tourObj?.endDate || tourObj?.end_date || anySport?.registration_deadline,
-    registration_token: tokenToUse,
-    isParentTournament: true,
-    status: tourObj?.status || 'Registration Open',
-    external_registration_enabled: tourObj ? (tourObj.external_registration_enabled !== false) : true
-  };
-
+  if (!comp && typeof window.competitionsCache !== 'undefined' && Array.isArray(window.competitionsCache)) {
+    comp = window.competitionsCache.find(c => (c.tournamentName || c.tournament_name || c.name || '').toLowerCase() === tName.toLowerCase());
+  }
+  if (!comp) {
+    comp = {
+      id: 'tour_' + tName.replace(/[^a-zA-Z0-9]/g, '_'),
+      name: tName,
+      tournamentName: tName,
+      sportName: 'All Sports',
+      competition_mode: 'TEAM',
+      venue: 'GASC Idappadi Sports Ground',
+      date: new Date().toISOString(),
+      registration_token: 'tour_' + tName.replace(/[^a-zA-Z0-9]/g, '_')
+    };
+  }
+  if (!comp.registration_token && !comp.registrationToken) {
+    comp.registration_token = comp.id;
+  }
   if (typeof openInterCollegeQrModal === 'function') {
-    openInterCollegeQrModal(tournamentQrCard);
+    openInterCollegeQrModal(comp);
   } else {
-    showToast('Opening Tournament QR Preview...', 'info');
+    showToast('Opening QR Preview...', 'info');
   }
 };
 
@@ -6337,85 +5402,5 @@ window.openSelectedTournamentQrFromReport = function() {
   }
   window.showParentTournamentQrModal(tName);
 };
-
-// In-App Custom Confirmation Dialog (Prevents Electron Native Dialog Focus Trap)
-window.showCustomConfirm = function(title, message, confirmBtnText = 'Delete', cancelBtnText = 'Cancel', isDanger = true) {
-  return new Promise((resolve) => {
-    const modalEl = document.getElementById('gascConfirmModal');
-    if (!modalEl || typeof bootstrap === 'undefined') {
-      const res = window.confirm(`${title}\n\n${message}`);
-      if (window.electronAPI && typeof window.electronAPI.fixFocus === 'function') {
-        window.electronAPI.fixFocus();
-      }
-      window.focus();
-      return resolve(res);
-    }
-
-    const titleEl = document.getElementById('gasc-confirm-title');
-    const msgEl = document.getElementById('gasc-confirm-message');
-    const okBtn = document.getElementById('gasc-confirm-ok-btn');
-    const cancelBtn = document.getElementById('gasc-confirm-cancel-btn');
-    const iconEl = document.getElementById('gasc-confirm-icon');
-
-    if (titleEl) titleEl.innerText = title;
-    if (msgEl) msgEl.innerText = message;
-    if (cancelBtn) cancelBtn.innerText = cancelBtnText;
-    if (okBtn) {
-      okBtn.innerHTML = isDanger ? `<i class="bi bi-trash3 me-1"></i> ${confirmBtnText}` : `<i class="bi bi-check-circle me-1"></i> ${confirmBtnText}`;
-      okBtn.className = isDanger ? 'btn btn-danger px-4 rounded-pill fw-bold shadow-sm' : 'btn btn-primary px-4 rounded-pill fw-bold shadow-sm';
-    }
-    if (iconEl) {
-      iconEl.className = isDanger ? 'bi bi-exclamation-triangle-fill fs-1 text-danger' : 'bi bi-question-circle-fill fs-1 text-primary';
-    }
-
-    const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: 'static', keyboard: false, focus: false });
-
-    let resolved = false;
-
-    function cleanup(result) {
-      if (resolved) return;
-      resolved = true;
-      okBtn.removeEventListener('click', onOk);
-      cancelBtn.removeEventListener('click', onCancel);
-      bsModal.hide();
-      setTimeout(() => {
-        // Clean any lingering backdrops
-        document.querySelectorAll('.modal-backdrop').forEach(b => {
-          if (!document.querySelector('.modal.show')) b.remove();
-        });
-        window.focus();
-        if (window.electronAPI && typeof window.electronAPI.fixFocus === 'function') {
-          window.electronAPI.fixFocus();
-        }
-        resolve(result);
-      }, 150);
-    }
-
-    function onOk() { cleanup(true); }
-    function onCancel() { cleanup(false); }
-
-    okBtn.addEventListener('click', onOk, { once: true });
-    cancelBtn.addEventListener('click', onCancel, { once: true });
-
-    bsModal.show();
-  });
-};
-
-// Also protect against any native window.confirm calls stealing focus in Electron
-(function() {
-  const origConfirm = window.confirm;
-  window.confirm = function(msg) {
-    const res = origConfirm.call(window, msg);
-    try {
-      window.focus();
-      if (window.electronAPI && typeof window.electronAPI.fixFocus === 'function') {
-        window.electronAPI.fixFocus();
-      }
-    } catch(e) {}
-    return res;
-  };
-})();
-
-
 
 

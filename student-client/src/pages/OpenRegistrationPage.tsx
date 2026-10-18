@@ -850,14 +850,14 @@ const OpenRegistrationPage: React.FC = () => {
 
       // Check if running in simulator mode (e.g. initial setup before keys configured in .env)
       if (data.isSandbox && (!data.keyId || data.keyId.includes('simulator') || !window.Razorpay)) {
-        setShowSandboxModal(true);
+        setFormError('Online gateway is temporarily unavailable. Please use the direct Google Pay / PhonePe UPI transfer option below.');
         setIsProcessingPayment(false);
         return;
       }
 
       const isLoaded = await loadRazorpayScript();
       if (!isLoaded || !window.Razorpay) {
-        setShowSandboxModal(true);
+        setFormError('Payment gateway checkout could not be loaded. Please use the direct Google Pay / PhonePe UPI transfer option below.');
         setIsProcessingPayment(false);
         return;
       }
@@ -907,15 +907,6 @@ const OpenRegistrationPage: React.FC = () => {
       setFormError(err.message || 'Payment initiation error.');
       setIsProcessingPayment(false);
     }
-  };
-
-  // Test Sandbox Simulation: Simulate success during testing
-  const handleSimulatedSandboxSuccess = async () => {
-    if (!activeOrderData) return;
-    setSimulatedPaying(true);
-    const simPaymentId = 'pay_sim_' + Math.random().toString(36).substring(2, 12);
-    const simSignature = 'sim_sig_' + Math.random().toString(36).substring(2, 14);
-    await handleVerifyOnlinePayment(activeOrderData.orderId, simPaymentId, simSignature);
   };
 
 
@@ -1708,132 +1699,263 @@ const OpenRegistrationPage: React.FC = () => {
                   )}
 
                   {/* Payment Mode Selector & Details */}
-                  <div className="bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-blue-500/30 rounded-2xl p-5 space-y-5 shadow-2xl">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-                          <CreditCard className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                            Tournament Registration Fee & Payment
-                          </h4>
-                          <p className="text-[11px] text-slate-400">Official Gateway: Razorpay (256-bit SSL Secure Checkout)</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-600/20 text-blue-400 border border-blue-500/40">
-                          Payable Fee: ₹{getPayableFee()} INR
-                        </span>
-                        {getPayableFee() > 0 ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                            <Shield className="w-3 h-3" /> Official Gateway
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
-                            Free Registration
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                  {(() => {
+                    const payableFee = getPayableFee();
+                    const activeUpiId = (selectedComp?.upiId || currentTournament?.upiId || paymentSettings?.upiId || 'sportsgascidappadi@sbi').trim();
+                    const activeGpayNumber = (selectedComp?.gpayNumber || currentTournament?.gpayNumber || paymentSettings?.gpayNumber || '9443218765').trim();
+                    const activeReceiverName = (selectedComp?.receiverName || currentTournament?.receiverName || paymentSettings?.receiverName || 'Physical Education Dept, GASC Idappadi').trim();
+                    const upiPayUri = `upi://pay?pa=${encodeURIComponent(activeUpiId)}&pn=${encodeURIComponent(activeReceiverName)}&am=${payableFee}&cu=INR&tn=${encodeURIComponent(`GASC Sports - ${selectedComp?.name || 'Tournament'}`)}`;
+                    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(upiPayUri)}`;
+                    const cleanUtr = transactionRef.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-                    {getPayableFee() > 0 ? (
-                      /* ──────── MANDATORY SECURE RAZORPAY PAYMENT ──────── */
-                      <div className="space-y-4">
-                        <div className="p-4 rounded-xl bg-slate-950/80 border border-blue-500/30 space-y-3">
-                          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                    return (
+                      <div className="bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-blue-500/30 rounded-2xl p-5 space-y-6 shadow-2xl">
+                        {/* Header Badge */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                              <CreditCard className="w-5 h-5" />
+                            </div>
                             <div>
-                              <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                                <Lock className="w-3.5 h-3.5 text-emerald-400" /> Mandatory Online Payment
+                              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                                Tournament Entry Fee & Payment
+                              </h4>
+                              <p className="text-[11px] text-slate-400">Official Physical Education Department Account</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-600/20 text-blue-400 border border-blue-500/40">
+                              Entry Fee: ₹{payableFee} INR
+                            </span>
+                            {payableFee > 0 ? (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                                <Shield className="w-3 h-3" /> Mandatory Fee
                               </span>
-                              <p className="text-[11px] text-slate-400 mt-0.5">
-                                Your registration will be confirmed immediately after successful payment verification.
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                                Free Entry
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {payableFee > 0 ? (
+                          <div className="space-y-6">
+                            {/* SECTION 1: ONE-TAP GPAY / PHONEPE LAUNCH (Mobile) */}
+                            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-slate-900/60 border border-emerald-500/40 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider">
+                                  <span>📱</span> Instant Mobile Payment
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-medium">GPay • PhonePe • Paytm • BHIM</span>
+                              </div>
+
+                              <a
+                                href={upiPayUri}
+                                className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/30 transition-all text-center group cursor-pointer"
+                              >
+                                <span className="text-xl">⚡</span>
+                                <span>Pay ₹{payableFee} via Google Pay / UPI App</span>
+                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                              </a>
+                              <p className="text-[11px] text-slate-400 text-center">
+                                Tapping the button above will directly launch Google Pay or your UPI app on your phone with ₹{payableFee} and recipient details pre-filled.
                               </p>
                             </div>
-                            <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                              <Shield className="w-3 h-3" /> 256-Bit SSL Encrypted
-                            </span>
-                          </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                            <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                              <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider">Authorized Payee</span>
-                              <strong className="text-white">Physical Education Dept, GASC Idappadi</strong>
+                            {/* SECTION 2: QR CODE SCAN & UPI DETAILS (For Laptop or Other Device) */}
+                            <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+                              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                                <span className="text-xs font-bold text-white flex items-center gap-2">
+                                  <QrCode className="w-4 h-4 text-blue-400" /> Or Scan QR Code / Transfer Directly
+                                </span>
+                                <span className="text-[11px] font-mono text-emerald-400 font-bold">₹{payableFee} INR</span>
+                              </div>
+
+                              <div className="flex flex-col sm:flex-row items-center gap-5">
+                                {/* Dynamic QR Code */}
+                                <div className="shrink-0 text-center space-y-1.5">
+                                  <div className="p-2 bg-white rounded-xl shadow-lg inline-block border-2 border-emerald-500/30">
+                                    <img
+                                      src={qrCodeUrl}
+                                      alt="Tournament UPI Payment QR Code"
+                                      className="w-36 h-36 object-contain"
+                                    />
+                                  </div>
+                                  <span className="block text-[10px] text-slate-400 font-medium">Scan with any UPI App</span>
+                                </div>
+
+                                {/* Payment Receiver Credentials */}
+                                <div className="flex-1 w-full space-y-2.5 text-xs">
+                                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                                    <div>
+                                      <span className="text-[10px] text-slate-500 uppercase font-bold block">Authorized Payee</span>
+                                      <span className="text-white font-bold">{activeReceiverName}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2">
+                                    <div className="overflow-hidden">
+                                      <span className="text-[10px] text-slate-500 uppercase font-bold block">UPI ID / VPA</span>
+                                      <span className="text-emerald-400 font-mono font-bold truncate block">{activeUpiId}</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => copyToClipboard(activeUpiId, 'upi')}
+                                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] shrink-0 flex items-center gap-1 transition-colors"
+                                    >
+                                      {copiedKey === 'upi' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                      <span>{copiedKey === 'upi' ? 'Copied' : 'Copy UPI'}</span>
+                                    </button>
+                                  </div>
+
+                                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2">
+                                    <div>
+                                      <span className="text-[10px] text-slate-500 uppercase font-bold block">Google Pay Number</span>
+                                      <span className="text-white font-mono font-bold">{activeGpayNumber}</span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => copyToClipboard(activeGpayNumber, 'gpay')}
+                                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] shrink-0 flex items-center gap-1 transition-colors"
+                                    >
+                                      {copiedKey === 'gpay' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                      <span>{copiedKey === 'gpay' ? 'Copied' : 'Copy Number'}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                            <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                              <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider">Accepted Payment Methods</span>
-                              <span className="text-slate-300 font-semibold">GPay, PhonePe, Paytm, Cards, NetBanking</span>
+
+                            {/* SECTION 3: MANDATORY 12-DIGIT TRANSACTION ID (UTR) INPUT */}
+                            <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/90 border-2 border-emerald-500/50 space-y-4 shadow-xl">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-white flex items-center gap-2">
+                                  <Lock className="w-4 h-4 text-emerald-400" />
+                                  <span>Step 2: Enter 12-Digit UPI Transaction ID (UTR)</span>
+                                  <span className="text-rose-400 font-bold">*</span>
+                                </span>
+                                {cleanUtr.length >= 10 ? (
+                                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full flex items-center gap-1 self-start sm:self-auto">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Ready for submission
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full flex items-center gap-1 self-start sm:self-auto">
+                                    <AlertCircle className="w-3.5 h-3.5" /> 12 digits required
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="text-[11px] text-slate-400">
+                                After completing the transfer in Google Pay or PhonePe, open the payment receipt and enter the <strong>12-digit UPI Transaction ID / UTR number</strong> below:
+                              </p>
+
+                              <div className="space-y-1.5">
+                                <input
+                                  type="text"
+                                  id="upi-transaction-utr"
+                                  value={transactionRef}
+                                  onChange={(e) => setTransactionRef(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                                  maxLength={20}
+                                  placeholder="e.g. 512345678901 (12-digit UTR)"
+                                  className="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm tracking-widest focus:border-emerald-500 focus:outline-none transition-colors"
+                                />
+                                <span className="text-[10px] text-slate-500 block">
+                                  Found on your GPay / PhonePe receipt as "UPI transaction ID" or "Google transaction ID / Ref No."
+                                </span>
+                              </div>
+
+                              {/* Payment Screenshot (Optional) */}
+                              <div className="space-y-1.5 pt-1">
+                                <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                                  <span className="flex items-center gap-1.5">
+                                    <Upload className="w-3.5 h-3.5 text-blue-400" />
+                                    <span>Upload Payment Screenshot (Optional)</span>
+                                  </span>
+                                  {paymentScreenshot && (
+                                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                                      <Check className="w-3 h-3" /> Screenshot Attached
+                                    </span>
+                                  )}
+                                </label>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleScreenshotUpload}
+                                  className="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-300 hover:file:bg-slate-700 file:cursor-pointer"
+                                />
+                              </div>
+
+                              {/* Declaration Checkbox */}
+                              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 cursor-pointer hover:border-slate-700 transition-colors">
+                                <input
+                                  type="checkbox"
+                                  checked={paymentAgreed}
+                                  onChange={(e) => setPaymentAgreed(e.target.checked)}
+                                  className="mt-0.5 rounded text-emerald-500 focus:ring-0 cursor-pointer"
+                                />
+                                <span>
+                                  I confirm that I have transferred <strong className="text-emerald-400">₹{payableFee} INR</strong> to <strong className="text-white">{activeReceiverName}</strong> ({activeUpiId}) and the 12-digit UTR reference entered above is genuine and belongs to this entry.
+                                </span>
+                              </label>
                             </div>
                           </div>
-
-                          <div className="p-3.5 rounded-xl bg-blue-950/30 border border-blue-900/50 flex items-center justify-between">
-                            <div>
-                              <span className="text-xs text-slate-300 font-bold block">Total Amount to Pay</span>
-                              <span className="text-[10px] text-slate-400">Includes all tournament administrative charges</span>
-                            </div>
-                            <span className="text-xl font-black text-emerald-400">₹{getPayableFee()} <span className="text-xs font-normal text-slate-400">INR</span></span>
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2">
-                          <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
-                          <span>Important: Entry passes are issued strictly upon payment completion. Registrations without payment will not be accepted.</span>
-                        </div>
-                      </div>
-                    ) : (
-                      /* ──────── FREE ENTRY CONFIRMATION ──────── */
-                      <div className="py-4 px-4 rounded-xl bg-slate-950/60 border border-slate-800 text-center space-y-1">
-                        <span className="text-xs font-bold text-emerald-400 flex items-center justify-center gap-1">
-                          <Check className="w-4 h-4" /> Free Competition Entry
-                        </span>
-                        <p className="text-xs text-slate-400">
-                          No registration fee is required for this competition. Click below to complete your registration.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Navigation Buttons */}
-                  <div className="flex gap-3 pt-3">
-                    <button
-                      type="button"
-                      onClick={() => setStep(5)}
-                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
-                    >
-                      Back
-                    </button>
-                    {getPayableFee() > 0 ? (
-                      <button
-                        type="button"
-                        onClick={handleProceedToOnlinePayment}
-                        disabled={isProcessingPayment}
-                        className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xl shadow-blue-600/30 cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-800"
-                      >
-                        {isProcessingPayment ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            <span>Opening Secure Payment Gateway...</span>
-                          </>
                         ) : (
-                          <>
-                            <CreditCard className="w-4 h-4" />
-                            <span>Pay ₹{getPayableFee()} & Complete Registration</span>
-                            <ArrowRight className="w-4 h-4" />
-                          </>
+                          /* FREE ENTRY CONFIRMATION */
+                          <div className="py-6 px-4 rounded-xl bg-slate-950/60 border border-slate-800 text-center space-y-2">
+                            <span className="text-sm font-bold text-emerald-400 flex items-center justify-center gap-1.5">
+                              <CheckCircle2 className="w-5 h-5" /> Free Competition Entry
+                            </span>
+                            <p className="text-xs text-slate-400 max-w-md mx-auto">
+                              No registration fee is required for this competition. Click below to submit your official registration.
+                            </p>
+                          </div>
                         )}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleSubmitRegistration}
-                        disabled={submitting}
-                        className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xl shadow-emerald-600/20 cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-800"
-                      >
-                        {submitting ? 'Confirming Entry...' : 'Complete Free Registration'}
-                        <Check className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
+
+                        {/* Navigation Buttons */}
+                        <div className="flex gap-3 pt-3">
+                          <button
+                            type="button"
+                            onClick={() => setStep(5)}
+                            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition-colors"
+                          >
+                            Back
+                          </button>
+                          {payableFee > 0 ? (
+                            <button
+                              type="button"
+                              onClick={handleSubmitRegistration}
+                              disabled={submitting || cleanUtr.length < 10 || !paymentAgreed}
+                              className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xl shadow-emerald-600/30 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-800 transition-all"
+                            >
+                              {submitting ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  <span>Verifying UTR & Completing Registration...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-4 h-4" />
+                                  <span>Verify UTR & Complete Registration (₹{payableFee})</span>
+                                  <ArrowRight className="w-4 h-4" />
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleSubmitRegistration}
+                              disabled={submitting}
+                              className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xl shadow-emerald-600/20 cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-800 transition-all"
+                            >
+                              {submitting ? 'Confirming Entry...' : 'Complete Free Registration'}
+                              <Check className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -1967,91 +2089,6 @@ const OpenRegistrationPage: React.FC = () => {
                 </div>
               )}
 
-              {/* ──────── INTERACTIVE RAZORPAY TEST SANDBOX SIMULATOR MODAL ──────── */}
-              {showSandboxModal && activeOrderData && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-                  <div className="w-full max-w-md bg-slate-900 border border-blue-500/40 rounded-2xl shadow-2xl p-6 space-y-5 text-left text-slate-100">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                          <CreditCard className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-bold text-white">Razorpay Payment Gateway</h3>
-                          <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">
-                            Sandbox Test Simulator
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setShowSandboxModal(false)}
-                        className="text-slate-400 hover:text-white text-xs p-1"
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs">
-                      <div className="flex justify-between text-slate-400">
-                        <span>Recipient:</span>
-                        <strong className="text-white">GASC Idappadi Sports Dept</strong>
-                      </div>
-                      <div className="flex justify-between text-slate-400">
-                        <span>Competition:</span>
-                        <strong className="text-white">{selectedComp?.name}</strong>
-                      </div>
-                      <div className="flex justify-between text-slate-400">
-                        <span>Order ID:</span>
-                        <span className="font-mono text-blue-400 text-[11px]">{activeOrderData.orderId}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-400 pt-2 border-t border-slate-800/80">
-                        <span className="font-bold text-white">Payable Amount:</span>
-                        <strong className="text-emerald-400 text-sm font-black">
-                          ₹{activeOrderData.amountInRupees || getPayableFee()} INR
-                        </strong>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300">
-                      <p>
-                        <strong>Test Mode Notice:</strong> Razorpay credentials are currently running in test sandbox mode. No real money will be charged. You can test instant verification and entry pass generation below.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={handleSimulatedSandboxSuccess}
-                        disabled={simulatedPaying}
-                        className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
-                      >
-                        {simulatedPaying ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            <span>Verifying Cryptographic Signature...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-4 h-4" />
-                            <span>Simulate Successful Payment (Instant Approval)</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormError('Simulated payment was cancelled by user.');
-                          setShowSandboxModal(false);
-                        }}
-                        className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs"
-                      >
-                        Cancel Checkout
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
 
             </div>
           </div>

@@ -3,17 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Portal v1.4 — GASC Idappadi Sports Management</title>
-  <base href="/">
-  <!-- Offline-First Local Vendor CSS with CDN Fallback -->
-  <link href="vendor/bootstrap.min.css" rel="stylesheet" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css';">
+  <title>Admin Portal — GASC Idappadi Sports Management</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Bootstrap Icons -->
-  <link rel="stylesheet" href="vendor/bootstrap-icons.min.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css';">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="icon" type="image/png" href="images/college-logo.png">
   <!-- Chart.js -->
-  <script src="vendor/chart.umd.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <!-- Glassmorphism Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=20261017_glass_v14">
+  <link rel="stylesheet" href="css/style.css?v=20260909_table">
   <script src="js/config.js"></script>
   <script>
     // Strict Role-Based Portal Guard: Sports Incharge / Admin Only
@@ -46,10 +45,10 @@
     <!-- Admin Sidebar -->
     <aside class="portal-sidebar">
       <div class="portal-sidebar-brand">
-        <img src="images/college-logo.png" alt="GASC Idappadi Official Seal" class="college-logo-sidebar" onerror="this.onerror=null;this.src='images/college-logo.png'">
+        <img src="images/college-logo.png" alt="GASC Idappadi Official Seal" class="college-logo-sidebar" onerror="this.src='images/college-logo.png'">
         <div>
           <div class="fw-bold text-white lh-1">GASC IDAPPADI</div>
-          <small class="text-white-50" style="font-size: 0.7rem;">Sports Incharge <span class="badge ms-1" style="background: linear-gradient(135deg, #05c46b, #00cec9); font-size: 0.65rem; box-shadow: 0 2px 6px rgba(0,206,201,0.4);">v1.4 Ultra Glass</span></small>
+          <small class="text-white-50" style="font-size: 0.7rem;">Sports Incharge</small>
         </div>
       </div>
 
@@ -69,16 +68,8 @@
         <a class="sidebar-nav-item admin-nav-item" data-view="equipment-mgmt">
           <i class="bi bi-box-seam-fill text-warning"></i> <span>Equipment Management</span>
         </a>
-        <a class="sidebar-nav-item admin-nav-item" data-view="competitions" id="nav-item-competitions">
-          <i class="bi bi-trophy-fill text-warning"></i> <span>Competitions & Inter-College</span>
-          <span class="badge bg-warning text-dark ms-auto" id="nav-ext-pending-badge" style="display:none;font-size:0.65rem;">0</span>
-        </a>
-        <a class="sidebar-nav-item admin-nav-item" data-view="payments" id="nav-item-payments">
-          <i class="bi bi-credit-card-2-front-fill text-success"></i> <span>Payment Management</span>
-          <span class="badge bg-success ms-auto" id="nav-payment-mode-badge" style="font-size:0.65rem;">TEST MODE</span>
-        </a>
-        <a class="sidebar-nav-item admin-nav-item d-none" data-view="inter-college">
-          <i class="bi bi-qr-code-scan text-warning"></i> <span>Inter-College</span>
+        <a class="sidebar-nav-item admin-nav-item" data-view="competitions">
+          <i class="bi bi-flag-fill"></i> <span>Competitions</span>
         </a>
         <a class="sidebar-nav-item admin-nav-item" data-view="applications">
           <i class="bi bi-file-earmark-check-fill"></i> <span>Applications</span>
@@ -88,10 +79,6 @@
         </a>
         <a class="sidebar-nav-item admin-nav-item" data-view="achievements">
           <i class="bi bi-award-fill"></i> <span>Achievements</span>
-        </a>
-        <a class="sidebar-nav-item admin-nav-item" data-view="cm-trophy">
-          <i class="bi bi-award text-warning"></i> <span>CM Trophy Updates</span>
-          <span class="badge bg-warning text-dark ms-auto" id="nav-cm-trophy-badge" style="display:none;font-size:0.65rem;">0</span>
         </a>
         <a class="sidebar-nav-item admin-nav-item" data-view="notifications">
           <i class="bi bi-bell-fill"></i> <span>Broadcasts</span>
@@ -137,7 +124,7 @@
             <div class="fw-bold text-white lh-1" id="admin-display-name">Dr. R. ANITHA</div>
             <small class="text-warning fw-semibold" id="admin-display-role">Sports Incharge</small>
           </div>
-          <img id="admin-header-avatar" src="images/default-avatar.png" class="rounded-circle shadow-sm border border-2 border-warning" width="44" height="44" style="object-fit:cover;" onerror="this.onerror=null;this.src='images/default-avatar.png'">
+          <img id="admin-header-avatar" src="images/default-avatar.png" class="rounded-circle shadow-sm border border-2 border-warning" width="44" height="44" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
         </div>
       </header>
 
@@ -525,9 +512,8 @@
                   <th>Department</th>
                   <th>Year & Section</th>
                   <th>Gender</th>
-                  <th>Status</th>
                   <th>Portal Account</th>
-                  <th class="text-center" style="min-width: 200px;">Actions</th>
+                  <th class="text-center" style="min-width: 170px;">Actions</th>
                 </tr>
               </thead>
               <tbody id="admin-roster-table">
@@ -708,7 +694,7 @@
                   <div id="eq-student-card" class="d-none">
                     <div class="p-3 rounded-4 bg-success bg-opacity-10 border border-success border-opacity-30 mb-3">
                       <div class="d-flex align-items-center gap-3">
-                        <img id="eq-student-photo" src="images/default-avatar.png" alt="Student Photo" class="rounded-circle border border-2 border-success shadow-sm" width="64" height="64" style="object-fit:cover;" onerror="this.onerror=null;this.src='images/default-avatar.png'">
+                        <img id="eq-student-photo" src="images/default-avatar.png" alt="Student Photo" class="rounded-circle border border-2 border-success shadow-sm" width="64" height="64" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
                         <div>
                           <span class="badge bg-success text-white mb-1"><i class="bi bi-check-circle me-1"></i> Student Found ✓</span>
                           <h5 class="fw-bold text-dark mb-0" id="eq-student-name">-</h5>
@@ -981,764 +967,37 @@
           </div>
         </section>
 
-        <!-- VIEW 6: UNIFIED COMPETITIONS & INTER-COLLEGE HUB -->
+        <!-- VIEW 6: COMPETITIONS -->
         <section id="view-competitions" class="admin-view-section d-none">
-          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+          <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-              <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge px-2.5 py-1 fw-bold" style="background: rgba(245, 158, 11, 0.2); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.45);">
-                  <i class="bi bi-trophy-fill me-1"></i> ALL-IN-ONE SPORTS HUB
-                </span>
-                <span class="badge px-2.5 py-1 fw-bold" style="background: rgba(34, 211, 238, 0.16); color: #22D3EE; border: 1px solid rgba(34, 211, 238, 0.35);">
-                  <i class="bi bi-qr-code-scan me-1"></i> QR Pass & Registration Engine
-                </span>
-              </div>
-              <h4 class="fw-bold text-white mb-1">
-                Tournaments, Competitions & Inter-College Hub
-              </h4>
-              <small style="color: #AFC4DF;">
-                Create tournaments, manage sports competitions, generate QR registration passes, and track external college applications in one place.
-              </small>
+              <h4 class="fw-bold text-dark mb-0"><i class="bi bi-trophy-fill text-warning me-2"></i>Tournaments & Sports Competitions Management</h4>
+              <small class="text-secondary">Create parent tournaments and manage sports competitions inside each event</small>
             </div>
-            <div class="d-flex gap-2 align-items-center flex-wrap">
-              <button class="btn btn-outline-secondary btn-sm px-3 text-white" onclick="reloadUnifiedCompetitionsHub()">
-                <i class="bi bi-arrow-clockwise me-1"></i> Refresh Hub
-              </button>
-              <button class="btn btn-sports-primary btn-sm shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addCompetitionModal" onclick="openCreateTournamentModal()">
-                <i class="bi bi-trophy me-1"></i> Create Tournament
-              </button>
-              <button class="btn btn-warning btn-sm fw-bold px-3 text-dark shadow-sm text-nowrap" onclick="openCreateInterCollegeModal()">
-                <i class="bi bi-plus-circle-fill me-1"></i> Add Sport / QR
-              </button>
-            </div>
+            <button class="btn btn-sports-primary btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#addCompetitionModal">
+              <i class="bi bi-plus-circle me-1"></i> Create Tournament
+            </button>
           </div>
-
-          <!-- Top Sub-Navigation Tabs (Unified Segmented Glass Bar) -->
-          <ul class="nav nav-pills inter-college-tab-bar p-2 mb-4 gap-2 flex-wrap" id="inter-college-tabs">
-            <li class="nav-item">
-              <button class="nav-link active" onclick="switchExtTab('tournaments')">
-                <i class="bi bi-trophy-fill me-1.5 text-warning"></i> Tournaments & Sports
-                <span class="badge rounded-pill ms-1.5" id="unified-tournaments-count">0</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('competitions')">
-                <i class="bi bi-qr-code-scan me-1.5 text-info"></i> Inter-College QRs & Passes
-                <span class="badge rounded-pill ms-1.5" id="ext-kpi-comps-count">0</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('registrations')">
-                <i class="bi bi-card-checklist me-1.5 text-success"></i> College Registrations
-                <span class="badge rounded-pill ms-1.5" id="ext-kpi-regs-count">0</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('teams')">
-                <i class="bi bi-shield-shaded me-1.5 text-primary"></i> External Teams
-                <span class="badge rounded-pill ms-1.5" id="ext-kpi-teams-count">0</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('players')">
-                <i class="bi bi-people-fill me-1.5 text-info"></i> External Players
-                <span class="badge rounded-pill ms-1.5" id="ext-kpi-players-count">0</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('approvals')">
-                <i class="bi bi-check2-circle me-1.5 text-warning"></i> Approval Queue
-                <span class="badge rounded-pill ms-1.5 bg-warning text-dark" id="ext-kpi-pending-count">0</span>
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('reports')">
-                <i class="bi bi-file-earmark-pdf-fill me-1.5 text-danger"></i> Official Reports
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('analytics')">
-                <i class="bi bi-graph-up-arrow me-1.5 text-info"></i> Analytics
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('payment-settings')">
-                <i class="bi bi-wallet2 me-1.5 text-warning"></i> GPay & UPI Settings
-              </button>
-            </li>
-          </ul>
-
-          <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 0: TOURNAMENTS & SPORTS LIST
-               ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-tournaments" class="ext-tab-pane">
-            <!-- Fast Filter & Options Selection Bar -->
-            <div class="glass-card p-3 mb-4 border border-warning border-opacity-25 shadow-sm">
-              <div class="row g-2 align-items-center">
-                <div class="col-md-3">
-                  <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-dark border-secondary text-info"><i class="bi bi-search"></i></span>
-                    <input type="text" id="comp-search-filter" class="form-control form-control-glass form-control-sm" placeholder="Search tournament or sport..." onkeyup="filterAdminTournamentsList()">
-                  </div>
-                </div>
-                <div class="col-md-3">
-                  <select id="comp-tournament-filter" class="form-select form-select-glass form-select-sm" onchange="filterAdminTournamentsList()">
-                    <option value="All">All Tournaments</option>
-                  </select>
-                </div>
-                <div class="col-md-2">
-                  <select id="comp-category-filter" class="form-select form-select-glass form-select-sm" onchange="loadAdminCompetitions()">
-                    <option value="All">All Categories</option>
-                    <option value="Men">Men</option>
-                    <option value="Women">Women</option>
-                    <option value="Mixed">Mixed</option>
-                  </select>
-                </div>
-                <div class="col-md-4 text-md-end d-flex gap-2 justify-content-md-end">
-                  <button class="btn btn-outline-secondary btn-sm text-white" onclick="loadAdminCompetitions()">
-                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh
-                  </button>
-                  <button class="btn btn-sports-primary btn-sm shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addCompetitionModal" onclick="openCreateTournamentModal()">
-                    <i class="bi bi-plus-circle me-1"></i> Create Tournament
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div id="admin-competitions-list-container">
-              <div class="text-center py-5">
-                <div class="spinner-border text-primary spinner-border-sm"></div> Loading Tournaments & Sports...
-              </div>
-            </div>
-          </div>
-
-          <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 1: COMPETITIONS & QR CODES
-               ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-competitions" class="ext-tab-pane d-none">
-            <div class="row g-3" id="ext-competitions-cards-container">
-              <!-- Dynamically populated via loadAdminInterCollegeCompetitions() -->
-              <div class="col-12 text-center py-5">
-                <div class="spinner-border text-primary spinner-border-sm"></div> Loading Inter-College Competitions...
-              </div>
-            </div>
-          </div>
-
-          <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 2: EXTERNAL REGISTRATIONS
-               ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-registrations" class="ext-tab-pane d-none">
-            <!-- Filter Bar -->
-            <div class="glass-card p-3 mb-3">
-              <div class="row g-2 align-items-center">
-                <div class="col-md-2">
-                  <input type="text" id="ext-reg-search" class="form-control form-control-glass form-control-sm" placeholder="Search ID, College, Team..." onkeyup="filterAdminExtRegistrations()">
-                </div>
-                <div class="col-md-2">
-                  <select id="ext-reg-filter-tournament" class="form-select form-select-glass form-select-sm" onchange="onAdminTournamentFilterChange()">
-                    <option value="All">All Tournaments</option>
-                  </select>
-                </div>
-                <div class="col-md-2">
-                  <select id="ext-reg-filter-comp" class="form-select form-select-glass form-select-sm" onchange="filterAdminExtRegistrations()">
-                    <option value="All">All Competitions</option>
-                  </select>
-                </div>
-                <div class="col-md-2">
-                  <select id="ext-reg-filter-status" class="form-select form-select-glass form-select-sm" onchange="filterAdminExtRegistrations()">
-                    <option value="All">All Statuses</option>
-                    <option value="PENDING" selected>Pending Review</option>
-                    <option value="APPROVED">Approved</option>
-                    <option value="REJECTED">Rejected</option>
-                    <option value="CORRECTION_REQUIRED">Correction Required</option>
-                  </select>
-                </div>
-                <div class="col-md-2">
-                  <select id="ext-reg-filter-gender" class="form-select form-select-glass form-select-sm" onchange="filterAdminExtRegistrations()">
-                    <option value="All">All Categories</option>
-                    <option value="Men">Men</option>
-                    <option value="Women">Women</option>
-                    <option value="Mixed">Mixed</option>
-                  </select>
-                </div>
-                <div class="col-md-3 text-end">
-                  <span class="badge bg-secondary" id="ext-reg-table-count">Showing 0 entries</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Table -->
+          <div id="admin-competitions-list-container">
             <div class="table-glass-container">
-              <table class="table table-glass align-middle">
-                <thead>
-                  <tr>
-                    <th>Registration ID</th>
-                    <th>Competition & Sport</th>
-                    <th>College Name</th>
-                    <th>Team / Athlete</th>
-                    <th>Category</th>
-                    <th>Contact</th>
-                    <th>Date</th>
-                    <th>Payment</th>
-                    <th>Status</th>
-                    <th class="text-end">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="ext-registrations-tbody">
-                  <!-- Populated via admin.js -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 3: EXTERNAL TEAMS
-               ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-teams" class="ext-tab-pane d-none">
-            <div class="row g-3" id="ext-teams-cards-container">
-              <!-- Populated via admin.js -->
-            </div>
-          </div>
-
-          <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 4: EXTERNAL PLAYERS
-               ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-players" class="ext-tab-pane d-none">
-            <div class="glass-card p-3 mb-3">
-              <input type="text" id="ext-players-search" class="form-control form-control-glass form-control-sm" placeholder="Search Player Name, Register Number, Department, College..." onkeyup="filterAdminExtPlayers()">
-            </div>
-            <div class="table-glass-container">
-              <table class="table table-glass align-middle">
+              <table class="table table-glass">
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Player Name</th>
-                    <th>College Register No</th>
-                    <th>College</th>
-                    <th>Department & Year</th>
-                    <th>Sport</th>
-                    <th>Role</th>
-                    <th>Registration ID</th>
+                    <th>Tournament Name</th>
+                    <th>Date & Time</th>
+                    <th>Venue</th>
+                    <th>Reg. Deadline</th>
+                    <th>Slots Filled</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
-                <tbody id="ext-players-tbody">
-                  <!-- Populated via admin.js -->
+                <tbody id="admin-competitions-table">
+                  <!-- Loaded via admin.js -->
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 5: APPROVAL QUEUE
-               ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-approvals" class="ext-tab-pane d-none">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <div class="text-secondary small">
-                Showing registrations waiting for approval. Approved squads will automatically become eligible for fixtures.
-              </div>
-            </div>
-            <div class="table-glass-container">
-              <table class="table table-glass align-middle">
-                <thead>
-                  <tr>
-                    <th>Registration ID</th>
-                    <th>College Name</th>
-                    <th>Competition / Sport</th>
-                    <th>Participant / Team</th>
-                    <th>Contact Email & Phone</th>
-                    <th>Submitted</th>
-                    <th>Fee Payment</th>
-                    <th class="text-center" style="min-width: 220px;">Review Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="ext-approvals-tbody">
-                  <!-- Populated via admin.js -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 6: ANALYTICS
-               ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-analytics" class="ext-tab-pane d-none">
-            <!-- Metric Cards -->
-            <div class="row g-3 mb-4">
-              <div class="col-xl-3 col-sm-6">
-                <div class="glass-card stat-card">
-                  <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-trophy-fill"></i></div>
-                  <div>
-                    <div class="stat-value text-warning" id="an-ext-total-comps">0</div>
-                    <div class="stat-label">Inter-College Comps</div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-xl-3 col-sm-6">
-                <div class="glass-card stat-card">
-                  <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-building"></i></div>
-                  <div>
-                    <div class="stat-value text-info" id="an-ext-total-colleges">0</div>
-                    <div class="stat-label">External Colleges</div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-xl-3 col-sm-6">
-                <div class="glass-card stat-card">
-                  <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-people-fill"></i></div>
-                  <div>
-                    <div class="stat-value text-primary" id="an-ext-total-players">0</div>
-                    <div class="stat-label">Total External Players</div>
-                  </div>
-                </div>
-              </div>
-              <div class="col-xl-3 col-sm-6">
-                <div class="glass-card stat-card">
-                  <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle-fill"></i></div>
-                  <div>
-                    <div class="stat-value text-success" id="an-ext-approved-count">0</div>
-                    <div class="stat-label">Approved Teams</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Charts & Breakdown Grids -->
-            <div class="row g-4">
-              <div class="col-lg-6">
-                <div class="glass-card p-4 h-100">
-                  <h6 class="fw-bold text-dark mb-3"><i class="bi bi-pie-chart-fill text-primary me-2"></i>Sport-wise Registrations</h6>
-                  <div id="an-sport-bars" class="space-y-3">
-                    <!-- Populated via admin.js -->
-                  </div>
-                </div>
-              </div>
-              <div class="col-lg-6">
-                <div class="glass-card p-4 h-100">
-                  <h6 class="fw-bold text-dark mb-3"><i class="bi bi-bar-chart-fill text-warning me-2"></i>College Participation Breakdown</h6>
-                  <div id="an-college-bars" class="space-y-3">
-                    <!-- Populated via admin.js -->
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 7: OFFICIAL REPORTS
-               ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-reports" class="ext-tab-pane d-none">
-            <div class="glass-card p-4 mb-4">
-              <h5 class="fw-bold text-dark mb-3"><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i>Inter-College Registration Official Report Generator</h5>
-              <div class="row g-3">
-                <div class="col-md-3">
-                  <label class="form-label small fw-bold">Select Competition</label>
-                  <select id="report-ext-comp" class="form-select form-select-glass form-select-sm">
-                    <option value="All">All Competitions</option>
-                  </select>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label small fw-bold">Status Filter</label>
-                  <select id="report-ext-status" class="form-select form-select-glass form-select-sm">
-                    <option value="All">All Statuses</option>
-                    <option value="APPROVED" selected>Approved Only (Official Roll)</option>
-                    <option value="PENDING">Pending Only</option>
-                  </select>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label small fw-bold">Category</label>
-                  <select id="report-ext-gender" class="form-select form-select-glass form-select-sm">
-                    <option value="All">All Categories</option>
-                    <option value="Men">Men</option>
-                    <option value="Women">Women</option>
-                    <option value="Mixed">Mixed</option>
-                  </select>
-                </div>
-                <div class="col-md-3 d-flex align-items-end gap-2 flex-wrap">
-                  <button type="button" class="btn btn-primary btn-sm fw-bold flex-grow-1" onclick="generateAdminExtReport()">
-                    <i class="bi bi-funnel-fill me-1"></i> Generate
-                  </button>
-                  <button type="button" class="btn btn-warning btn-sm fw-bold text-dark" onclick="openSelectedExtReportQrModal()" title="View & Download QR Code for this tournament">
-                    <i class="bi bi-qr-code-scan me-1"></i> QR Code
-                  </button>
-                  <button type="button" class="btn btn-outline-danger btn-sm" onclick="printAdminExtReport()">
-                    <i class="bi bi-printer me-1"></i> Print / PDF
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Report Output Area -->
-            <div id="ext-report-output-container" class="glass-card p-4">
-              <div class="text-center text-muted py-4">Click "Generate" above to load official report sheet.</div>
-            </div>
-          </div>
-
-          <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 8: DYNAMIC GPAY, UPI & QR CODE SETTINGS
-               ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-payment-settings" class="ext-tab-pane d-none">
-            <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
-              <div>
-                <h4 class="fw-black text-dark mb-1">
-                  <i class="bi bi-wallet2 text-success me-2"></i>Dynamic GPay, UPI ID & QR Code Management
-                </h4>
-                <p class="text-muted small mb-0">
-                  Update payment credentials anytime. Changes reflect instantly on the Student Portal without recompiling or redeploying code.
-                </p>
-              </div>
-              <div class="d-flex align-items-center gap-2 flex-wrap">
-                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" onclick="openPaymentHistoryModal()">
-                  <i class="bi bi-clock-history me-1 text-primary"></i> Settings History
-                </button>
-                <button type="button" class="btn btn-primary btn-sm fw-bold shadow-sm px-3" onclick="saveAdminPaymentSettings()">
-                  <i class="bi bi-cloud-arrow-up-fill me-1"></i> Save & Publish Changes
-                </button>
-              </div>
-            </div>
-
-            <!-- Configuration Grid -->
-            <div class="row g-4">
-              <!-- Left Form Column -->
-              <div class="col-lg-7">
-                <div class="glass-card p-4 border border-light border-opacity-40 shadow-sm rounded-4 h-100">
-                  <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom border-secondary border-opacity-10">
-                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                      <i class="bi bi-sliders text-warning"></i> Payment Receiver Configuration
-                    </h5>
-                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
-                      <input class="form-check-input" type="checkbox" id="pay-is-active-toggle" checked style="width:2.5em; height:1.3em; cursor:pointer;" onchange="updatePaymentPreview()">
-                      <label class="form-check-label small fw-bold" for="pay-is-active-toggle" id="pay-status-label">Enabled</label>
-                    </div>
-                  </div>
-
-                  <form id="admin-payment-form" onsubmit="event.preventDefault(); saveAdminPaymentSettings();">
-                    <div class="row g-3">
-                      <!-- Receiver Name -->
-                      <div class="col-12">
-                        <label class="form-label small fw-bold text-secondary">
-                          Payment Receiver Name / Organization <span class="text-danger">*</span>
-                        </label>
-                        <input type="text" id="pay-receiver-name" class="form-control form-control-glass" placeholder="e.g. Dr. R. ANITHA (Physical Director) / GASC Sports Account" required oninput="updatePaymentPreview()">
-                        <div class="form-text small text-muted">Official collegiate title shown on the student checkout screen.</div>
-                      </div>
-
-                      <!-- GPay Mobile Number -->
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">
-                          GPay Registered Mobile Number <span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                          <span class="input-group-text bg-light text-muted fw-bold">+91</span>
-                          <input type="tel" id="pay-gpay-number" class="form-control form-control-glass" placeholder="9443218765" maxlength="10" required oninput="updatePaymentPreview()">
-                        </div>
-                        <div class="form-text small text-muted">10-digit Indian phone number linked with Google Pay.</div>
-                      </div>
-
-                      <!-- UPI ID / VPA -->
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">
-                          UPI ID / VPA <span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                          <span class="input-group-text bg-light text-muted"><i class="bi bi-at"></i></span>
-                          <input type="text" id="pay-upi-id" class="form-control form-control-glass" placeholder="e.g. sportsgasc@sbi" required oninput="updatePaymentPreview()">
-                        </div>
-                        <div class="form-text small text-muted">Must be a valid VPA (username@bank). Do not enter just a phone number.</div>
-                      </div>
-
-                      <!-- Payment Mode & Instructions -->
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">Payment Method</label>
-                        <select id="pay-mode-select" class="form-select form-select-glass" onchange="updatePaymentPreview()">
-                          <option value="MANUAL_UPI">Manual GPay / UPI QR (UTR Verification)</option>
-                          <option value="GATEWAY">Integrated Payment Gateway</option>
-                          <option value="BOTH">Both (UPI QR + Gateway)</option>
-                        </select>
-                      </div>
-
-                      <!-- Entry Fees Defaults -->
-                      <div class="col-md-3">
-                        <label class="form-label small fw-bold text-secondary">Team Entry Fee (₹)</label>
-                        <input type="number" id="pay-team-fee" class="form-control form-control-glass" min="0" step="10" value="500" oninput="updatePaymentPreview()">
-                      </div>
-                      <div class="col-md-3">
-                        <label class="form-label small fw-bold text-secondary">Individual Fee (₹)</label>
-                        <input type="number" id="pay-ind-fee" class="form-control form-control-glass" min="0" step="10" value="100" oninput="updatePaymentPreview()">
-                      </div>
-
-                      <!-- Optional Validity Window -->
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">Valid From (Optional)</label>
-                        <input type="datetime-local" id="pay-valid-from" class="form-control form-control-glass">
-                      </div>
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">Valid Until (Optional)</label>
-                        <input type="datetime-local" id="pay-valid-until" class="form-control form-control-glass">
-                      </div>
-
-                      <!-- Payment QR Code Image Upload -->
-                      <div class="col-12">
-                        <label class="form-label small fw-bold text-secondary">Custom Merchant / GPay QR Code Image</label>
-                        <div class="input-group">
-                          <input type="file" id="pay-qr-file-input" class="form-control form-control-glass" accept="image/png,image/jpeg,image/webp" onchange="handleQrImageUpload(event)">
-                          <button class="btn btn-outline-danger btn-sm" type="button" onclick="clearCustomQrImage()">
-                            <i class="bi bi-trash me-1"></i> Use Auto-Generated QR
-                          </button>
-                        </div>
-                        <input type="hidden" id="pay-qr-code-url">
-                        <div class="form-text small text-muted">Upload your official bank / merchant standee QR photo or leave blank to automatically generate dynamic UPI QR.</div>
-                      </div>
-
-                      <!-- Payment Instructions -->
-                      <div class="col-12">
-                        <label class="form-label small fw-bold text-secondary">Payment Instructions For Students</label>
-                        <textarea id="pay-instructions" class="form-control form-control-glass" rows="3" placeholder="Step-by-step instructions displayed on the student checkout screen..." oninput="updatePaymentPreview()"></textarea>
-                      </div>
-                    </div>
-
-                    <!-- Action Bar -->
-                    <div class="d-flex align-items-center justify-content-between pt-4 mt-2 border-top border-secondary border-opacity-10 flex-wrap gap-2">
-                      <div class="text-muted small">
-                        <span id="pay-last-updated-text"><i class="bi bi-clock me-1"></i>Loading config status...</span>
-                      </div>
-                      <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="resetPaymentForm()">
-                          <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm fw-bold px-4 shadow" onclick="saveAdminPaymentSettings()">
-                          <i class="bi bi-check2-circle me-1"></i> Save & Publish
-                        </button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              </div>
-
-              <!-- Right Preview Column: Live Student View -->
-              <div class="col-lg-5">
-                <div class="glass-card p-4 border border-light border-opacity-40 shadow-sm rounded-4 h-100 d-flex flex-column">
-                  <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom border-secondary border-opacity-10">
-                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                      <i class="bi bi-phone text-primary"></i> Live Student View Preview
-                    </h5>
-                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" id="preview-version-badge">Version 1</span>
-                  </div>
-
-                  <!-- Simulated Student Card -->
-                  <div class="p-4 rounded-4 text-white shadow-lg flex-grow-1 d-flex flex-column justify-content-between" style="background: linear-gradient(145deg, #0b192c 0%, #1e3e62 100%); border: 1px solid rgba(255,255,255,0.12);">
-                    <div>
-                      <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="d-flex align-items-center gap-2">
-                          <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold" style="width:34px; height:34px; font-size:16px;">
-                            ₹
-                          </div>
-                          <div>
-                            <div class="small text-warning text-uppercase fw-bold letter-spacing-1" style="font-size:10px;">Inter-College Sports Fee</div>
-                            <div class="fw-bold text-white small" id="preview-receiver-name">Dr. R. ANITHA (Physical Director)</div>
-                          </div>
-                        </div>
-                        <span class="badge bg-emerald-500 text-white px-2.5 py-1 fw-bold rounded-pill" id="preview-active-pill" style="font-size:11px; background:#10b981;">ACTIVE</span>
-                      </div>
-
-                      <!-- QR Display Box -->
-                      <div class="text-center my-3 p-3 rounded-3" style="background: rgba(255,255,255,0.06); border: 1px dashed rgba(255,255,255,0.2);">
-                        <div class="position-relative d-inline-block">
-                          <img id="preview-qr-img" src="" alt="Payment QR Code" class="img-fluid rounded-3 bg-white p-2 shadow" style="max-height:190px; max-width:190px; object-fit:contain;">
-                          <div id="preview-qr-placeholder" class="bg-dark rounded-3 d-flex flex-column align-items-center justify-content-center p-3 text-muted d-none" style="height:190px; width:190px;">
-                            <i class="bi bi-qr-code fs-1 text-warning mb-2"></i>
-                            <div class="small">QR Preview</div>
-                          </div>
-                        </div>
-                        <div class="text-slate-300 small mt-2 fw-semibold" style="font-size:11px;">
-                          Scan using GPay, PhonePe, Paytm, or BHIM UPI
-                        </div>
-                      </div>
-
-                      <!-- Credentials Copy Cards -->
-                      <div class="row g-2 mb-3">
-                        <div class="col-12">
-                          <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                            <div>
-                              <div class="text-white-50" style="font-size:10px; text-transform:uppercase;">GPay Mobile Number</div>
-                              <div class="fw-bold text-white font-monospace" id="preview-gpay-number">+91 9443218765</div>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-outline-light py-1 px-2.5 rounded-pill" style="font-size:11px;" onclick="copyPreviewText('gpay')">
-                              <i class="bi bi-clipboard me-1"></i> Copy
-                            </button>
-                          </div>
-                        </div>
-                        <div class="col-12">
-                          <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                            <div>
-                              <div class="text-white-50" style="font-size:10px; text-transform:uppercase;">UPI ID / VPA</div>
-                              <div class="fw-bold text-warning font-monospace" id="preview-upi-id">sportsgasc@sbi</div>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-outline-warning py-1 px-2.5 rounded-pill" style="font-size:11px;" onclick="copyPreviewText('upi')">
-                              <i class="bi bi-clipboard me-1"></i> Copy
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- Instructions Preview -->
-                      <div class="p-2.5 rounded-3 mb-2" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); font-size:11px;">
-                        <strong class="text-warning d-block mb-1"><i class="bi bi-info-circle me-1"></i> Instructions:</strong>
-                        <div id="preview-instructions" class="text-white-50" style="white-space:pre-line;">
-                          1. Open your UPI app and pay the entry fee.
-                          2. Copy the 12-digit UTR reference number.
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="pt-2 text-center text-white-50 small border-top border-white border-opacity-10" style="font-size:10px;">
-                      Live preview updates instantly as you edit the settings.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- BACKWARD COMPATIBILITY STUB FOR INTER-COLLEGE VIEW -->
-        <section id="view-inter-college" class="admin-view-section d-none"></section>
-
-        <!-- VIEW 6B: PAYMENT GATEWAY MANAGEMENT & TRANSACTIONS DASHBOARD -->
-        <section id="view-payments" class="admin-view-section d-none">
-          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-            <div>
-              <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge px-2.5 py-1 fw-bold bg-success bg-opacity-20 text-success border border-success border-opacity-30">
-                  <i class="bi bi-shield-check me-1"></i> SECURE RAZORPAY GATEWAY
-                </span>
-                <span id="pay-gateway-status-pill" class="badge bg-warning text-dark px-2.5 py-1 fw-bold">
-                  TEST MODE
-                </span>
-              </div>
-              <h4 class="fw-bold text-white mb-1">
-                Online Payment Gateway & Fee Management
-              </h4>
-              <small style="color: #AFC4DF;">
-                Official Razorpay online collections, transaction ledger, reconciliation, verified receipts, and settlement account configuration.
-              </small>
-            </div>
-            <div class="d-flex gap-2 align-items-center flex-wrap">
-              <button class="btn btn-outline-secondary btn-sm px-3 text-white" onclick="loadAdminPayments()">
-                <i class="bi bi-arrow-clockwise me-1"></i> Refresh Ledger
-              </button>
-              <button class="btn btn-outline-info btn-sm px-3 text-info" onclick="openPaymentAuditHistoryModal()">
-                <i class="bi bi-clock-history me-1"></i> Audit Trail
-              </button>
-              <button class="btn btn-outline-success btn-sm px-3 text-success" onclick="exportPaymentsToCsv()">
-                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV
-              </button>
-              <button class="btn btn-sports-primary btn-sm px-3 shadow-sm text-nowrap" onclick="openPaymentSettingsModal()">
-                <i class="bi bi-sliders me-1"></i> Receiving Account Settings
-              </button>
-            </div>
-          </div>
-
-          <!-- KPI Summary Ribbon -->
-          <div class="row g-3 mb-4">
-            <div class="col-xl-3 col-sm-6">
-              <div class="glass-card stat-card border-success border-opacity-30">
-                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-currency-rupee"></i></div>
-                <div>
-                  <div class="stat-value text-success" id="kpi-pay-total-collections">₹0</div>
-                  <div class="stat-label">Total Verified Collections</div>
-                  <small class="text-white-50"><span id="kpi-pay-success-count">0 Successful</span></small>
-                </div>
-              </div>
-            </div>
-            <div class="col-xl-3 col-sm-6">
-              <div class="glass-card stat-card border-warning border-opacity-30">
-                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-clock-history"></i></div>
-                <div>
-                  <div class="stat-value text-warning" id="kpi-pay-pending-count">0</div>
-                  <div class="stat-label">Pending In-Checkout</div>
-                  <small class="text-white-50">Awaiting gateway capture</small>
-                </div>
-              </div>
-            </div>
-            <div class="col-xl-3 col-sm-6">
-              <div class="glass-card stat-card border-danger border-opacity-30">
-                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-x-circle-fill"></i></div>
-                <div>
-                  <div class="stat-value text-danger" id="kpi-pay-failed-count">0</div>
-                  <div class="stat-label">Failed / Cancelled</div>
-                  <small class="text-white-50">Gateway decline or timeout</small>
-                </div>
-              </div>
-            </div>
-            <div class="col-xl-3 col-sm-6">
-              <div class="glass-card stat-card border-info border-opacity-30">
-                <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-arrow-counterclockwise"></i></div>
-                <div>
-                  <div class="stat-value text-info" id="kpi-pay-refund-count">0</div>
-                  <div class="stat-label">Authorized Refunds</div>
-                  <small class="text-white-50">Processed back to payer</small>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Filter & Search Toolbar -->
-          <div class="glass-card p-3 mb-4 border border-secondary border-opacity-25 shadow-sm">
-            <div class="row g-2 align-items-center">
-              <div class="col-md-3">
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text bg-transparent text-secondary border-secondary border-opacity-25"><i class="bi bi-search"></i></span>
-                  <input type="text" id="pay-search-input" class="form-control form-control-glass" placeholder="Search Reg ID, Student, Payment ID, College..." onkeyup="if(event.key==='Enter') loadAdminPayments()">
-                </div>
-              </div>
-              <div class="col-md-2">
-                <select id="pay-filter-tournament" class="form-select form-select-glass form-select-sm" onchange="loadAdminPayments()">
-                  <option value="ALL">All Tournaments</option>
-                </select>
-              </div>
-              <div class="col-md-2">
-                <select id="pay-filter-competition" class="form-select form-select-glass form-select-sm" onchange="loadAdminPayments()">
-                  <option value="ALL">All Competitions</option>
-                </select>
-              </div>
-              <div class="col-md-2">
-                <select id="pay-filter-status" class="form-select form-select-glass form-select-sm" onchange="loadAdminPayments()">
-                  <option value="ALL">All Statuses</option>
-                  <option value="SUCCESS">Success Only</option>
-                  <option value="CREATED">Pending In-Checkout</option>
-                  <option value="FAILED">Failed</option>
-                  <option value="REFUNDED">Refunded</option>
-                </select>
-              </div>
-              <div class="col-md-3 d-flex gap-2">
-                <input type="date" id="pay-filter-date-from" class="form-control form-control-glass form-control-sm" title="From Date" onchange="loadAdminPayments()">
-                <input type="date" id="pay-filter-date-to" class="form-control form-control-glass form-control-sm" title="To Date" onchange="loadAdminPayments()">
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetPaymentFilters()" title="Reset Filters">
-                  <i class="bi bi-x-lg"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Transactions Table -->
-          <div class="table-responsive table-glass-container">
-            <table class="table table-glass align-middle">
-              <thead>
-                <tr>
-                  <th style="width:40px;">#</th>
-                  <th>Registration Reference</th>
-                  <th>Participant & College</th>
-                  <th>Competition & Category</th>
-                  <th>Amount (INR)</th>
-                  <th>Gateway Identifiers</th>
-                  <th>Payment Status</th>
-                  <th style="width:110px;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="payments-table-body">
-                <!-- Loaded via paymentAdmin.js -->
-              </tbody>
-            </table>
           </div>
         </section>
 
@@ -1749,13 +1008,7 @@
               <h4 class="fw-bold text-dark mb-0">Competition Registration Applications</h4>
               <small class="text-secondary">Approve or reject student participation requests with instant notifications</small>
             </div>
-            <div class="d-flex gap-2">
-              <select id="app-filter-gender" class="form-select form-select-glass form-select-sm" onchange="loadAdminApplications()">
-                <option value="All">All Categories</option>
-                <option value="Men">Men</option>
-                <option value="Women">Women</option>
-                <option value="Mixed">Mixed</option>
-              </select>
+            <div>
               <select id="app-filter-status" class="form-select form-select-glass form-select-sm" onchange="loadAdminApplications()">
                 <option value="All">All Applications</option>
                 <option value="Pending" selected>Pending Review</option>
@@ -1765,15 +1018,13 @@
             </div>
           </div>
           <div class="table-glass-container">
-            <table class="table table-glass align-middle">
+            <table class="table table-glass">
               <thead>
                 <tr>
                   <th>#</th>
                   <th>Student Athlete</th>
-                  <th>Tournament & Sport</th>
-                  <th>Competition / Event</th>
-                  <th>Category</th>
-                  <th>Department & Role</th>
+                  <th>Competition Applied</th>
+                  <th>Position</th>
                   <th>Application Date</th>
                   <th>Status</th>
                   <th>Decision Actions</th>
@@ -1828,11 +1079,10 @@
                   </select>
                 </div>
                 <div class="col-lg-3 col-md-6">
-                  <label class="form-label text-muted small fw-bold mb-1">Category / Gender *</label>
+                  <label class="form-label text-muted small fw-bold mb-1">Gender *</label>
                   <select id="team-form-gender" class="form-select form-select-glass" onchange="onTeamFormationFilterChange()">
-                    <option value="Men" selected>Men</option>
-                    <option value="Women">Women</option>
-                    <option value="Mixed">Mixed</option>
+                    <option value="Boys">Boys</option>
+                    <option value="Girls">Girls</option>
                   </select>
                 </div>
                 <div class="col-lg-3 col-md-6">
@@ -2028,148 +1278,6 @@
               </thead>
               <tbody id="admin-achievements-table">
                 <!-- Loaded via admin.js -->
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- VIEW: CM TROPHY UPDATES & NOTIFICATIONS -->
-        <section id="view-cm-trophy" class="admin-view-section d-none">
-          <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-            <div>
-              <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-warning text-dark fw-bold px-2 py-1"><i class="bi bi-award-fill me-1"></i> SDAT TAMIL NADU</span>
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1" id="cm-sync-status-badge">
-                  <i class="bi bi-cloud-check-fill me-1"></i> Cloud Synced
-                </span>
-              </div>
-              <h4 class="fw-bold text-white mb-0 mt-1">CM Trophy Updates & Student Notifications</h4>
-              <small class="text-secondary" style="color: #AFC4DF !important;">Publish verified SDAT circulars, registration deadlines, and broadcast instant notifications to students</small>
-            </div>
-            <div class="d-flex gap-2 align-items-center flex-wrap">
-              <a href="https://tncmtrophy.sdat.in/" target="_blank" rel="noopener noreferrer" class="btn btn-outline-warning btn-sm fw-semibold">
-                <i class="bi bi-box-arrow-up-right me-1"></i> Official SDAT Portal
-              </a>
-              <button class="btn btn-outline-secondary btn-sm" onclick="loadAdminCmTrophy(true)">
-                <i class="bi bi-arrow-clockwise me-1"></i> Refresh
-              </button>
-              <button class="btn btn-sports-primary btn-sm" onclick="openAddCmTrophyModal()">
-                <i class="bi bi-plus-circle-fill me-1"></i> New Announcement
-              </button>
-            </div>
-          </div>
-
-          <!-- KPI Cards -->
-          <div class="row g-3 mb-4">
-            <div class="col-xl-3 col-sm-6">
-              <div class="glass-card stat-card p-3">
-                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-award-fill"></i></div>
-                <div>
-                  <div class="stat-value text-warning" id="cm-stat-total">0</div>
-                  <div class="stat-label">Total Announcements</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-xl-3 col-sm-6">
-              <div class="glass-card stat-card p-3">
-                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-broadcast"></i></div>
-                <div>
-                  <div class="stat-value text-success" id="cm-stat-published">0</div>
-                  <div class="stat-label">Published to Students</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-xl-3 col-sm-6">
-              <div class="glass-card stat-card p-3">
-                <div class="stat-icon bg-secondary bg-opacity-10 text-secondary"><i class="bi bi-pencil-square"></i></div>
-                <div>
-                  <div class="stat-value text-secondary" id="cm-stat-drafts">0</div>
-                  <div class="stat-label">Drafts (Unpublished)</div>
-                </div>
-              </div>
-            </div>
-            <div class="col-xl-3 col-sm-6">
-              <div class="glass-card stat-card p-3">
-                <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-exclamation-triangle-fill"></i></div>
-                <div>
-                  <div class="stat-value text-danger" id="cm-stat-important">0</div>
-                  <div class="stat-label">Important Bulletins</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Official Portal Reference Alert -->
-          <div class="glass-card d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4 p-3 rounded-3" style="border: 1px solid rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.08);">
-            <div class="d-flex align-items-center gap-3">
-              <i class="bi bi-shield-lock-fill fs-3 text-warning"></i>
-              <div>
-                <strong class="text-white">Official CM Trophy SDAT Direct Link:</strong>
-                <a href="https://tncmtrophy.sdat.in/" target="_blank" rel="noopener noreferrer" class="text-decoration-none fw-bold ms-1" style="color: #38A7FF;">
-                  https://tncmtrophy.sdat.in/ <i class="bi bi-box-arrow-up-right small"></i>
-                </a>
-                <div class="small mt-1" style="color: #AFC4DF;">
-                  Students complete individual registration and district trials directly on the official SDAT portal. All announcements published below appear in the Student Portal with live notification alerts.
-                </div>
-              </div>
-            </div>
-            <span class="badge bg-warning text-dark px-3 py-2 fw-bold"><i class="bi bi-patch-check-fill me-1"></i> Verified SDAT</span>
-          </div>
-
-          <!-- Filter & Search Toolbar -->
-          <div class="glass-card p-3 mb-4">
-            <div class="row g-2 align-items-center">
-              <div class="col-md-3">
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                  <input type="text" class="form-control border-start-0" id="cm-search-input" placeholder="Search announcement or circular..." onkeyup="filterAdminCmTrophyTable()">
-                </div>
-              </div>
-              <div class="col-md-3">
-                <select class="form-select form-select-sm" id="cm-status-filter" onchange="loadAdminCmTrophy()">
-                  <option value="All">All Statuses</option>
-                  <option value="Published">Published (Live to Students)</option>
-                  <option value="Draft">Drafts Only</option>
-                  <option value="Archived">Archived</option>
-                </select>
-              </div>
-              <div class="col-md-3">
-                <select class="form-select form-select-sm" id="cm-category-filter" onchange="loadAdminCmTrophy()">
-                  <option value="All">All Categories</option>
-                  <option value="Registration Notice">Registration Notice</option>
-                  <option value="Eligibility Instructions">Eligibility Instructions</option>
-                  <option value="Schedule Update">Schedule Update</option>
-                  <option value="General Guidance">General Guidance</option>
-                </select>
-              </div>
-              <div class="col-md-3 text-end">
-                <button class="btn btn-outline-primary btn-sm w-100" onclick="openAddCmTrophyModal()">
-                  <i class="bi bi-megaphone-fill me-1"></i> New Notice & Broadcast
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Announcements Table -->
-          <div class="table-glass-container">
-            <table class="table table-glass align-middle mb-0">
-              <thead>
-                <tr>
-                  <th style="width: 40px;">#</th>
-                  <th>Announcement Title & Category</th>
-                  <th>Instructions Summary</th>
-                  <th>Registration Window</th>
-                  <th>Priority</th>
-                  <th>Status</th>
-                  <th>Published Date</th>
-                  <th class="text-end" style="width: 170px;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="cm-trophy-table-tbody">
-                <!-- Loaded dynamically via admin.js -->
-                <tr>
-                  <td colspan="8" class="text-center py-4 text-muted">Loading CM Trophy announcements...</td>
-                </tr>
               </tbody>
             </table>
           </div>
@@ -2652,13 +1760,10 @@
                 </div>
               </div>
 
-              <!-- Top Action Buttons: Generate, Tournament QR, Total Department Report, Print, Download PDF -->
+              <!-- Top Action Buttons: Generate, Total Department Report, Print, Download PDF -->
               <div class="d-flex align-items-center gap-2 flex-wrap mt-3 pt-3 border-top">
                 <button class="btn btn-primary fw-bold px-3" onclick="generateTournamentRegistrationReport()" id="btn-trr-generate">
                   <i class="bi bi-search me-1"></i> Generate Report
-                </button>
-                <button class="btn btn-warning text-dark fw-bold px-3 shadow-sm" onclick="openSelectedTournamentQrFromReport()" id="btn-trr-qr" title="View, Print & Download QR Code for this Tournament">
-                  <i class="bi bi-qr-code-scan me-1"></i> Tournament QR Code
                 </button>
                 <button class="btn btn-outline-success fw-bold px-3" onclick="generateTotalDepartmentReport()" id="btn-trr-dept-order" title="Generate and download total report across all departments in department order">
                   <i class="bi bi-diagram-3-fill me-1"></i> Total Department Report
@@ -2691,7 +1796,7 @@
                 <div class="col-12 mb-2">
                   <div class="p-3 p-md-4 rounded-4 bg-white bg-opacity-60 border shadow-sm d-flex flex-column flex-md-row align-items-center gap-4">
                     <div class="position-relative flex-shrink-0">
-                      <img id="set-preview-photo" src="images/default-avatar.png" class="rounded-circle shadow border border-3 border-warning" width="110" height="110" style="object-fit: cover;" onerror="this.onerror=null;this.src='images/default-avatar.png'">
+                      <img id="set-preview-photo" src="images/default-avatar.png" class="rounded-circle shadow border border-3 border-warning" width="110" height="110" style="object-fit: cover;" onerror="this.src='images/default-avatar.png'">
                       <label for="set-photo-file" class="btn btn-sm btn-primary rounded-circle position-absolute bottom-0 end-0 shadow d-flex align-items-center justify-content-center" style="cursor: pointer; width: 34px; height: 34px; border: 2px solid #fff;" title="Upload New Profile Image">
                         <i class="bi bi-camera-fill fs-6"></i>
                       </label>
@@ -2772,7 +1877,7 @@
   <!-- ALL ADMIN MODALS -->
 
   <!-- Modal: Add Sport -->
-  <div class="modal fade" id="addSportModal" data-bs-focus="false">
+  <div class="modal fade" id="addSportModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content glass-card p-2">
         <div class="modal-header border-0">
@@ -2827,7 +1932,7 @@
   </div>
 
   <!-- Modal: Add Equipment -->
-  <div class="modal fade" id="addEquipmentModal" data-bs-focus="false">
+  <div class="modal fade" id="addEquipmentModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content glass-card p-2">
         <div class="modal-header border-0">
@@ -3101,7 +2206,7 @@
   </div>
 
   <!-- Modal: Create Tournament -->
-  <div class="modal fade" id="addCompetitionModal" data-bs-focus="false">
+  <div class="modal fade" id="addCompetitionModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content glass-card p-3 shadow-lg">
         <div class="modal-header border-0 pb-2">
@@ -3125,47 +2230,13 @@
               </div>
 
               <div class="col-6">
-                <label class="form-label small fw-bold">Tournament Start Date *</label>
+                <label class="form-label small fw-bold">Start Date *</label>
                 <input type="date" name="date" id="ctm-start-date" class="form-control form-control-glass" required>
               </div>
 
               <div class="col-6">
-                <label class="form-label small fw-bold">Tournament End Date *</label>
-                <input type="date" name="endDate" id="ctm-end-date" class="form-control form-control-glass" required>
-              </div>
-
-              <!-- Dedicated Registration Schedule Card with Automatic Open & Close Conditions -->
-              <div class="col-12 p-3 rounded-3 border border-warning border-opacity-30" style="background: rgba(245, 158, 11, 0.08);">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                  <span class="text-xs fw-bold text-uppercase" style="color: #fbbf24;">
-                    <i class="bi bi-clock-history me-1"></i> Registration Window (Automatic Open & Close)
-                  </span>
-                  <span class="badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-40 font-monospace" id="ctm-reg-condition-badge" style="font-size:0.68rem;">
-                    <i class="bi bi-lightning-charge-fill me-1"></i>Automatic Mode
-                  </span>
-                </div>
-                <div class="row g-2">
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
-                      <i class="bi bi-calendar-check text-success me-1"></i> Registration Open Date & Time *
-                    </label>
-                    <input type="datetime-local" name="registrationStart" id="ctm-reg-start" class="form-control form-control-glass form-control-sm" required onchange="updateRegSchedulePreview()">
-                    <div class="form-text text-light opacity-75" style="font-size:0.68rem;">Registration activates automatically at this moment.</div>
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
-                      <i class="bi bi-calendar-x text-danger me-1"></i> Registration Close Date & Time (Deadline) *
-                    </label>
-                    <input type="datetime-local" name="registrationEnd" id="ctm-reg-end" class="form-control form-control-glass form-control-sm" required onchange="updateRegSchedulePreview()">
-                    <div class="form-text text-light opacity-75" style="font-size:0.68rem;">Registration terminates automatically after this deadline.</div>
-                  </div>
-                  <div class="col-12 mt-2">
-                    <div class="p-2 rounded bg-dark bg-opacity-60 border border-white border-opacity-15 text-xs text-light d-flex align-items-center gap-2" id="ctm-reg-status-preview">
-                      <i class="bi bi-info-circle text-info"></i>
-                      <span id="ctm-reg-status-text">Status will automatically compute based on current date & time.</span>
-                    </div>
-                  </div>
-                </div>
+                <label class="form-label small fw-bold">End Date *</label>
+                <input type="date" name="registrationEnd" id="ctm-end-date" class="form-control form-control-glass" required>
               </div>
 
               <div class="col-12">
@@ -3173,221 +2244,11 @@
                 <input type="text" name="venue" id="ctm-venue" class="form-control form-control-glass" required value="College Ground">
               </div>
 
-              <!-- Participation Type: INTERNAL vs INTER_COLLEGE -->
-              <div class="col-12">
-                <label class="form-label small fw-bold d-flex align-items-center justify-content-between mb-1">
-                  <span><i class="bi bi-diagram-3-fill text-warning me-1"></i> Participation Type *</span>
-                  <span class="badge bg-warning bg-opacity-20 text-dark" id="part-type-badge">Internal Tournament</span>
-                </label>
-                <div class="btn-group w-100" role="group">
-                  <input type="radio" class="btn-check" name="participationType" id="part-internal" value="INTERNAL" checked onchange="toggleInterCollegeFields(false)">
-                  <label class="btn btn-outline-primary fw-bold text-xs py-2" for="part-internal">
-                    <i class="bi bi-building me-1"></i> Internal College (GASC Students)
-                  </label>
-
-                  <input type="radio" class="btn-check" name="participationType" id="part-intercollege" value="INTER_COLLEGE" onchange="toggleInterCollegeFields(true)">
-                  <label class="btn btn-outline-warning fw-bold text-xs py-2" for="part-intercollege">
-                    <i class="bi bi-qr-code-scan me-1"></i> Inter-College (External Colleges via QR)
-                  </label>
-                </div>
-              </div>
-
-              <!-- Inter-College Specific Fields Container -->
-              <div id="inter-college-config-fields" class="col-12 p-3 rounded-3 border border-warning border-opacity-40 bg-warning bg-opacity-10 d-none">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                  <span class="text-xs fw-bold text-dark text-uppercase">
-                    <i class="bi bi-qr-code me-1 text-warning"></i> Inter-College External QR Configuration
-                  </span>
-                  <span class="badge bg-warning text-dark font-monospace" style="font-size:0.65rem;">
-                    <i class="bi bi-check-circle-fill me-1"></i>Auto QR Code Generation
-                  </span>
-                </div>
-                <div class="row g-2">
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Competition Mode *</label>
-                    <select name="competitionMode" id="ctm-comp-mode" class="form-select form-select-glass form-select-sm" onchange="onCompetitionModeChange(this.value)">
-                      <option value="INDIVIDUAL">Individual (Single Athlete)</option>
-                      <option value="TEAM" selected>Team (Squad Roster)</option>
-                    </select>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Category / Gender *</label>
-                    <select name="gender" id="ctm-gender-select" class="form-select form-select-glass form-select-sm">
-                      <option value="Men" selected>Men</option>
-                      <option value="Women">Women</option>
-                      <option value="Mixed">Mixed</option>
-                    </select>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Registration Start Date</label>
-                    <input type="date" name="registrationStart" id="ctm-reg-start" class="form-control form-control-glass form-control-sm">
-                  </div>
-
-                  <!-- Squad Rules (Required & Substitutes) -->
-                  <div class="col-md-3 team-rule-field">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Required Players *</label>
-                    <input type="number" name="requiredPlayers" id="ctm-req-players" class="form-control form-control-glass form-control-sm" value="11" min="1">
-                  </div>
-                  <div class="col-md-3 team-rule-field">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Substitutes</label>
-                    <input type="number" name="substitutes" id="ctm-substitutes" class="form-control form-control-glass form-control-sm" value="4" min="0">
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Max Colleges</label>
-                    <input type="number" name="maxColleges" class="form-control form-control-glass form-control-sm" value="50" min="1">
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Max Teams / Slots</label>
-                    <input type="number" name="maxTeams" class="form-control form-control-glass form-control-sm" value="30" min="1">
-                  </div>
-
-                  <!-- Contact Details for QR Poster -->
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Contact Person</label>
-                    <input type="text" name="contactPerson" class="form-control form-control-glass form-control-sm" value="Dr. R. ANITHA (Physical Director)">
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Contact Phone</label>
-                    <input type="tel" name="contactPhone" class="form-control form-control-glass form-control-sm" value="+91 94432 18765">
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Contact Email</label>
-                    <input type="email" name="contactEmail" class="form-control form-control-glass form-control-sm" value="sportsgascidappadi@gmail.com">
-                  </div>
-
-                  <div class="col-12">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Rules & Instructions for External Colleges</label>
-                    <textarea name="rules" class="form-control form-control-glass form-control-sm" rows="2" placeholder="Eligibility, reporting time, ID proof requirements, uniform rules..."></textarea>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Tournament Registration Fees & Payment Receiver Details -->
-              <div class="col-12 p-3 rounded-3 border border-primary border-opacity-30 shadow-sm" style="background: rgba(30, 41, 59, 0.45);">
-                <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom border-secondary border-opacity-25">
-                  <div class="d-flex align-items-center gap-2">
-                    <div class="p-1.5 rounded-2 bg-primary bg-opacity-20 text-primary">
-                      <i class="bi bi-cash-coin fs-6"></i>
-                    </div>
-                    <div>
-                      <h6 class="text-xs fw-bold text-uppercase text-white mb-0 tracking-wide">
-                        Registration Fees & Payment Configuration
-                      </h6>
-                      <span class="text-muted" style="font-size:0.68rem;">Configure independent fees for Our College vs Other College + UPI / GPay Details</span>
-                    </div>
-                  </div>
-                  <span class="badge bg-primary bg-opacity-20 text-info border border-info border-opacity-30" style="font-size:0.68rem;">
-                    <i class="bi bi-shield-check me-1"></i>Official Fee System
-                  </span>
-                </div>
-
-                <!-- Independent Fee Cards: A. Our College vs B. Other College -->
-                <div class="row g-2">
-                  <!-- CARD A: OUR COLLEGE STUDENTS (GASC IDAPPADI) -->
-                  <div class="col-md-6">
-                    <div class="p-2.5 rounded-3 border border-success border-opacity-30 h-100" style="background: rgba(16, 185, 129, 0.06);">
-                      <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-xs fw-bold text-success text-uppercase">
-                          <i class="bi bi-building-check me-1"></i> Our College Students (GASC)
-                        </span>
-                        <div class="form-check form-switch m-0">
-                          <input class="form-check-input" type="checkbox" role="switch" id="ctm-our-fee-toggle" name="ourCollegeFeeEnabled" onchange="toggleOurCollegeFee(this.checked)">
-                          <label class="form-check-label text-xs fw-bold text-light" for="ctm-our-fee-toggle" id="ctm-our-fee-toggle-lbl" style="font-size:0.7rem;">Free (Disabled)</label>
-                        </div>
-                      </div>
-
-                      <div id="ctm-our-fee-container" style="display: none;">
-                        <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
-                          Registration Fee for Our College (₹ INR) *
-                        </label>
-                        <div class="input-group input-group-sm mb-1">
-                          <span class="input-group-text fw-bold bg-dark text-success border-secondary">₹</span>
-                          <input type="number" name="ourCollegeFee" id="ctm-our-fee-input" class="form-control form-control-glass fw-bold text-success" value="50" min="0" step="5" placeholder="50">
-                          <span class="input-group-text small bg-dark text-muted border-secondary">INR</span>
-                        </div>
-                        <div class="text-muted" style="font-size:0.65rem;">GASC students will pay this fee via Gateway before registration.</div>
-                      </div>
-
-                      <div id="ctm-our-fee-free-msg" class="p-2 rounded bg-dark bg-opacity-40 border border-success border-opacity-20 text-center">
-                        <span class="text-xs text-success fw-bold"><i class="bi bi-gift-fill me-1"></i>Free Registration for Our College</span>
-                        <div class="text-muted" style="font-size:0.65rem;">No fee required for internal college students.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- CARD B: OTHER COLLEGE STUDENTS (EXTERNAL VIA QR) -->
-                  <div class="col-md-6">
-                    <div class="p-2.5 rounded-3 border border-warning border-opacity-30 h-100" style="background: rgba(245, 158, 11, 0.06);">
-                      <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-xs fw-bold text-warning text-uppercase">
-                          <i class="bi bi-qr-code-scan me-1"></i> Other College Students
-                        </span>
-                        <div class="form-check form-switch m-0">
-                          <input class="form-check-input" type="checkbox" role="switch" id="ctm-other-fee-toggle" name="otherCollegeFeeEnabled" checked onchange="toggleOtherCollegeFee(this.checked)">
-                          <label class="form-check-label text-xs fw-bold text-warning" for="ctm-other-fee-toggle" id="ctm-other-fee-toggle-lbl" style="font-size:0.7rem;">Fee Enabled</label>
-                        </div>
-                      </div>
-
-                      <div id="ctm-other-fee-container">
-                        <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
-                          Registration Fee for Other College (₹ INR) *
-                        </label>
-                        <div class="input-group input-group-sm mb-1">
-                          <span class="input-group-text fw-bold bg-dark text-warning border-secondary">₹</span>
-                          <input type="number" name="otherCollegeFee" id="ctm-other-fee-input" class="form-control form-control-glass fw-bold text-warning" value="100" min="0" step="10" placeholder="100">
-                          <span class="input-group-text small bg-dark text-muted border-secondary">INR</span>
-                        </div>
-                        <div class="text-muted" style="font-size:0.65rem;">External college participants must pay this fee to confirm entry.</div>
-                      </div>
-
-                      <div id="ctm-other-fee-free-msg" class="p-2 rounded bg-dark bg-opacity-40 border border-warning border-opacity-20 text-center" style="display: none;">
-                        <span class="text-xs text-warning fw-bold"><i class="bi bi-gift-fill me-1"></i>Free Entry for Other College</span>
-                        <div class="text-muted" style="font-size:0.65rem;">External colleges can register free without payment.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- PAYMENT RECEIVER DETAILS (GPAY NUMBER & UPI ID) -->
-                  <div class="col-12 mt-2">
-                    <div class="p-2.5 rounded-3 border border-info border-opacity-30" style="background: rgba(6, 182, 212, 0.05);">
-                      <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="text-xs fw-bold text-info text-uppercase">
-                          <i class="bi bi-phone-fill me-1"></i> Receiving Account Details (GPay & UPI ID for this Tournament)
-                        </span>
-                        <span class="badge bg-dark text-info border border-info border-opacity-30" style="font-size:0.65rem;">
-                          Configured Directly Here
-                        </span>
-                      </div>
-                      <div class="row g-2">
-                        <div class="col-md-4">
-                          <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
-                            <i class="bi bi-qr-code text-info me-1"></i> Receiver UPI ID *
-                          </label>
-                          <input type="text" name="upiId" id="ctm-upi-id" class="form-control form-control-glass form-control-sm" placeholder="e.g. 9443218765@sbi" value="9443218765@sbi">
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
-                            <i class="bi bi-google-play text-info me-1"></i> Google Pay / Mobile No *
-                          </label>
-                          <input type="tel" name="gpayNumber" id="ctm-gpay-number" class="form-control form-control-glass form-control-sm" placeholder="e.g. +91 94432 18765" value="+91 94432 18765">
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
-                            <i class="bi bi-person-check-fill text-info me-1"></i> Authorized Receiver Name *
-                          </label>
-                          <input type="text" name="receiverName" id="ctm-receiver-name" class="form-control form-control-glass form-control-sm" placeholder="Physical Education Dept" value="Physical Education Dept, GASC Idappadi">
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <div class="col-6">
-                <label class="form-label small fw-bold">Tournament Level / Type</label>
-                <select name="type" id="ctm-type-select" class="form-select form-select-glass form-select-sm">
+                <label class="form-label small fw-bold">Tournament Type</label>
+                <select name="type" class="form-select form-select-glass form-select-sm">
                   <option value="Inter-Department" selected>Inter-Department</option>
-                  <option value="Inter-College">Inter-College</option>
+                  <option value="Intra-College">Intra-College (Internal)</option>
                   <option value="University">University</option>
                   <option value="District">District</option>
                   <option value="State">State</option>
@@ -3453,28 +2314,20 @@
                   </div>
                   <div class="col-6">
                     <label class="form-label small fw-bold" style="font-size:0.75rem;">Competition Title *</label>
-                    <input type="text" name="name" id="create-tournament-comp-name" class="form-control form-control-glass form-control-sm" required placeholder="e.g. Cricket — Men">
+                    <input type="text" name="name" id="create-tournament-comp-name" class="form-control form-control-glass form-control-sm" required placeholder="e.g. Badminton Men's Singles">
                   </div>
-                  <div class="col-3">
-                    <label class="form-label small fw-bold" style="font-size:0.75rem;"><i class="bi bi-gender-ambiguous text-primary me-1"></i> Category *</label>
-                    <select name="firstSportGender" id="create-tournament-gender" class="form-select form-select-glass form-select-sm" onchange="onTournamentCategoryChange(this.value)">
-                      <option value="Men" selected>Men</option>
-                      <option value="Women">Women</option>
-                      <option value="Mixed">Mixed</option>
-                    </select>
-                  </div>
-                  <div class="col-3">
+                  <div class="col-4">
                     <label class="form-label small fw-bold" style="font-size:0.75rem;">Event Type</label>
                     <select name="sportType" class="form-select form-select-glass form-select-sm">
                       <option value="Individual">Individual</option>
                       <option value="Team" selected>Team</option>
                     </select>
                   </div>
-                  <div class="col-3">
+                  <div class="col-4">
                     <label class="form-label small fw-bold" style="font-size:0.75rem;">Start Time</label>
                     <input type="text" name="startTime" class="form-control form-control-glass form-control-sm" value="09:00 AM">
                   </div>
-                  <div class="col-3">
+                  <div class="col-4">
                     <label class="form-label small fw-bold" style="font-size:0.75rem;">Max Slots</label>
                     <input type="number" name="maxParticipants" class="form-control form-control-glass form-control-sm" value="50">
                   </div>
@@ -3493,7 +2346,7 @@
     </div>
   </div>
   <!-- Modal: Edit Tournament Cover Image -->
-  <div class="modal fade" id="editTournamentModal" data-bs-focus="false">
+  <div class="modal fade" id="editTournamentModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content glass-card p-2 shadow-lg">
         <div class="modal-header border-0">
@@ -3551,7 +2404,7 @@
   </div>
 
   <!-- Modal: Add Sport Competition to Tournament (Step 3) -->
-  <div class="modal fade" id="addSportCompetitionModal" data-bs-focus="false">
+  <div class="modal fade" id="addSportCompetitionModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content glass-card p-2 shadow-lg">
         <div class="modal-header border-0">
@@ -3566,19 +2419,11 @@
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label small fw-bold"><i class="bi bi-trophy-fill text-warning me-1"></i> Select Sport *</label>
-                <select name="sportId" id="add-sport-select-id" class="form-select form-select-glass populate-sports-select" required onchange="onAddSportSelectChange(this)"></select>
+                <select name="sportId" class="form-select form-select-glass populate-sports-select" required></select>
               </div>
               <div class="col-md-6">
                 <label class="form-label small fw-bold"><i class="bi bi-flag-fill text-primary me-1"></i> Competition Title *</label>
-                <input type="text" name="name" id="add-sport-comp-name" class="form-control form-control-glass" required placeholder="e.g. Cricket — Men">
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold"><i class="bi bi-gender-ambiguous text-primary me-1"></i> Category *</label>
-                <select name="gender" id="add-sport-gender" class="form-select form-select-glass" required onchange="onAddSportCategoryChange(this.value)">
-                  <option value="Men" selected>Men</option>
-                  <option value="Women">Women</option>
-                  <option value="Mixed">Mixed</option>
-                </select>
+                <input type="text" name="name" class="form-control form-control-glass" required placeholder="e.g. Men's Cricket">
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Event Type</label>
@@ -3592,22 +2437,8 @@
                 <input type="date" name="date" class="form-control form-control-glass" required>
               </div>
               <div class="col-md-4">
-                <label class="form-label small fw-bold">Required Players</label>
-                <input type="number" name="requiredPlayers" class="form-control form-control-glass" value="11" min="1">
-              </div>
-              <div class="col-md-4">
-                <label class="form-label small fw-bold">Substitutes</label>
-                <input type="number" name="substitutes" class="form-control form-control-glass" value="4" min="0">
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold"><i class="bi bi-calendar-check text-success me-1"></i> Registration Open Date</label>
-                <input type="date" name="registrationStart" class="form-control form-control-glass" placeholder="Immediate if empty">
-                <div class="form-text text-muted" style="font-size:0.7rem;">Leave empty for immediate opening.</div>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold"><i class="bi bi-calendar-x text-danger me-1"></i> Registration Deadline (Close) *</label>
+                <label class="form-label small fw-bold">Registration Deadline *</label>
                 <input type="date" name="registrationEnd" class="form-control form-control-glass" required>
-                <div class="form-text text-muted" style="font-size:0.7rem;">Auto-closes after this date.</div>
               </div>
               <div class="col-md-4">
                 <label class="form-label small fw-bold">Start Time</label>
@@ -3626,67 +2457,12 @@
                 <input type="number" name="maxParticipants" class="form-control form-control-glass" value="50">
               </div>
               <div class="col-md-6">
-                <label class="form-label small fw-bold">Registration Condition</label>
+                <label class="form-label small fw-bold">Registration Status</label>
                 <select name="status" class="form-select form-select-glass">
-                  <option value="AUTO" selected>⚡ Automatic (Opens & Closes on dates)</option>
-                  <option value="Registration Open">Force Open</option>
-                  <option value="Upcoming">Force Upcoming (Not Started)</option>
-                  <option value="Registration Closed">Force Closed</option>
+                  <option value="Registration Open" selected>Registration Open</option>
+                  <option value="Registration Closed">Closed</option>
                 </select>
               </div>
-              <!-- Sport Specific Dual Registration Fee Options -->
-              <div class="col-12 p-3 rounded-3 border border-primary border-opacity-30 shadow-sm" style="background: rgba(30, 41, 59, 0.45);">
-                <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom border-secondary border-opacity-25">
-                  <span class="text-xs fw-bold text-uppercase text-white">
-                    <i class="bi bi-cash-coin me-1 text-primary"></i> Competition Entry Fee Settings
-                  </span>
-                  <span class="badge bg-primary bg-opacity-20 text-info border border-info border-opacity-30" style="font-size:0.65rem;">
-                    Independent Settings
-                  </span>
-                </div>
-                <div class="row g-2">
-                  <!-- OUR COLLEGE -->
-                  <div class="col-md-6">
-                    <div class="p-2.5 rounded-3 border border-success border-opacity-30 h-100" style="background: rgba(16, 185, 129, 0.06);">
-                      <div class="d-flex align-items-center justify-content-between mb-1">
-                        <span class="text-xs fw-bold text-success" style="font-size:0.72rem;">Our College (GASC)</span>
-                        <div class="form-check form-switch m-0">
-                          <input class="form-check-input" type="checkbox" role="switch" id="add-sport-our-fee-toggle" name="ourCollegeFeeEnabled" onchange="toggleAddSportOurFee(this.checked)">
-                          <label class="form-check-label text-xs fw-bold text-light" for="add-sport-our-fee-toggle" id="add-sport-our-fee-lbl" style="font-size:0.68rem;">Free</label>
-                        </div>
-                      </div>
-                      <div id="add-sport-our-fee-cont" style="display:none;">
-                        <div class="input-group input-group-sm">
-                          <span class="input-group-text fw-bold bg-dark text-success border-secondary">₹</span>
-                          <input type="number" name="ourCollegeFee" id="add-sport-our-fee-input" class="form-control form-control-glass fw-bold text-success" value="50" min="0" step="5" placeholder="50">
-                          <span class="input-group-text small bg-dark text-muted border-secondary">INR</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- OTHER COLLEGE -->
-                  <div class="col-md-6">
-                    <div class="p-2.5 rounded-3 border border-warning border-opacity-30 h-100" style="background: rgba(245, 158, 11, 0.06);">
-                      <div class="d-flex align-items-center justify-content-between mb-1">
-                        <span class="text-xs fw-bold text-warning" style="font-size:0.72rem;">Other College (External)</span>
-                        <div class="form-check form-switch m-0">
-                          <input class="form-check-input" type="checkbox" role="switch" id="add-sport-other-fee-toggle" name="otherCollegeFeeEnabled" checked onchange="toggleAddSportOtherFee(this.checked)">
-                          <label class="form-check-label text-xs fw-bold text-warning" for="add-sport-other-fee-toggle" id="add-sport-other-fee-lbl" style="font-size:0.68rem;">Fee Enabled</label>
-                        </div>
-                      </div>
-                      <div id="add-sport-other-fee-cont">
-                        <div class="input-group input-group-sm">
-                          <span class="input-group-text fw-bold bg-dark text-warning border-secondary">₹</span>
-                          <input type="number" name="otherCollegeFee" id="add-sport-other-fee-input" class="form-control form-control-glass fw-bold text-warning" value="100" min="0" step="10" placeholder="100">
-                          <span class="input-group-text small bg-dark text-muted border-secondary">INR</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <div class="col-12">
                 <label class="form-label small fw-bold">Rules & Eligibility Instructions</label>
                 <textarea name="description" class="form-control form-control-glass" rows="2" placeholder="Eligibility details, rules..."></textarea>
@@ -3957,7 +2733,7 @@
         </div>
         <div class="modal-body">
           <div class="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
-            <img id="modal-player-avatar" src="images/default-avatar.png" class="rounded-circle shadow" width="72" height="72" style="object-fit:cover;" onerror="this.onerror=null;this.src='images/default-avatar.png'">
+            <img id="modal-player-avatar" src="images/default-avatar.png" class="rounded-circle shadow" width="72" height="72" style="object-fit:cover;" onerror="this.src='images/default-avatar.png'">
             <div>
               <h4 class="fw-bold text-dark mb-1" id="modal-player-name">Arun Kumar S</h4>
               <div class="text-secondary small" id="modal-player-reg">23UGCS101 &bull; Computer Science &bull; II Year</div>
@@ -4038,23 +2814,16 @@
               </div>
             </div>
             <div class="row g-2 mb-3">
-              <div class="col-4">
+              <div class="col-6">
                 <label class="form-label small fw-bold">Section</label>
                 <input type="text" name="section" class="form-control form-control-glass" value="A">
               </div>
-              <div class="col-4">
+              <div class="col-6">
                 <label class="form-label small fw-bold">Gender</label>
                 <select name="gender" class="form-select form-select-glass">
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
-                </select>
-              </div>
-              <div class="col-4">
-                <label class="form-label small fw-bold">Status *</label>
-                <select name="status" class="form-select form-select-glass">
-                  <option value="Active" selected>Active</option>
-                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
             </div>
@@ -4125,23 +2894,16 @@
               </div>
             </div>
             <div class="row g-2 mb-3">
-              <div class="col-4">
+              <div class="col-6">
                 <label class="form-label small fw-bold text-dark">Section</label>
                 <input type="text" id="edit-roster-section" class="form-control form-control-glass" maxlength="5" style="text-transform: uppercase;">
               </div>
-              <div class="col-4">
+              <div class="col-6">
                 <label class="form-label small fw-bold text-dark">Gender *</label>
                 <select id="edit-roster-gender" class="form-select form-select-glass" required>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
-                </select>
-              </div>
-              <div class="col-4">
-                <label class="form-label small fw-bold text-dark">Status *</label>
-                <select id="edit-roster-status" class="form-select form-select-glass" required>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
             </div>
@@ -4271,980 +3033,15 @@
   <!-- Hidden Printable Container for High-Quality PDF / Print Generation -->
   <div id="printable-team-sheet" class="d-none"></div>
 
-  <!-- ================= MODAL: INTER-COLLEGE REGISTRATION QR CODE ================= -->
-  <div class="modal fade" id="qrPreviewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content glass-card p-3 shadow-lg">
-        <div class="modal-header border-0 pb-2">
-          <div>
-            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-              <i class="bi bi-qr-code-scan text-warning"></i>
-              <span id="qr-modal-comp-name">Competition Registration QR</span>
-            </h5>
-            <small class="text-secondary">Official Inter-College Registration Link & QR Code</small>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body py-2">
-          <div class="row g-4 align-items-center">
-            <!-- Left: QR Code Display -->
-            <div class="col-md-5 text-center">
-              <div class="p-3 bg-white rounded-4 shadow-sm border border-2 border-warning d-inline-block position-relative">
-                <img id="qr-modal-image" src="" alt="Competition Registration QR" class="img-fluid rounded-3" style="width: 220px; height: 220px; object-fit: contain;">
-                <div class="mt-2">
-                  <span class="badge bg-dark bg-opacity-75 text-white font-monospace text-xs" id="qr-modal-token-display">TOKEN</span>
-                </div>
-              </div>
-              <div class="mt-2 text-muted small">
-                <i class="bi bi-phone me-1"></i> Scan with any mobile camera / QR scanner
-              </div>
-            </div>
 
-            <!-- Right: Competition Details & Control Actions -->
-            <div class="col-md-7">
-              <div class="p-3 bg-light rounded-3 border mb-3">
-                <div class="row g-2 small text-dark">
-                  <div class="col-sm-5 text-muted">Sport:</div>
-                  <div class="col-sm-7 fw-bold" id="qr-modal-sport">-</div>
-                  <div class="col-sm-5 text-muted">Competition Mode:</div>
-                  <div class="col-sm-7 fw-bold" id="qr-modal-mode">TEAM</div>
-                  <div class="col-sm-5 text-muted">Competition Date:</div>
-                  <div class="col-sm-7" id="qr-modal-date">-</div>
-                  <div class="col-sm-5 text-muted">Venue:</div>
-                  <div class="col-sm-7" id="qr-modal-venue">GASC Ground</div>
-                  <div class="col-sm-5 text-muted">Reg. Deadline:</div>
-                  <div class="col-sm-7" id="qr-modal-deadline">-</div>
-                  <div class="col-sm-5 text-muted">Registration:</div>
-                  <div class="col-sm-7" id="qr-modal-status-badge">
-                    <span class="badge bg-success">OPEN</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- QR Target Portal Destination Selector -->
-              <div class="p-2.5 rounded-3 bg-light border mb-3">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                  <label class="form-label small fw-bold text-dark mb-0">
-                    <i class="bi bi-globe2 text-primary me-1"></i> QR Scan Target Portal:
-                  </label>
-                  <span class="badge bg-success" id="qr-target-mode-badge" style="font-size:0.65rem;">PUBLIC CLOUD (PHONE READY)</span>
-                </div>
-                <select id="qr-portal-domain-select" class="form-select form-select-glass form-select-sm mb-1" onchange="onQrPortalDomainChange(this.value)">
-                  <option value="https://gasc-idappadi-sports.vercel.app" selected>🌐 Live Website (https://gasc-idappadi-sports.vercel.app) [Scan Anywhere]</option>
-                  <option value="LOCAL_LAN">📶 Campus Wi-Fi (Same Wi-Fi network)</option>
-                  <option value="CUSTOM">⚙️ Custom Web Address / Domain...</option>
-                </select>
-                <div id="qr-custom-domain-container" class="mt-1 d-none">
-                  <div class="input-group input-group-sm">
-                    <input type="text" id="qr-custom-domain-input" class="form-control form-control-sm" placeholder="https://your-college-domain.com">
-                    <button class="btn btn-primary btn-sm" type="button" onclick="saveCustomQrDomain()">Apply</button>
-                  </div>
-                </div>
-                <div class="text-muted small mt-1" style="font-size: 0.72rem;">
-                  <i class="bi bi-phone me-1 text-primary"></i> Phones scanning this QR will automatically open this web address.
-                </div>
-              </div>
-
-              <!-- Direct Registration URL with Copy button -->
-              <div class="mb-3">
-                <label class="form-label small fw-bold text-dark">Scannable Registration URL</label>
-                <div class="input-group input-group-sm">
-                  <input type="text" id="qr-modal-link-input" class="form-control font-monospace" readonly>
-                  <button class="btn btn-outline-primary" type="button" onclick="copyQrRegistrationLink()">
-                    <i class="bi bi-clipboard me-1"></i> Copy Link
-                  </button>
-                </div>
-              </div>
-
-              <!-- Quick Action Toolbar -->
-              <div class="d-flex flex-wrap gap-2">
-                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm" onclick="downloadQrImagePng()">
-                  <i class="bi bi-download me-1"></i> Download PNG
-                </button>
-                <button type="button" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3 shadow-sm" onclick="openPosterModalFromQr()">
-                  <i class="bi bi-file-earmark-richtext-fill me-1"></i> Generate Poster
-                </button>
-                <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-3" onclick="printQrDirect()">
-                  <i class="bi bi-printer-fill me-1"></i> Print QR
-                </button>
-              </div>
-
-              <hr class="my-3 opacity-25">
-
-              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <div class="d-flex gap-2">
-                  <button type="button" id="btn-toggle-reg-status" class="btn btn-sm btn-outline-secondary rounded-pill" onclick="toggleCompetitionRegistrationState()">
-                    <i class="bi bi-pause-circle me-1"></i> Disable Registration
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" onclick="promptRegenerateQrToken()">
-                    <i class="bi bi-arrow-repeat me-1"></i> Regenerate QR
-                  </button>
-                </div>
-                <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 fw-bold" onclick="deleteInterCollegeCompetition()">
-                  <i class="bi bi-trash3-fill me-1"></i> Delete Competition
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-2">
-          <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODAL: OFFICIAL PRINTABLE QR POSTER ================= -->
-  <div class="modal fade" id="qrPosterModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content glass-card p-3 shadow-lg">
-        <div class="modal-header border-0 pb-1">
-          <div>
-            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-              <i class="bi bi-file-earmark-richtext-fill text-warning"></i>
-              <span>Printable Inter-College Poster</span>
-            </h5>
-            <small class="text-secondary">A4 Ready Notice Board & Social Media Poster</small>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body py-2">
-          <!-- Poster Preview Container -->
-          <div id="poster-printable-sheet" class="bg-white rounded-3 p-4 shadow-sm border border-2 border-dark text-dark mx-auto" style="max-width: 650px;">
-            <!-- College Header -->
-            <div class="text-center pb-3 border-bottom border-2 border-dark">
-              <img src="images/college-logo.png" alt="GASC Logo" style="height: 65px; object-fit: contain;" onerror="this.onerror=null;this.src='images/college-logo.png'">
-              <h5 class="fw-black text-uppercase mt-2 mb-0" style="letter-spacing: 0.5px; font-weight: 800; color: #1a2a3a;">
-                GOVERNMENT ARTS AND SCIENCE COLLEGE, IDAPPADI
-              </h5>
-              <div class="text-muted small fw-bold text-uppercase" style="letter-spacing: 1px;">
-                Affiliated to Periyar University, Salem &bull; Idappadi, Salem - 637102
-              </div>
-              <div class="badge bg-warning text-dark fw-bold px-3 py-1 rounded-pill mt-2" style="font-size: 0.8rem; letter-spacing: 0.5px;">
-                DEPARTMENT OF PHYSICAL EDUCATION
-              </div>
-            </div>
-
-            <!-- Inter-College Banner Title -->
-            <div class="text-center my-3 py-2 bg-light rounded-3 border">
-              <div class="text-uppercase fw-bold text-danger text-xs mb-1" style="letter-spacing: 1.5px;">Official Invitation & Entry Announcement</div>
-              <h4 class="fw-bold text-primary mb-1 text-uppercase" id="poster-comp-title">GASC INTER-COLLEGE CHAMPIONSHIP 2026</h4>
-              <div class="fw-bold text-dark" id="poster-sport-badge">CRICKET (MEN'S TOURNAMENT)</div>
-            </div>
-
-            <!-- Details Table Grid -->
-            <div class="row g-2 mb-3 small">
-              <div class="col-6">
-                <div class="p-2 border rounded bg-light">
-                  <div class="text-muted text-xs fw-bold">EVENT DATE</div>
-                  <div class="fw-bold text-dark" id="poster-date">-</div>
-                </div>
-              </div>
-              <div class="col-6">
-                <div class="p-2 border rounded bg-light">
-                  <div class="text-muted text-xs fw-bold">REGISTRATION DEADLINE</div>
-                  <div class="fw-bold text-danger" id="poster-deadline">-</div>
-                </div>
-              </div>
-              <div class="col-12">
-                <div class="p-2 border rounded bg-light">
-                  <div class="text-muted text-xs fw-bold">VENUE</div>
-                  <div class="fw-bold text-dark" id="poster-venue">GASC College Ground, Idappadi</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Large QR Code Centerpiece -->
-            <div class="text-center my-3 p-3 bg-light rounded-3 border border-2 border-warning">
-              <div class="text-xs fw-bold text-uppercase text-secondary mb-2" style="letter-spacing: 2px;">
-                ▼ SCAN WITH SMARTPHONE TO REGISTER ▼
-              </div>
-              <div class="d-inline-block bg-white p-2 rounded-3 shadow-sm border border-2 border-dark">
-                <img id="poster-qr-image" src="" alt="Registration QR Code" style="width: 200px; height: 200px; object-fit: contain;">
-              </div>
-              <div class="mt-2 fw-black text-danger text-uppercase" style="font-size: 1.1rem; letter-spacing: 1px; font-weight: 800;">
-                SCAN TO REGISTER NOW
-              </div>
-              <div class="text-muted text-xs font-monospace mt-1" id="poster-link-text">
-                https://your-domain.com/inter-college/register/...
-              </div>
-            </div>
-
-            <!-- Rules / Notice Summary -->
-            <div class="p-2 border rounded bg-light mb-3 text-xs" id="poster-rules-container">
-              <strong>Rules & Guidelines:</strong> <span id="poster-rules-text">College ID card is compulsory. Teams must report by 8:30 AM at the venue.</span>
-            </div>
-
-            <!-- Contact Footer -->
-            <div class="pt-2 border-top border-dark text-center small text-muted">
-              <div><strong>Contact Details for Enquiries & Registration:</strong></div>
-              <div><span id="poster-contact-person">Dr. R. ANITHA (Physical Director)</span> &bull; Tel: <span id="poster-contact-phone">+91 94432 18765</span></div>
-              <div>Email: <span id="poster-contact-email">sportsgascidappadi@gmail.com</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 d-flex justify-content-between">
-          <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
-          <div class="d-flex gap-2">
-            <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="printPosterSheet()">
-              <i class="bi bi-printer-fill me-1"></i> PRINT POSTER (A4)
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODAL: EXTERNAL REGISTRATION DETAILS ================= -->
-  <div class="modal fade" id="extRegDetailsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-      <div class="modal-content glass-card p-3 shadow-lg">
-        <div class="modal-header border-0 pb-2">
-          <div>
-            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-              <i class="bi bi-person-badge-fill text-primary"></i>
-              <span>External Registration Details</span>
-              <span class="badge ms-2" id="detail-ext-status-badge">PENDING</span>
-            </h5>
-            <small class="text-secondary" id="detail-ext-reg-id-display">Registration ID: GASC-IC-2026-XXXXXX</small>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body py-2">
-          <div class="row g-3">
-            <!-- College Information -->
-            <div class="col-md-6">
-              <div class="p-3 bg-light rounded-3 border h-100">
-                <h6 class="fw-bold text-primary mb-2"><i class="bi bi-building me-1"></i> College Information</h6>
-                <div class="row g-2 small text-dark">
-                  <div class="col-4 text-muted">College Name:</div>
-                  <div class="col-8 fw-bold" id="detail-ext-college-name">-</div>
-                  <div class="col-4 text-muted">Address:</div>
-                  <div class="col-8" id="detail-ext-college-addr">-</div>
-                  <div class="col-4 text-muted">District / State:</div>
-                  <div class="col-8" id="detail-ext-college-dist-state">-</div>
-                  <div class="col-4 text-muted">College Phone:</div>
-                  <div class="col-8" id="detail-ext-college-phone">-</div>
-                  <div class="col-4 text-muted">College Email:</div>
-                  <div class="col-8" id="detail-ext-college-email">-</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Participant / Team & Contact Information -->
-            <div class="col-md-6">
-              <div class="p-3 bg-light rounded-3 border h-100">
-                <h6 class="fw-bold text-primary mb-2"><i class="bi bi-trophy me-1"></i> Event & Contact Details</h6>
-                <div class="row g-2 small text-dark">
-                  <div class="col-4 text-muted">Competition:</div>
-                  <div class="col-8 fw-bold" id="detail-ext-comp-name">-</div>
-                  <div class="col-4 text-muted">Type / Mode:</div>
-                  <div class="col-8" id="detail-ext-type-gender">-</div>
-                  <div class="col-4 text-muted">Team Name:</div>
-                  <div class="col-8 fw-bold text-primary" id="detail-ext-team-name">-</div>
-                  <div class="col-4 text-muted">Contact Email:</div>
-                  <div class="col-8 font-monospace text-primary" id="detail-ext-email">-</div>
-                  <div class="col-4 text-muted">Contact Mobile:</div>
-                  <div class="col-8" id="detail-ext-phone">-</div>
-                  <div class="col-4 text-muted">Coach / Manager:</div>
-                  <div class="col-8" id="detail-ext-coach-manager">-</div>
-                  <div class="col-4 text-muted">Submitted Date:</div>
-                  <div class="col-8" id="detail-ext-submitted-date">-</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Players / Squad Roster Table -->
-            <div class="col-12">
-              <h6 class="fw-bold text-dark mb-2 d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-people-fill text-warning me-1"></i> Participant / Squad Members Roster</span>
-                <span class="badge bg-secondary" id="detail-ext-players-count">0 Players</span>
-              </h6>
-              <div class="table-responsive rounded-3 border bg-white" style="max-height: 280px; overflow-y: auto;">
-                <table class="table table-sm table-hover align-middle mb-0">
-                  <thead class="table-light sticky-top">
-                    <tr>
-                      <th style="width: 45px;">#</th>
-                      <th>Player Name</th>
-                      <th>College Roll / Reg No</th>
-                      <th>Department</th>
-                      <th>Year</th>
-                      <th>Gender</th>
-                      <th>Role</th>
-                    </tr>
-                  </thead>
-                  <tbody id="detail-ext-players-tbody">
-                    <!-- Loaded dynamically -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Administrative Notes / Decision details (if rejected/corrected) -->
-            <div class="col-12" id="detail-ext-admin-notes-container" style="display:none;">
-              <div class="alert alert-warning mb-0 small">
-                <strong>Administrative Feedback:</strong>
-                <div id="detail-ext-admin-notes-text"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 d-flex justify-content-between pt-2">
-          <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
-          <div class="d-flex gap-2" id="detail-ext-actions-container">
-            <!-- Buttons dynamically populated depending on status -->
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODAL: REJECT REGISTRATION ================= -->
-  <div class="modal fade" id="extRejectModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content glass-card p-3 shadow-lg">
-        <div class="modal-header border-0 pb-1">
-          <h5 class="modal-title fw-bold text-danger">
-            <i class="bi bi-x-circle-fill me-1"></i> Reject Registration
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body py-2">
-          <p class="small text-muted mb-2">
-            Please provide a specific rejection reason. An email notification will be automatically dispatched to the participant.
-          </p>
-          <input type="hidden" id="reject-ext-reg-id">
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-dark">Rejection Reason *</label>
-            <textarea id="reject-ext-reason" class="form-control form-control-glass" rows="3" placeholder="e.g. Ineligible category, invalid college register numbers, duplicate entry..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-danger rounded-pill px-4 fw-bold" onclick="confirmRejectExtRegistration()">
-            Confirm Rejection
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODAL: REQUEST CORRECTION ================= -->
-  <div class="modal fade" id="extCorrectionModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content glass-card p-3 shadow-lg">
-        <div class="modal-header border-0 pb-1">
-          <h5 class="modal-title fw-bold text-warning text-dark">
-            <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> Request Correction
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body py-2">
-          <p class="small text-muted mb-2">
-            Send an official notice to the participant detailing what needs correction.
-          </p>
-          <input type="hidden" id="correction-ext-reg-id">
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-dark">Correction Instructions *</label>
-            <textarea id="correction-ext-message" class="form-control form-control-glass" rows="3" placeholder="e.g. Please provide student ID proof copies and correct roll number for Player 3..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-warning rounded-pill px-4 fw-bold text-dark" onclick="confirmCorrectionExtRegistration()">
-            Send Correction Request
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODAL: PAYMENT SETTINGS HISTORY AUDIT ================= -->
-  <div class="modal fade" id="modal-payment-history" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-xl">
-      <div class="modal-content glass-card p-4 shadow-2xl border border-light border-opacity-40 rounded-4">
-        <div class="modal-header border-0 pb-2">
-          <div>
-            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-              <i class="bi bi-clock-history text-primary"></i> Payment Settings Audit History
-            </h5>
-            <div class="text-muted small">Complete trail of GPay number, UPI ID, receiver name, and QR code revisions.</div>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body py-3">
-          <div class="table-responsive rounded-3 border border-secondary border-opacity-10">
-            <table class="table table-hover align-middle mb-0 text-nowrap" style="font-size:12.5px;">
-              <thead class="table-light">
-                <tr>
-                  <th>Ver</th>
-                  <th>Receiver Name</th>
-                  <th>GPay Number</th>
-                  <th>UPI ID</th>
-                  <th>Status</th>
-                  <th>Updated By</th>
-                  <th>Date & Time</th>
-                  <th>Audit Summary</th>
-                </tr>
-              </thead>
-              <tbody id="payment-history-table-body">
-                <tr><td colspan="8" class="text-center py-4 text-muted">Loading audit records...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-secondary rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODAL: RECONCILE & VERIFY MANUAL PAYMENT ================= -->
-  <div class="modal fade" id="modal-verify-payment" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content glass-card p-4 shadow-2xl border border-light border-opacity-40 rounded-4">
-        <div class="modal-header border-0 pb-2">
-          <div>
-            <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-              <i class="bi bi-patch-check-fill text-success"></i> Verify & Reconcile Registration Fee
-            </h5>
-            <div class="text-muted small">Verify submitted UPI Transaction Reference Number (UTR) against bank records before confirming entry.</div>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body py-3">
-          <input type="hidden" id="verify-payment-reg-id">
-          
-          <div class="row g-3 mb-3">
-            <div class="col-md-6">
-              <div class="p-3 rounded-3 bg-light border border-secondary border-opacity-10 h-100">
-                <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size:10px;">Registration Details</div>
-                <div class="fw-bold text-dark fs-6" id="vp-reg-id">GASC-IC-2026-XXXX</div>
-                <div class="text-secondary small fw-semibold" id="vp-college-name">College Name</div>
-                <div class="text-muted small mt-1" id="vp-comp-name">Competition: Cricket (Men)</div>
-                <div class="text-muted small" id="vp-participant">Contact: Participant Phone</div>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <div class="p-3 rounded-3 bg-light border border-secondary border-opacity-10 h-100">
-                <div class="text-muted small text-uppercase fw-bold mb-1" style="font-size:10px;">Submitted Payment Record</div>
-                <div class="d-flex align-items-baseline gap-2">
-                  <span class="fs-4 fw-black text-success" id="vp-fee-amount">₹500</span>
-                  <span class="badge bg-warning text-dark" id="vp-payment-status">PENDING VERIFICATION</span>
-                </div>
-                <div class="mt-2">
-                  <span class="text-muted small">UTR / Transaction Ref:</span>
-                  <div class="d-flex align-items-center gap-2 mt-1">
-                    <code class="fs-6 fw-bold text-primary p-1 rounded bg-white border" id="vp-utr-number">123456789012</code>
-                    <button type="button" class="btn btn-sm btn-outline-secondary py-0.5 px-2" onclick="copyUtrToClipboard()" title="Copy UTR">
-                      <i class="bi bi-clipboard"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="text-muted small mt-2" id="vp-config-version">Payment Config Version: v1</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Screenshot / Receipt Preview if uploaded -->
-          <div id="vp-screenshot-box" class="p-3 rounded-3 bg-light border border-secondary border-opacity-10 mb-3 d-none">
-            <div class="text-muted small fw-bold mb-2"><i class="bi bi-image me-1"></i> Uploaded Payment Receipt / Screenshot</div>
-            <div class="text-center">
-              <img id="vp-screenshot-img" src="" alt="Payment Receipt" class="img-fluid rounded border shadow-sm" style="max-height:260px; object-fit:contain;">
-            </div>
-          </div>
-
-          <!-- Admin Remarks -->
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-dark">Reconciliation Remarks (Optional)</label>
-            <input type="text" id="vp-admin-remarks" class="form-control form-control-glass" placeholder="e.g. Verified with SBI sports account passbook entry on Oct 17.">
-            <div class="form-text small text-muted">Will be included in the confirmation email dispatched to the college.</div>
-          </div>
-
-          <div class="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-0">
-            <i class="bi bi-shield-exclamation fs-5 flex-shrink-0 text-warning"></i>
-            <span><strong>Reconciliation policy:</strong> Only click "Confirm & Verify" after matching the 12-digit UTR against the college bank or GPay transaction history.</span>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0 d-flex justify-content-between flex-wrap gap-2">
-          <button type="button" class="btn btn-outline-danger rounded-pill px-3 fw-bold btn-sm" onclick="rejectRegistrationPayment()">
-            <i class="bi bi-x-circle me-1"></i> Reject Payment
-          </button>
-          <div class="d-flex gap-2">
-            <button type="button" class="btn btn-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-success rounded-pill px-4 fw-bold btn-sm shadow" onclick="confirmRegistrationPayment()">
-              <i class="bi bi-check2-circle me-1"></i> Confirm & Verify Payment
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODAL: CM TROPHY ANNOUNCEMENT (CREATE / EDIT) ================= -->
-  <div class="modal fade" id="cmTrophyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content glass-card p-2 shadow-lg border-primary border-opacity-25">
-        <div class="modal-header border-0 pb-1">
-          <div class="d-flex align-items-center gap-2">
-            <div class="avatar-sm bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center p-2">
-              <i class="bi bi-trophy-fill fs-5 text-warning"></i>
-            </div>
-            <div>
-              <h5 class="modal-title fw-bold text-dark mb-0" id="cm-trophy-modal-title">New CM Trophy Announcement</h5>
-              <small class="text-muted">Tamil Nadu Chief Minister's Trophy Official SDAT Guidance</small>
-            </div>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body py-2">
-          <form id="cmTrophyForm" onsubmit="event.preventDefault();">
-            <input type="hidden" id="cm-trophy-id">
-
-            <div class="row g-3">
-              <!-- Announcement Title -->
-              <div class="col-12">
-                <label class="form-label small fw-bold text-dark">Announcement Title <span class="text-danger">*</span></label>
-                <input type="text" id="cm-trophy-title" class="form-control form-control-glass" placeholder="e.g. CM Trophy 2026-27 Registration Started — Official SDAT Guidelines" required>
-              </div>
-
-              <!-- Category & Priority -->
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-dark">Category</label>
-                <select id="cm-trophy-category" class="form-select form-control-glass">
-                  <option value="Registration">Registration Update</option>
-                  <option value="Important Notice" selected>Important Notice</option>
-                  <option value="Eligibility">Eligibility & Rules</option>
-                  <option value="Schedule">Schedule / Dates</option>
-                  <option value="General Update">General Department Update</option>
-                </select>
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-dark">Official Portal Link</label>
-                <div class="input-group">
-                  <span class="input-group-text bg-light text-primary"><i class="bi bi-link-45deg"></i></span>
-                  <input type="url" id="cm-trophy-official-link" class="form-control form-control-glass" value="https://tncmtrophy.sdat.in/" placeholder="https://tncmtrophy.sdat.in/">
-                </div>
-              </div>
-
-              <!-- Verified Registration Dates -->
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-dark">
-                  Registration Start Date <span class="text-muted fw-normal">(Optional / When verified)</span>
-                </label>
-                <input type="date" id="cm-trophy-start-date" class="form-control form-control-glass">
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-dark">
-                  Registration Deadline / End Date <span class="text-muted fw-normal">(Optional / When verified)</span>
-                </label>
-                <input type="date" id="cm-trophy-end-date" class="form-control form-control-glass">
-              </div>
-
-              <!-- Priority & Status options -->
-              <div class="col-12">
-                <div class="p-3 bg-light rounded-3 border">
-                  <div class="form-check form-switch mb-2">
-                    <input class="form-check-input" type="checkbox" id="cm-trophy-is-important" checked>
-                    <label class="form-check-label fw-bold text-danger" for="cm-trophy-is-important">
-                      <i class="bi bi-exclamation-triangle-fill me-1"></i> Mark as High-Priority / Important Announcement
-                    </label>
-                    <div class="form-text small">Displays an urgent alert badge on both the Student Portal and Notification Feed.</div>
-                  </div>
-
-                  <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="cm-trophy-notify-students" checked>
-                    <label class="form-check-label fw-bold text-primary" for="cm-trophy-notify-students">
-                      <i class="bi bi-bell-fill me-1"></i> Send Instant Notification Alert to Students
-                    </label>
-                    <div class="form-text small">Dispatches an in-app student notification alert with direct SDAT portal link.</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Full Instructions / Notice text -->
-              <div class="col-12">
-                <label class="form-label small fw-bold text-dark">Detailed Instructions & Circular <span class="text-danger">*</span></label>
-                <textarea id="cm-trophy-instructions" class="form-control form-control-glass" rows="6" placeholder="Provide complete guidelines:
-1. Eligibility: Only bonafide regular students of GASC Idappadi.
-2. Required documents: Aadhaar card, College ID card, Bonafide certificate.
-3. Official SDAT Portal registration instructions.
-4. Physical verification date at the Physical Education department room." required></textarea>
-                <small class="text-muted">Students will read these exact instructions inside their portal and notification dialog.</small>
-              </div>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer border-0 pt-2 d-flex justify-content-between">
-          <button type="button" class="btn btn-outline-info rounded-pill px-3" onclick="previewCmTrophyModal()">
-            <i class="bi bi-eye me-1"></i> Preview Notice
-          </button>
-          <div class="d-flex gap-2">
-            <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-outline-primary rounded-pill px-3" onclick="saveCmTrophyAnnouncement('draft')">
-              <i class="bi bi-file-earmark me-1"></i> Save Draft
-            </button>
-            <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="saveCmTrophyAnnouncement('published')">
-              <i class="bi bi-send-fill me-1"></i> Publish Announcement
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODAL: CM TROPHY PREVIEW ================= -->
-  <div class="modal fade" id="cmTrophyPreviewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content glass-card p-3 shadow-lg">
-        <div class="modal-header border-0 pb-1">
-          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="bi bi-eye-fill text-primary"></i>
-            <span>Student Portal Announcement Preview</span>
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body py-2">
-          <div class="card border rounded-3 p-4 bg-white shadow-sm">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-              <div class="d-flex gap-2">
-                <span class="badge bg-primary" id="preview-category-badge">CM Trophy</span>
-                <span class="badge bg-danger" id="preview-important-badge"><i class="bi bi-exclamation-circle me-1"></i> IMPORTANT</span>
-              </div>
-              <small class="text-muted" id="preview-date-display">Today</small>
-            </div>
-            <h4 class="fw-bold text-dark mb-2" id="preview-title-display">Announcement Title</h4>
-
-            <div class="p-3 bg-light rounded-3 border mb-3" id="preview-dates-box">
-              <div class="row text-center g-2">
-                <div class="col-6 border-end">
-                  <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.75rem;">Registration Begins</small>
-                  <span class="fw-bold text-success fs-6" id="preview-start-date">-</span>
-                </div>
-                <div class="col-6">
-                  <small class="text-muted d-block text-uppercase fw-bold" style="font-size: 0.75rem;">Deadline / Closing Date</small>
-                  <span class="fw-bold text-danger fs-6" id="preview-end-date">-</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="p-3 rounded-3 bg-white border mb-3">
-              <h6 class="fw-bold text-primary mb-2"><i class="bi bi-card-text me-1"></i> Official Instructions</h6>
-              <div id="preview-instructions-display" class="text-dark small" style="white-space: pre-line;"></div>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
-              <div class="d-flex align-items-center gap-2 text-muted small">
-                <i class="bi bi-shield-check text-success fs-5"></i>
-                <span>Official SDAT Portal Link Verified</span>
-              </div>
-              <a href="https://tncmtrophy.sdat.in/" target="_blank" rel="noopener noreferrer" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm text-dark" id="preview-link-btn">
-                Visit Official Website <i class="bi bi-box-arrow-up-right ms-1"></i>
-              </a>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn btn-secondary rounded-pill px-3" data-bs-dismiss="modal">Back to Edit</button>
-          <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold" onclick="publishFromPreview()">
-            <i class="bi bi-send-fill me-1"></i> Looks Good, Publish Now
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- ================= MODAL: CUSTOM IN-APP CONFIRMATION ================= -->
-  <div class="modal fade" id="gascConfirmModal" data-bs-backdrop="static" data-bs-keyboard="false" data-bs-focus="false">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
-      <div class="modal-content glass-card p-3 shadow-lg border border-danger border-opacity-30">
-        <div class="modal-body text-center p-3">
-          <div class="mb-3 text-danger">
-            <i class="bi bi-exclamation-triangle-fill fs-1" id="gasc-confirm-icon"></i>
-          </div>
-          <h5 class="fw-bold text-dark mb-2" id="gasc-confirm-title">Are you sure?</h5>
-          <p class="text-secondary small mb-4" id="gasc-confirm-message">This action cannot be undone.</p>
-          <div class="d-flex gap-2 justify-content-center">
-            <button type="button" class="btn btn-outline-secondary px-4 rounded-pill fw-bold" id="gasc-confirm-cancel-btn">
-              Cancel
-            </button>
-            <button type="button" class="btn btn-danger px-4 rounded-pill fw-bold shadow-sm" id="gasc-confirm-ok-btn">
-              <i class="bi bi-trash3 me-1"></i> Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODALS: PAYMENT MANAGEMENT & RECONCILIATION ================= -->
-  <!-- 1. OFFICIAL PRINTABLE RECEIPT MODAL -->
-  <div class="modal fade" id="modal-payment-receipt" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content glass-card shadow-lg border border-secondary border-opacity-25">
-        <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
-          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="bi bi-receipt text-success"></i> Official Payment Receipt & Registration Record
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body p-4" id="receipt-modal-content">
-          <!-- Populated by paymentAdmin.js -->
-        </div>
-        <div class="modal-footer border-top border-secondary border-opacity-10 py-2">
-          <button type="button" class="btn btn-outline-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-success rounded-pill px-4 fw-bold btn-sm shadow-sm" onclick="printReceipt()">
-            <i class="bi bi-printer-fill me-1"></i> Print / Save PDF
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 2. AUTHORIZED REFUND INITIATION MODAL -->
-  <div class="modal fade" id="modal-initiate-refund" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content glass-card shadow-lg border border-danger border-opacity-25">
-        <div class="modal-header border-bottom border-danger border-opacity-10 py-3">
-          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="bi bi-arrow-counterclockwise text-danger"></i> Authorize Payment Refund (Razorpay)
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body p-4">
-          <div class="alert alert-warning d-flex align-items-start gap-2 text-start small mb-3">
-            <i class="bi bi-exclamation-triangle-fill fs-5 text-warning shrink-0 mt-0.5"></i>
-            <div>
-              <strong>Gateway Refund Policy:</strong> This action initiates a secure refund through the Razorpay API. Returned funds are credited directly back to the student's original payment source (UPI, Debit Card, or Netbanking) within standard banking settlement timeframes (5-7 business days).
-            </div>
-          </div>
-
-          <form onsubmit="event.preventDefault(); submitAuthorizedRefund();">
-            <input type="hidden" id="refund-payment-id">
-
-            <div class="bg-light p-3 rounded-3 mb-3 border small">
-              <div class="d-flex justify-content-between mb-1">
-                <span class="text-muted">Registration Code:</span>
-                <span class="fw-bold font-monospace text-primary" id="refund-reg-code">-</span>
-              </div>
-              <div class="d-flex justify-content-between">
-                <span class="text-muted">Maximum Refundable Amount:</span>
-                <span class="fw-bold text-success" id="refund-max-amount">₹0</span>
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-secondary">Refund Amount (₹ INR) <span class="text-danger">*</span></label>
-              <input type="number" id="refund-amount-input" class="form-control form-control-glass" min="1" step="any" required>
-              <div class="form-text small">Full or partial refund amount.</div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-secondary">Official Reason for Refund <span class="text-danger">*</span></label>
-              <textarea id="refund-reason-input" class="form-control form-control-glass" rows="2" placeholder="e.g. Tournament cancelled, accidental double registration, medical withdrawal" required></textarea>
-              <div class="form-text small">Recorded in the audit log and sent in the Razorpay transaction notes.</div>
-            </div>
-
-            <div class="d-flex justify-content-end gap-2 pt-2">
-              <button type="button" class="btn btn-outline-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Cancel</button>
-              <button type="submit" id="btn-confirm-refund" class="btn btn-danger rounded-pill px-4 fw-bold btn-sm shadow-sm">
-                <i class="bi bi-arrow-counterclockwise me-1"></i> Confirm Authorized Refund
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. DYNAMIC RECEIVING ACCOUNT & GATEWAY SETTINGS MODAL -->
-  <div class="modal fade" id="modal-payment-settings" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content glass-card shadow-lg border border-secondary border-opacity-25">
-        <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
-          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="bi bi-sliders text-warning"></i> Dynamic Receiving Account & Gateway Settings
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body p-4">
-          <!-- Settlement Security Alert -->
-          <div class="p-3 rounded-3 bg-primary bg-opacity-10 border border-primary border-opacity-20 text-dark small mb-4">
-            <div class="fw-bold d-flex align-items-center gap-1.5 text-primary mb-1">
-              <i class="bi bi-shield-lock-fill"></i> Settlement Destination Security Notice
-            </div>
-            <div>
-              Changing display information or contact numbers below updates collegiate presentation and receipt titles only. Payment gateway settlements are directed <strong>strictly</strong> to the bank account verified and approved via KYC inside the official Razorpay Merchant Dashboard.
-            </div>
-          </div>
-
-          <form onsubmit="event.preventDefault(); savePaymentSettingsFromModal();">
-            <div class="row g-3">
-              <!-- Mode Switches -->
-              <div class="col-md-6">
-                <div class="p-3 rounded-3 bg-light border d-flex justify-content-between align-items-center">
-                  <div>
-                    <label class="fw-bold mb-0 text-dark small">Gateway Mode</label>
-                    <div class="text-muted small" style="font-size:0.75rem;">Toggle Test Mode vs Live Production</div>
-                  </div>
-                  <div class="form-check form-switch m-0">
-                    <input class="form-check-input" type="checkbox" id="cfg-is-test-mode" style="width:2.5em; height:1.3em;">
-                    <label class="form-check-label small fw-bold text-warning" for="cfg-is-test-mode">Test</label>
-                  </div>
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <div class="p-3 rounded-3 bg-light border d-flex justify-content-between align-items-center">
-                  <div>
-                    <label class="fw-bold mb-0 text-dark small">Allow Free Registrations</label>
-                    <div class="text-muted small" style="font-size:0.75rem;">Permit ₹0 fee entry without checkout</div>
-                  </div>
-                  <div class="form-check form-switch m-0">
-                    <input class="form-check-input" type="checkbox" id="cfg-allow-free" checked style="width:2.5em; height:1.3em;">
-                    <label class="form-check-label small fw-bold text-success" for="cfg-allow-free">Allowed</label>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Receiving Account & Merchant ID -->
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Authorized Recipient Display Name <span class="text-danger">*</span></label>
-                <input type="text" id="cfg-receiver-name" class="form-control form-control-glass form-control-sm" required>
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Receiving Department / Unit</label>
-                <input type="text" id="cfg-receiver-dept" class="form-control form-control-glass form-control-sm">
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Institution / College Name</label>
-                <input type="text" id="cfg-institution-name" class="form-control form-control-glass form-control-sm">
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Merchant Account Identifier (MID)</label>
-                <input type="text" id="cfg-merchant-id" class="form-control form-control-glass form-control-sm font-monospace">
-              </div>
-
-              <!-- Settlement Account Metadata -->
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Settlement Bank Name</label>
-                <input type="text" id="cfg-settlement-bank" class="form-control form-control-glass form-control-sm" placeholder="e.g. State Bank of India">
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Settlement Branch</label>
-                <input type="text" id="cfg-settlement-branch" class="form-control form-control-glass form-control-sm" placeholder="e.g. Idappadi Branch">
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Settlement Account Status</label>
-                <select id="cfg-settlement-status" class="form-select form-select-glass form-select-sm">
-                  <option value="KYC_VERIFIED">KYC Verified in Provider Dashboard</option>
-                  <option value="PENDING_APPROVAL">Pending Merchant Onboarding</option>
-                  <option value="DOCUMENTS_REQUIRED">Collegiate Documentation Required</option>
-                </select>
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Masked Account Number</label>
-                <input type="text" id="cfg-settlement-mask" class="form-control form-control-glass form-control-sm font-monospace" placeholder="••••••••4892">
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Settlement Account Title</label>
-                <input type="text" id="cfg-settlement-title" class="form-control form-control-glass form-control-sm" placeholder="Sports Fund Account">
-              </div>
-
-              <div class="col-md-3">
-                <label class="form-label small fw-bold text-secondary">Default Team Fee (₹)</label>
-                <input type="number" id="cfg-team-fee" class="form-control form-control-glass form-control-sm" min="0">
-              </div>
-
-              <div class="col-md-3">
-                <label class="form-label small fw-bold text-secondary">Default Individual Fee (₹)</label>
-                <input type="number" id="cfg-individual-fee" class="form-control form-control-glass form-control-sm" min="0">
-              </div>
-
-              <!-- Public Key Display -->
-              <div class="col-12">
-                <div class="p-2.5 rounded-3 bg-light border small">
-                  <span class="text-muted">Configured Public Key ID:</span>
-                  <span class="font-monospace fw-bold text-primary ms-2" id="cfg-public-key-display">-</span>
-                  <div class="text-muted" style="font-size:0.7rem; margin-top:2px;">(Gateway secrets are kept in protected environment variables and are never displayed)</div>
-                </div>
-              </div>
-
-              <div class="col-12">
-                <label class="form-label small fw-bold text-secondary">Change Summary (Audit Reason)</label>
-                <input type="text" id="cfg-change-summary" class="form-control form-control-glass form-control-sm" placeholder="e.g. Switched to Test Mode for championship verification">
-              </div>
-            </div>
-
-            <div class="d-flex justify-content-end gap-2 pt-4">
-              <button type="button" class="btn btn-outline-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Cancel</button>
-              <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold btn-sm shadow-sm">
-                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Save Configuration
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 4. PAYMENT AUDIT HISTORY MODAL -->
-  <div class="modal fade" id="modal-payment-audit-history" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content glass-card shadow-lg border border-secondary border-opacity-25">
-        <div class="modal-header border-bottom border-secondary border-opacity-10 py-3">
-          <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-            <i class="bi bi-clock-history text-info"></i> Payment Configuration Audit Trail
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body p-0">
-          <div class="table-responsive" style="max-height:400px;">
-            <table class="table table-hover table-sm align-middle mb-0 small">
-              <thead class="table-light sticky-top">
-                <tr>
-                  <th>Ver</th>
-                  <th>Receiver Name</th>
-                  <th>Mode</th>
-                  <th>Settlement Status</th>
-                  <th>Date & Time</th>
-                  <th>Change Summary</th>
-                </tr>
-              </thead>
-              <tbody id="payment-audit-history-tbody">
-                <!-- Populated by paymentAdmin.js -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="modal-footer border-top border-secondary border-opacity-10 py-2">
-          <button type="button" class="btn btn-outline-secondary rounded-pill px-3 btn-sm" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Scripts -->
-  <script src="vendor/bootstrap.bundle.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js';"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/config.js?v=20260927_emoji_v6"></script>
   <script src="js/api.js?v=20260927_emoji_v6"></script>
   <script src="js/charts.js?v=20260927_emoji_v6"></script>
   <script src="js/admin.js?v=20260927_emoji_v6"></script>
-  <script src="js/interCollegeAdmin.js?v=20261008_v1"></script>
-  <script src="js/paymentAdmin.js?v=20261017_v1"></script>
   <script src="js/offlineStatus.js?v=20260928_offline_v1"></script>
-  <script src="js/touchEffects.js"></script>
 </body>
 
 </html>
-

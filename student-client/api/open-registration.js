@@ -742,11 +742,14 @@ async function handleRegister(req, res) {
     };
 
     // ── Payment Validation & Assignment ──
-    const reqFee = Number(body.feeAmount || comp.entry_fee || comp.entryFee || 0);
+    const reqFee = Number(
+      body.feeAmount !== undefined ? body.feeAmount :
+      (comp.other_college_fee !== undefined ? comp.other_college_fee : (comp.entry_fee || comp.entryFee || 0))
+    );
     const submittedUtr = (body.transactionRef || body.utrNumber || '').trim().toUpperCase();
     const submittedScreenshot = body.paymentScreenshot || null;
     const submittedConfigVersion = Number(body.paymentConfigVersion || 1);
-    const submittedMethod = body.paymentMethod || (reqFee > 0 ? 'MANUAL_UPI' : 'FREE');
+    const submittedMethod = body.paymentMethod || (reqFee > 0 ? 'UPI' : 'FREE');
 
     if (reqFee > 0) {
       if (!submittedUtr) {
