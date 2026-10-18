@@ -227,16 +227,28 @@ exports.createCompetition = async (req, res) => {
     const gpayNumber = (req.body.gpayNumber || req.body.gpay_number || '').trim();
     const receiverName = (req.body.receiverName || req.body.receiver_name || '').trim();
 
+    const parseEndOfDay = (val) => {
+      if (!val) return new Date().toISOString();
+      if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
+        return new Date(`${val.trim()}T23:59:59.999Z`).toISOString();
+      }
+      const d = new Date(val);
+      return !isNaN(d.getTime()) ? d.toISOString() : new Date().toISOString();
+    };
+
+    const parsedStartDate = date ? new Date(date).toISOString() : new Date().toISOString();
+    const parsedEndDate = parseEndOfDay(registrationEnd);
+
     try {
       const tourToken = tId.replace(/^tour_/, '');
-      await supabase.from('tournaments').upsert({
+      const tourPayload = {
         id: tId,
         name: tName,
         tournament_name: tName,
         description: description || `Official collegiate championship conducted by GASC Idappadi.`,
-        start_date: new Date(date).toISOString(),
-        end_date: new Date(registrationEnd).toISOString(),
-        registration_deadline: new Date(registrationEnd).toISOString(),
+        start_date: parsedStartDate,
+        end_date: parsedEndDate,
+        registration_deadline: parsedEndDate,
         venue: venue || 'GASC Idappadi Main Stadium',
         status: parentComputedStatus,
         banner_image: bannerImage,
@@ -244,8 +256,6 @@ exports.createCompetition = async (req, res) => {
         external_registration_enabled: true,
         registration_token: tourToken,
         entry_fee: otherFee,
-        has_payment: (ourFeeEnabled || otherFeeEnabled),
-        is_paid: (ourFeeEnabled || otherFeeEnabled),
         our_college_fee_enabled: ourFeeEnabled,
         our_college_fee: ourFee,
         other_college_fee_enabled: otherFeeEnabled,
@@ -257,7 +267,12 @@ exports.createCompetition = async (req, res) => {
         contact_phone: req.body.contactPhone || '9443567890',
         contact_email: req.body.contactEmail || 'sportsgascidappadi@gmail.com',
         rules: req.body.rules || 'Official collegiate ID cards and bonafide certificates from the respective Head of Department/Principal are mandatory.'
-      }, { onConflict: 'id' });
+      };
+
+      const { error: tErr } = await supabase.from('tournaments').upsert(tourPayload, { onConflict: 'id' });
+      if (tErr) {
+        console.warn('[CompetitionController] Tournaments upsert warning:', tErr.message);
+      }
     } catch (tErr) {
       console.warn('Parent tournament upsert notice:', tErr.message);
     }
@@ -280,12 +295,12 @@ exports.createCompetition = async (req, res) => {
       category: normCategory,
       gender: normCategory,
       venue: venue || 'GASC Idappadi Sports Ground',
-      date: new Date(date).toISOString(),
+      date: parsedStartDate,
       start_time: startTime || '09:00 AM',
       end_time: endTime || '05:00 PM',
       registration_start: registrationStart ? new Date(registrationStart).toISOString() : new Date().toISOString(),
-      registration_end: new Date(registrationEnd).toISOString(),
-      registration_deadline: new Date(registrationEnd).toISOString(),
+      registration_end: parsedEndDate,
+      registration_deadline: parsedEndDate,
       organizer: organizer || 'GASC Idappadi Sports Board',
       eligibility: eligibility || 'All enrolled UG and PG students',
       max_participants: maxParticipants ? Number(maxParticipants) : 50,
@@ -297,8 +312,6 @@ exports.createCompetition = async (req, res) => {
       registration_token: token,
       external_registration_enabled: true,
       entry_fee: otherFee,
-      has_payment: (ourFeeEnabled || otherFeeEnabled),
-      is_paid: (ourFeeEnabled || otherFeeEnabled),
       our_college_fee_enabled: ourFeeEnabled,
       our_college_fee: ourFee,
       other_college_fee_enabled: otherFeeEnabled,

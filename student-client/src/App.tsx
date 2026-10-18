@@ -33,6 +33,8 @@ function App() {
           {/* ── External Registration (QR-based, no student login, outside MainLayout) ── */}
           <Route path="/open-registration" element={<OpenRegistrationPage />} />
           <Route path="/open-registration/:tournamentToken" element={<OpenRegistrationPage />} />
+          <Route path="/register" element={<OpenRegistrationPage />} />
+          <Route path="/register/:tournamentToken" element={<OpenRegistrationPage />} />
           {/* Legacy inter-college redirected to student portal */}
           <Route path="/inter-college" element={<Navigate to="/student/tournaments" replace />} />
           <Route path="/inter-college/*" element={<Navigate to="/student/tournaments" replace />} />

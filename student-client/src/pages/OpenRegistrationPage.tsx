@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   Trophy, Calendar, MapPin, Users, User, Shield, AlertCircle,
   CheckCircle2, ArrowRight, ArrowLeft, Mail, Phone, Building,
@@ -114,7 +114,9 @@ interface TeamPlayer {
 
 const OpenRegistrationPage: React.FC = () => {
   const params = useParams<{ tournamentToken?: string; competitionToken?: string }>();
-  const tournamentToken = params.tournamentToken || params.competitionToken;
+  const [searchParams] = useSearchParams();
+  const queryToken = searchParams.get('token') || searchParams.get('t') || searchParams.get('tokenSlug');
+  const tournamentToken = params.tournamentToken || params.competitionToken || queryToken;
 
   // State: List of tournaments (if no token provided)
   const [tournamentsList, setTournamentsList] = useState<TournamentData[]>([]);

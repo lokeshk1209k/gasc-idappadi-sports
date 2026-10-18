@@ -70,18 +70,25 @@ function getSportRules(sportName) {
 
 function calculateCompetitionStatus(c, t) {
   const now = new Date();
-  const cStatus = (c.status || '').toLowerCase();
-  const tStatus = (t?.status || '').toLowerCase();
+  const cStatus = (c.status || '').toLowerCase().trim();
+  const tStatus = (t?.status || '').toLowerCase().trim();
 
   if (tStatus === 'completed' || cStatus === 'completed') return 'COMPLETED';
   if (tStatus === 'cancelled' || cStatus === 'cancelled') return 'CANCELLED';
 
   const regStart = c.registration_start ? new Date(c.registration_start) : null;
-  if (regStart && now < regStart) return 'UPCOMING';
+  if (regStart && !isNaN(regStart.getTime()) && now < regStart) return 'UPCOMING';
 
   const deadline = c.registration_end || c.registration_deadline || t?.end_date || c.date;
-  const deadlineDate = deadline ? new Date(deadline) : null;
-  if (deadlineDate && now > deadlineDate) return 'CLOSED';
+  let deadlineDate = null;
+  if (deadline) {
+    if (typeof deadline === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(deadline.trim())) {
+      deadlineDate = new Date(`${deadline.trim()}T23:59:59.999Z`);
+    } else {
+      deadlineDate = new Date(deadline);
+    }
+  }
+  if (deadlineDate && !isNaN(deadlineDate.getTime()) && now > deadlineDate) return 'CLOSED';
 
   if (cStatus === 'draft' || tStatus === 'draft') return 'UPCOMING';
   if (cStatus === 'registration closed' || cStatus === 'closed' || tStatus === 'registration_closed') return 'CLOSED';
@@ -187,7 +194,7 @@ async function handleTournament(req, res, tokenParam) {
     const cleanUrl = req.url.split('?')[0];
     const parts = cleanUrl.split('/').filter(Boolean);
     const last = parts[parts.length - 1];
-    if (last && !['tournament', 'tournaments', 'open-registration', 'inter-college'].includes(last.toLowerCase())) {
+    if (last && !['tournament', 'tournaments', 'open-registration', 'inter-college', 'register'].includes(last.toLowerCase())) {
       token = decodeURIComponent(last);
     }
   }
@@ -199,24 +206,80 @@ async function handleTournament(req, res, tokenParam) {
   try {
     const supabase = getSupabase();
 
-    // 1. Fetch exactly ONE tournament using the validated QR token from actual Supabase DB
+    // 1. Fetch tournament using the validated QR token or slug or ID from Supabase
+    let tournament = null;
     const { data: tList, error: tErr } = await supabase
       .from('tournaments')
       .select('*')
-      .or(`registration_token.eq.${cleanToken},id.eq.${cleanToken}`)
-      .limit(5);
+      .or(`registration_token.eq.${cleanToken},id.eq.${cleanToken},id.eq.tour_${cleanToken},registration_token.ilike.${cleanToken},name.ilike.${cleanToken},tournament_name.ilike.${cleanToken}`)
+      .limit(10);
 
     if (tErr) {
-      console.error('Supabase tournament query error:', tErr);
+      console.warn('Supabase tournament query notice:', tErr.message);
     }
 
-    let tournament = (Array.isArray(tList) && tList.length > 0) ? tList[0] : null;
-
-    if (!tournament && Array.isArray(tList)) {
+    if (Array.isArray(tList) && tList.length > 0) {
       tournament = tList.find(t =>
         (t.registration_token && t.registration_token.toLowerCase() === lowerToken) ||
-        (t.id && t.id.toLowerCase() === lowerToken)
-      );
+        (t.id && t.id.toLowerCase() === lowerToken) ||
+        (t.id && t.id.toLowerCase() === `tour_${lowerToken}`) ||
+        (t.name && t.name.toLowerCase() === lowerToken) ||
+        (t.tournament_name && t.tournament_name.toLowerCase() === lowerToken)
+      ) || tList[0];
+    }
+
+    let childComps = [];
+
+    // Fallback search in competitions table if not found in tournaments
+    if (!tournament) {
+      const { data: compMatches } = await supabase
+        .from('competitions')
+        .select('*')
+        .or(`registration_token.eq.${cleanToken},id.eq.${cleanToken},tournament_id.eq.${cleanToken},tournament_id.eq.tour_${cleanToken},tournament_name.ilike.${cleanToken},name.ilike.${cleanToken}`)
+        .limit(20);
+
+      if (Array.isArray(compMatches) && compMatches.length > 0) {
+        const firstComp = compMatches[0];
+        const tId = firstComp.tournament_id || `tour_${(firstComp.tournament_name || firstComp.name).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        const tName = firstComp.tournament_name || firstComp.name;
+
+        const { data: parentT } = await supabase
+          .from('tournaments')
+          .select('*')
+          .or(`id.eq.${tId},name.ilike.${tName},tournament_name.ilike.${tName}`)
+          .maybeSingle();
+
+        if (parentT) {
+          tournament = parentT;
+        } else {
+          tournament = {
+            id: tId,
+            name: tName,
+            tournament_name: tName,
+            description: firstComp.description || `${tName} Championship conducted by GASC Idappadi.`,
+            start_date: firstComp.date,
+            end_date: firstComp.registration_end || firstComp.registration_deadline,
+            registration_deadline: firstComp.registration_deadline || firstComp.registration_end,
+            venue: firstComp.venue || 'GASC Idappadi Sports Ground',
+            status: firstComp.status || 'Registration Open',
+            banner_image: firstComp.banner_image || '/images/sports/tournament.png',
+            registration_token: cleanToken,
+            entry_fee: firstComp.entry_fee || firstComp.other_college_fee || 0,
+            our_college_fee_enabled: firstComp.our_college_fee_enabled || false,
+            our_college_fee: firstComp.our_college_fee || 0,
+            other_college_fee_enabled: firstComp.other_college_fee_enabled || false,
+            other_college_fee: firstComp.other_college_fee || 0,
+            upi_id: firstComp.upi_id || '',
+            gpay_number: firstComp.gpay_number || '',
+            receiver_name: firstComp.receiver_name || '',
+            contact_person: firstComp.contact_person || 'Dr. R. ANITHA (Physical Director)',
+            contact_phone: firstComp.contact_phone || '9443567890',
+            contact_email: firstComp.contact_email || 'sportsgascidappadi@gmail.com',
+            rules: firstComp.rules || ''
+          };
+        }
+        childComps = compMatches;
+      }
     }
 
     // 2. Validate token: if not found, return 404
@@ -244,12 +307,34 @@ async function handleTournament(req, res, tokenParam) {
     }
 
     const deadline = tournament.registration_deadline || tournament.end_date;
-    const deadlineDate = deadline ? new Date(deadline) : null;
-    if (deadlineDate && !isNaN(deadlineDate.getTime()) && tStatus === 'closed') {
+    let deadlineDate = null;
+    if (deadline) {
+      if (typeof deadline === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(deadline.trim())) {
+        deadlineDate = new Date(`${deadline.trim()}T23:59:59.999Z`);
+      } else {
+        deadlineDate = new Date(deadline);
+      }
+    }
+    if (deadlineDate && !isNaN(deadlineDate.getTime()) && tStatus === 'closed' && new Date() > deadlineDate) {
       return res.status(410).json({
         success: false,
         message: 'Tournament registration has closed.'
       });
+    }
+
+    // 4. Fetch child competitions if not populated yet
+    if (childComps.length === 0) {
+      const tSlug = String(tournament.id || '').replace(/^tour_/, '');
+      const tName = String(tournament.tournament_name || tournament.name || '').trim();
+      const { data: cData } = await supabase
+        .from('competitions')
+        .select('*')
+        .or(`tournament_id.eq.${tournament.id},tournament_id.eq.${tSlug},tournament_id.eq.tour_${tSlug},tournament_name.ilike.${tName},name.ilike.${tName}`)
+        .order('date', { ascending: true });
+
+      if (Array.isArray(cData) && cData.length > 0) {
+        childComps = cData;
+      }
     }
 
     // 4. Expected Supabase query logic: Fetch competitions filtered strictly by that tournament's actual ID:
