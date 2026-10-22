@@ -2842,7 +2842,7 @@ async function loadAdminApplications(forceReload = false) {
   if (!table) return;
 
   if (forceReload || !window.allApplicationsCache || window.allApplicationsCache.length === 0) {
-    table.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading all student applications...</td></tr>`;
+    table.innerHTML = `<tr><td colspan="10" class="text-center py-5 text-secondary"><div class="spinner-border spinner-border-sm text-info me-2"></div><span class="text-white-50">Loading all student applications...</span></td></tr>`;
   }
 
   try {
@@ -2857,7 +2857,7 @@ async function loadAdminApplications(forceReload = false) {
     filterAdminApplications();
   } catch (err) {
     console.error('Failed to load applications:', err);
-    table.innerHTML = `<tr><td colspan="10" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Failed to load applications: ${err.message || 'Unknown error'}</td></tr>`;
+    table.innerHTML = `<tr><td colspan="10" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Failed to load applications: ${escapeHtml(err.message || 'Unknown error')}</td></tr>`;
   }
 }
 
@@ -2980,11 +2980,11 @@ function filterAdminApplications() {
   if (filtered.length === 0) {
     let emptyMsg = 'No applications found matching the current search & filter criteria.';
     if (searchQuery.length > 0) {
-      emptyMsg = `No students found matching "<strong>${escapeHtml(searchQuery)}</strong>". Try checking spelling or resetting filters.`;
+      emptyMsg = `No students found matching "<strong class="text-white">${escapeHtml(searchQuery)}</strong>". Try checking spelling or resetting filters.`;
     } else if (statusFilter === 'Pending') {
       emptyMsg = 'No pending applications to review right now! All applications have been reviewed.';
     }
-    table.innerHTML = `<tr><td colspan="10" class="text-center py-5 text-muted"><i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>${emptyMsg}</td></tr>`;
+    table.innerHTML = `<tr><td colspan="10" class="text-center py-5 text-secondary"><i class="bi bi-inbox fs-2 d-block mb-2 text-info"></i><span class="text-white-50">${emptyMsg}</span></td></tr>`;
     return;
   }
 
@@ -3009,32 +3009,32 @@ function filterAdminApplications() {
     else if (/^women$|^girls?$/i.test(rawCat)) compCat = 'Women';
     else compCat = 'Mixed';
 
-    let catBadgeClass = 'bg-primary';
-    if (compCat === 'Women') catBadgeClass = 'bg-danger';
-    else if (compCat === 'Mixed') catBadgeClass = 'bg-warning text-dark';
+    let catBadgeClass = 'badge-glass-primary';
+    if (compCat === 'Women') catBadgeClass = 'badge-glass-danger';
+    else if (compCat === 'Mixed') catBadgeClass = 'badge-glass-warning text-dark';
 
     // Origin Badge (Our College vs External College)
     let originBadge = '';
     if (isExternal) {
       originBadge = `
-        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-2 py-0.5 small d-inline-flex align-items-center mt-1" title="${escapeHtml(collegeName)}">
+        <span class="badge badge-glass-info px-2 py-0.5 small d-inline-flex align-items-center mt-1" title="${escapeHtml(collegeName)}">
           <i class="bi bi-globe me-1"></i>${escapeHtml(collegeName.length > 25 ? collegeName.substring(0, 25) + '...' : collegeName)}
         </span>
       `;
     } else {
       originBadge = `
-        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 small d-inline-flex align-items-center mt-1">
+        <span class="badge badge-glass-success px-2 py-0.5 small d-inline-flex align-items-center mt-1">
           <i class="bi bi-mortarboard-fill me-1"></i>Our College (GASC)
         </span>
       `;
     }
 
     // Status Badge
-    let statusBadge = `<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2 py-1"><i class="bi bi-clock-history me-1"></i>Pending</span>`;
+    let statusBadge = `<span class="badge badge-glass-warning text-dark"><i class="bi bi-clock-history me-1"></i>Pending</span>`;
     if (r.status === 'Approved') {
-      statusBadge = `<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Approved</span>`;
+      statusBadge = `<span class="badge badge-glass-success"><i class="bi bi-check-circle-fill me-1"></i>Approved</span>`;
     } else if (r.status === 'Rejected') {
-      statusBadge = `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>`;
+      statusBadge = `<span class="badge badge-glass-danger"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>`;
     }
 
     // Fee badge if external or fee configured
@@ -3043,12 +3043,14 @@ function filterAdminApplications() {
       const payStatus = r.paymentStatus || 'PENDING';
       const isPaid = payStatus === 'PAID' || payStatus === 'VERIFIED';
       feeBadge = `
-        <span class="badge ${isPaid ? 'bg-success' : 'bg-secondary'} bg-opacity-10 ${isPaid ? 'text-success' : 'text-secondary'} border border-opacity-25 px-1.5 py-0.5 d-inline-block mt-0.5" style="font-size:0.7rem;">
-          ₹${r.feeAmount} (${payStatus})
-        </span>
+        <div class="mt-1">
+          <span class="badge ${isPaid ? 'badge-glass-success' : 'badge-glass-warning'} px-1.5 py-0.5" style="font-size:0.7rem;">
+            ₹${r.feeAmount} (${payStatus})
+          </span>
+        </div>
       `;
     } else if (isExternal) {
-      feeBadge = `<span class="badge bg-light text-muted border px-1.5 py-0.5 d-inline-block mt-0.5" style="font-size:0.7rem;">Free (₹0)</span>`;
+      feeBadge = `<div class="mt-1"><span class="badge badge-glass-primary px-1.5 py-0.5" style="font-size:0.7rem;">Free (₹0)</span></div>`;
     }
 
     // Action Buttons
@@ -3056,7 +3058,7 @@ function filterAdminApplications() {
     if (r.status === 'Approved') {
       actionButtons = `
         <div class="d-flex align-items-center gap-1">
-          <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 small">
+          <span class="badge badge-glass-success px-2 py-1 small">
             <i class="bi bi-check2-all me-1"></i>Approved
           </span>
           <button class="btn btn-outline-danger btn-sm py-0.5 px-2" onclick="updateAppStatus('${regId}', 'Rejected')" title="Change to Rejected">
@@ -3067,7 +3069,7 @@ function filterAdminApplications() {
     } else if (r.status === 'Rejected') {
       actionButtons = `
         <div class="d-flex align-items-center gap-1">
-          <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1 small">
+          <span class="badge badge-glass-danger px-2 py-1 small">
             <i class="bi bi-slash-circle me-1"></i>Rejected
           </span>
           <button class="btn btn-outline-success btn-sm py-0.5 px-2" onclick="updateAppStatus('${regId}', 'Approved')" title="Re-approve Application">
@@ -3090,20 +3092,20 @@ function filterAdminApplications() {
 
     return `
       <tr>
-        <td class="text-muted small">${idx + 1}</td>
+        <td class="text-secondary small">${idx + 1}</td>
         <td>
-          <div class="fw-bold text-dark">${escapeHtml(studentName)}</div>
-          <div class="font-monospace text-muted small">${escapeHtml(regNo)}</div>
+          <div class="fw-bold text-white mb-0.5">${escapeHtml(studentName)}</div>
+          <div class="font-monospace text-info small">${escapeHtml(regNo)}</div>
           <div>${originBadge}</div>
         </td>
         <td>
-          <div class="fw-semibold text-dark small">${escapeHtml(tName)}</div>
-          <div class="text-primary small fw-medium mt-0.5">
+          <div class="fw-semibold text-white small">${escapeHtml(tName)}</div>
+          <div class="text-warning small fw-medium mt-0.5">
             <i class="bi bi-trophy-fill text-warning me-1"></i>${escapeHtml(sportName)}
           </div>
         </td>
         <td>
-          <span class="fw-medium text-dark small">${escapeHtml(compName)}</span>
+          <span class="fw-medium text-white small">${escapeHtml(compName)}</span>
         </td>
         <td>
           <span class="badge ${catBadgeClass} px-2 py-1" style="font-size:0.75rem;">
@@ -3111,14 +3113,14 @@ function filterAdminApplications() {
           </span>
         </td>
         <td>
-          <span class="badge bg-light text-dark border">${escapeHtml(dept)}</span>
-          <div class="text-muted small mt-0.5">${escapeHtml(r.preferredPosition || 'Player')}</div>
+          <span class="badge badge-glass-primary mb-1">${escapeHtml(dept)}</span>
+          <div class="text-secondary small mt-0.5">${escapeHtml(r.preferredPosition || 'Player')}</div>
         </td>
         <td>
-          <div class="small text-dark font-monospace"><i class="bi bi-telephone-fill me-1 text-muted" style="font-size:0.7rem;"></i>${escapeHtml(mobile)}</div>
-          ${email ? `<div class="small text-muted text-truncate" style="max-width: 140px;" title="${escapeHtml(email)}">${escapeHtml(email)}</div>` : ''}
+          <div class="small text-white font-monospace"><i class="bi bi-telephone-fill me-1 text-info" style="font-size:0.7rem;"></i>${escapeHtml(mobile)}</div>
+          ${email ? `<div class="small text-secondary text-truncate" style="max-width: 140px;" title="${escapeHtml(email)}">${escapeHtml(email)}</div>` : ''}
         </td>
-        <td class="small text-muted">
+        <td class="small text-secondary">
           ${formatDate(r.registrationDate || r.createdAt)}
         </td>
         <td>

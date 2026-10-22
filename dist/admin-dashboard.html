@@ -1711,97 +1711,86 @@
 
         <!-- VIEW 7: APPLICATIONS REVIEW (OUR COLLEGE + EXTERNAL COLLEGES) -->
         <section id="view-applications" class="admin-view-section d-none">
-          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
             <div>
-              <h4 class="fw-bold text-dark mb-1">
+              <h4 class="fw-bold text-white mb-1">
                 <i class="bi bi-people-fill text-primary me-2"></i>Student Registration Applications
               </h4>
-              <small class="text-secondary">Unified review for both <strong>Our College students</strong> and <strong>External College participants</strong> with instant live search</small>
+              <small class="text-secondary">Unified review for both <strong class="text-white">Our College students</strong> and <strong class="text-white">External College participants</strong> with instant live search</small>
             </div>
             <div class="d-flex align-items-center gap-2">
-              <button type="button" class="btn btn-outline-primary btn-sm px-3 fw-semibold shadow-sm" onclick="loadAdminApplications(true)" title="Refresh Applications">
+              <button type="button" class="btn btn-outline-info btn-sm px-3 fw-semibold shadow-sm" onclick="loadAdminApplications(true)" title="Refresh Applications">
                 <i class="bi bi-arrow-clockwise me-1"></i> Refresh
               </button>
             </div>
           </div>
 
-          <!-- Real-Time Metrics Banner -->
-          <div class="row g-2 mb-3">
-            <div class="col-6 col-md-3">
-              <div class="card border-0 shadow-sm p-2 rounded-3 bg-white d-flex flex-row align-items-center gap-2">
-                <div class="rounded-circle bg-primary bg-opacity-10 text-primary p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                  <i class="bi bi-people fs-5"></i>
-                </div>
+          <!-- Real-Time Metrics Ribbon (Ultra Glass Dark Theme) -->
+          <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-people-fill"></i></div>
                 <div>
-                  <div class="small text-muted fw-medium" style="font-size: 0.75rem;">Total Applications</div>
-                  <div class="h6 mb-0 fw-bold text-dark" id="app-counter-total">0</div>
+                  <div class="stat-value text-primary" id="app-counter-total">0</div>
+                  <div class="stat-label">Total Applications</div>
                 </div>
               </div>
             </div>
-            <div class="col-6 col-md-3">
-              <div class="card border-0 shadow-sm p-2 rounded-3 bg-white d-flex flex-row align-items-center gap-2">
-                <div class="rounded-circle bg-success bg-opacity-10 text-success p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                  <i class="bi bi-mortarboard fs-5"></i>
-                </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-mortarboard-fill"></i></div>
                 <div>
-                  <div class="small text-muted fw-medium" style="font-size: 0.75rem;">🏛️ Our College</div>
-                  <div class="h6 mb-0 fw-bold text-success" id="app-counter-our">0</div>
+                  <div class="stat-value text-success" id="app-counter-our">0</div>
+                  <div class="stat-label">Our College</div>
                 </div>
               </div>
             </div>
-            <div class="col-6 col-md-3">
-              <div class="card border-0 shadow-sm p-2 rounded-3 bg-white d-flex flex-row align-items-center gap-2">
-                <div class="rounded-circle bg-info bg-opacity-10 text-info p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                  <i class="bi bi-globe fs-5"></i>
-                </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-globe"></i></div>
                 <div>
-                  <div class="small text-muted fw-medium" style="font-size: 0.75rem;">🌐 External Colleges</div>
-                  <div class="h6 mb-0 fw-bold text-info" id="app-counter-other">0</div>
+                  <div class="stat-value text-info" id="app-counter-other">0</div>
+                  <div class="stat-label">External Colleges</div>
                 </div>
               </div>
             </div>
-            <div class="col-6 col-md-3">
-              <div class="card border-0 shadow-sm p-2 rounded-3 bg-white d-flex flex-row align-items-center gap-2">
-                <div class="rounded-circle bg-warning bg-opacity-10 text-warning p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                  <i class="bi bi-clock-history fs-5"></i>
-                </div>
+            <div class="col-xl-3 col-sm-6">
+              <div class="glass-card stat-card">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-clock-history"></i></div>
                 <div>
-                  <div class="small text-muted fw-medium" style="font-size: 0.75rem;">⏳ Pending Review</div>
-                  <div class="h6 mb-0 fw-bold text-warning" id="app-counter-pending">0</div>
+                  <div class="stat-value text-warning" id="app-counter-pending">0</div>
+                  <div class="stat-label">Pending Review</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Search & Filter Controls Toolbar -->
-          <div class="card border-0 shadow-sm mb-3 p-3 bg-white rounded-3">
+          <!-- Search & Filter Controls Toolbar (Glass Card) -->
+          <div class="glass-card p-3 mb-4">
             <div class="row g-2 align-items-center">
               <!-- Live Search Input -->
               <div class="col-12 col-md-5 col-lg-4">
                 <div class="position-relative">
-                  <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
-                  <input type="text" id="app-search-input" class="form-control form-control-sm ps-5 pe-5 border-secondary-subtle"
+                  <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-info"></i>
+                  <input type="text" id="app-search-input" class="form-control form-control-glass form-control-sm ps-5 pe-5"
                          placeholder="Search student, roll no, college, sport..."
                          oninput="filterAdminApplications()" autocomplete="off">
                   <button type="button" id="app-search-clear" class="btn btn-sm btn-link position-absolute top-50 end-0 translate-middle-y text-muted d-none p-1 me-2 text-decoration-none" onclick="clearAppSearch()" title="Clear search">
-                    <i class="bi bi-x-circle-fill"></i>
+                    <i class="bi bi-x-circle-fill text-danger"></i>
                   </button>
                 </div>
               </div>
               <!-- College Scope Filter -->
               <div class="col-6 col-md-3 col-lg-3">
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text bg-light border-secondary-subtle text-muted"><i class="bi bi-building"></i></span>
-                  <select id="app-filter-scope" class="form-select form-select-sm border-secondary-subtle" onchange="filterAdminApplications()">
-                    <option value="All" selected>👥 All Students (Both)</option>
-                    <option value="OUR_COLLEGE">🏛️ Our College Only</option>
-                    <option value="OTHER_COLLEGE">🌐 External Colleges Only</option>
-                  </select>
-                </div>
+                <select id="app-filter-scope" class="form-select form-select-glass form-select-sm" onchange="filterAdminApplications()">
+                  <option value="All" selected>👥 All Students (Both)</option>
+                  <option value="OUR_COLLEGE">🏛️ Our College Only</option>
+                  <option value="OTHER_COLLEGE">🌐 External Colleges Only</option>
+                </select>
               </div>
               <!-- Category / Gender Filter -->
               <div class="col-6 col-md-2 col-lg-2">
-                <select id="app-filter-gender" class="form-select form-select-sm border-secondary-subtle" onchange="filterAdminApplications()">
+                <select id="app-filter-gender" class="form-select form-select-glass form-select-sm" onchange="filterAdminApplications()">
                   <option value="All" selected>All Categories</option>
                   <option value="Men">Men / Boys</option>
                   <option value="Women">Women / Girls</option>
@@ -1810,7 +1799,7 @@
               </div>
               <!-- Status Filter -->
               <div class="col-12 col-md-2 col-lg-3">
-                <select id="app-filter-status" class="form-select form-select-sm border-secondary-subtle" onchange="filterAdminApplications()">
+                <select id="app-filter-status" class="form-select form-select-glass form-select-sm" onchange="filterAdminApplications()">
                   <option value="All">All Applications</option>
                   <option value="Pending" selected>⏳ Pending Review</option>
                   <option value="Approved">✅ Approved</option>
@@ -1819,34 +1808,32 @@
               </div>
             </div>
             <!-- Search feedback hint -->
-            <div id="app-search-stats" class="small text-muted mt-2 d-none">
-              <i class="bi bi-info-circle me-1"></i>Showing <span id="app-search-match-count" class="fw-bold text-dark">0</span> matching registrations
+            <div id="app-search-stats" class="small text-info mt-2 d-none">
+              <i class="bi bi-info-circle me-1"></i>Showing <span id="app-search-match-count" class="fw-bold text-white">0</span> matching registrations
             </div>
           </div>
 
-          <!-- Applications Table -->
-          <div class="table-glass-container shadow-sm rounded-3 overflow-hidden bg-white">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light text-secondary small text-uppercase fw-semibold border-bottom">
-                  <tr>
-                    <th style="width: 45px;">#</th>
-                    <th>Student Player & College Origin</th>
-                    <th>Tournament & Sport</th>
-                    <th>Event / Competition</th>
-                    <th>Category</th>
-                    <th>Department & Position</th>
-                    <th>Contact</th>
-                    <th>Applied Date</th>
-                    <th>Status</th>
-                    <th style="min-width: 140px;">Decision Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="admin-applications-table">
-                  <!-- Loaded via admin.js -->
-                </tbody>
-              </table>
-            </div>
+          <!-- Applications Table (Ultra Glass Table) -->
+          <div class="table-glass-container">
+            <table class="table table-glass align-middle">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">#</th>
+                  <th>Student Player & College Origin</th>
+                  <th>Tournament & Sport</th>
+                  <th>Event / Competition</th>
+                  <th>Category</th>
+                  <th>Department & Position</th>
+                  <th>Contact</th>
+                  <th>Applied Date</th>
+                  <th>Status</th>
+                  <th style="min-width: 140px;">Decision Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-applications-table">
+                <!-- Loaded via admin.js -->
+              </tbody>
+            </table>
           </div>
         </section>
 
