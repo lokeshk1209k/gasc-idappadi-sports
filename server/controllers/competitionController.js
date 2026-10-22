@@ -1007,31 +1007,85 @@ exports.registerForCompetition = async (req, res) => {
 // @desc    Get all registrations (Admin)
 // @route   GET /api/competitions/registrations/all
 // @access  Private/Admin
+// @desc    Get all registrations (Admin - Both Our College & External Colleges)
+// @route   GET /api/competitions/registrations/all
+// @access  Private/Admin
 exports.getAllRegistrations = async (req, res) => {
   try {
-    const { status, competitionId } = req.query;
+    const { status, competitionId, scope } = req.query;
 
-    let query = supabase.from('competition_registrations').select('*, users(id, name, register_number, department, year, mobile, email, profile_photo), competitions(id, name, sport_name, date, venue)');
-
-    if (status && status !== 'All') {
-      if (status === 'Pending') {
-        query = query.in('status', ['Pending', 'Registered']);
-      } else {
-        query = query.eq('status', status);
+    // ── 1. Fetch Internal Registrations (Our College Students) ──
+    let internalRegs = [];
+    try {
+      let query = supabase.from('competition_registrations').select('*, users(id, name, register_number, department, year, mobile, email, profile_photo), competitions(id, name, sport_name, tournament_name, date, venue)');
+      if (competitionId) query = query.eq('competition_id', competitionId);
+      query = query.order('registration_date', { ascending: false });
+      const { data, error } = await query;
+      if (!error && Array.isArray(data)) {
+        internalRegs = data;
       }
-    }
-    if (competitionId) query = query.eq('competition_id', competitionId);
-
-    query = query.order('registration_date', { ascending: false });
-
-    const { data: regsRaw, error } = await query;
-
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
+    } catch (e) {
+      console.warn('Supabase internal registrations fetch error:', e.message);
     }
 
-    const registrations = (regsRaw || []).map(r => {
+    // LocalStore fallback if internal empty or offline
+    if (internalRegs.length === 0) {
+      try {
+        const localStore = require('../data/localStore');
+        const localList = localStore.storeInstance.getTable('competition_registrations') || [];
+        if (competitionId) {
+          internalRegs = localList.filter(r => String(r.competition_id || r.competitionId) === String(competitionId));
+        } else {
+          internalRegs = [...localList];
+        }
+      } catch (e) {}
+    }
+
+    // ── 2. Fetch External Registrations (Other Colleges via QR / Open Reg) ──
+    let externalRegs = [];
+    try {
+      let extQuery = supabase.from('external_registrations').select('*');
+      if (competitionId) extQuery = extQuery.eq('competition_id', competitionId);
+      extQuery = extQuery.order('created_at', { ascending: false });
+      const { data, error } = await extQuery;
+      if (!error && Array.isArray(data)) {
+        externalRegs = data;
+      }
+    } catch (e) {
+      console.warn('Supabase external registrations fetch error:', e.message);
+    }
+
+    // Merge SQLite database records for external registrations
+    try {
+      const localDB = require('../database/localDB');
+      const sqliteExt = localDB.query('SELECT * FROM external_registrations ORDER BY created_at DESC');
+      if (Array.isArray(sqliteExt)) {
+        sqliteExt.forEach(sr => {
+          if (!externalRegs.some(r => String(r.id) === String(sr.id) || String(r.registration_id) === String(sr.registration_id))) {
+            externalRegs.push(sr);
+          }
+        });
+      }
+    } catch (e) {}
+
+    // Merge localStore records for external registrations
+    try {
+      const localStore = require('../data/localStore');
+      const storeExt = localStore.storeInstance.getTable('external_registrations') || [];
+      storeExt.forEach(se => {
+        if (!externalRegs.some(r => String(r.id) === String(se.id) || String(r.registration_id) === String(se.registration_id))) {
+          externalRegs.push(se);
+        }
+      });
+    } catch (e) {}
+
+    // ── 3. Normalize Internal Registrations ──
+    const mappedInternal = internalRegs.map(r => {
       const item = toCamelCase(r);
+      item.studentCategory = 'OUR_COLLEGE';
+      item.isExternal = false;
+      item.collegeName = 'Government Arts and Science College, Idappadi';
+
       const studentObj = r.users || {
         id: r.student_id,
         name: r.student_name || 'Student Athlete',
@@ -1040,7 +1094,9 @@ exports.getAllRegistrations = async (req, res) => {
         year: r.year || '',
         gender: r.gender || 'Male',
         mobile: r.mobile || '',
-        email: r.email || ''
+        email: r.email || '',
+        collegeName: 'Government Arts and Science College, Idappadi',
+        isExternal: false
       };
       item.studentId = toCamelCase(studentObj);
 
@@ -1048,19 +1104,130 @@ exports.getAllRegistrations = async (req, res) => {
         id: r.competition_id,
         name: r.competition_name || `${r.sport_name || 'Sport'} Competition`,
         sportName: r.sport_name || 'General',
+        tournamentName: r.tournament_name || 'Inter-Department Sports Meet',
         date: r.registration_date,
         venue: 'GASC Sports Ground'
       };
       item.competitionId = toCamelCase(compObj);
+
+      // Status normalization
+      const rawStatus = (item.status || 'Pending').trim();
+      if (rawStatus.toLowerCase() === 'registered' || rawStatus.toLowerCase() === 'pending') {
+        item.status = 'Pending';
+      } else if (rawStatus.toLowerCase() === 'approved') {
+        item.status = 'Approved';
+      } else if (rawStatus.toLowerCase() === 'rejected') {
+        item.status = 'Rejected';
+      }
+
       return item;
+    });
+
+    // ── 4. Normalize External Registrations ──
+    const mappedExternal = externalRegs.map(r => {
+      const ext = toCamelCase(r);
+      const college = r.college_name || ext.collegeName || 'External College';
+      const playerName = r.player_name || ext.playerName || r.team_name || ext.teamName || 'External Athlete';
+      const regNo = r.player_register_number || ext.playerRegisterNumber || r.registration_id || ext.registrationId || 'EXT';
+      const sport = r.sport_name || ext.sportName || 'General';
+      const gender = r.gender || ext.gender || 'Boys';
+      const dept = r.department || ext.department || college;
+
+      let normStatus = 'Pending';
+      const rawSt = (r.status || ext.status || 'PENDING').toUpperCase();
+      if (rawSt === 'APPROVED') normStatus = 'Approved';
+      else if (rawSt === 'REJECTED') normStatus = 'Rejected';
+      else normStatus = 'Pending';
+
+      const regDate = r.created_at || ext.createdAt || new Date().toISOString();
+      const dateStr = typeof regDate === 'number' ? new Date(regDate * 1000).toISOString() : regDate;
+
+      return {
+        ...ext,
+        id: r.id || ext.id,
+        _id: r.id || ext.id,
+        registrationId: r.registration_id || ext.registrationId,
+        studentCategory: 'OTHER_COLLEGE',
+        isExternal: true,
+        collegeName: college,
+        studentName: playerName,
+        registerNumber: regNo,
+        department: dept,
+        year: r.year || ext.year || '',
+        gender: gender,
+        category: gender,
+        mobile: r.participant_phone || ext.participantPhone || r.college_phone || '',
+        email: r.participant_email || ext.participantEmail || r.college_email || '',
+        preferredPosition: (r.registration_type || ext.registrationType) === 'TEAM' ? `Team (${r.team_name || ext.teamName || 'Squad'})` : 'Individual',
+        registrationType: r.registration_type || ext.registrationType || 'INDIVIDUAL',
+        tournamentName: r.tournament_name || ext.tournamentName || 'Inter-College Championship',
+        competitionName: sport,
+        sportName: sport,
+        status: normStatus,
+        rawStatus: rawSt,
+        feeAmount: Number(r.fee_amount || ext.feeAmount || 0),
+        paymentStatus: r.payment_status || ext.paymentStatus || 'FREE',
+        transactionRef: r.transaction_ref || ext.transactionRef || '',
+        registrationDate: dateStr,
+        createdAt: dateStr,
+        studentId: {
+          id: r.id || ext.id,
+          name: playerName,
+          registerNumber: regNo,
+          department: dept,
+          collegeName: college,
+          isExternal: true,
+          gender: gender,
+          mobile: r.participant_phone || ext.participantPhone || '',
+          email: r.participant_email || ext.participantEmail || ''
+        },
+        competitionId: {
+          id: r.competition_id || ext.competitionId,
+          name: sport,
+          sportName: sport,
+          tournamentName: r.tournament_name || ext.tournamentName || 'Inter-College Championship',
+          date: dateStr,
+          venue: 'GASC Sports Ground'
+        }
+      };
+    });
+
+    // ── 5. Combine and Filter ──
+    let allRegistrations = [];
+    if (scope === 'OUR_COLLEGE') {
+      allRegistrations = mappedInternal;
+    } else if (scope === 'OTHER_COLLEGE') {
+      allRegistrations = mappedExternal;
+    } else {
+      allRegistrations = [...mappedInternal, ...mappedExternal];
+    }
+
+    if (status && status !== 'All') {
+      if (status === 'Pending') {
+        allRegistrations = allRegistrations.filter(r => r.status === 'Pending' || r.status === 'Registered');
+      } else {
+        allRegistrations = allRegistrations.filter(r => r.status === status);
+      }
+    }
+
+    // Sort by registration date descending
+    allRegistrations.sort((a, b) => {
+      const dateA = new Date(a.registrationDate || a.createdAt || 0).getTime();
+      const dateB = new Date(b.registrationDate || b.createdAt || 0).getTime();
+      return dateB - dateA;
     });
 
     res.json({
       success: true,
-      count: registrations.length,
-      registrations
+      count: allRegistrations.length,
+      ourCollegeCount: mappedInternal.length,
+      otherCollegeCount: mappedExternal.length,
+      pendingCount: allRegistrations.filter(r => r.status === 'Pending').length,
+      approvedCount: allRegistrations.filter(r => r.status === 'Approved').length,
+      registrations: allRegistrations
     });
   } catch (error) {
+    console.error('getAllRegistrations error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -1111,7 +1278,7 @@ exports.getMyRegistrations = async (req, res) => {
   }
 };
 
-// @desc    Approve / Reject competition registration (Admin)
+// @desc    Approve / Reject competition registration (Admin - Both Our College & External Colleges)
 // @route   PATCH /api/competitions/registrations/:id/status
 // @access  Private/Admin
 exports.updateRegistrationStatus = async (req, res) => {
@@ -1123,45 +1290,141 @@ exports.updateRegistrationStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid status value.' });
     }
 
-    const { data: regRaw, error: regErr } = await supabase
-      .from('competition_registrations')
-      .select('*, competitions(*), users(*)')
-      .eq('id', id)
-      .single();
+    let regRaw = null;
 
-    if (regErr || !regRaw) {
-      return res.status(404).json({ success: false, message: 'Registration record not found.' });
+    // 1. Try finding in competition_registrations (Our College)
+    try {
+      const { data, error } = await supabase
+        .from('competition_registrations')
+        .select('*, competitions(*), users(*)')
+        .eq('id', id)
+        .single();
+      if (!error && data) regRaw = data;
+    } catch (e) {}
+
+    // Check localStore for internal registrations if Supabase didn't find it
+    if (!regRaw) {
+      try {
+        const localStore = require('../data/localStore');
+        const list = localStore.storeInstance.getTable('competition_registrations') || [];
+        const found = list.find(r => r.id === id || r._id === id);
+        if (found) {
+          found.status = status;
+          found.admin_remarks = adminRemarks || '';
+          found.reviewed_at = new Date().toISOString();
+          localStore.storeInstance.save();
+          return res.json({
+            success: true,
+            message: `Registration marked as ${status} successfully.`,
+            registration: toCamelCase(found)
+          });
+        }
+      } catch (e) {}
     }
 
-    const { data: updatedRaw } = await supabase
-      .from('competition_registrations')
-      .update({
-        status,
-        admin_remarks: adminRemarks || '',
-        reviewed_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select()
-      .single();
+    // 2. If internal registration found in Supabase
+    if (regRaw) {
+      const { data: updatedRaw } = await supabase
+        .from('competition_registrations')
+        .update({
+          status,
+          admin_remarks: adminRemarks || '',
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
-    const reg = toCamelCase(updatedRaw);
+      const reg = toCamelCase(updatedRaw || regRaw);
 
-    // Notify student
-    if (regRaw.users && regRaw.competitions) {
-      await NotificationService.notifyApplicationStatus(
-        regRaw.users.id,
-        regRaw.competitions.name,
-        status,
-        adminRemarks
-      );
+      // Notify student
+      if (regRaw.users && regRaw.competitions) {
+        try {
+          await NotificationService.notifyApplicationStatus(
+            regRaw.users.id,
+            regRaw.competitions.name,
+            status,
+            adminRemarks
+          );
+        } catch (e) {}
+      }
+
+      return res.json({
+        success: true,
+        message: `Registration marked as ${status} successfully. Student has been notified.`,
+        registration: reg
+      });
     }
 
-    res.json({
-      success: true,
-      message: `Registration marked as ${status} successfully. Student has been notified.`,
-      registration: reg
-    });
+    // 3. Not in competition_registrations -> Check external_registrations (Other Colleges)
+    let extRaw = null;
+    try {
+      const { data } = await supabase
+        .from('external_registrations')
+        .select('*')
+        .or(`id.eq.${id},registration_id.eq.${id}`)
+        .maybeSingle();
+      if (data) extRaw = data;
+    } catch (e) {}
+
+    if (!extRaw) {
+      try {
+        const localDB = require('../database/localDB');
+        const rows = localDB.query('SELECT * FROM external_registrations WHERE id = ? OR registration_id = ? LIMIT 1', [id, id]);
+        if (rows && rows.length > 0) extRaw = rows[0];
+      } catch (e) {}
+    }
+
+    if (!extRaw) {
+      try {
+        const localStore = require('../data/localStore');
+        const extList = localStore.storeInstance.getTable('external_registrations') || [];
+        extRaw = extList.find(r => r.id === id || r.registration_id === id);
+      } catch (e) {}
+    }
+
+    if (extRaw) {
+      const extStatus = status === 'Approved' ? 'APPROVED' : (status === 'Rejected' ? 'REJECTED' : 'PENDING');
+      const nowIso = new Date().toISOString();
+
+      try {
+        await supabase
+          .from('external_registrations')
+          .update({
+            status: extStatus,
+            remarks: adminRemarks || '',
+            updated_at: nowIso
+          })
+          .eq('id', extRaw.id);
+      } catch (e) {}
+
+      try {
+        const localDB = require('../database/localDB');
+        localDB.run(`UPDATE external_registrations SET status = ?, remarks = ?, updated_at = strftime('%s','now') WHERE id = ? OR registration_id = ?`, [extStatus, adminRemarks || '', id, id]);
+        localDB.saveDB();
+      } catch (e) {}
+
+      try {
+        const localStore = require('../data/localStore');
+        const extList = localStore.storeInstance.getTable('external_registrations') || [];
+        const item = extList.find(r => r.id === id || r.registration_id === id);
+        if (item) {
+          item.status = extStatus;
+          item.remarks = adminRemarks || '';
+          localStore.storeInstance.save();
+        }
+      } catch (e) {}
+
+      return res.json({
+        success: true,
+        message: `External registration (${extRaw.player_name || extRaw.college_name}) marked as ${status} successfully.`,
+        registration: { ...extRaw, status }
+      });
+    }
+
+    return res.status(404).json({ success: false, message: 'Registration record not found.' });
   } catch (error) {
+    console.error('updateRegistrationStatus error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

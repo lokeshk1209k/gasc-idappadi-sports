@@ -26,6 +26,16 @@ const DEFAULT_SPORTS_FALLBACK = [
   { id: 'sp_marathon', name: 'Marathon', category: 'Athletics', indoorOutdoor: 'Outdoor' }
 ];
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 let currentAdminUser = null;
 let selectedAdminPhotoFile = null;
 let allSportsCache = [...DEFAULT_SPORTS_FALLBACK];
@@ -2824,136 +2834,318 @@ async function deleteTournament(tName) {
   }
 }
 
-// 7. Applications Management
-async function loadAdminApplications() {
+// 7. Applications Management (Unified Our College + External Colleges & Real-Time Student Search)
+window.allApplicationsCache = [];
+
+async function loadAdminApplications(forceReload = false) {
   const table = document.getElementById('admin-applications-table');
-  const status = document.getElementById('app-filter-status') ? document.getElementById('app-filter-status').value : 'All';
-  const categoryFilter = document.getElementById('app-filter-gender') ? document.getElementById('app-filter-gender').value : 'All';
+  if (!table) return;
+
+  if (forceReload || !window.allApplicationsCache || window.allApplicationsCache.length === 0) {
+    table.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Loading all student applications...</td></tr>`;
+  }
 
   try {
-    const res = await apiRequest(`/competitions/registrations/all?status=${status}`);
-    let regs = res.registrations || [];
+    // Fetch all registrations (both internal and external)
+    const res = await apiRequest(`/competitions/registrations/all?status=All`);
+    window.allApplicationsCache = res.registrations || [];
 
-    if (categoryFilter !== 'All') {
-      regs = regs.filter(r => {
-        const c = r.competitionId || {};
-        const rawCat = (r.category || c.category || r.gender || c.gender || '').toLowerCase();
-        if (categoryFilter === 'Men') return rawCat === 'men' || rawCat === 'boys';
-        if (categoryFilter === 'Women') return rawCat === 'women' || rawCat === 'girls';
-        if (categoryFilter === 'Mixed') return rawCat === 'mixed';
-        return true;
-      });
-    }
+    // Update Metrics Banner
+    updateApplicationsMetrics(res);
 
-    if (regs.length === 0) {
-      const emptyMsg = status === 'Pending' 
-        ? 'No pending applications to review matching criteria.'
-        : `No student applications found for status "${status}" and category "${categoryFilter}".`;
-      table.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-inbox me-2 fs-5"></i>${emptyMsg}</td></tr>`;
-      return;
-    }
-
-    table.innerHTML = regs.map((r, idx) => {
-      const regId = r.id || r._id;
-      const studentName = (r.studentId && r.studentId.name) ? r.studentId.name : (r.studentName || 'Student Player');
-      const regNo = (r.studentId && r.studentId.registerNumber) ? r.studentId.registerNumber : (r.registerNumber || '');
-      const dept = (r.studentId && r.studentId.department) ? r.studentId.department : (r.department || '');
-      const tName = r.tournamentName || (r.competitionId && r.competitionId.tournamentName) || 'Inter-Department Fest';
-      const compName = (r.competitionId && r.competitionId.name) ? r.competitionId.name : (r.tournamentName || 'Competition');
-      const sportName = (r.competitionId && r.competitionId.sportName) ? r.competitionId.sportName : (r.sportName || 'General');
-
-      const c = r.competitionId || {};
-      const rawCat = r.category || c.category || r.gender || c.gender || 'Mixed';
-      let compCat = 'Mixed';
-      if (/^men$|^boys?$/i.test(rawCat)) compCat = 'Men';
-      else if (/^women$|^girls?$/i.test(rawCat)) compCat = 'Women';
-      else compCat = 'Mixed';
-
-      let catBadgeClass = 'bg-primary';
-      if (compCat === 'Women') catBadgeClass = 'bg-danger';
-      else if (compCat === 'Mixed') catBadgeClass = 'bg-warning text-dark';
-
-      let statusBadge = `<span class="badge badge-glass-warning text-dark"><i class="bi bi-clock-history me-1"></i>${r.status || 'Registered'}</span>`;
-      if (r.status === 'Approved') {
-        statusBadge = `<span class="badge badge-glass-success"><i class="bi bi-check-circle-fill me-1"></i>Approved</span>`;
-      } else if (r.status === 'Rejected') {
-        statusBadge = `<span class="badge badge-glass-danger"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>`;
-      }
-
-      let actionButtons = '';
-      if (r.status === 'Approved') {
-        actionButtons = `
-          <div class="d-flex align-items-center gap-1">
-            <span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 px-2 py-1 small">
-              <i class="bi bi-check2-all me-1"></i>Approved
-            </span>
-            <button class="btn btn-outline-danger btn-sm py-0.5 px-2" onclick="updateAppStatus('${regId}', 'Rejected')" title="Change to Rejected">
-              <i class="bi bi-x-lg"></i> Reject
-            </button>
-          </div>
-        `;
-      } else if (r.status === 'Rejected') {
-        actionButtons = `
-          <div class="d-flex align-items-center gap-1">
-            <span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-30 px-2 py-1 small">
-              <i class="bi bi-slash-circle me-1"></i>Rejected
-            </span>
-            <button class="btn btn-outline-success btn-sm py-0.5 px-2" onclick="updateAppStatus('${regId}', 'Approved')" title="Re-approve">
-              <i class="bi bi-check-lg"></i> Approve
-            </button>
-          </div>
-        `;
-      } else {
-        actionButtons = `
-          <div class="btn-group btn-group-sm" role="group">
-            <button type="button" class="btn btn-success fw-bold px-2.5" onclick="updateAppStatus('${regId}', 'Approved')" title="Approve Registration">
-              <i class="bi bi-check-circle me-1"></i> Approve
-            </button>
-            <button type="button" class="btn btn-outline-danger fw-bold px-2.5 ms-1" onclick="updateAppStatus('${regId}', 'Rejected')" title="Reject Registration">
-              <i class="bi bi-x-circle me-1"></i> Reject
-            </button>
-          </div>
-        `;
-      }
-
-      return `
-        <tr>
-          <td>${idx + 1}</td>
-          <td>
-            <strong class="d-block text-dark">${studentName}</strong>
-            <small class="text-muted font-monospace">${regNo}</small>
-          </td>
-          <td>
-            <strong class="d-block text-dark small">${tName}</strong>
-            <small class="text-primary fw-medium"><i class="bi bi-trophy-fill text-warning me-1"></i>${sportName}</small>
-          </td>
-          <td>
-            <span class="fw-semibold text-dark">${compName}</span>
-          </td>
-          <td>
-            <span class="badge ${catBadgeClass} px-2 py-1" style="font-size:0.75rem;">
-              <i class="bi bi-gender-ambiguous me-1"></i>${compCat}
-            </span>
-          </td>
-          <td>
-            <span class="badge bg-light text-dark border me-1">${dept}</span>
-            <small class="text-muted d-block mt-0.5">${r.preferredPosition || 'Player'}</small>
-          </td>
-          <td class="small text-muted">${formatDate(r.registrationDate || r.createdAt)}</td>
-          <td>${statusBadge}</td>
-          <td>${actionButtons}</td>
-        </tr>
-      `;
-    }).join('');
+    // Apply active filters and search
+    filterAdminApplications();
   } catch (err) {
-    table.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Failed to load applications.</td></tr>`;
+    console.error('Failed to load applications:', err);
+    table.innerHTML = `<tr><td colspan="10" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle-fill me-2"></i>Failed to load applications: ${err.message || 'Unknown error'}</td></tr>`;
   }
+}
+
+function updateApplicationsMetrics(apiRes = null) {
+  const cache = window.allApplicationsCache || [];
+  const total = cache.length;
+  const ourCount = apiRes?.ourCollegeCount !== undefined 
+    ? apiRes.ourCollegeCount 
+    : cache.filter(r => r.studentCategory === 'OUR_COLLEGE' || !r.isExternal).length;
+  const otherCount = apiRes?.otherCollegeCount !== undefined 
+    ? apiRes.otherCollegeCount 
+    : cache.filter(r => r.studentCategory === 'OTHER_COLLEGE' || r.isExternal).length;
+  const pendingCount = apiRes?.pendingCount !== undefined
+    ? apiRes.pendingCount
+    : cache.filter(r => r.status === 'Pending' || r.status === 'Registered').length;
+
+  const elTotal = document.getElementById('app-counter-total');
+  const elOur = document.getElementById('app-counter-our');
+  const elOther = document.getElementById('app-counter-other');
+  const elPending = document.getElementById('app-counter-pending');
+
+  if (elTotal) elTotal.textContent = total;
+  if (elOur) elOur.textContent = ourCount;
+  if (elOther) elOther.textContent = otherCount;
+  if (elPending) elPending.textContent = pendingCount;
+}
+
+function clearAppSearch() {
+  const input = document.getElementById('app-search-input');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+  filterAdminApplications();
+}
+
+function filterAdminApplications() {
+  const table = document.getElementById('admin-applications-table');
+  if (!table) return;
+
+  const searchInput = document.getElementById('app-search-input');
+  const searchQuery = (searchInput ? searchInput.value : '').trim().toLowerCase();
+  const clearBtn = document.getElementById('app-search-clear');
+  if (clearBtn) {
+    clearBtn.classList.toggle('d-none', searchQuery.length === 0);
+  }
+
+  const scopeFilter = document.getElementById('app-filter-scope') ? document.getElementById('app-filter-scope').value : 'All';
+  const categoryFilter = document.getElementById('app-filter-gender') ? document.getElementById('app-filter-gender').value : 'All';
+  const statusFilter = document.getElementById('app-filter-status') ? document.getElementById('app-filter-status').value : 'All';
+
+  let filtered = [...(window.allApplicationsCache || [])];
+
+  // 1. Filter by College Scope
+  if (scopeFilter === 'OUR_COLLEGE') {
+    filtered = filtered.filter(r => r.studentCategory === 'OUR_COLLEGE' || !r.isExternal);
+  } else if (scopeFilter === 'OTHER_COLLEGE') {
+    filtered = filtered.filter(r => r.studentCategory === 'OTHER_COLLEGE' || r.isExternal);
+  }
+
+  // 2. Filter by Category / Gender
+  if (categoryFilter !== 'All') {
+    filtered = filtered.filter(r => {
+      const c = r.competitionId || {};
+      const rawCat = (r.category || c.category || r.gender || c.gender || '').toLowerCase();
+      if (categoryFilter === 'Men') return rawCat === 'men' || rawCat === 'boys' || rawCat === 'boy';
+      if (categoryFilter === 'Women') return rawCat === 'women' || rawCat === 'girls' || rawCat === 'girl';
+      if (categoryFilter === 'Mixed') return rawCat === 'mixed';
+      return true;
+    });
+  }
+
+  // 3. Filter by Status
+  if (statusFilter !== 'All') {
+    if (statusFilter === 'Pending') {
+      filtered = filtered.filter(r => r.status === 'Pending' || r.status === 'Registered');
+    } else {
+      filtered = filtered.filter(r => r.status === statusFilter);
+    }
+  }
+
+  // 4. Filter by Live Search Query (Name, Register No, College, Dept, Sport, Phone, Tournament)
+  if (searchQuery.length > 0) {
+    filtered = filtered.filter(r => {
+      const studentName = ((r.studentId && r.studentId.name) || r.studentName || '').toLowerCase();
+      const regNo = ((r.studentId && r.studentId.registerNumber) || r.registerNumber || '').toLowerCase();
+      const college = ((r.studentId && r.studentId.collegeName) || r.collegeName || '').toLowerCase();
+      const dept = ((r.studentId && r.studentId.department) || r.department || '').toLowerCase();
+      const sport = ((r.competitionId && r.competitionId.sportName) || r.sportName || '').toLowerCase();
+      const tour = ((r.competitionId && r.competitionId.tournamentName) || r.tournamentName || '').toLowerCase();
+      const comp = ((r.competitionId && r.competitionId.name) || r.competitionName || '').toLowerCase();
+      const mobile = ((r.studentId && r.studentId.mobile) || r.mobile || r.participantPhone || '').toLowerCase();
+      const email = ((r.studentId && r.studentId.email) || r.email || r.participantEmail || '').toLowerCase();
+
+      return studentName.includes(searchQuery) ||
+             regNo.includes(searchQuery) ||
+             college.includes(searchQuery) ||
+             dept.includes(searchQuery) ||
+             sport.includes(searchQuery) ||
+             tour.includes(searchQuery) ||
+             comp.includes(searchQuery) ||
+             mobile.includes(searchQuery) ||
+             email.includes(searchQuery);
+    });
+  }
+
+  // Update match count indicator
+  const statsBox = document.getElementById('app-search-stats');
+  const countSpan = document.getElementById('app-search-match-count');
+  if (statsBox && countSpan) {
+    if (searchQuery.length > 0 || scopeFilter !== 'All' || categoryFilter !== 'All' || statusFilter !== 'All') {
+      statsBox.classList.remove('d-none');
+      countSpan.textContent = filtered.length;
+    } else {
+      statsBox.classList.add('d-none');
+    }
+  }
+
+  // Render Table
+  if (filtered.length === 0) {
+    let emptyMsg = 'No applications found matching the current search & filter criteria.';
+    if (searchQuery.length > 0) {
+      emptyMsg = `No students found matching "<strong>${escapeHtml(searchQuery)}</strong>". Try checking spelling or resetting filters.`;
+    } else if (statusFilter === 'Pending') {
+      emptyMsg = 'No pending applications to review right now! All applications have been reviewed.';
+    }
+    table.innerHTML = `<tr><td colspan="10" class="text-center py-5 text-muted"><i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>${emptyMsg}</td></tr>`;
+    return;
+  }
+
+  table.innerHTML = filtered.map((r, idx) => {
+    const regId = r.id || r._id;
+    const isExternal = Boolean(r.isExternal || r.studentCategory === 'OTHER_COLLEGE');
+    const studentName = (r.studentId && r.studentId.name) ? r.studentId.name : (r.studentName || 'Student Athlete');
+    const regNo = (r.studentId && r.studentId.registerNumber) ? r.studentId.registerNumber : (r.registerNumber || 'N/A');
+    const collegeName = r.collegeName || (r.studentId && r.studentId.collegeName) || (isExternal ? 'External College' : 'Government Arts and Science College, Idappadi');
+    const dept = (r.studentId && r.studentId.department) ? r.studentId.department : (r.department || 'General');
+    const tName = r.tournamentName || (r.competitionId && r.competitionId.tournamentName) || 'Sports Championship';
+    const compName = (r.competitionId && r.competitionId.name) ? r.competitionId.name : (r.tournamentName || 'Competition');
+    const sportName = (r.competitionId && r.competitionId.sportName) ? r.competitionId.sportName : (r.sportName || 'General');
+    const mobile = (r.studentId && r.studentId.mobile) || r.mobile || r.participantPhone || '-';
+    const email = (r.studentId && r.studentId.email) || r.email || r.participantEmail || '';
+
+    // Category / Gender badge
+    const c = r.competitionId || {};
+    const rawCat = r.category || c.category || r.gender || c.gender || 'Mixed';
+    let compCat = 'Mixed';
+    if (/^men$|^boys?$/i.test(rawCat)) compCat = 'Men';
+    else if (/^women$|^girls?$/i.test(rawCat)) compCat = 'Women';
+    else compCat = 'Mixed';
+
+    let catBadgeClass = 'bg-primary';
+    if (compCat === 'Women') catBadgeClass = 'bg-danger';
+    else if (compCat === 'Mixed') catBadgeClass = 'bg-warning text-dark';
+
+    // Origin Badge (Our College vs External College)
+    let originBadge = '';
+    if (isExternal) {
+      originBadge = `
+        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-2 py-0.5 small d-inline-flex align-items-center mt-1" title="${escapeHtml(collegeName)}">
+          <i class="bi bi-globe me-1"></i>${escapeHtml(collegeName.length > 25 ? collegeName.substring(0, 25) + '...' : collegeName)}
+        </span>
+      `;
+    } else {
+      originBadge = `
+        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-0.5 small d-inline-flex align-items-center mt-1">
+          <i class="bi bi-mortarboard-fill me-1"></i>Our College (GASC)
+        </span>
+      `;
+    }
+
+    // Status Badge
+    let statusBadge = `<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2 py-1"><i class="bi bi-clock-history me-1"></i>Pending</span>`;
+    if (r.status === 'Approved') {
+      statusBadge = `<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Approved</span>`;
+    } else if (r.status === 'Rejected') {
+      statusBadge = `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1"><i class="bi bi-x-circle-fill me-1"></i>Rejected</span>`;
+    }
+
+    // Fee badge if external or fee configured
+    let feeBadge = '';
+    if (r.feeAmount > 0) {
+      const payStatus = r.paymentStatus || 'PENDING';
+      const isPaid = payStatus === 'PAID' || payStatus === 'VERIFIED';
+      feeBadge = `
+        <span class="badge ${isPaid ? 'bg-success' : 'bg-secondary'} bg-opacity-10 ${isPaid ? 'text-success' : 'text-secondary'} border border-opacity-25 px-1.5 py-0.5 d-inline-block mt-0.5" style="font-size:0.7rem;">
+          ₹${r.feeAmount} (${payStatus})
+        </span>
+      `;
+    } else if (isExternal) {
+      feeBadge = `<span class="badge bg-light text-muted border px-1.5 py-0.5 d-inline-block mt-0.5" style="font-size:0.7rem;">Free (₹0)</span>`;
+    }
+
+    // Action Buttons
+    let actionButtons = '';
+    if (r.status === 'Approved') {
+      actionButtons = `
+        <div class="d-flex align-items-center gap-1">
+          <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 small">
+            <i class="bi bi-check2-all me-1"></i>Approved
+          </span>
+          <button class="btn btn-outline-danger btn-sm py-0.5 px-2" onclick="updateAppStatus('${regId}', 'Rejected')" title="Change to Rejected">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      `;
+    } else if (r.status === 'Rejected') {
+      actionButtons = `
+        <div class="d-flex align-items-center gap-1">
+          <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1 small">
+            <i class="bi bi-slash-circle me-1"></i>Rejected
+          </span>
+          <button class="btn btn-outline-success btn-sm py-0.5 px-2" onclick="updateAppStatus('${regId}', 'Approved')" title="Re-approve Application">
+            <i class="bi bi-check-lg"></i>
+          </button>
+        </div>
+      `;
+    } else {
+      actionButtons = `
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn btn-success fw-bold px-2.5 shadow-sm" onclick="updateAppStatus('${regId}', 'Approved')" title="Approve Registration">
+            <i class="bi bi-check-circle me-1"></i> Approve
+          </button>
+          <button type="button" class="btn btn-outline-danger fw-bold px-2.5 ms-1" onclick="updateAppStatus('${regId}', 'Rejected')" title="Reject Registration">
+            <i class="bi bi-x-circle me-1"></i> Reject
+          </button>
+        </div>
+      `;
+    }
+
+    return `
+      <tr>
+        <td class="text-muted small">${idx + 1}</td>
+        <td>
+          <div class="fw-bold text-dark">${escapeHtml(studentName)}</div>
+          <div class="font-monospace text-muted small">${escapeHtml(regNo)}</div>
+          <div>${originBadge}</div>
+        </td>
+        <td>
+          <div class="fw-semibold text-dark small">${escapeHtml(tName)}</div>
+          <div class="text-primary small fw-medium mt-0.5">
+            <i class="bi bi-trophy-fill text-warning me-1"></i>${escapeHtml(sportName)}
+          </div>
+        </td>
+        <td>
+          <span class="fw-medium text-dark small">${escapeHtml(compName)}</span>
+        </td>
+        <td>
+          <span class="badge ${catBadgeClass} px-2 py-1" style="font-size:0.75rem;">
+            <i class="bi bi-gender-ambiguous me-1"></i>${compCat}
+          </span>
+        </td>
+        <td>
+          <span class="badge bg-light text-dark border">${escapeHtml(dept)}</span>
+          <div class="text-muted small mt-0.5">${escapeHtml(r.preferredPosition || 'Player')}</div>
+        </td>
+        <td>
+          <div class="small text-dark font-monospace"><i class="bi bi-telephone-fill me-1 text-muted" style="font-size:0.7rem;"></i>${escapeHtml(mobile)}</div>
+          ${email ? `<div class="small text-muted text-truncate" style="max-width: 140px;" title="${escapeHtml(email)}">${escapeHtml(email)}</div>` : ''}
+        </td>
+        <td class="small text-muted">
+          ${formatDate(r.registrationDate || r.createdAt)}
+        </td>
+        <td>
+          <div>${statusBadge}</div>
+          ${feeBadge}
+        </td>
+        <td>
+          ${actionButtons}
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 async function updateAppStatus(id, newStatus, customRemarks = null) {
   if (!id) {
     showToast('Invalid registration ID.', 'error');
     return;
+  }
+
+  // Immediate optimistic UI update in cache
+  const cachedItem = (window.allApplicationsCache || []).find(r => r.id === id || r._id === id || r.registrationId === id);
+  const oldStatus = cachedItem ? cachedItem.status : 'Pending';
+  if (cachedItem) {
+    cachedItem.status = newStatus;
+    filterAdminApplications();
+    updateApplicationsMetrics();
   }
 
   // Use robust defaults instead of blocking window.prompt (which is unsupported in Electron)
@@ -2971,12 +3163,19 @@ async function updateAppStatus(id, newStatus, customRemarks = null) {
       adminRemarks: remarks
     });
     showToast(res.message || `Registration marked as ${newStatus} successfully!`, 'success');
-    await loadAdminApplications();
+    
+    // Refresh background state
     if (typeof loadAdminDashboardStats === 'function') {
       loadAdminDashboardStats();
     }
   } catch (err) {
     console.error('Error updating registration status:', err);
+    // Rollback optimistic update
+    if (cachedItem) {
+      cachedItem.status = oldStatus;
+      filterAdminApplications();
+      updateApplicationsMetrics();
+    }
     showToast(err.message || 'Failed to update application status.', 'error');
   }
 }
