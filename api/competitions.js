@@ -41,10 +41,15 @@ function computeRegistrationStatus(comp) {
   return 'Registration Open';
 }
 
+// High-Concurrency In-Memory Micro-Cache for 100,000+ Concurrent Students
+let _cachedCompetitionsData = null;
+let _cachedCompetitionsTimestamp = 0;
+const CACHE_TTL_MS = 15000; // 15 seconds TTL
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-student-id, x-register-number');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -74,6 +79,7 @@ module.exports = async (req, res) => {
       const { data: regsRaw, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
 
+      res.setHeader('Cache-Control', 'private, no-cache, no-store');
       return res.status(200).json({
         success: true,
         count: (regsRaw || []).length,
@@ -91,6 +97,13 @@ module.exports = async (req, res) => {
       const { tournament_id, tournamentId } = req.query || {};
       const targetTour = tournament_id || tournamentId;
 
+      const nowTime = Date.now();
+      if (!targetTour && _cachedCompetitionsData && (nowTime - _cachedCompetitionsTimestamp < CACHE_TTL_MS)) {
+        res.setHeader('Cache-Control', 'public, s-maxage=20, stale-while-revalidate=60');
+        res.setHeader('X-Cache-Status', 'HIT');
+        return res.status(200).json(_cachedCompetitionsData);
+      }
+
       let query = supabase.from('competitions').select('*').order('date', { ascending: true });
       if (targetTour) {
         query = query.eq('tournament_id', targetTour);
@@ -99,7 +112,8 @@ module.exports = async (req, res) => {
       const { data, error } = await query;
       if (error) throw error;
 
-      res.setHeader('Cache-Control', 's-maxage=20, stale-while-revalidate=60');
+      res.setHeader('Cache-Control', 'public, s-maxage=20, stale-while-revalidate=60');
+      res.setHeader('X-Cache-Status', 'MISS');
 
       const normalizedComps = (data || []).map(c => {
         const regEnd = c.registration_end || c.registration_deadline || c.registrationEnd;
@@ -148,13 +162,25 @@ module.exports = async (req, res) => {
         };
       });
 
-      return res.status(200).json({
+      const responsePayload = {
         success: true,
         count: normalizedComps.length,
         competitions: normalizedComps
-      });
+      };
+
+      if (!targetTour) {
+        _cachedCompetitionsData = responsePayload;
+        _cachedCompetitionsTimestamp = nowTime;
+      }
+
+      return res.status(200).json(responsePayload);
     } catch (err) {
       console.error('GET /api/competitions error:', err);
+      if (_cachedCompetitionsData) {
+        res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
+        res.setHeader('X-Cache-Status', 'STALE');
+        return res.status(200).json(_cachedCompetitionsData);
+      }
       return res.status(500).json({ success: false, message: err.message });
     }
   }

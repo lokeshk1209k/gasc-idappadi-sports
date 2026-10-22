@@ -231,10 +231,13 @@ button:active, .btn-primary:active, .btn-orange:active, .btn-outline:active, .fi
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s;
 }
 
-/* ── Ultra Glass Cards with Hover Light Sheen ── */
-.gasc-card, .stat-card, .sport-card, .cert-card, .glass-panel {
+/* ── Ultra Glass Cards with Hover Light Sheen & GPU Compositing ── */
+.glass-card, .gasc-card, .stat-card, .sport-card, .cert-card, .glass-panel {
   position: relative;
   overflow: hidden;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .gasc-card::after, .stat-card::after, .sport-card::after, .cert-card::after {

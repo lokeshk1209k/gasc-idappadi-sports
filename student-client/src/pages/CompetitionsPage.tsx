@@ -698,7 +698,7 @@ const CompetitionsPage = () => {
         fetchTournaments();
         fetchMyRegistrations();
       }
-    }, 25000);
+    }, 60000);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {

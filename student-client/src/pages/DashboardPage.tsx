@@ -119,6 +119,20 @@ const DEPARTMENT_LEADERBOARD = [
   { rank: '04', dept: 'Physics', points: 260, gold: 2, silver: 3, streak: '⭐ Active' },
 ];
 
+const LiveClock = () => {
+  const [time, setTime] = useState<string>('');
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setTime(now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return <span>{time || 'LIVE'}</span>;
+};
+
 const DashboardPage = () => {
   const { currentPreset, darkMode } = useTheme();
   const [student, setStudent] = useState<StudentData>({
@@ -129,7 +143,6 @@ const DashboardPage = () => {
     gender: 'Player'
   });
 
-  const [currentTime, setCurrentTime] = useState<string>('');
   const [events, setEvents] = useState<any[]>([]);
   const [loadingEvents, setLoadingEvents] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'feed' | 'standings' | 'notices'>('feed');
@@ -137,17 +150,6 @@ const DashboardPage = () => {
   // Issued Equipment State
   const [issuedEquipment, setIssuedEquipment] = useState<any[]>([]);
   const [equipmentLoading, setEquipmentLoading] = useState<boolean>(true);
-
-  // Real-time Clock
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
-    };
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Load User Data
   useEffect(() => {
@@ -373,7 +375,7 @@ const DashboardPage = () => {
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
                 <Clock style={{ width: 14, height: 14, color: 'var(--accent-secondary)' }} />
-                <span>{currentTime || 'LIVE'}</span>
+                <LiveClock />
               </div>
               <div className="hud-pill" style={{ background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.4)', color: '#34D399' }}>
                 <CheckCircle2 style={{ width: 12, height: 12 }} />
