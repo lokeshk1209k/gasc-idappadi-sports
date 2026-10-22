@@ -315,10 +315,10 @@ const getStoredTournaments = (): Tournament[] => {
           ]
         };
       });
-      return [...extraList, FLASH_TOURNAMENT, DEFAULT_TOURNAMENT];
+      return extraList;
     }
   } catch {}
-  return [FLASH_TOURNAMENT, DEFAULT_TOURNAMENT];
+  return [];
 };
 
 const getInitialTournaments = (): Tournament[] => {
@@ -326,7 +326,7 @@ const getInitialTournaments = (): Tournament[] => {
     const cached = sessionStorage.getItem('gasc_tournaments_cache');
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {}
   return getStoredTournaments();
@@ -474,14 +474,22 @@ const CompetitionsPage = () => {
   // ── 2. Fetch Tournaments and Group Sports (Ultra-Fast & Accurate) ─────────
   const fetchTournaments = async () => {
     try {
-      let res = await fetch('/api/competitions');
+      let res = await fetch(`/api/competitions?t=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) {
-        res = await fetch('/competitions.json');
+        res = await fetch(`/competitions.json?t=${Date.now()}`, { cache: 'no-store' });
       }
       const data = await res.json();
       const rawList = data.competitions || data.data || (Array.isArray(data) ? data : []);
 
-      if (data.success && Array.isArray(rawList) && rawList.length > 0) {
+      if (data.success && Array.isArray(rawList)) {
+        if (rawList.length === 0) {
+          setTournaments([]);
+          sessionStorage.setItem('gasc_tournaments_cache', '[]');
+          setActiveTournament(null);
+          setLoading(false);
+          return;
+        }
+
         const groupMap: Record<string, Tournament> = {};
 
         rawList.forEach((c: any) => {
@@ -605,10 +613,10 @@ const CompetitionsPage = () => {
         setTournaments(list);
         sessionStorage.setItem('gasc_tournaments_cache', JSON.stringify(list));
 
-        // Keep active tournament state synced if opened
+        // Keep active tournament state synced if opened, or clear if deleted
         setActiveTournament(prev => {
           if (!prev) return null;
-          return list.find(t => t.id === prev.id || t.tournamentName === prev.tournamentName) || prev;
+          return list.find(t => t.id === prev.id || t.tournamentName === prev.tournamentName) || null;
         });
       }
     } catch { /* keep defaults */ }
@@ -688,7 +696,7 @@ const CompetitionsPage = () => {
     } catch { /* keep existing */ }
   };
 
-  // ── 4. High-Performance Polling (Polite 25s + Visibility Check) ───────────
+  // ── 4. High-Performance Polling & Real-Time Sync (10s + Focus + Events) ───
   useEffect(() => {
     fetchTournaments();
     fetchMyRegistrations();
@@ -698,19 +706,24 @@ const CompetitionsPage = () => {
         fetchTournaments();
         fetchMyRegistrations();
       }
-    }, 60000);
+    }, 10000);
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchTournaments();
-        fetchMyRegistrations();
-      }
+    const handleSync = () => {
+      fetchTournaments();
+      fetchMyRegistrations();
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    window.addEventListener('focus', handleSync);
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('gasc_tournaments_updated', handleSync);
+    document.addEventListener('visibilitychange', handleSync);
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleSync);
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('gasc_tournaments_updated', handleSync);
+      document.removeEventListener('visibilitychange', handleSync);
     };
   }, [studentUser.registerNumber, studentUser.id]);
 

@@ -2804,12 +2804,12 @@ async function deleteTournament(tName) {
   try {
     // 1. Call backend DELETE API
     try {
-      await apiRequest(`/competitions/tournament?name=${encodeURIComponent(tName)}`, 'DELETE');
+      await apiRequest(`/competitions/tournament?name=${encodeURIComponent(tName)}`, 'DELETE', { name: tName });
     } catch (apiErr) {
       console.warn('API delete tournament notice:', apiErr.message);
     }
 
-    // 2. Thoroughly purge from local custom tournaments in localStorage
+    // 2. Thoroughly purge from local custom tournaments in localStorage and sessionStorage
     try {
       const targetTName = tName.trim().toLowerCase();
       const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
@@ -2824,10 +2824,11 @@ async function deleteTournament(tName) {
                cPrefix !== targetTName;
       });
       localStorage.setItem('gasc_custom_tournaments', JSON.stringify(filtered));
+      try { sessionStorage.removeItem('gasc_tournaments_cache'); } catch (e) {}
       window.dispatchEvent(new CustomEvent('gasc_tournaments_updated'));
     } catch (e) {}
 
-    showToast(`Tournament "${tName}" deleted successfully!`, 'success', 'Tournament Deleted');
+    showToast(`Tournament "${tName}" deleted successfully across all systems!`, 'success', 'Tournament Deleted');
     await loadAdminCompetitions();
   } catch (err) {
     showToast(err.message || 'Failed to delete tournament', 'error');

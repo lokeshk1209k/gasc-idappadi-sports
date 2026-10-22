@@ -94,11 +94,12 @@ module.exports = async (req, res) => {
   // ── GET /api/competitions ──
   if (req.method === 'GET') {
     try {
-      const { tournament_id, tournamentId } = req.query || {};
+      const { tournament_id, tournamentId, t } = req.query || {};
       const targetTour = tournament_id || tournamentId;
+      const bypassCache = !!t || (req.headers && req.headers['cache-control'] && req.headers['cache-control'].includes('no-cache'));
 
       const nowTime = Date.now();
-      if (!targetTour && _cachedCompetitionsData && (nowTime - _cachedCompetitionsTimestamp < CACHE_TTL_MS)) {
+      if (!targetTour && !bypassCache && _cachedCompetitionsData && (nowTime - _cachedCompetitionsTimestamp < CACHE_TTL_MS)) {
         res.setHeader('Cache-Control', 'public, s-maxage=20, stale-while-revalidate=60');
         res.setHeader('X-Cache-Status', 'HIT');
         return res.status(200).json(_cachedCompetitionsData);
@@ -457,6 +458,9 @@ module.exports = async (req, res) => {
         throw error;
       }
 
+      _cachedCompetitionsData = null;
+      _cachedCompetitionsTimestamp = 0;
+
       return res.status(201).json({
         success: true,
         message: 'Competition created and published successfully!',
@@ -474,23 +478,107 @@ module.exports = async (req, res) => {
       const url = req.url || '';
       const cleanPath = url.split('?')[0];
       const parts = cleanPath.split('/').filter(Boolean);
+
+      _cachedCompetitionsData = null;
+      _cachedCompetitionsTimestamp = 0;
+
+      let body = req.body;
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch (e) {}
+      }
+      body = body || {};
+
+      const isTournamentDelete = cleanPath.includes('/tournament') || req.query?.tournament || req.query?.tournamentName;
+      const tName = (req.query?.name || req.query?.tournamentName || req.query?.tournament || body.name || body.tournamentName || '').trim();
+      const tId = (req.query?.tournamentId || body.tournamentId || (cleanPath.includes('/tournament') ? req.query?.id : null) || '').trim();
+
+      // Case A: Delete entire Tournament & all its competitions
+      if (isTournamentDelete || (tName && !req.query?.id)) {
+        if (!tName && !tId) {
+          return res.status(400).json({ success: false, message: 'Tournament name or ID is required for deletion.' });
+        }
+
+        const tourIds = new Set();
+        if (tId) tourIds.add(tId);
+        if (tName) tourIds.add(`tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
+
+        // Find matching tournaments
+        let tQuery = supabase.from('tournaments').select('id, name');
+        if (tId && tName) {
+          tQuery = tQuery.or(`id.eq.${tId},name.ilike.%${tName}%,tournament_name.ilike.%${tName}%`);
+        } else if (tId) {
+          tQuery = tQuery.eq('id', tId);
+        } else {
+          tQuery = tQuery.or(`name.ilike.%${tName}%,tournament_name.ilike.%${tName}%`);
+        }
+        const { data: matchedTours } = await tQuery;
+        (matchedTours || []).forEach(t => tourIds.add(t.id));
+        const tourIdsArr = Array.from(tourIds);
+
+        // Find matching competitions
+        let cQuery = supabase.from('competitions').select('id, tournament_id, tournament_name');
+        if (tourIdsArr.length > 0 && tName) {
+          cQuery = cQuery.or(`tournament_name.ilike.%${tName}%,tournament_id.in.(${tourIdsArr.join(',')})`);
+        } else if (tourIdsArr.length > 0) {
+          cQuery = cQuery.in('tournament_id', tourIdsArr);
+        } else {
+          cQuery = cQuery.ilike('tournament_name', `%${tName}%`);
+        }
+        const { data: matchedComps } = await cQuery;
+        const compIdsArr = (matchedComps || []).map(c => c.id);
+
+        // Cascade delete child registrations and fixtures
+        if (compIdsArr.length > 0) {
+          try { await supabase.from('external_registrations').delete().in('competition_id', compIdsArr); } catch (e) {}
+          try { await supabase.from('competition_registrations').delete().in('competition_id', compIdsArr); } catch (e) {}
+          try { await supabase.from('teams').delete().in('competition_id', compIdsArr); } catch (e) {}
+          try { await supabase.from('match_fixtures').delete().in('competition_id', compIdsArr); } catch (e) {}
+          try { await supabase.from('competitions').delete().in('id', compIdsArr); } catch (e) {}
+        }
+
+        if (tourIdsArr.length > 0) {
+          try { await supabase.from('external_registrations').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await supabase.from('competition_registrations').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await supabase.from('teams').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await supabase.from('match_fixtures').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await supabase.from('competitions').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await supabase.from('tournaments').delete().in('id', tourIdsArr); } catch (e) {}
+        }
+
+        if (tName) {
+          try { await supabase.from('competitions').delete().ilike('tournament_name', `%${tName}%`); } catch (e) {}
+          try { await supabase.from('tournaments').delete().ilike('name', `%${tName}%`); } catch (e) {}
+          try { await supabase.from('tournaments').delete().ilike('tournament_name', `%${tName}%`); } catch (e) {}
+        }
+
+        return res.json({
+          success: true,
+          message: `Tournament "${tName || tId}" and ${compIdsArr.length} competitions deleted successfully!`,
+          deletedCount: compIdsArr.length
+        });
+      }
+
+      // Case B: Delete single competition
       let targetId = req.query?.id;
       if (!targetId && parts.length > 0 && parts[parts.length - 1] !== 'competitions') {
         targetId = parts[parts.length - 1];
       }
 
-      if (targetId) {
+      if (targetId && targetId !== 'tournament') {
         try {
           await supabase.from('external_registrations').delete().eq('competition_id', targetId);
           await supabase.from('competition_registrations').delete().eq('competition_id', targetId);
+          await supabase.from('teams').delete().eq('competition_id', targetId);
+          await supabase.from('match_fixtures').delete().eq('competition_id', targetId);
         } catch (e) {}
         const { error } = await supabase.from('competitions').delete().eq('id', targetId);
         if (error) throw error;
         return res.json({ success: true, message: 'Competition deleted successfully.', deletedId: targetId });
       }
 
-      return res.status(400).json({ success: false, message: 'Competition ID is required for deletion.' });
+      return res.status(400).json({ success: false, message: 'Competition or Tournament ID is required for deletion.' });
     } catch (err) {
+      console.error('DELETE /api/competitions error:', err);
       return res.status(500).json({ success: false, message: err.message });
     }
   }

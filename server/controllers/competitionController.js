@@ -77,27 +77,38 @@ exports.getAllCompetitions = async (req, res) => {
     const { status, type, level, sportId } = req.query;
 
     let compsRaw = [];
-    try {
-      const localStore = require('../data/localStore');
-      const table = localStore.storeInstance.getTable('competitions');
-      if (Array.isArray(table) && table.length > 0) {
-        compsRaw = table;
-      }
-    } catch (e) {}
+    const { supabase: rawSupabase, isSupabaseConfigured } = require('../config/supabase');
 
-    // Fallback to Supabase if localStore is not yet initialized
+    // 1. Fetch fresh competitions from Supabase if online (ensures multi-system sync)
+    if (isSupabaseConfigured() && rawSupabase) {
+      try {
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase query timeout')), 2500));
+        let query = rawSupabase.from('competitions').select('*').order('date', { ascending: true });
+        const { data, error } = await Promise.race([query, timeoutPromise]);
+        if (!error && Array.isArray(data)) {
+          compsRaw = data;
+          // Synchronize to localStore and static files
+          try {
+            const localStore = require('../data/localStore');
+            localStore.storeInstance.db['competitions'] = data;
+            localStore.storeInstance.save();
+            syncCompetitionsJsonFiles(data);
+          } catch (sErr) {}
+        }
+      } catch (cloudErr) {
+        // Fall back to local store when offline or on network delay
+      }
+    }
+
+    // 2. Fallback to LocalStore / bundled files if Supabase was unreachable or returned empty
     if (!compsRaw || compsRaw.length === 0) {
-      let query = supabase.from('competitions').select('*').order('date', { ascending: true });
-      if (status && status !== 'All') query = query.eq('status', status);
-      if (type && type !== 'All') query = query.eq('type', type);
-      if (level && level !== 'All') query = query.eq('level', level);
-      if (sportId && sportId !== 'All') query = query.eq('sport_id', sportId);
-
-      const { data, error } = await query;
-      if (error) {
-        return res.status(500).json({ success: false, message: error.message });
-      }
-      compsRaw = data || [];
+      try {
+        const localStore = require('../data/localStore');
+        const table = localStore.storeInstance.getTable('competitions');
+        if (Array.isArray(table) && table.length > 0) {
+          compsRaw = table;
+        }
+      } catch (e) {}
     }
 
     // High-performance in-memory filtering (<0.1ms)
@@ -564,22 +575,44 @@ exports.deleteCompetition = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid competition ID provided.' });
     }
 
-    // Delete associated registrations first
-    await supabase.from('competition_registrations').delete().eq('competition_id', id);
+    const { supabase: rawSupabase, isSupabaseConfigured } = require('../config/supabase');
 
-    // Delete in Supabase
-    await supabase.from('competitions').delete().eq('id', id);
+    // 1. Direct Cascade Delete in Supabase Cloud
+    if (isSupabaseConfigured() && rawSupabase) {
+      try {
+        await rawSupabase.from('external_registrations').delete().eq('competition_id', id);
+      } catch (e) {}
+      try {
+        await rawSupabase.from('competition_registrations').delete().eq('competition_id', id);
+      } catch (e) {}
+      try {
+        await rawSupabase.from('teams').delete().eq('competition_id', id);
+      } catch (e) {}
+      try {
+        await rawSupabase.from('match_fixtures').delete().eq('competition_id', id);
+      } catch (e) {}
+      try {
+        await rawSupabase.from('competitions').delete().eq('id', id);
+      } catch (e) {}
+    }
 
-    // Ensure deletion is saved in LocalStore immediately
+    // 2. Delete from SQLite localDB
+    try {
+      const localDB = require('../database/localDB');
+      localDB.run('DELETE FROM registrations WHERE competition_id = ?', [id]);
+      localDB.run('DELETE FROM competitions WHERE id = ?', [id]);
+      localDB.saveDB();
+    } catch (dbErr) {}
+
+    // 3. Ensure deletion is saved in LocalStore immediately
     const localStore = require('../data/localStore');
     const table = localStore.storeInstance.getTable('competitions');
-    const initialLen = table.length;
     const remaining = table.filter(c => String(c.id) !== String(id) && String(c._id) !== String(id));
     localStore.storeInstance.db['competitions'] = remaining;
     localStore.storeInstance.save();
     syncCompetitionsJsonFiles(remaining);
 
-    // Invalidate cache immediately
+    // 4. Invalidate cache immediately
     try { invalidateCache('/api/competitions'); } catch (e) {}
 
     res.json({
@@ -597,44 +630,142 @@ exports.deleteCompetition = async (req, res) => {
 // @access  Private/Admin
 exports.deleteTournament = async (req, res) => {
   try {
-    const tournamentName = req.query.name || (req.body && (req.body.tournamentName || req.body.name));
-    if (!tournamentName) {
-      return res.status(400).json({ success: false, message: 'Tournament name is required' });
+    const rawName = req.query.name || (req.body && (req.body.tournamentName || req.body.name || req.body.tournament_name));
+    const rawId = req.query.id || req.query.tournamentId || (req.body && (req.body.id || req.body.tournamentId));
+
+    if (!rawName && !rawId) {
+      return res.status(400).json({ success: false, message: 'Tournament name or ID is required' });
     }
 
+    const tName = (rawName || '').trim();
+    const tId = (rawId || '').trim();
+    const tNameLower = tName.toLowerCase();
+    const slugId = tName ? `tour_${tNameLower.replace(/[^a-z0-9]/g, '_')}` : '';
+
+    const { supabase: rawSupabase, isSupabaseConfigured } = require('../config/supabase');
+
+    const tourIdsToDelete = new Set();
+    if (tId) tourIdsToDelete.add(tId);
+    if (slugId) tourIdsToDelete.add(slugId);
+
+    const compIdsToDelete = new Set();
+
+    // 1. Direct query in Supabase to find all matching tournament records and competitions
+    if (isSupabaseConfigured() && rawSupabase) {
+      try {
+        let tQuery = rawSupabase.from('tournaments').select('id, name');
+        if (tId && tName) {
+          tQuery = tQuery.or(`id.eq.${tId},name.ilike.%${tName}%,tournament_name.ilike.%${tName}%`);
+        } else if (tId) {
+          tQuery = tQuery.eq('id', tId);
+        } else {
+          tQuery = tQuery.or(`name.ilike.%${tName}%,tournament_name.ilike.%${tName}%`);
+        }
+        const { data: matchedTours } = await tQuery;
+        (matchedTours || []).forEach(t => tourIdsToDelete.add(t.id));
+
+        const tourIdsArr = Array.from(tourIdsToDelete);
+        let cQuery = rawSupabase.from('competitions').select('id, tournament_id, tournament_name');
+        if (tourIdsArr.length > 0 && tName) {
+          cQuery = cQuery.or(`tournament_name.ilike.%${tName}%,tournament_id.in.(${tourIdsArr.join(',')})`);
+        } else if (tourIdsArr.length > 0) {
+          cQuery = cQuery.in('tournament_id', tourIdsArr);
+        } else {
+          cQuery = cQuery.ilike('tournament_name', `%${tName}%`);
+        }
+        const { data: matchedComps } = await cQuery;
+        (matchedComps || []).forEach(c => compIdsToDelete.add(c.id));
+
+        const compIdsArr = Array.from(compIdsToDelete);
+
+        // Delete all child registrations and relations in Supabase
+        if (compIdsArr.length > 0) {
+          try { await rawSupabase.from('external_registrations').delete().in('competition_id', compIdsArr); } catch (e) {}
+          try { await rawSupabase.from('competition_registrations').delete().in('competition_id', compIdsArr); } catch (e) {}
+          try { await rawSupabase.from('teams').delete().in('competition_id', compIdsArr); } catch (e) {}
+          try { await rawSupabase.from('match_fixtures').delete().in('competition_id', compIdsArr); } catch (e) {}
+          try { await rawSupabase.from('competitions').delete().in('id', compIdsArr); } catch (e) {}
+        }
+
+        if (tourIdsArr.length > 0) {
+          try { await rawSupabase.from('external_registrations').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await rawSupabase.from('competition_registrations').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await rawSupabase.from('teams').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await rawSupabase.from('match_fixtures').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await rawSupabase.from('competitions').delete().in('tournament_id', tourIdsArr); } catch (e) {}
+          try { await rawSupabase.from('tournaments').delete().in('id', tourIdsArr); } catch (e) {}
+        }
+
+        if (tName) {
+          try { await rawSupabase.from('competitions').delete().ilike('tournament_name', `%${tName}%`); } catch (e) {}
+          try { await rawSupabase.from('tournaments').delete().ilike('name', `%${tName}%`); } catch (e) {}
+          try { await rawSupabase.from('tournaments').delete().ilike('tournament_name', `%${tName}%`); } catch (e) {}
+        }
+      } catch (cloudErr) {
+        console.warn('[CompetitionController] Cloud delete notice:', cloudErr.message);
+      }
+    }
+
+    // 2. Delete from SQLite localDB
+    try {
+      const localDB = require('../database/localDB');
+      for (const cId of compIdsToDelete) {
+        localDB.run('DELETE FROM registrations WHERE competition_id = ?', [cId]);
+        localDB.run('DELETE FROM competitions WHERE id = ?', [cId]);
+      }
+      for (const tourId of tourIdsToDelete) {
+        localDB.run('DELETE FROM tournaments WHERE id = ?', [tourId]);
+        localDB.run('DELETE FROM competitions WHERE tournament_id = ?', [tourId]);
+      }
+      if (tName) {
+        localDB.run('DELETE FROM tournaments WHERE name LIKE ?', [`%${tName}%`]);
+        localDB.run('DELETE FROM competitions WHERE tournament_id LIKE ? OR name LIKE ?', [`%${tName}%`, `%${tName}%`]);
+      }
+      localDB.saveDB();
+    } catch (dbErr) {}
+
+    // 3. Delete from LocalStore
     const localStore = require('../data/localStore');
-    const table = localStore.storeInstance.getTable('competitions');
-    const deletedIds = [];
-    const remaining = table.filter(c => {
-      const tName = c.tournament_name || c.tournamentName || (c.name || '').split('-')[0].trim();
-      const match = tName.toLowerCase() === tournamentName.toLowerCase() ||
-                    tName.toLowerCase().includes(tournamentName.toLowerCase()) ||
-                    tournamentName.toLowerCase().includes(tName.toLowerCase());
-      if (match) {
-        deletedIds.push(c.id);
+    const compTable = localStore.storeInstance.getTable('competitions');
+    const remainingComps = compTable.filter(c => {
+      const cId = String(c.id || c._id);
+      if (compIdsToDelete.has(cId)) return false;
+      const cTourId = String(c.tournament_id || c.tournamentId || '');
+      if (tourIdsToDelete.has(cTourId)) return false;
+      const cTName = (c.tournament_name || c.tournamentName || (c.name || '').split('-')[0].trim()).toLowerCase();
+      if (tNameLower && (cTName === tNameLower || cTName.includes(tNameLower) || tNameLower.includes(cTName))) {
+        compIdsToDelete.add(cId);
         return false;
       }
       return true;
     });
 
-    localStore.storeInstance.db['competitions'] = remaining;
+    localStore.storeInstance.db['competitions'] = remainingComps;
+
+    // Also purge from tournaments table in LocalStore
+    const tourTable = localStore.storeInstance.getTable('tournaments');
+    const remainingTours = tourTable.filter(t => {
+      const tIdStr = String(t.id || t._id);
+      if (tourIdsToDelete.has(tIdStr)) return false;
+      const nameStr = (t.name || t.tournament_name || '').toLowerCase();
+      if (tNameLower && (nameStr === tNameLower || nameStr.includes(tNameLower) || tNameLower.includes(nameStr))) {
+        return false;
+      }
+      return true;
+    });
+    localStore.storeInstance.db['tournaments'] = remainingTours;
     localStore.storeInstance.save();
-    syncCompetitionsJsonFiles(remaining);
 
-    // Delete registrations and competitions in Supabase
-    for (const dId of deletedIds) {
-      await supabase.from('competition_registrations').delete().eq('competition_id', dId);
-    }
-    await supabase.from('competitions').delete().ilike('tournament_name', `%${tournamentName}%`);
-    await supabase.from('tournaments').delete().ilike('name', `%${tournamentName}%`);
+    // 4. Update all 4 competitions.json static files
+    syncCompetitionsJsonFiles(remainingComps);
 
-    // Invalidate cache immediately
+    // 5. Invalidate API cache
     try { invalidateCache('/api/competitions'); } catch (e) {}
 
     res.json({
       success: true,
-      message: `Tournament "${tournamentName}" and ${deletedIds.length} sports competitions deleted successfully!`,
-      deletedCount: deletedIds.length
+      message: `Tournament "${tName || tId}" and all related competitions deleted successfully across all systems!`,
+      deletedCount: compIdsToDelete.size
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
