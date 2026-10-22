@@ -10,6 +10,18 @@ function getSupabase() {
 }
 
 function computeRegistrationStatus(comp) {
+  if (!comp) return 'Registration Open';
+  const currentStatus = String(comp.status || '').trim();
+  if (/^cancelled$|^canceled$/i.test(currentStatus)) return 'Cancelled';
+  if (/^completed$/i.test(currentStatus)) return 'Completed';
+  if (/^closed$|^registration closed$/i.test(currentStatus)) return 'Registration Closed';
+  if (/^draft$/i.test(currentStatus)) return 'Draft';
+
+  // If Admin explicitly marked or kept as Registration Open, ALWAYS RESPECT IT
+  if (/^open$|^registration open$/i.test(currentStatus)) {
+    return 'Registration Open';
+  }
+
   const now = new Date();
   const start = comp.registration_start ? new Date(comp.registration_start) : null;
   const end = comp.registration_end || comp.registration_deadline || comp.date;
@@ -40,6 +52,39 @@ module.exports = async (req, res) => {
 
   const supabase = getSupabase();
 
+  const url = req.url || '';
+  const cleanPath = url.split('?')[0];
+  const parts = cleanPath.split('/').filter(Boolean);
+
+  // ── GET /api/competitions/my-applications ──
+  if (req.method === 'GET' && cleanPath.includes('/my-applications')) {
+    try {
+      const regNo = (req.headers && req.headers['x-register-number']) || req.query.registerNumber || '';
+      const studentId = (req.headers && req.headers['x-student-id']) || req.query.studentId || '';
+
+      let query = supabase.from('competition_registrations').select('*');
+      if (regNo && studentId) {
+        query = query.or(`student_id.eq.${studentId},register_number.ilike.%${regNo}%`);
+      } else if (studentId) {
+        query = query.eq('student_id', studentId);
+      } else if (regNo) {
+        query = query.ilike('register_number', `%${regNo}%`);
+      }
+
+      const { data: regsRaw, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+
+      return res.status(200).json({
+        success: true,
+        count: (regsRaw || []).length,
+        registrations: regsRaw || []
+      });
+    } catch (err) {
+      console.error('GET /api/competitions/my-applications error:', err);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
   // ── GET /api/competitions ──
   if (req.method === 'GET') {
     try {
@@ -54,13 +99,217 @@ module.exports = async (req, res) => {
       const { data, error } = await query;
       if (error) throw error;
 
+      res.setHeader('Cache-Control', 's-maxage=20, stale-while-revalidate=60');
+
+      const normalizedComps = (data || []).map(c => {
+        const regEnd = c.registration_end || c.registration_deadline || c.registrationEnd;
+        const regStart = c.registration_start || c.registrationStart;
+        const eventDate = c.date || c.start_date || c.startDate;
+        const endDate = c.end_date || c.endDate || regEnd || eventDate;
+
+        const tName = (c.tournament_name || c.tournamentName || (c.name ? c.name.split('—')[0].trim() : 'GASC Annual Sports Meet 2026')).trim();
+        const tId = c.tournament_id || c.tournamentId || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        const sName = (c.sport_name || c.sportName || c.name || 'Sports').trim();
+
+        return {
+          ...c,
+          id: c.id,
+          name: c.name,
+          sportName: sName,
+          sport_name: sName,
+          tournamentName: tName,
+          tournament_name: tName,
+          tournamentId: tId,
+          tournament_id: tId,
+          date: eventDate,
+          startDate: eventDate,
+          endDate: endDate,
+          registrationStart: regStart,
+          registration_start: regStart,
+          registrationEnd: regEnd,
+          registration_end: regEnd,
+          registrationDeadline: regEnd,
+          registration_deadline: regEnd,
+          bannerImage: c.banner_image || c.bannerImage || '/images/sports/tournament.png',
+          ourCollegeFee: c.our_college_fee !== undefined ? Number(c.our_college_fee) : Number(c.ourCollegeFee || 0),
+          ourCollegeFeeEnabled: c.our_college_fee_enabled !== undefined ? Boolean(c.our_college_fee_enabled) : Boolean(c.ourCollegeFeeEnabled),
+          otherCollegeFee: c.other_college_fee !== undefined ? Number(c.other_college_fee) : Number(c.otherCollegeFee || 0),
+          otherCollegeFeeEnabled: c.other_college_fee_enabled !== undefined ? Boolean(c.other_college_fee_enabled) : Boolean(c.otherCollegeFeeEnabled),
+          upiId: c.upi_id || c.upiId || '9443218765@sbi',
+          gpayNumber: c.gpay_number || c.gpayNumber || '+91 94432 18765',
+          receiverName: c.receiver_name || c.receiverName || 'Physical Education Dept, GASC Idappadi',
+          participationType: c.participation_type || c.participationType || 'BOTH',
+          competitionMode: c.competition_mode || c.competitionMode || 'TEAM',
+          requiredPlayers: c.required_players || c.requiredPlayers,
+          substitutes: c.substitutes,
+          maxParticipants: c.max_participants || c.maxParticipants || 50,
+          currentRegistrations: c.current_registrations || c.currentRegistrations || 0,
+          status: c.status || 'Registration Open'
+        };
+      });
+
       return res.status(200).json({
         success: true,
-        count: (data || []).length,
-        competitions: data || []
+        count: normalizedComps.length,
+        competitions: normalizedComps
       });
     } catch (err) {
       console.error('GET /api/competitions error:', err);
+      return res.status(500).json({ success: false, message: err.message });
+    }
+  }
+
+  // ── POST /api/competitions/:id/register (Student Registration) ──
+  if (req.method === 'POST' && (cleanPath.includes('/register') || parts.includes('register'))) {
+    try {
+      let body = req.body;
+      if (typeof body === 'string') {
+        try { body = JSON.parse(body); } catch (e) {}
+      }
+      body = body || {};
+
+      let targetCompId = req.query?.id || body.competitionId;
+      if (!targetCompId && parts.length > 0) {
+        const regIdx = parts.indexOf('register');
+        if (regIdx > 0) targetCompId = parts[regIdx - 1];
+      }
+
+      if (!targetCompId) {
+        return res.status(400).json({ success: false, message: 'Competition ID is required for registration.' });
+      }
+
+      // Fetch competition from Supabase
+      const { data: comp, error: compErr } = await supabase
+        .from('competitions')
+        .select('*')
+        .eq('id', targetCompId)
+        .maybeSingle();
+
+      if (compErr || !comp) {
+        return res.status(404).json({ success: false, message: 'Competition not found.' });
+      }
+
+      // Check registration dates
+      const now = new Date();
+      if (comp.registration_end) {
+        let dDate = new Date(comp.registration_end);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(String(comp.registration_end).trim())) {
+          dDate = new Date(`${String(comp.registration_end).trim()}T23:59:59.999Z`);
+        }
+        if (!isNaN(dDate.getTime()) && now > dDate) {
+          return res.status(400).json({ success: false, message: `Registration closed on ${dDate.toLocaleDateString('en-IN')}.` });
+        }
+      }
+
+      // Gender & Category Check
+      const compCat = (comp.category || comp.gender || 'Mixed').trim().toLowerCase();
+      const studentGender = (body.gender || 'Male').trim().toLowerCase();
+      const isMale = /^male|^boy|^men/.test(studentGender);
+      const isFemale = /^female|^girl|^women/.test(studentGender);
+
+      if (compCat === 'men' && isFemale) {
+        return res.status(400).json({ success: false, message: "Female athletes cannot register for Men's category." });
+      }
+      if (compCat === 'women' && isMale) {
+        return res.status(400).json({ success: false, message: "Male athletes cannot register for Women's category." });
+      }
+
+      // Fee validation
+      const ourFeeEnabled = Boolean(comp.our_college_fee_enabled);
+      const ourFee = ourFeeEnabled ? Math.max(0, Number(comp.our_college_fee || 0)) : 0;
+      const cleanUtr = String(body.transactionRef || body.transaction_ref || body.utrNumber || body.paymentId || '').trim();
+
+      if (ourFee > 0) {
+        // MUST have valid transaction reference
+        if (!cleanUtr || cleanUtr.length < 6 || cleanUtr.toLowerCase().startsWith('pay_sim')) {
+          return res.status(400).json({
+            success: false,
+            requiresPayment: true,
+            feeAmount: ourFee,
+            message: `Mandatory Registration Fee of ₹${ourFee} INR must be paid via GPay / UPI. Please complete payment and provide your Transaction Reference (UTR) number.`
+          });
+        }
+      }
+
+      const regNo = (body.registerNumber || (req.headers && req.headers['x-register-number']) || 'C24UG183CSC013').trim().toUpperCase();
+      const studentId = body.studentId || (req.headers && req.headers['x-student-id']) || `usr_${Date.now()}`;
+
+      // Duplicate check
+      const { data: existing } = await supabase
+        .from('competition_registrations')
+        .select('id, registration_code')
+        .eq('competition_id', comp.id)
+        .or(`student_id.eq.${studentId},register_number.ilike.%${regNo}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: `Already registered for ${comp.name || comp.sport_name}.`,
+          registrationCode: existing.registration_code
+        });
+      }
+
+      const tName = comp.tournament_name || (comp.name || '').split('-')[0].trim() || 'Tournament';
+      const sName = comp.sport_name || comp.name || 'Sports';
+      const cleanT = tName.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const tCode = cleanT.substring(0, 5) + '26';
+      const sCode = sName.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 3);
+      const hex = crypto.randomBytes(3).toString('hex').toUpperCase();
+      const regCode = `${tCode}-${sCode}-${hex}`;
+
+      const newReg = {
+        id: `reg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        competition_id: comp.id,
+        tournament_id: comp.tournament_id || comp.id,
+        sport_id: comp.sport_id || 'sp_general',
+        sport_name: sName,
+        student_id: studentId,
+        register_number: regNo,
+        student_name: body.studentName || 'Student',
+        department: body.department || 'Computer Science',
+        gender: body.gender || 'Male',
+        preferred_position: body.preferredPosition || 'Player',
+        status: 'Registered',
+        student_category: 'OUR_COLLEGE',
+        fee_amount: ourFee,
+        payment_status: ourFee > 0 ? 'Paid' : 'Free',
+        payment_id: cleanUtr || null,
+        order_id: body.orderId || null,
+        transaction_ref: cleanUtr || null,
+        remarks: ourFee > 0
+          ? `Paid ₹${ourFee} via GPay/UPI (UTR: ${cleanUtr}) | Code: ${regCode} | Contact: ${body.mobile || ''} ${body.email || ''}`
+          : `Free entry - Confirmed via Student Portal | Code: ${regCode}`,
+        registration_date: new Date().toISOString()
+      };
+
+      const { data: inserted, error: insertErr } = await supabase
+        .from('competition_registrations')
+        .insert(newReg)
+        .select()
+        .single();
+
+      if (insertErr) {
+        console.error('Supabase registration insert error:', insertErr);
+        throw insertErr;
+      }
+
+      // Increment count
+      try {
+        await supabase
+          .from('competitions')
+          .update({ current_registrations: (comp.current_registrations || 0) + 1 })
+          .eq('id', comp.id);
+      } catch (e) {}
+
+      return res.status(200).json({
+        success: true,
+        message: 'Registration confirmed successfully!',
+        registration: inserted || newReg
+      });
+    } catch (err) {
+      console.error('POST /api/competitions registration error:', err);
       return res.status(500).json({ success: false, message: err.message });
     }
   }

@@ -72,7 +72,7 @@ const HomePage = () => {
             </div>
             <div>
               <span className="block text-4xl lg:text-5xl font-outfit font-black text-[#FF6B2C]">500+</span>
-              <span className="text-xs font-space font-bold text-[#171717]/70 uppercase tracking-wider">ATHLETES</span>
+              <span className="text-xs font-space font-bold text-[#171717]/70 uppercase tracking-wider">PLAYERS</span>
             </div>
             <div>
               <span className="block text-4xl lg:text-5xl font-outfit font-black text-[#6D3FE8]">100%</span>
@@ -200,7 +200,7 @@ const HomePage = () => {
             </h2>
 
             <p className="text-sm text-[#171717]/80 font-inter leading-relaxed">
-              Step up and represent your department in SPARK 2026. Over 10 sports disciplines, 500+ student athletes, and official college certificates await.
+              Step up and represent your department in SPARK 2026. Over 10 sports disciplines, 500+ student players, and official college certificates await.
             </p>
 
             <div className="grid grid-cols-2 gap-4 py-2 font-space text-xs text-[#32145F]">

@@ -8,6 +8,8 @@ dist/admin-portable
 dist/admin-installer
 dist/admin-*
 *.exe
+*.zip
+dist/*.zip
 electron
 android-student-app
 *.log

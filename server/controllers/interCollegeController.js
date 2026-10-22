@@ -302,7 +302,7 @@ exports.sendOtp = async (req, res) => {
         html,
         headers: { 'X-Priority': '1', 'Importance': 'high' }
       });
-      console.log(`[EXTERNAL OTP] Dispatched code to ${cleanEmail}`);
+      console.log(`[EXTERNAL OTP] Dispatched code to ${cleanEmail} | Code: ${otp}`);
     } catch (mailErr) {
       console.warn('Mail send error (logging fallback):', mailErr.message);
     }
@@ -676,17 +676,32 @@ exports.submitRegistration = async (req, res) => {
     }
 
     // ── Payment Details & Validation ──
-    const reqFee = Number(req.body.feeAmount || comp.entry_fee || comp.entryFee || 0);
-    const submittedUtr = (req.body.transactionRef || req.body.utrNumber || '').trim().toUpperCase();
+    const isOurCollege = isOurCollegeStudent(cleanCollege);
+    let calculatedFee = req.body.feeAmount != null ? Number(req.body.feeAmount) : NaN;
+    if (isNaN(calculatedFee)) {
+      if (isOurCollege) {
+        calculatedFee = comp.our_college_fee_enabled ? Number(comp.our_college_fee || 0) : 0;
+      } else {
+        calculatedFee = mode === 'TEAM' 
+          ? Number(comp.other_college_team_fee || comp.other_college_fee || comp.team_fee || comp.entry_fee || 500)
+          : Number(comp.other_college_individual_fee || comp.other_college_fee || comp.individual_fee || comp.entry_fee || 100);
+      }
+    }
+    const reqFee = calculatedFee;
+    let submittedUtr = (req.body.transactionRef || req.body.utrNumber || '').trim().toUpperCase();
+    const isDirectGpay = req.body.paymentMethod === 'GOOGLE_PAY_DIRECT' || req.body.isDirectGpay === true;
+    if (!submittedUtr && isDirectGpay) {
+      submittedUtr = `GPAY-${Date.now().toString().slice(-8)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
     const submittedScreenshot = req.body.paymentScreenshot || null;
     const submittedConfigVersion = Number(req.body.paymentConfigVersion || 1);
-    const submittedMethod = req.body.paymentMethod || (reqFee > 0 ? 'MANUAL_UPI' : 'FREE');
+    const submittedMethod = req.body.paymentMethod || (isDirectGpay ? 'GOOGLE_PAY_DIRECT' : (reqFee > 0 ? 'MANUAL_UPI' : 'FREE'));
 
     if (reqFee > 0) {
       if (!submittedUtr) {
         return res.status(400).json({
           success: false,
-          message: `Registration fee of ₹${reqFee} is required. Please transfer the amount via GPay / UPI and enter the 12-digit UTR reference number.`
+          message: `Registration fee of ₹${reqFee} is required. Please transfer the amount via GPay / UPI and tap Complete Registration.`
         });
       }
 
@@ -793,15 +808,27 @@ exports.submitRegistration = async (req, res) => {
     // Save Registration to Supabase
     let savedInSupa = false;
     try {
+      const cloudPayload = { ...registrationRecord };
+      if (submittedScreenshot && !cloudPayload.supporting_document) {
+        cloudPayload.supporting_document = submittedScreenshot;
+      }
+      if (submittedUtr && !cloudPayload.payment_id) {
+        cloudPayload.payment_id = submittedUtr;
+      }
+      delete cloudPayload.payment_screenshot;
+      delete cloudPayload.transaction_ref;
+      delete cloudPayload.payment_config_version;
+
       const { data, error } = await supabase
         .from('external_registrations')
-        .insert(registrationRecord)
+        .insert(cloudPayload)
         .select()
-        .single();
-      if (!error && data) savedInSupa = true;
-    } catch (e) {
-      // Fallback: insert with legacy columns if payment columns not yet in DB schema
-      try {
+        .maybeSingle();
+
+      if (!error && data) {
+        savedInSupa = true;
+      } else if (error) {
+        console.warn('Initial Supabase insert error, trying minimal payload:', error.message);
         const legacyRecord = { ...registrationRecord };
         delete legacyRecord.fee_amount;
         delete legacyRecord.payment_method;
@@ -809,11 +836,13 @@ exports.submitRegistration = async (req, res) => {
         delete legacyRecord.transaction_ref;
         delete legacyRecord.payment_screenshot;
         delete legacyRecord.payment_config_version;
-        await supabase.from('external_registrations').insert(legacyRecord);
-        savedInSupa = true;
-      } catch (legacyErr) {
-        console.warn('Supabase external_registrations fallback insert notice:', legacyErr.message);
+        if (submittedScreenshot) legacyRecord.supporting_document = submittedScreenshot;
+        if (submittedUtr) legacyRecord.payment_id = submittedUtr;
+        const { error: fErr } = await supabase.from('external_registrations').insert(legacyRecord);
+        if (!fErr) savedInSupa = true;
       }
+    } catch (e) {
+      console.warn('Supabase insert exception notice:', e.message);
     }
 
     // Always mirror to localStore & SQLite for offline resilience
@@ -975,14 +1004,25 @@ exports.submitRegistration = async (req, res) => {
   }
 };
 
+// Helper: Distinguish GASC Idappadi (Our College) from external colleges
+function isOurCollegeStudent(collegeName) {
+  if (!collegeName) return false;
+  const c = String(collegeName).toLowerCase().trim();
+  return c.includes('idappadi') || 
+         c.includes('idapadi') || 
+         c === 'gasc' || 
+         c === 'gasc idappadi' ||
+         (c.includes('government arts') && (c.includes('idappadi') || c.includes('idapadi')));
+}
+
 // Helper: Enrich raw registration record with standardized payment properties
-function enrichRegistrationWithPayment(r) {
+function enrichRegistrationWithPayment(r, allComps = []) {
   if (!r) return r;
   let paymentStatus = r.payment_status;
   let feeAmount = r.fee_amount;
-  let transactionRef = r.transaction_ref;
+  let transactionRef = r.transaction_ref || r.payment_id || null;
   let paymentMethod = r.payment_method;
-  let paymentScreenshot = r.payment_screenshot;
+  let paymentScreenshot = r.payment_screenshot || r.supporting_document || null;
   let paymentConfigVersion = r.payment_config_version;
   let paymentVerifiedBy = r.payment_verified_by;
   let paymentVerifiedAt = r.payment_verified_at;
@@ -994,9 +1034,9 @@ function enrichRegistrationWithPayment(r) {
       if (parsed && typeof parsed === 'object') {
         if (!paymentStatus && parsed.payment_status) paymentStatus = parsed.payment_status;
         if (feeAmount == null && parsed.fee_amount != null) feeAmount = parsed.fee_amount;
-        if (!transactionRef && parsed.transaction_ref) transactionRef = parsed.transaction_ref;
+        if (!transactionRef && (parsed.transaction_ref || parsed.utr)) transactionRef = parsed.transaction_ref || parsed.utr;
         if (!paymentMethod && parsed.payment_method) paymentMethod = parsed.payment_method;
-        if (!paymentScreenshot && parsed.payment_screenshot) paymentScreenshot = parsed.payment_screenshot;
+        if (!paymentScreenshot && (parsed.payment_screenshot || parsed.screenshot)) paymentScreenshot = parsed.payment_screenshot || parsed.screenshot;
         if (!paymentConfigVersion && parsed.payment_config_version) paymentConfigVersion = parsed.payment_config_version;
         if (!paymentVerifiedBy && parsed.payment_verified_by) paymentVerifiedBy = parsed.payment_verified_by;
         if (!paymentVerifiedAt && parsed.payment_verified_at) paymentVerifiedAt = parsed.payment_verified_at;
@@ -1005,12 +1045,48 @@ function enrichRegistrationWithPayment(r) {
     } catch (e) {}
   }
 
+  const isOurCollege = isOurCollegeStudent(r.college_name);
+  const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
+
+  // If external college and feeAmount is missing or 0, calculate from matching competition or standard default
+  if (!isOurCollege) {
+    if (feeAmount == null || Number(feeAmount) === 0) {
+      let comp = null;
+      if (Array.isArray(allComps) && allComps.length > 0) {
+        comp = allComps.find(c => 
+          String(c.id) === String(r.competition_id || r.competitionId) ||
+          (c.name && r.competition_name && String(c.name).toLowerCase() === String(r.competition_name).toLowerCase()) ||
+          (c.sport_name && r.sport_name && String(c.sport_name).toLowerCase() === String(r.sport_name).toLowerCase())
+        );
+      }
+      if (comp) {
+        const rawFee = isTeam 
+          ? (comp.other_college_team_fee || comp.other_college_fee || comp.team_fee || comp.entry_fee)
+          : (comp.other_college_individual_fee || comp.other_college_fee || comp.individual_fee || comp.entry_fee);
+        feeAmount = Number(rawFee) || (isTeam ? 500 : 100);
+      } else {
+        feeAmount = isTeam ? 500 : 100;
+      }
+    }
+
+    if (!paymentStatus || paymentStatus === 'FREE') {
+      paymentStatus = (r.status === 'CONFIRMED' || r.status === 'APPROVED') ? 'VERIFIED' : 'PENDING_VERIFICATION';
+    }
+  } else {
+    // Our college students: Free entry by default
+    if (!paymentStatus) {
+      paymentStatus = (feeAmount != null && Number(feeAmount) > 0) ? ((r.status === 'CONFIRMED' || r.status === 'APPROVED') ? 'VERIFIED' : 'PENDING_VERIFICATION') : 'FREE';
+    }
+    if (feeAmount == null) feeAmount = 0;
+  }
+
   return {
     ...r,
-    payment_status: paymentStatus || (r.status === 'CONFIRMED' || r.status === 'APPROVED' ? 'VERIFIED' : 'PENDING_VERIFICATION'),
-    fee_amount: feeAmount != null ? Number(feeAmount) : 0,
+    payment_status: paymentStatus || (isOurCollege ? 'FREE' : 'PENDING_VERIFICATION'),
+    fee_amount: Number(feeAmount || 0),
+    is_our_college: isOurCollege,
     transaction_ref: transactionRef || null,
-    payment_method: paymentMethod || 'MANUAL_UPI',
+    payment_method: paymentMethod || (isOurCollege && Number(feeAmount || 0) === 0 ? 'FREE' : 'MANUAL_UPI'),
     payment_screenshot: paymentScreenshot || null,
     payment_config_version: Number(paymentConfigVersion || 1),
     payment_verified_by: paymentVerifiedBy || null,
@@ -1056,7 +1132,7 @@ exports.getAllRegistrations = async (req, res) => {
     return res.json({
       success: true,
       count: registrations.length,
-      registrations: registrations.map(enrichRegistrationWithPayment).map(toCamelCase)
+      registrations: registrations.map(r => enrichRegistrationWithPayment(r, localStore.storeInstance.getTable('competitions') || [])).map(toCamelCase)
     });
   } catch (err) {
     console.error('getAllRegistrations error:', err);
@@ -1161,6 +1237,14 @@ exports.updateRegistrationStatus = async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
+    if (status === 'APPROVED') {
+      updates.payment_status = 'VERIFIED';
+      updates.payment_verified_at = new Date().toISOString();
+      updates.payment_verified_by = (req.user && (req.user.name || req.user.username)) || 'Sports Incharge';
+    } else if (status === 'REJECTED') {
+      updates.payment_status = 'REJECTED';
+    }
+
     let updated = null;
     try {
       const { data } = await supabase
@@ -1180,6 +1264,15 @@ exports.updateRegistrationStatus = async (req, res) => {
       localStore.storeInstance.save();
       if (!updated) updated = all[idx];
     }
+
+    // Update local SQLite DB
+    try {
+      localDB.run(
+        `UPDATE external_registrations SET status = ?, payment_status = ?, payment_verified_by = ?, payment_verified_at = ?, rejection_reason = ?, correction_message = ?, updated_at = strftime('%s','now') WHERE id = ? OR registration_id = ?`,
+        [status, updates.payment_status || 'PENDING', updates.payment_verified_by || null, updates.payment_verified_at || null, updates.rejection_reason || null, updates.correction_message || null, id, id]
+      );
+      localDB.saveDB();
+    } catch (e) {}
 
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Registration record not found.' });
@@ -1270,7 +1363,8 @@ exports.updateRegistrationStatus = async (req, res) => {
     let emailSent = false;
     let emailError = null;
 
-    if (updated.participant_email) {
+    const targetEmail = updated.participant_email || updated.college_email;
+    if (targetEmail && targetEmail.includes('@')) {
       let subject = '';
       let emailHtml = '';
 
@@ -1283,13 +1377,14 @@ exports.updateRegistrationStatus = async (req, res) => {
         <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:580px;margin:auto;padding:28px;border:1px solid #e2e8f0;border-radius:12px;background:#ffffff;color:#0f172a;">
           <h2 style="color:#0f172a;margin-top:0;font-size:20px;border-bottom:2px solid #16a34a;padding-bottom:10px;">${COLLEGE_NAME}</h2>
           <p style="font-size:15px;color:#334155;">Dear Participant,</p>
-          <p style="font-size:15px;color:#16a34a;font-weight:700;">Your registration has been approved.</p>
+          <p style="font-size:15px;color:#16a34a;font-weight:700;">Your registration and fee payment have been verified and approved.</p>
           <div style="background:#f8fafc;border-left:4px solid #16a34a;padding:14px 18px;margin:18px 0;line-height:1.7;">
             <div><strong>Tournament:</strong> ${tName}</div>
             <div><strong>Competition:</strong> ${cSport}</div>
             <div><strong>College:</strong> ${updated.college_name}</div>
             <div><strong>Registration ID:</strong> <span style="font-family:monospace;font-weight:700;color:#0f172a;">${updated.registration_id}</span></div>
-            <div><strong>Status:</strong> <span style="background:#dcfce7;color:#166534;font-weight:700;padding:2px 8px;border-radius:4px;">APPROVED</span></div>
+            <div><strong>Registration Status:</strong> <span style="background:#dcfce7;color:#166534;font-weight:700;padding:2px 8px;border-radius:4px;">APPROVED</span></div>
+            <div><strong>Payment Status:</strong> <span style="background:#dcfce7;color:#166534;font-weight:700;padding:2px 8px;border-radius:4px;">VERIFIED / PAID</span></div>
           </div>
           <p style="font-size:14px;color:#334155;line-height:1.6;">
             Please attend the competition on the scheduled date and venue. Ensure all athletes carry valid collegiate identity cards and bonafide letters.
@@ -1353,7 +1448,7 @@ exports.updateRegistrationStatus = async (req, res) => {
         try {
           await transporter.sendMail({
             from: `"${COLLEGE_NAME} Sports" <${process.env.EMAIL_USER || 'sportsgascidappadi@gmail.com'}>`,
-            to: updated.participant_email,
+            to: targetEmail,
             subject,
             html: emailHtml
           });
@@ -1363,7 +1458,7 @@ exports.updateRegistrationStatus = async (req, res) => {
           try {
             await supabase.from('notification_logs').insert({
               registration_id: updated.registration_id,
-              email: updated.participant_email,
+              email: targetEmail,
               notification_type: status,
               status: 'SENT',
               sent_at: new Date().toISOString()
@@ -1375,7 +1470,7 @@ exports.updateRegistrationStatus = async (req, res) => {
           try {
             await supabase.from('notification_logs').insert({
               registration_id: updated.registration_id,
-              email: updated.participant_email,
+              email: targetEmail,
               notification_type: status,
               status: 'FAILED',
               error_message: mailErr.message,
@@ -1863,12 +1958,39 @@ exports.getAdminAllData = async (req, res) => {
       if (data && Array.isArray(data)) regs = [...data];
     } catch (e) {}
 
+    // 1. Merge SQLite database records
+    try {
+      const sqliteRegs = localDB.query('SELECT * FROM external_registrations ORDER BY created_at DESC');
+      if (sqliteRegs && Array.isArray(sqliteRegs)) {
+        sqliteRegs.forEach(sr => {
+          if (!regs.some(r => String(r.id) === String(sr.id) || String(r.registration_id) === String(sr.registration_id))) {
+            regs.push(sr);
+          }
+        });
+      }
+    } catch (e) {}
+
+    // 2. Merge localStore records
     const localRegs = localStore.storeInstance.getTable('external_registrations') || [];
     localRegs.forEach(lr => {
       if (!regs.some(r => String(r.id) === String(lr.id) || String(r.registration_id) === String(lr.registration_id))) {
         regs.push(lr);
       }
     });
+
+    // 3. Auto-sync down cloud registrations into localStore & SQLite for instant offline availability
+    try {
+      if (Array.isArray(regs) && regs.length > 0) {
+        let modifiedStore = false;
+        regs.forEach(cr => {
+          if (!localRegs.some(lr => String(lr.id) === String(cr.id) || String(lr.registration_id) === String(cr.registration_id))) {
+            localRegs.unshift(cr);
+            modifiedStore = true;
+          }
+        });
+        if (modifiedStore) localStore.storeInstance.save();
+      }
+    } catch (e) {}
 
     let allPlayers = [];
     try {
@@ -1886,7 +2008,7 @@ exports.getAdminAllData = async (req, res) => {
     regs = regs.map(r => enrichRegistrationWithPayment({
       ...r,
       players: allPlayers.filter(p => String(p.external_registration_id) === String(r.id))
-    }));
+    }, allComps));
 
     return res.json({
       success: true,
@@ -2750,6 +2872,33 @@ exports.verifyRegistrationPayment = async (req, res) => {
       );
       localDB.saveDB();
     } catch (e) {}
+
+    // If APPROVED, sync team/participant into teams table for Fixtures!
+    if (newRegStatus === 'APPROVED') {
+      try {
+        const teamId = `team_ext_${reg.id}`;
+        const teamName = reg.team_name || `${reg.college_name} - ${reg.player_name || reg.sport_name}`;
+        const newTeamObj = {
+          id: teamId,
+          name: teamName,
+          sport_name: reg.sport_name || 'Championship',
+          department: reg.college_name || 'External College',
+          gender: reg.gender || 'Boys',
+          year: reg.year || 'I Year',
+          status: 'Active',
+          created_at: nowIso,
+          updated_at: nowIso
+        };
+        try { await supabase.from('teams').upsert([newTeamObj]); } catch(e) {}
+        try {
+          const localTeams = localStore.storeInstance.getTable('teams') || [];
+          if (!localTeams.some(t => t.id === teamId)) {
+            localTeams.push(newTeamObj);
+            localStore.storeInstance.save();
+          }
+        } catch(e) {}
+      } catch (stErr) {}
+    }
 
     // Send confirmation email to student
     try {

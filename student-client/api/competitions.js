@@ -92,12 +92,13 @@ module.exports = async (req, res) => {
 
       const tId = parentTour ? parentTour.id : (targetTourId || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`);
       const uniqueCompId = body.id || `id_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      const pType = parentTour?.participation_type || body.participationType || body.participation_type || (body.type === 'Inter-College' ? 'INTER_COLLEGE' : 'INTRA_COLLEGE');
+      const pType = parentTour?.participation_type || body.participationType || body.participation_type || (body.type === 'Inter-College' ? 'INTER_COLLEGE' : 'BOTH');
       const cMode = (body.competitionMode || body.competition_mode || (body.type === 'Team Event' || body.type === 'Team' ? 'TEAM' : 'INDIVIDUAL')).toUpperCase();
       const token = body.registrationToken || body.registration_token || crypto.randomBytes(16).toString('hex');
       const bannerImage = body.coverImageUrl || body.bannerImage || parentTour?.banner_image || '/images/sports/tournament.png';
       const dateVal = body.date || new Date().toISOString();
       const regEnd = body.registrationEnd || body.date || new Date().toISOString();
+      const isExternal = (pType === 'BOTH' || pType === 'INTER_COLLEGE');
 
       // Ensure parent tournament exists in database
       if (!parentTour) {
@@ -115,7 +116,7 @@ module.exports = async (req, res) => {
             status: 'Registration Open',
             banner_image: bannerImage,
             participation_type: pType,
-            external_registration_enabled: true,
+            external_registration_enabled: isExternal,
             registration_token: tourToken,
             contact_person: body.contactPerson || 'Dr. R. ANITHA (Physical Director)',
             contact_phone: body.contactPhone || '+91 94432 18765',
@@ -165,7 +166,7 @@ module.exports = async (req, res) => {
         participation_type: pType,
         competition_mode: cMode,
         registration_token: token,
-        external_registration_enabled: pType === 'INTER_COLLEGE',
+        external_registration_enabled: isExternal,
         required_players: body.requiredPlayers ? Number(body.requiredPlayers) : null,
         substitutes: body.substitutes ? Number(body.substitutes) : null,
         max_colleges: body.maxColleges ? Number(body.maxColleges) : null,

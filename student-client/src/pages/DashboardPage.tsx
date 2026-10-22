@@ -122,11 +122,11 @@ const DEPARTMENT_LEADERBOARD = [
 const DashboardPage = () => {
   const { currentPreset, darkMode } = useTheme();
   const [student, setStudent] = useState<StudentData>({
-    name: 'Student Athlete',
+    name: 'Student Player',
     regNo: 'C24UG183CSC014',
     department: 'Computer Science',
     year: 'III Year',
-    gender: 'Athlete'
+    gender: 'Player'
   });
 
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -156,11 +156,11 @@ const DashboardPage = () => {
       if (stored) {
         const u = JSON.parse(stored);
         setStudent({
-          name: u.name || 'Student Athlete',
+          name: u.name || 'Student Player',
           regNo: u.registerNumber || u.regNo || u.register_number || 'C24UG183CSC014',
           department: u.department || u.dept || 'Computer Science',
           year: u.year || 'III Year',
-          gender: u.gender || 'Athlete'
+          gender: u.gender || 'Player'
         });
       }
     } catch {
@@ -377,7 +377,7 @@ const DashboardPage = () => {
               </div>
               <div className="hud-pill" style={{ background: 'rgba(16, 185, 129, 0.15)', borderColor: 'rgba(16, 185, 129, 0.4)', color: '#34D399' }}>
                 <CheckCircle2 style={{ width: 12, height: 12 }} />
-                <span>Verified Athlete</span>
+                <span>Verified Player</span>
               </div>
             </div>
 
@@ -1280,7 +1280,7 @@ const DashboardPage = () => {
           </div>
           <div>
             <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', margin: 0, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
-              Student Athlete Portal • GASC Idappadi
+              Student Player Portal • GASC Idappadi
             </h4>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
               Physical Education Department • Season 2026-2027

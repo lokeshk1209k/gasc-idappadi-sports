@@ -183,7 +183,24 @@ const OpenRegistrationPage: React.FC = () => {
   const [screenshotUploading, setScreenshotUploading] = useState(false);
   const [paymentAgreed, setPaymentAgreed] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [hasLaunchedGpay, setHasLaunchedGpay] = useState(false);
   const [paymentConfigMismatch, setPaymentConfigMismatch] = useState<string | null>(null);
+
+  // Auto-detect when student switches back from Google Pay to browser
+  useEffect(() => {
+    const handleReturnToBrowser = () => {
+      if (document.visibilityState === 'visible' && hasLaunchedGpay) {
+        setPaymentAgreed(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleReturnToBrowser);
+    window.addEventListener('focus', handleReturnToBrowser);
+    return () => {
+      document.removeEventListener('visibilitychange', handleReturnToBrowser);
+      window.removeEventListener('focus', handleReturnToBrowser);
+    };
+  }, [hasLaunchedGpay]);
+
   const [submittedPaymentData, setSubmittedPaymentData] = useState<{
     utr: string;
     amount: number;
@@ -395,6 +412,11 @@ const OpenRegistrationPage: React.FC = () => {
             data = await res.json().catch(() => null);
           }
           if (data && data.success && data.tournament) {
+            if (data.tournament.participation_type === 'INTERNAL' || data.tournament.external_registration_enabled === false) {
+              setLoadError('This tournament is exclusively an Intra-College championship for GASC Idappadi students. Please log in through your Student Portal account to register.');
+              setCompLoading(false);
+              return;
+            }
             setCurrentTournament(data.tournament);
             const compsList: CompetitionItem[] = data.competitions || [];
             setCompetitions(compsList);
@@ -500,15 +522,102 @@ const OpenRegistrationPage: React.FC = () => {
     ]);
   };
 
-  // Helper: Remove extra substitute player
-  const removeSubstitutePlayer = (index: number) => {
-    if (!selectedComp) return;
-    const required = selectedComp.requiredPlayers || 1;
-    if (index < required) {
-      alert('Cannot remove required starting players.');
-      return;
+  // =========================================================================
+  // COMPREHENSIVE VALIDATION & SANITIZATION HELPERS
+  // =========================================================================
+  const isValidEmail = (email: string): boolean => {
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+  };
+
+  const isValidIndianMobile = (phone: string): boolean => {
+    const clean = phone.trim().replace(/\D/g, '');
+    return clean.length === 10 && /^[6-9]\d{9}$/.test(clean);
+  };
+
+  const validateStep2 = (): boolean => {
+    if (!collegeName.trim() || collegeName.trim().length < 3) {
+      setFormError('கல்லூரியின் முழு பெயரை உள்ளிடவும் (குறைந்தது 3 எழுத்துக்கள்).');
+      return false;
     }
-    setPlayers(prev => prev.filter((_, idx) => idx !== index));
+    if (!collegeAddress.trim() || collegeAddress.trim().length < 4) {
+      setFormError('கல்லூரி அமைவிடம் / நகர முகவரியை உள்ளிடவும்.');
+      return false;
+    }
+    if (!district.trim() || district.trim().length < 2) {
+      setFormError('மாவட்டம் (District) பெயரை உள்ளிடவும் அல்லது தேர்ந்தெடுக்கவும்.');
+      return false;
+    }
+    if (collegePhone.trim() && collegePhone.trim().replace(/\D/g, '').length < 8) {
+      setFormError('கல்லூரி தொலைபேசி எண் குறைந்தபட்சம் 8-10 இலக்கங்களாக இருக்க வேண்டும்.');
+      return false;
+    }
+    if (collegeEmail.trim() && !isValidEmail(collegeEmail)) {
+      setFormError('சரியான கல்லூரி அதிகாரப்பூர்வ இமெயிலை உள்ளிடவும் (e.g. principal@college.edu.in).');
+      return false;
+    }
+    setFormError(null);
+    return true;
+  };
+
+  const validateStep3 = (): boolean => {
+    if (selectedComp?.competitionMode === 'INDIVIDUAL') {
+      if (!playerName.trim() || playerName.trim().length < 3) {
+        setFormError('விளையாட்டு வீரரின் முழு பெயரை உள்ளிடவும் (குறைந்தது 3 எழுத்துக்கள்).');
+        return false;
+      }
+      if (!playerRollNumber.trim() || playerRollNumber.trim().length < 3) {
+        setFormError('மாணவரின் கல்லூரி பதிவு எண் / Roll Number-ஐ உள்ளிடவும்.');
+        return false;
+      }
+      if (!department.trim() || department.trim().length < 2) {
+        setFormError('படிக்கும் துறை (Department) பெயரை உள்ளிடவும் (e.g. B.Sc Computer Science).');
+        return false;
+      }
+    } else {
+      if (!teamName.trim() || teamName.trim().length < 3) {
+        setFormError('அணியின் பெயரை (Team Name) உள்ளிடவும் (குறைந்தது 3 எழுத்துக்கள்).');
+        return false;
+      }
+      if (coachPhone.trim() && !isValidIndianMobile(coachPhone)) {
+        setFormError('பயிற்சியாளர் மொபைல் எண் சரியாக 10 இலக்கங்களாக இருக்க வேண்டும்.');
+        return false;
+      }
+      const required = selectedComp?.requiredPlayers || 1;
+      const seenRegs = new Set<string>();
+
+      for (let i = 0; i < required; i++) {
+        const p = players[i];
+        if (!p || !p.playerName.trim() || p.playerName.trim().length < 2) {
+          setFormError(`வீரர் #${i + 1} (Starting Player) பெயரை உள்ளிடவும்.`);
+          return false;
+        }
+        if (!p.registerNumber.trim() || p.registerNumber.trim().length < 2) {
+          setFormError(`வீரர் #${i + 1} (${p.playerName}) கல்லூரி பதிவு எண் (Reg No) உள்ளிடவும்.`);
+          return false;
+        }
+        const normReg = p.registerNumber.trim().toUpperCase();
+        if (seenRegs.has(normReg)) {
+          setFormError(`ஒரே பதிவு எண் (${normReg}) ஒன்றுக்கும் மேற்பட்ட வீரர்களுக்கு கொடுக்கப்பட்டுள்ளது. ஒவ்வொரு வீரருக்கும் தனித்துவமான Reg Number இருக்க வேண்டும்.`);
+          return false;
+        }
+        seenRegs.add(normReg);
+      }
+    }
+    setFormError(null);
+    return true;
+  };
+
+  const validateStep4 = (): boolean => {
+    if (!participantEmail.trim() || !isValidEmail(participantEmail)) {
+      setFormError('சரியான தொடர்பு இமெயில் முகவரியை உள்ளிடவும் (OTP இந்த இமெயிலுக்கு மட்டுமே அனுப்பப்படும்).');
+      return false;
+    }
+    if (!participantPhone.trim() || !isValidIndianMobile(participantPhone)) {
+      setFormError('தொடர்பு மொபைல் எண் சரியாக 10 இலக்கங்களாக (6, 7, 8, அல்லது 9-ல் தொடங்கி) இருக்க வேண்டும்.');
+      return false;
+    }
+    setFormError(null);
+    return true;
   };
 
   // Send Email OTP
@@ -589,17 +698,22 @@ const OpenRegistrationPage: React.FC = () => {
     const fee = getPayableFee();
     const cleanUtr = transactionRef.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-    // Validate payment credentials if fee is applicable
-    if (fee > 0 && paymentSettings && paymentSettings.isEnabled) {
-      if (!cleanUtr || cleanUtr.length < 10) {
-        setFormError('Please enter a valid 12-digit UPI / GPay Transaction Reference (UTR) number from your transfer receipt.');
+    if (fee > 0) {
+      if (!cleanUtr || cleanUtr.length < 6) {
+        setFormError('Google Pay / PhonePe Transaction Reference (UTR) எண்ணை உள்ளிடவும் (குறைந்தது 6 இலக்கங்கள்).');
+        return;
+      }
+      if (!paymentScreenshot) {
+        setFormError('பணம் செலுத்தியதற்கான Google Pay / PhonePe Screenshot-ஐ பதிவேற்றவும்.');
         return;
       }
       if (!paymentAgreed) {
-        setFormError('Please tick the confirmation checkbox to declare that you have transferred the entry fee and provided a genuine 12-digit UTR.');
+        setFormError('பணம் செலுத்தியதை உறுதிசெய்யும் Confirmation Checkbox-ஐ டிக் செய்யவும்.');
         return;
       }
     }
+
+    const effectiveRef = cleanUtr;
 
     setSubmitting(true);
 
@@ -668,8 +782,9 @@ const OpenRegistrationPage: React.FC = () => {
         // Payment Details (Dynamic GPay / UPI)
         entryFee: fee,
         feeAmount: fee,
-        paymentMethod: 'UPI',
-        transactionRef: cleanUtr || null,
+        paymentMethod: cleanUtr ? 'UPI' : 'GOOGLE_PAY_DIRECT',
+        isDirectGpay: true,
+        transactionRef: effectiveRef,
         paymentScreenshot: paymentScreenshot || null,
         paymentConfigVersion: latestConfig?.configVersion || paymentSettings?.configVersion || 1
       };
@@ -691,10 +806,10 @@ const OpenRegistrationPage: React.FC = () => {
       if (data.success && data.registrationId) {
         setSubmittedRegId(data.registrationId);
         setSubmittedPaymentData({
-          utr: cleanUtr,
+          utr: effectiveRef,
           amount: fee,
           status: 'PENDING_VERIFICATION',
-          method: 'UPI'
+          method: cleanUtr ? 'UPI' : 'GOOGLE_PAY_DIRECT'
         });
         setStep(7); // Success Step
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -850,14 +965,14 @@ const OpenRegistrationPage: React.FC = () => {
 
       // Check if running in simulator mode (e.g. initial setup before keys configured in .env)
       if (data.isSandbox && (!data.keyId || data.keyId.includes('simulator') || !window.Razorpay)) {
-        setFormError('Online gateway is temporarily unavailable. Please use the direct Google Pay / PhonePe UPI transfer option below.');
+        setShowSandboxModal(true);
         setIsProcessingPayment(false);
         return;
       }
 
       const isLoaded = await loadRazorpayScript();
       if (!isLoaded || !window.Razorpay) {
-        setFormError('Payment gateway checkout could not be loaded. Please use the direct Google Pay / PhonePe UPI transfer option below.');
+        setShowSandboxModal(true);
         setIsProcessingPayment(false);
         return;
       }
@@ -909,6 +1024,18 @@ const OpenRegistrationPage: React.FC = () => {
     }
   };
 
+  // Simulated Payment Success for testing before Razorpay live/test keys are added to .env
+  const handleSimulatePaymentSuccess = async () => {
+    if (!activeOrderData) return;
+    setSimulatedPaying(true);
+    await handleVerifyOnlinePayment(
+      activeOrderData.orderId,
+      'pay_sim_' + Date.now().toString().slice(-8),
+      `sim_sig_${activeOrderData.orderId}_pay_sim`
+    );
+    setSimulatedPaying(false);
+  };
+
 
   // =========================================================================
   // VIEW A: GENERAL TOURNAMENTS DIRECTORY (Only when /open-registration has NO token)
@@ -947,7 +1074,7 @@ const OpenRegistrationPage: React.FC = () => {
               Inter-College Sports Championships 2026
             </h2>
             <p className="text-sm text-slate-400 mt-2 max-w-xl mx-auto leading-relaxed">
-              Welcome collegiate sports teams and athletes! Scan your tournament QR code or select an open inter-college championship below to register.
+              Welcome collegiate sports teams and players! Scan your tournament QR code or select an open inter-college championship below to register.
             </p>
           </div>
         </div>
@@ -1190,40 +1317,97 @@ const OpenRegistrationPage: React.FC = () => {
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
                     <Building className="w-4 h-4 text-blue-400" /> College / Institution Information
                   </h4>
+
+                  {formError && (
+                    <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center gap-2 animate-fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                      <span>{formError}</span>
+                    </div>
+                  )}
+
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">College Name *</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                      <span>College Name *</span>
+                      {collegeName.trim().length >= 3 && (
+                        <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                          <Check className="w-3 h-3" /> Valid
+                        </span>
+                      )}
+                    </label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. Government Arts College, Salem"
                       value={collegeName}
-                      onChange={(e) => setCollegeName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                      onChange={(e) => { setCollegeName(e.target.value); setFormError(null); }}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">College Address *</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                      <span>College Address & City *</span>
+                      {collegeAddress.trim().length >= 4 && (
+                        <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                          <Check className="w-3 h-3" /> Valid
+                        </span>
+                      )}
+                    </label>
                     <textarea
                       required
                       rows={2}
                       placeholder="Campus address, city, pincode"
                       value={collegeAddress}
-                      onChange={(e) => setCollegeAddress(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                      onChange={(e) => { setCollegeAddress(e.target.value); setFormError(null); }}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                     />
                   </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">District *</label>
+                      <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                        <span>District *</span>
+                        {district.trim().length >= 2 && (
+                          <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                            <Check className="w-3 h-3" />
+                          </span>
+                        )}
+                      </label>
                       <input
                         type="text"
                         required
-                        placeholder="e.g. Salem"
+                        list="tn-districts-list"
+                        placeholder="Select or type district"
                         value={district}
-                        onChange={(e) => setDistrict(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                        onChange={(e) => { setDistrict(e.target.value); setFormError(null); }}
+                        className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                       />
+                      <datalist id="tn-districts-list">
+                        <option value="Salem" />
+                        <option value="Namakkal" />
+                        <option value="Dharmapuri" />
+                        <option value="Krishnagiri" />
+                        <option value="Erode" />
+                        <option value="Coimbatore" />
+                        <option value="Tiruppur" />
+                        <option value="Karur" />
+                        <option value="Dindigul" />
+                        <option value="Madurai" />
+                        <option value="Tiruchirappalli (Trichy)" />
+                        <option value="Thanjavur" />
+                        <option value="Pudukkottai" />
+                        <option value="The Nilgiris" />
+                        <option value="Vellore" />
+                        <option value="Tiruvannamalai" />
+                        <option value="Villupuram" />
+                        <option value="Cuddalore" />
+                        <option value="Kanchipuram" />
+                        <option value="Chennai" />
+                        <option value="Tirunelveli" />
+                        <option value="Kanniyakumari" />
+                      </datalist>
                     </div>
+
                     <div>
                       <label className="block text-xs font-bold text-slate-300 mb-1">State *</label>
                       <input
@@ -1231,51 +1415,51 @@ const OpenRegistrationPage: React.FC = () => {
                         required
                         value={state}
                         onChange={(e) => setState(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                        className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>
                   </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">College Phone</label>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">College Phone (Optional)</label>
                       <input
                         type="tel"
-                        placeholder="Landline or official mobile"
+                        maxLength={12}
+                        placeholder="Landline or mobile"
                         value={collegePhone}
-                        onChange={(e) => setCollegePhone(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                        onChange={(e) => setCollegePhone(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                        className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1">College Email</label>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">College Email (Optional)</label>
                       <input
                         type="email"
                         placeholder="principal@college.edu.in"
                         value={collegeEmail}
-                        onChange={(e) => setCollegeEmail(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                        onChange={(e) => setCollegeEmail(e.target.value.trim().toLowerCase())}
+                        className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                       />
                     </div>
                   </div>
+
                   <div className="flex gap-3 pt-3">
                     <button
                       type="button"
-                      onClick={() => setStep(1)}
-                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
+                      onClick={() => { setFormError(null); setStep(1); }}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
                     >
                       Back
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        if (!collegeName.trim() || !collegeAddress.trim() || !district.trim()) {
-                          setFormError('Please enter College Name, Address, and District.');
-                          return;
-                        }
-                        setFormError(null);
+                        if (!validateStep2()) return;
                         setStep(3);
                       }}
-                      className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-600/20"
                     >
                       <span>Continue to {selectedComp.competitionMode === 'TEAM' ? 'Team Details' : 'Player Details'}</span>
                       <ArrowRight className="w-4 h-4" />
@@ -1287,54 +1471,89 @@ const OpenRegistrationPage: React.FC = () => {
               {/* STEP 3: Player / Team Details */}
               {step === 3 && (
                 <div className="space-y-4">
+                  {formError && (
+                    <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center gap-2 animate-fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                      <span>{formError}</span>
+                    </div>
+                  )}
+
                   {selectedComp.competitionMode === 'INDIVIDUAL' ? (
                     /* INDIVIDUAL REGISTRATION */
                     <div className="space-y-3">
                       <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                        <User className="w-4 h-4 text-blue-400" /> Athlete Information
+                        <User className="w-4 h-4 text-blue-400" /> Player Information
                       </h4>
+
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1">Player / Athlete Full Name *</label>
+                        <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                          <span>Player Full Name *</span>
+                          {playerName.trim().length >= 3 && (
+                            <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                              <Check className="w-3 h-3" /> Valid
+                            </span>
+                          )}
+                        </label>
                         <input
                           type="text"
                           required
-                          placeholder="e.g. K. Karthik"
+                          placeholder="e.g. K. Karthikeyan"
                           value={playerName}
-                          onChange={(e) => setPlayerName(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                          onChange={(e) => { setPlayerName(e.target.value); setFormError(null); }}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                         />
                       </div>
+
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-bold text-slate-300 mb-1">College Roll / Reg Number *</label>
+                          <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                            <span>Roll / Reg Number *</span>
+                            {playerRollNumber.trim().length >= 3 && (
+                              <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                                <Check className="w-3 h-3" />
+                              </span>
+                            )}
+                          </label>
                           <input
                             type="text"
                             required
                             placeholder="e.g. 23UCA104"
                             value={playerRollNumber}
-                            onChange={(e) => setPlayerRollNumber(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                            onChange={(e) => {
+                              setPlayerRollNumber(e.target.value.toUpperCase().replace(/[^A-Z0-9/-]/g, ''));
+                              setFormError(null);
+                            }}
+                            className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                           />
                         </div>
+
                         <div>
-                          <label className="block text-xs font-bold text-slate-300 mb-1">Department *</label>
+                          <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                            <span>Department / Major *</span>
+                            {department.trim().length >= 2 && (
+                              <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                                <Check className="w-3 h-3" />
+                              </span>
+                            )}
+                          </label>
                           <input
                             type="text"
                             required
-                            placeholder="e.g. Computer Science"
+                            placeholder="e.g. B.Sc Computer Science"
                             value={department}
-                            onChange={(e) => setDepartment(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                            onChange={(e) => { setDepartment(e.target.value); setFormError(null); }}
+                            className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                           />
                         </div>
                       </div>
+
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-bold text-slate-300 mb-1">Year of Study *</label>
                           <select
                             value={year}
                             onChange={(e) => setYear(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                            className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 transition-colors"
                           >
                             <option value="I Year">I Year</option>
                             <option value="II Year">II Year</option>
@@ -1348,7 +1567,7 @@ const OpenRegistrationPage: React.FC = () => {
                           <select
                             value={individualGender}
                             onChange={(e) => setIndividualGender(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                            className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 transition-colors"
                           >
                             <option value="Boys">Boys / Men</option>
                             <option value="Girls">Girls / Women</option>
@@ -1362,36 +1581,46 @@ const OpenRegistrationPage: React.FC = () => {
                       <h4 className="text-sm font-bold text-white flex items-center gap-2">
                         <Shield className="w-4 h-4 text-blue-400" /> Team & Squad Details
                       </h4>
+
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1">Team Name *</label>
+                        <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                          <span>Team Name *</span>
+                          {teamName.trim().length >= 3 && (
+                            <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                              <Check className="w-3 h-3" /> Valid
+                            </span>
+                          )}
+                        </label>
                         <input
                           type="text"
                           required
                           placeholder="e.g. Salem Tigers / GAC Cricket XI"
                           value={teamName}
-                          onChange={(e) => setTeamName(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                          onChange={(e) => { setTeamName(e.target.value); setFormError(null); }}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                         />
                       </div>
+
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs font-bold text-slate-300 mb-1">Coach Name</label>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">Coach / PD Name (Optional)</label>
                           <input
                             type="text"
                             placeholder="Physical Director / Coach"
                             value={coachName}
                             onChange={(e) => setCoachName(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                            className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-300 mb-1">Coach Mobile</label>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">Coach Mobile (Optional)</label>
                           <input
                             type="tel"
-                            placeholder="Mobile number"
+                            maxLength={10}
+                            placeholder="10-digit mobile"
                             value={coachPhone}
-                            onChange={(e) => setCoachPhone(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                            onChange={(e) => setCoachPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                            className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                           />
                         </div>
                       </div>
@@ -1406,7 +1635,7 @@ const OpenRegistrationPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={addSubstitutePlayer}
-                            className="text-[11px] font-bold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-blue-400 flex items-center gap-1"
+                            className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-400 flex items-center gap-1 cursor-pointer transition-colors"
                           >
                             <Plus className="w-3 h-3" /> Add Extra Sub
                           </button>
@@ -1415,24 +1644,27 @@ const OpenRegistrationPage: React.FC = () => {
                         <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
                           {players.map((p, idx) => {
                             const isStarting = idx < selectedComp.requiredPlayers;
+                            const isComplete = p.playerName.trim().length >= 2 && p.registerNumber.trim().length >= 2;
+
                             return (
                               <div
                                 key={idx}
-                                className={`p-3 rounded-xl border text-xs ${
+                                className={`p-3 rounded-xl border text-xs transition-colors ${
                                   isStarting
-                                    ? 'bg-slate-950/60 border-slate-800'
+                                    ? (isComplete ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-950/90 border-blue-500/30')
                                     : 'bg-slate-950/30 border-dashed border-amber-500/30'
                                 }`}
                               >
                                 <div className="flex items-center justify-between mb-2">
-                                  <span className={`text-[11px] font-bold ${isStarting ? 'text-blue-400' : 'text-amber-400'}`}>
-                                    {isStarting ? `Starting Player #${idx + 1}` : `Substitute #${idx + 1 - selectedComp.requiredPlayers}`}
+                                  <span className={`text-[11px] font-bold flex items-center gap-1.5 ${isStarting ? 'text-blue-400' : 'text-amber-400'}`}>
+                                    <span>{isStarting ? `Starting Player #${idx + 1}` : `Substitute #${idx + 1 - selectedComp.requiredPlayers}`}</span>
+                                    {isComplete && <Check className="w-3 h-3 text-emerald-400" />}
                                   </span>
                                   {!isStarting && idx >= (selectedComp.requiredPlayers + selectedComp.substitutes) && (
                                     <button
                                       type="button"
                                       onClick={() => removeSubstitutePlayer(idx)}
-                                      className="text-red-400 hover:text-red-300"
+                                      className="text-red-400 hover:text-red-300 cursor-pointer"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -1444,7 +1676,10 @@ const OpenRegistrationPage: React.FC = () => {
                                     required={isStarting}
                                     placeholder="Player Name *"
                                     value={p.playerName}
-                                    onChange={(e) => updatePlayerField(idx, 'playerName', e.target.value)}
+                                    onChange={(e) => {
+                                      updatePlayerField(idx, 'playerName', e.target.value);
+                                      setFormError(null);
+                                    }}
                                     className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
                                   />
                                   <input
@@ -1452,8 +1687,11 @@ const OpenRegistrationPage: React.FC = () => {
                                     required={isStarting}
                                     placeholder="College Reg No *"
                                     value={p.registerNumber}
-                                    onChange={(e) => updatePlayerField(idx, 'registerNumber', e.target.value)}
-                                    className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                                    onChange={(e) => {
+                                      updatePlayerField(idx, 'registerNumber', e.target.value.toUpperCase().replace(/[^A-Z0-9/-]/g, ''));
+                                      setFormError(null);
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white font-mono text-xs focus:outline-none focus:border-blue-500"
                                   />
                                   <input
                                     type="text"
@@ -1474,37 +1712,18 @@ const OpenRegistrationPage: React.FC = () => {
                   <div className="flex gap-3 pt-3">
                     <button
                       type="button"
-                      onClick={() => setStep(2)}
-                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
+                      onClick={() => { setFormError(null); setStep(2); }}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
                     >
                       Back
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        if (selectedComp.competitionMode === 'INDIVIDUAL') {
-                          if (!playerName.trim() || !playerRollNumber.trim() || !department.trim()) {
-                            setFormError('Please fill in Player Name, Roll Number, and Department.');
-                            return;
-                          }
-                        } else {
-                          if (!teamName.trim()) {
-                            setFormError('Please enter Team Name.');
-                            return;
-                          }
-                          // Verify all required starting players have names
-                          const required = selectedComp.requiredPlayers || 1;
-                          for (let i = 0; i < required; i++) {
-                            if (!players[i]?.playerName.trim()) {
-                              setFormError(`Please enter Player Name for Starting Player #${i + 1}.`);
-                              return;
-                            }
-                          }
-                        }
-                        setFormError(null);
+                        if (!validateStep3()) return;
                         setStep(4);
                       }}
-                      className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-600/20"
                     >
                       <span>Continue to Contact Details</span>
                       <ArrowRight className="w-4 h-4" />
@@ -1523,48 +1742,79 @@ const OpenRegistrationPage: React.FC = () => {
                     Important: A 6-digit OTP will be sent to this email to verify and lock your registration.
                     Approval status notifications will also be delivered here.
                   </p>
+
+                  {formError && (
+                    <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center gap-2 animate-fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                      <span>{formError}</span>
+                    </div>
+                  )}
+
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Email Address (for OTP & Notifications) *</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                      <span>Email Address (for OTP & Notifications) *</span>
+                      {isValidEmail(participantEmail) && (
+                        <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                          <Check className="w-3 h-3" /> Valid Email
+                        </span>
+                      )}
+                    </label>
                     <input
                       type="email"
                       required
                       placeholder="e.g. captain@gmail.com"
                       value={participantEmail}
-                      onChange={(e) => setParticipantEmail(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                      onChange={(e) => {
+                        setParticipantEmail(e.target.value.trim().toLowerCase());
+                        setFormError(null);
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Mobile Number *</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                      <span>Mobile Number *</span>
+                      {isValidIndianMobile(participantPhone) ? (
+                        <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-0.5">
+                          <Check className="w-3 h-3" /> Valid 10-Digit Mobile
+                        </span>
+                      ) : participantPhone.length > 0 ? (
+                        <span className="text-[10px] text-amber-400">
+                          {10 - participantPhone.length > 0 ? `${10 - participantPhone.length} more digits needed` : 'Starts with 6, 7, 8, or 9'}
+                        </span>
+                      ) : null}
+                    </label>
                     <input
                       type="tel"
                       required
-                      placeholder="10-digit mobile number"
+                      maxLength={10}
+                      placeholder="10-digit mobile (e.g. 9486167935)"
                       value={participantPhone}
-                      onChange={(e) => setParticipantPhone(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                      onChange={(e) => {
+                        setParticipantPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
+                        setFormError(null);
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono text-xs focus:outline-none focus:border-blue-500 placeholder:text-slate-600 transition-colors"
                     />
                   </div>
+
                   <div className="flex gap-3 pt-3">
                     <button
                       type="button"
-                      onClick={() => setStep(3)}
-                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
+                      onClick={() => { setFormError(null); setStep(3); }}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
                     >
                       Back
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        if (!participantEmail.trim() || !participantEmail.includes('@') || !participantPhone.trim()) {
-                          setFormError('Please enter a valid email address and mobile number.');
-                          return;
-                        }
-                        setFormError(null);
+                        if (!validateStep4()) return;
                         setStep(5);
                         handleSendOtp();
                       }}
-                      className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2"
+                      className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-600/20"
                     >
                       <span>Proceed to OTP Verification</span>
                       <ArrowRight className="w-4 h-4" />
@@ -1586,13 +1836,24 @@ const OpenRegistrationPage: React.FC = () => {
                     </p>
                   </div>
 
+                  {formError && (
+                    <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center justify-center gap-2 animate-fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                      <span>{formError}</span>
+                    </div>
+                  )}
+
                   <div>
                     <input
                       type="text"
                       maxLength={6}
                       placeholder="• • • • • •"
                       value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setOtpCode(val);
+                        setFormError(null);
+                      }}
                       className="w-48 py-3 text-center tracking-[10px] text-xl font-mono font-bold rounded-xl bg-slate-950 border border-blue-500 text-white focus:outline-none shadow-lg shadow-blue-500/10"
                     />
                   </div>
@@ -1605,7 +1866,7 @@ const OpenRegistrationPage: React.FC = () => {
                         type="button"
                         onClick={handleSendOtp}
                         disabled={otpSending}
-                        className="text-blue-400 hover:text-blue-300 font-bold underline"
+                        className="text-blue-400 hover:text-blue-300 font-bold underline cursor-pointer"
                       >
                         Resend OTP
                       </button>
@@ -1615,8 +1876,8 @@ const OpenRegistrationPage: React.FC = () => {
                   <div className="flex gap-3 pt-3">
                     <button
                       type="button"
-                      onClick={() => setStep(4)}
-                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
+                      onClick={() => { setFormError(null); setStep(4); }}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 cursor-pointer"
                     >
                       Back
                     </button>
@@ -1624,18 +1885,19 @@ const OpenRegistrationPage: React.FC = () => {
                       type="button"
                       onClick={handleVerifyOtp}
                       disabled={otpVerifying || otpCode.length !== 6}
-                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 ${
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         otpCode.length === 6
-                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20'
+                          ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30'
                           : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                       }`}
                     >
-                      {otpVerifying ? 'Verifying...' : 'Verify OTP & Continue'}
+                      {otpVerifying ? 'Verifying OTP...' : 'Verify & Continue'}
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               )}
+
 
               {/* STEP 6: Review & Payment Before Submission */}
               {step === 6 && (
@@ -1668,7 +1930,7 @@ const OpenRegistrationPage: React.FC = () => {
 
                     {selectedComp.competitionMode === 'INDIVIDUAL' ? (
                       <div className="grid grid-cols-2 gap-2">
-                        <div><span className="text-slate-500">Athlete Name:</span> <strong className="text-white block">{playerName}</strong></div>
+                        <div><span className="text-slate-500">Player Name:</span> <strong className="text-white block">{playerName}</strong></div>
                         <div><span className="text-slate-500">Register Number:</span> <strong className="text-white block">{playerRollNumber}</strong></div>
                         <div><span className="text-slate-500">Department:</span> <strong className="text-white block">{department} ({year})</strong></div>
                       </div>
@@ -1698,37 +1960,36 @@ const OpenRegistrationPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Payment Mode Selector & Details */}
+                  {/* Step 6: 1-Click Payment via Google Pay / UPI (Zero PAN • Zero Gateway) */}
                   {(() => {
                     const payableFee = getPayableFee();
-                    const activeUpiId = (selectedComp?.upiId || currentTournament?.upiId || paymentSettings?.upiId || 'sportsgascidappadi@sbi').trim();
-                    const activeGpayNumber = (selectedComp?.gpayNumber || currentTournament?.gpayNumber || paymentSettings?.gpayNumber || '9443218765').trim();
-                    const activeReceiverName = (selectedComp?.receiverName || currentTournament?.receiverName || paymentSettings?.receiverName || 'Physical Education Dept, GASC Idappadi').trim();
-                    const upiPayUri = `upi://pay?pa=${encodeURIComponent(activeUpiId)}&pn=${encodeURIComponent(activeReceiverName)}&am=${payableFee}&cu=INR&tn=${encodeURIComponent(`GASC Sports - ${selectedComp?.name || 'Tournament'}`)}`;
-                    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(upiPayUri)}`;
-                    const cleanUtr = transactionRef.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    const activeUpiId = (selectedComp?.upiId || currentTournament?.upiId || paymentSettings?.upiId || 'mv8619896@okhdfcbank').trim();
+                    const activeGpayNumber = (selectedComp?.gpayNumber || currentTournament?.gpayNumber || paymentSettings?.gpayNumber || '9486167935').trim();
+                    const activeReceiverName = (selectedComp?.receiverName || currentTournament?.receiverName || paymentSettings?.receiverName || 'MALARVIZHI KRISHNAMU').trim();
+                    const upiUri = `upi://pay?pa=${activeUpiId}&pn=${encodeURIComponent(activeReceiverName)}&am=${payableFee}&cu=INR&tn=${encodeURIComponent('GASC Sports Entry Fee')}`;
+                    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(upiUri)}`;
 
                     return (
-                      <div className="bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-blue-500/30 rounded-2xl p-5 space-y-6 shadow-2xl">
+                      <div className="bg-gradient-to-br from-slate-900/95 to-slate-950/95 border border-emerald-500/30 rounded-2xl p-6 space-y-6 shadow-2xl">
                         {/* Header Badge */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
                               <CreditCard className="w-5 h-5" />
                             </div>
                             <div>
                               <h4 className="text-sm font-bold text-white flex items-center gap-2">
                                 Tournament Entry Fee & Payment
                               </h4>
-                              <p className="text-[11px] text-slate-400">Official Physical Education Department Account</p>
+                              <p className="text-[11px] text-slate-400">Department of Physical Education & Sports, GASC Idappadi</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-600/20 text-blue-400 border border-blue-500/40">
+                            <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-emerald-600/20 text-emerald-400 border border-emerald-500/40">
                               Entry Fee: ₹{payableFee} INR
                             </span>
                             {payableFee > 0 ? (
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
                                 <Shield className="w-3 h-3" /> Mandatory Fee
                               </span>
                             ) : (
@@ -1741,163 +2002,240 @@ const OpenRegistrationPage: React.FC = () => {
 
                         {payableFee > 0 ? (
                           <div className="space-y-6">
-                            {/* SECTION 1: ONE-TAP GPAY / PHONEPE LAUNCH (Mobile) */}
-                            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/40 via-teal-950/30 to-slate-900/60 border border-emerald-500/40 space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider">
-                                  <span>📱</span> Instant Mobile Payment
+                            {/* STEP 1: PAYMENT CREDENTIALS CARD */}
+                            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-slate-800 space-y-5 shadow-xl">
+                              <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                                <span className="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+                                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">1</span>
+                                  <span>Step 1: Pay ₹{payableFee} using Google Pay or PhonePe</span>
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-medium">GPay • PhonePe • Paytm • BHIM</span>
+                                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                                  Any UPI App
+                                </span>
                               </div>
 
-                              <a
-                                href={upiPayUri}
-                                className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/30 transition-all text-center group cursor-pointer"
-                              >
-                                <span className="text-xl">⚡</span>
-                                <span>Pay ₹{payableFee} via Google Pay / UPI App</span>
-                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                              </a>
-                              <p className="text-[11px] text-slate-400 text-center">
-                                Tapping the button above will directly launch Google Pay or your UPI app on your phone with ₹{payableFee} and recipient details pre-filled.
-                              </p>
-                            </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+                                {/* Left: High Contrast Credentials */}
+                                <div className="space-y-3">
+                                  {/* Payee Name */}
+                                  <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase block">Authorized Payee</span>
+                                    <span className="text-sm font-bold text-white">{activeReceiverName}</span>
+                                  </div>
 
-                            {/* SECTION 2: QR CODE SCAN & UPI DETAILS (For Laptop or Other Device) */}
-                            <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
-                              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
-                                <span className="text-xs font-bold text-white flex items-center gap-2">
-                                  <QrCode className="w-4 h-4 text-blue-400" /> Or Scan QR Code / Transfer Directly
-                                </span>
-                                <span className="text-[11px] font-mono text-emerald-400 font-bold">₹{payableFee} INR</span>
-                              </div>
+                                  {/* GPay Mobile Number */}
+                                  <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40 flex items-center justify-between gap-2 shadow-inner">
+                                    <div>
+                                      <span className="text-[10px] text-emerald-400 font-bold uppercase flex items-center gap-1">
+                                        <span>📱</span> Google Pay & PhonePe Number
+                                      </span>
+                                      <span className="text-base font-mono font-black text-white tracking-wider block mt-0.5">
+                                        {activeGpayNumber}
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => copyToClipboard(activeGpayNumber, 'gpay')}
+                                      className="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs shrink-0 flex items-center gap-1.5 transition-colors cursor-pointer border border-emerald-500/30"
+                                    >
+                                      {copiedKey === 'gpay' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                      <span>{copiedKey === 'gpay' ? 'Copied!' : 'Copy Number'}</span>
+                                    </button>
+                                  </div>
 
-                              <div className="flex flex-col sm:flex-row items-center gap-5">
-                                {/* Dynamic QR Code */}
-                                <div className="shrink-0 text-center space-y-1.5">
-                                  <div className="p-2 bg-white rounded-xl shadow-lg inline-block border-2 border-emerald-500/30">
+                                  {/* UPI ID */}
+                                  <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2">
+                                    <div className="overflow-hidden">
+                                      <span className="text-[10px] text-slate-500 font-bold uppercase block">UPI ID / VPA</span>
+                                      <span className="text-xs font-mono font-bold text-emerald-400 truncate block mt-0.5">
+                                        {activeUpiId}
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => copyToClipboard(activeUpiId, 'upi')}
+                                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs shrink-0 flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                                    >
+                                      {copiedKey === 'upi' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                      <span>{copiedKey === 'upi' ? 'Copied!' : 'Copy UPI'}</span>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Right: Clean QR Code Display */}
+                                <div className="flex flex-col items-center justify-center p-4 bg-slate-900/80 rounded-2xl border border-slate-800 text-center space-y-2">
+                                  <div className="p-2.5 bg-white rounded-xl shadow-lg inline-block border-2 border-emerald-500/40">
                                     <img
                                       src={qrCodeUrl}
                                       alt="Tournament UPI Payment QR Code"
                                       className="w-36 h-36 object-contain"
                                     />
                                   </div>
-                                  <span className="block text-[10px] text-slate-400 font-medium">Scan with any UPI App</span>
-                                </div>
-
-                                {/* Payment Receiver Credentials */}
-                                <div className="flex-1 w-full space-y-2.5 text-xs">
-                                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
-                                    <div>
-                                      <span className="text-[10px] text-slate-500 uppercase font-bold block">Authorized Payee</span>
-                                      <span className="text-white font-bold">{activeReceiverName}</span>
-                                    </div>
-                                  </div>
-
-                                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2">
-                                    <div className="overflow-hidden">
-                                      <span className="text-[10px] text-slate-500 uppercase font-bold block">UPI ID / VPA</span>
-                                      <span className="text-emerald-400 font-mono font-bold truncate block">{activeUpiId}</span>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => copyToClipboard(activeUpiId, 'upi')}
-                                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] shrink-0 flex items-center gap-1 transition-colors"
-                                    >
-                                      {copiedKey === 'upi' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                                      <span>{copiedKey === 'upi' ? 'Copied' : 'Copy UPI'}</span>
-                                    </button>
-                                  </div>
-
-                                  <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2">
-                                    <div>
-                                      <span className="text-[10px] text-slate-500 uppercase font-bold block">Google Pay Number</span>
-                                      <span className="text-white font-mono font-bold">{activeGpayNumber}</span>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => copyToClipboard(activeGpayNumber, 'gpay')}
-                                      className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-[10px] shrink-0 flex items-center gap-1 transition-colors"
-                                    >
-                                      {copiedKey === 'gpay' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                                      <span>{copiedKey === 'gpay' ? 'Copied' : 'Copy Number'}</span>
-                                    </button>
-                                  </div>
+                                  <span className="text-[11px] text-slate-300 font-bold block">
+                                    Scan using Google Pay or PhonePe scanner
+                                  </span>
+                                  <span className="text-[10px] text-emerald-400 font-mono font-bold">
+                                    Amount: ₹{payableFee} INR
+                                  </span>
                                 </div>
                               </div>
                             </div>
 
-                            {/* SECTION 3: MANDATORY 12-DIGIT TRANSACTION ID (UTR) INPUT */}
-                            <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/90 border-2 border-emerald-500/50 space-y-4 shadow-xl">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                <span className="text-xs font-bold text-white flex items-center gap-2">
-                                  <Lock className="w-4 h-4 text-emerald-400" />
-                                  <span>Step 2: Enter 12-Digit UPI Transaction ID (UTR)</span>
-                                  <span className="text-rose-400 font-bold">*</span>
+                            {/* STEP 2: ENTER TRANSACTION UTR & UPLOAD SCREENSHOT */}
+                            <div className="p-5 sm:p-6 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-5 shadow-xl">
+                              <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                                <span className="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+                                  <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold">2</span>
+                                  <span>Step 2: Enter Transaction Details & Upload Proof</span>
                                 </span>
-                                {cleanUtr.length >= 10 ? (
-                                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full flex items-center gap-1 self-start sm:self-auto">
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> Ready for submission
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full flex items-center gap-1 self-start sm:self-auto">
-                                    <AlertCircle className="w-3.5 h-3.5" /> 12 digits required
-                                  </span>
-                                )}
-                              </div>
-
-                              <p className="text-[11px] text-slate-400">
-                                After completing the transfer in Google Pay or PhonePe, open the payment receipt and enter the <strong>12-digit UPI Transaction ID / UTR number</strong> below:
-                              </p>
-
-                              <div className="space-y-1.5">
-                                <input
-                                  type="text"
-                                  id="upi-transaction-utr"
-                                  value={transactionRef}
-                                  onChange={(e) => setTransactionRef(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                                  maxLength={20}
-                                  placeholder="e.g. 512345678901 (12-digit UTR)"
-                                  className="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm tracking-widest focus:border-emerald-500 focus:outline-none transition-colors"
-                                />
-                                <span className="text-[10px] text-slate-500 block">
-                                  Found on your GPay / PhonePe receipt as "UPI transaction ID" or "Google transaction ID / Ref No."
+                                <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                                  Verification Required
                                 </span>
                               </div>
 
-                              {/* Payment Screenshot (Optional) */}
-                              <div className="space-y-1.5 pt-1">
-                                <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                                  <span className="flex items-center gap-1.5">
-                                    <Upload className="w-3.5 h-3.5 text-blue-400" />
-                                    <span>Upload Payment Screenshot (Optional)</span>
-                                  </span>
-                                  {paymentScreenshot && (
-                                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                                      <Check className="w-3 h-3" /> Screenshot Attached
+                              <div className="space-y-4">
+                                {/* UTR / Transaction Reference Input */}
+                                <div className="space-y-1.5">
+                                  <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                      <span>Google Pay / PhonePe UTR (Transaction ID)</span>
+                                      <span className="text-red-400 font-bold">*</span>
                                     </span>
-                                  )}
-                                </label>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleScreenshotUpload}
-                                  className="block w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-300 hover:file:bg-slate-700 file:cursor-pointer"
-                                />
-                              </div>
+                                    {transactionRef.trim().length >= 6 ? (
+                                      <span className="text-[11px] font-mono text-emerald-400 flex items-center gap-1">
+                                        <Check className="w-3.5 h-3.5" /> Entered ({transactionRef.trim().length} chars)
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-500">12-digit number from payment slip</span>
+                                    )}
+                                  </label>
+                                  <div className="relative">
+                                    <input
+                                      type="text"
+                                      value={transactionRef}
+                                      onChange={(e) => setTransactionRef(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                                      maxLength={30}
+                                      placeholder="e.g. 428719827364 or UPI Ref ID"
+                                      className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 focus:border-blue-500 text-white font-mono text-sm tracking-wider uppercase placeholder:text-slate-600 focus:outline-none transition-colors"
+                                    />
+                                    {transactionRef && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setTransactionRef('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs px-1.5 py-0.5 rounded bg-slate-800 cursor-pointer"
+                                      >
+                                        ✕
+                                      </button>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-slate-400">
+                                    💡 உங்கள் Google Pay அல்லது PhonePe ஆப்பில் பணம் அனுப்பிய ரசீதில் இருக்கும் <strong>12-digit UPI Transaction ID / UTR</strong> எண்ணை இங்கு டைப் செய்யவும்.
+                                  </p>
+                                </div>
 
-                              {/* Declaration Checkbox */}
-                              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 cursor-pointer hover:border-slate-700 transition-colors">
-                                <input
-                                  type="checkbox"
-                                  checked={paymentAgreed}
-                                  onChange={(e) => setPaymentAgreed(e.target.checked)}
-                                  className="mt-0.5 rounded text-emerald-500 focus:ring-0 cursor-pointer"
-                                />
-                                <span>
-                                  I confirm that I have transferred <strong className="text-emerald-400">₹{payableFee} INR</strong> to <strong className="text-white">{activeReceiverName}</strong> ({activeUpiId}) and the 12-digit UTR reference entered above is genuine and belongs to this entry.
-                                </span>
-                              </label>
+                                {/* Screenshot Upload */}
+                                <div className="space-y-1.5 pt-1">
+                                  <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                      <span>Payment Screenshot Proof</span>
+                                      <span className="text-red-400 font-bold">*</span>
+                                    </span>
+                                    {paymentScreenshot && (
+                                      <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1">
+                                        <Check className="w-3.5 h-3.5" /> Screenshot Attached
+                                      </span>
+                                    )}
+                                  </label>
+
+                                  {paymentScreenshot ? (
+                                    <div className="relative p-3 rounded-xl bg-slate-900 border border-emerald-500/40 flex items-center gap-4">
+                                      <img
+                                        src={paymentScreenshot}
+                                        alt="Payment Screenshot Preview"
+                                        className="w-20 h-20 object-cover rounded-lg border border-slate-700 shrink-0"
+                                      />
+                                      <div className="overflow-hidden space-y-1 flex-1">
+                                        <span className="text-xs font-bold text-emerald-400 block">Screenshot Uploaded Successfully</span>
+                                        <span className="text-[10px] text-slate-400 block truncate">Ready to be verified by Sports In-charge</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => setPaymentScreenshot(null)}
+                                          className="text-[11px] text-red-400 hover:text-red-300 font-bold underline cursor-pointer"
+                                        >
+                                          Remove & Re-upload
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <label className="border-2 border-dashed border-slate-700 hover:border-blue-500/60 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer bg-slate-900/60 hover:bg-slate-900 transition-colors">
+                                      <Upload className="w-6 h-6 text-blue-400" />
+                                      <div className="text-center">
+                                        <span className="text-xs font-bold text-blue-400 hover:underline">Click to Upload Payment Screenshot</span>
+                                        <span className="text-[11px] text-slate-500 block mt-0.5">PNG, JPG or JPEG (Max 5MB)</span>
+                                      </div>
+                                      <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleScreenshotUpload}
+                                        disabled={screenshotUploading}
+                                        className="hidden"
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+
+                                {/* Confirmation Checkbox */}
+                                <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
+                                  <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={paymentAgreed}
+                                      onChange={(e) => setPaymentAgreed(e.target.checked)}
+                                      className="mt-0.5 rounded border-slate-700 text-blue-600 focus:ring-0 focus:ring-offset-0 cursor-pointer w-4 h-4"
+                                    />
+                                    <span className="text-xs text-slate-300 leading-relaxed">
+                                      நான் <strong className="text-emerald-400">{activeReceiverName}</strong> அவர்களின் GPay / UPI கணக்கிற்கு <strong className="text-white">₹{payableFee}</strong> செலுத்திவிட்டேன் என்றும், இங்கு உள்ளிடப்பட்ட UTR மற்றும் Screenshot உண்மையானது என்றும் உறுதி செய்கிறேன்.
+                                    </span>
+                                  </label>
+                                </div>
+
+                                {/* Form Error Alert */}
+                                {formError && (
+                                  <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center gap-2 animate-fade-in">
+                                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                                    <span>{formError}</span>
+                                  </div>
+                                )}
+
+                                {/* Submit Action Button */}
+                                <div className="pt-2">
+                                  <button
+                                    type="button"
+                                    onClick={handleSubmitRegistration}
+                                    disabled={submitting || !transactionRef.trim() || !paymentScreenshot || !paymentAgreed}
+                                    className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm flex items-center justify-center gap-3 shadow-xl shadow-blue-600/30 cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >
+                                    {submitting ? (
+                                      <>
+                                        <RefreshCw className="w-5 h-5 animate-spin text-white" />
+                                        <span>Submitting for Admin Verification...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Shield className="w-5 h-5 text-white" />
+                                        <span>Submit Registration & Payment Proof</span>
+                                        <ArrowRight className="w-5 h-5 text-white" />
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+
+                                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
+                                  <p className="text-[11px] text-amber-300">
+                                    ⏳ <strong>முக்கிய குறிப்பு:</strong> நீங்கள் சமர்ப்பித்த பிறகு, உங்கள் UTR எண்ணை உடற்கல்வித் துறை சரிபார்த்து Admin Portal-ல் <strong>"Approve"</strong> செய்தவுடன் அதிகாரப்பூர்வ அனுமதி உறுதிசெய்யப்படும்!
+                                  </p>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ) : (
@@ -1917,31 +2255,11 @@ const OpenRegistrationPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setStep(5)}
-                            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition-colors"
+                            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition-colors cursor-pointer"
                           >
                             Back
                           </button>
-                          {payableFee > 0 ? (
-                            <button
-                              type="button"
-                              onClick={handleSubmitRegistration}
-                              disabled={submitting || cleanUtr.length < 10 || !paymentAgreed}
-                              className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-xl shadow-emerald-600/30 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-800 transition-all"
-                            >
-                              {submitting ? (
-                                <>
-                                  <RefreshCw className="w-4 h-4 animate-spin" />
-                                  <span>Verifying UTR & Completing Registration...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle2 className="w-4 h-4" />
-                                  <span>Verify UTR & Complete Registration (₹{payableFee})</span>
-                                  <ArrowRight className="w-4 h-4" />
-                                </>
-                              )}
-                            </button>
-                          ) : (
+                          {payableFee <= 0 && (
                             <button
                               type="button"
                               onClick={handleSubmitRegistration}
@@ -1959,20 +2277,21 @@ const OpenRegistrationPage: React.FC = () => {
                 </div>
               )}
 
-              {/* STEP 7: Success Screen with Verified Payment Pass */}
+              {/* STEP 7: Registration Submitted / Verification Pending Pass */}
               {step === 7 && submittedRegId && (
                 <div className="text-center py-6 space-y-5">
-                  <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
-                    <CheckCircle2 className="w-10 h-10" />
+                  <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400">
+                    <Clock className="w-10 h-10 animate-pulse" />
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-white">
-                      {verifiedPaymentData ? 'Payment Verified & Registration Confirmed!' : 'Registration Submitted!'}
+                      Registration Submitted — Verification Pending
                     </h3>
-                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                      {verifiedPaymentData
-                        ? 'Your entry fee has been cryptographically verified. An official digital receipt has been sent to your email.'
-                        : 'Your entry has been recorded in the tournament registry. A confirmation email has been dispatched.'}
+                    <p className="text-xs text-amber-400 font-bold mt-1">
+                      பதிவு சமர்ப்பிக்கப்பட்டது • ரூ.{submittedPaymentData?.amount || payableFee} கட்டணம் சரிபார்க்கப்படுகிறது
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1.5 max-w-sm mx-auto">
+                      Your registration and ₹{submittedPaymentData?.amount || payableFee} payment proof have been sent to the Sports Department for verification.
                     </p>
                   </div>
 
@@ -1994,42 +2313,20 @@ const OpenRegistrationPage: React.FC = () => {
                       <span className="font-semibold text-white">{collegeName}</span>
                     </div>
 
-                    {/* Verified Online Gateway Payment Info */}
-                    {verifiedPaymentData ? (
-                      <>
-                        <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                          <span className="text-slate-500">Amount Paid:</span>
-                          <span className="font-bold text-emerald-400">₹{verifiedPaymentData.amount} INR</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-500">Payment ID:</span>
-                          <span className="font-mono font-bold text-blue-400">{verifiedPaymentData.paymentId}</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-500">Receipt No:</span>
-                          <span className="font-mono text-slate-300">{verifiedPaymentData.receiptNumber}</span>
-                        </div>
-                        <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                          <span className="text-slate-500">Payment Status:</span>
-                          <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> VERIFIED & CONFIRMED
-                          </span>
-                        </div>
-                      </>
-                    ) : submittedPaymentData && submittedPaymentData.amount > 0 ? (
+                    {submittedPaymentData && submittedPaymentData.amount > 0 ? (
                       <>
                         <div className="flex justify-between items-center pt-2 border-t border-slate-800">
                           <span className="text-slate-500">Registration Fee:</span>
-                          <span className="font-bold text-white">₹{submittedPaymentData.amount}</span>
+                          <span className="font-bold text-white">₹{submittedPaymentData.amount} INR</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-slate-500">Transaction UTR:</span>
-                          <span className="font-mono font-bold text-emerald-400">{submittedPaymentData.utr}</span>
+                          <span className="font-mono font-bold text-amber-400">{submittedPaymentData.utr}</span>
                         </div>
                         <div className="flex justify-between items-center pt-2 border-t border-slate-800">
                           <span className="text-slate-500">Payment Status:</span>
-                          <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> PENDING VERIFICATION
+                          <span className="px-2.5 py-1 rounded font-bold text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5" /> PENDING ADMIN APPROVAL
                           </span>
                         </div>
                       </>
@@ -2044,21 +2341,16 @@ const OpenRegistrationPage: React.FC = () => {
                   </div>
 
                   {/* Informational Notice */}
-                  {verifiedPaymentData ? (
-                    <div className="max-w-md mx-auto p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-900/40 text-left text-[11px] text-emerald-300 flex items-start gap-2.5">
-                      <Shield className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <p>
-                        Your online payment has been authenticated and deposited directly into the official Physical Education Department account. Present your Registration ID upon reporting at the venue.
-                      </p>
+                  <div className="max-w-md mx-auto p-4 rounded-xl bg-amber-950/30 border border-amber-500/30 text-left text-xs text-amber-200/90 space-y-1.5 shadow-lg">
+                    <div className="flex items-center gap-2 font-bold text-amber-300">
+                      <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>Payment Verification in Progress (சரிபார்க்கப்படுகிறது)</span>
                     </div>
-                  ) : (
-                    <div className="max-w-md mx-auto p-3.5 rounded-xl bg-blue-950/20 border border-blue-900/40 text-left text-[11px] text-slate-400 flex items-start gap-2.5">
-                      <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                      <p>
-                        Your payment reference (UTR: <strong className="text-slate-200">{submittedPaymentData?.utr || transactionRef}</strong>) has been submitted for board verification.
-                      </p>
-                    </div>
-                  )}
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      நீங்கள் சமர்ப்பித்த UTR எண் (<strong>{submittedPaymentData?.utr || transactionRef}</strong>) மற்றும் Screenshot உடற்கல்வித் துறைக்கு அனுப்பப்பட்டுள்ளது.
+                      Admin உங்கள் ஜிபே-ஐ சரிபார்த்து <strong>Approve</strong> செய்தவுடன் உங்கள் பதிவு அதிகாரப்பூர்வமாக <strong>APPROVED</strong> என மாறிவிடும்!
+                    </p>
+                  </div>
 
                   <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
                     <a
@@ -2238,7 +2530,7 @@ const OpenRegistrationPage: React.FC = () => {
                             ) : (
                               <div className="flex items-center justify-between">
                                 <span className="text-slate-500">Mode:</span>
-                                <strong className="text-slate-200">Individual Athlete</strong>
+                                <strong className="text-slate-200">Individual Player</strong>
                               </div>
                             )}
                             <div className="flex items-center justify-between">
@@ -2280,6 +2572,8 @@ const OpenRegistrationPage: React.FC = () => {
           </div>
         )}
       </main>
+
+
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-6 text-center text-xs text-slate-500 mt-auto">

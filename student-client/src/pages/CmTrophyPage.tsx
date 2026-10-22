@@ -399,7 +399,7 @@ const CmTrophyPage = () => {
           </div>
 
           <p style={{ color: '#AFC4DF', fontSize: 13, margin: 0, lineHeight: 1.6 }}>
-            Our Physical Education department conducts special pre-trial conditioning, athlete registration verification,
+            Our Physical Education department conducts special pre-trial conditioning, player registration verification,
             and college team selection trials for all eligible sports disciplines under the CM Trophy banner.
           </p>
 

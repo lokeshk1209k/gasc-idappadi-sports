@@ -760,13 +760,66 @@ exports.getReceipt = async (req, res) => {
     }
 
     if (!payment) {
+      try {
+        const { data: extReg } = await supabase
+          .from('external_registrations')
+          .select('*, competition:competitions(*)')
+          .or(`id.eq.${paymentId},registration_id.eq.${paymentId}`)
+          .maybeSingle();
+        if (extReg) {
+          payment = {
+            id: extReg.id,
+            registration_code: extReg.registration_id,
+            provider_payment_id: extReg.payment_id || extReg.transaction_ref || 'N/A',
+            provider_order_id: extReg.order_id || extReg.registration_id,
+            amount: extReg.fee_amount || 0,
+            currency: 'INR',
+            status: extReg.payment_status === 'VERIFIED' ? 'SUCCESS' : (extReg.payment_status || 'PENDING'),
+            verified_at: extReg.payment_verified_at || extReg.updated_at,
+            created_at: extReg.created_at,
+            tournament_name: extReg.tournament_name || 'GASC Idappadi Sports Meet',
+            competition_name: extReg.sport_name || (extReg.competition && extReg.competition.name) || 'Competition',
+            college_name: extReg.college_name,
+            payer_name: extReg.player_name || extReg.team_name || 'Participant',
+            payment_method: extReg.payment_method || 'UPI / QR'
+          };
+        }
+      } catch (e) {}
+    }
+
+    if (!payment) {
+      try {
+        const localList = localStore.storeInstance.getTable('external_registrations') || [];
+        const extReg = localList.find(r => r.id === paymentId || r.registration_id === paymentId);
+        if (extReg) {
+          payment = {
+            id: extReg.id,
+            registration_code: extReg.registration_id,
+            provider_payment_id: extReg.payment_id || extReg.transaction_ref || 'N/A',
+            provider_order_id: extReg.order_id || extReg.registration_id,
+            amount: extReg.fee_amount || 0,
+            currency: 'INR',
+            status: extReg.payment_status === 'VERIFIED' ? 'SUCCESS' : (extReg.payment_status || 'PENDING'),
+            verified_at: extReg.payment_verified_at || extReg.updated_at,
+            created_at: extReg.created_at,
+            tournament_name: extReg.tournament_name || 'GASC Idappadi Sports Meet',
+            competition_name: extReg.sport_name || (extReg.competition && extReg.competition.name) || 'Competition',
+            college_name: extReg.college_name,
+            payer_name: extReg.player_name || extReg.team_name || 'Participant',
+            payment_method: extReg.payment_method || 'UPI / QR'
+          };
+        }
+      } catch (e) {}
+    }
+
+    if (!payment) {
       return res.status(404).json({ success: false, message: 'Receipt not found.' });
     }
 
     return res.json({
       success: true,
       receipt: {
-        receiptNumber: `REC-${payment.id.substring(0, 12).toUpperCase()}`,
+        receiptNumber: `REC-${(payment.id || 'REG').substring(0, 12).toUpperCase()}`,
         registrationCode: payment.registration_code,
         paymentId: payment.provider_payment_id || 'N/A',
         orderId: payment.provider_order_id,
@@ -871,6 +924,53 @@ exports.getAdminTransactions = async (req, res) => {
       } catch (err2) {}
     }
 
+    // Pull from external_registrations to merge actual student fee payments
+    try {
+      const { data: extRegs } = await supabase
+        .from('external_registrations')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (Array.isArray(extRegs) && extRegs.length > 0) {
+        const extAsTransactions = extRegs.map(r => {
+          let utr = r.payment_id || r.transaction_ref || '';
+          let screenshot = r.supporting_document || r.payment_screenshot || '';
+          if (r.remarks && typeof r.remarks === 'string') {
+            try {
+              const rem = JSON.parse(r.remarks);
+              if (!utr) utr = rem.utr || rem.transaction_ref || rem.submittedUtr || '';
+              if (!screenshot) screenshot = rem.payment_screenshot || '';
+            } catch(e) {}
+          }
+          const isVerified = (r.payment_status || '').toUpperCase() === 'VERIFIED' || (r.status || '').toUpperCase() === 'APPROVED';
+          const isFailed = (r.payment_status || '').toUpperCase() === 'REJECTED' || (r.payment_status || '').toUpperCase() === 'FAILED';
+          const pStatus = isVerified ? 'SUCCESS' : (isFailed ? 'FAILED' : 'CREATED');
+
+          return {
+            id: r.id,
+            registration_code: r.registration_id || `GASC-IC-${r.id}`,
+            payer_name: r.player_name || r.team_name || 'Participant',
+            college_name: r.college_name || 'Other College',
+            competition_name: r.sport_name || 'Championship',
+            amount: Number(r.fee_amount) || (r.registration_type === 'TEAM' ? 500 : 100),
+            payment_method: r.payment_method || 'UPI / QR',
+            provider_payment_id: utr || '-',
+            provider_order_id: r.registration_id || '-',
+            payment_screenshot: screenshot,
+            status: pStatus,
+            created_at: r.created_at,
+            verified_at: r.payment_verified_at || r.updated_at
+          };
+        });
+
+        // Exclude mock simulated orders and merge real external registrations
+        transactions = [...extAsTransactions, ...transactions.filter(t => !t.provider_order_id?.startsWith('order_sim_'))];
+        totalCount = transactions.length;
+      }
+    } catch (e) {
+      console.warn('extRegs merge error in getAdminTransactions:', e.message);
+    }
+
     // Calculate verified KPI collection metrics
     let totalSuccessfulCollections = 0;
     let totalSuccessfulCount = 0;
@@ -879,36 +979,20 @@ exports.getAdminTransactions = async (req, res) => {
     let totalRefundedAmount = 0;
     let totalRefundedCount = 0;
 
-    try {
-      const { data: allMetrics } = await supabase
-        .from('payments')
-        .select('status, amount, refund_amount');
-
-      if (allMetrics && allMetrics.length > 0) {
-        allMetrics.forEach(p => {
-          const amt = Number(p.amount) || 0;
-          if (p.status === 'SUCCESS') {
-            totalSuccessfulCollections += amt;
-            totalSuccessfulCount++;
-          } else if (p.status === 'CREATED' || p.status === 'ATTEMPTED') {
-            totalPendingCount++;
-          } else if (p.status === 'FAILED') {
-            totalFailedCount++;
-          } else if (p.status === 'REFUNDED') {
-            totalRefundedCount++;
-            totalRefundedAmount += Number(p.refund_amount || amt);
-          }
-        });
+    transactions.forEach(p => {
+      const amt = Number(p.amount) || 0;
+      if (p.status === 'SUCCESS') {
+        totalSuccessfulCollections += amt;
+        totalSuccessfulCount++;
+      } else if (p.status === 'CREATED' || p.status === 'ATTEMPTED') {
+        totalPendingCount++;
+      } else if (p.status === 'FAILED') {
+        totalFailedCount++;
+      } else if (p.status === 'REFUNDED') {
+        totalRefundedCount++;
+        totalRefundedAmount += Number(p.refund_amount || amt);
       }
-    } catch (e) {
-      transactions.forEach(p => {
-        const amt = Number(p.amount) || 0;
-        if (p.status === 'SUCCESS') {
-          totalSuccessfulCollections += amt;
-          totalSuccessfulCount++;
-        }
-      });
-    }
+    });
 
     return res.json({
       success: true,

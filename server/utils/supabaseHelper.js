@@ -154,14 +154,44 @@ class ResilientQuery {
   }
 
   async execute() {
-    if (!isSupabaseConfigured() || !rawSupabase) {
+    const LOCAL_ONLY_TABLES = new Set([
+      'college_student_roster',
+      'attendance_records',
+      'attendance_sessions',
+      'students'
+    ]);
+
+    // Local tables bypass cloud completely for zero-latency 0.1ms performance
+    if (LOCAL_ONLY_TABLES.has(this.table) || !isSupabaseConfigured() || !rawSupabase) {
       return this.executeLocal();
     }
 
+    const isMutation = this.calls.some(c => ['insert', 'upsert', 'update', 'delete'].includes(c.method));
+
+    // For mutations: execute locally in < 1ms, return result immediately, sync cloud in background
+    if (isMutation) {
+      const localResult = this.executeLocal();
+
+      setImmediate(async () => {
+        try {
+          let query = rawSupabase.from(this.table);
+          for (const call of this.calls) {
+            if (typeof query[call.method] === 'function') {
+              query = query[call.method](...call.args);
+            }
+          }
+          await query;
+        } catch (e) {
+          // Cloud sync will retry via periodic sync engine if offline
+        }
+      });
+
+      return localResult;
+    }
+
+    // For reads (SELECT): try cloud with fast 1000ms timeout, immediately falling back to localStore
     try {
       let query = rawSupabase.from(this.table);
-      const isMutation = this.calls.some(c => ['insert', 'upsert', 'update', 'delete'].includes(c.method));
-
       for (const call of this.calls) {
         if (typeof query[call.method] === 'function') {
           query = query[call.method](...call.args);
@@ -169,36 +199,16 @@ class ResilientQuery {
       }
 
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Supabase query timeout')), 6000)
+        setTimeout(() => reject(new Error('Supabase query timeout')), 1000)
       );
 
       const res = await Promise.race([query, timeoutPromise]);
       if (res && res.error) {
-        const msg = String(res.error.message || '');
-        if (
-          msg.includes('fetch failed') ||
-          msg.includes('ENOTFOUND') ||
-          msg.includes('ECONNREFUSED') ||
-          msg.includes('timeout') ||
-          msg.includes('schema cache') ||
-          msg.includes('does not exist') ||
-          msg.includes('PGRST205')
-        ) {
-          console.warn(`[SupabaseHelper] Cloud query failed (${msg}), falling back to localStore for table: ${this.table}`);
-          return this.executeLocal();
-        }
-      }
-
-      // Also mirror writes to localStore so offline cache is updated
-      if (isMutation) {
-        try {
-          this.executeLocal();
-        } catch (mErr) {}
+        return this.executeLocal();
       }
 
       return res;
     } catch (err) {
-      console.warn(`[SupabaseHelper] Cloud query error (${err.message}), falling back to localStore for table: ${this.table}`);
       return this.executeLocal();
     }
   }

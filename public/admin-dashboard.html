@@ -2814,14 +2814,10 @@
               </div>
             </div>
             <div class="row g-2 mb-3">
-              <div class="col-6">
-                <label class="form-label small fw-bold">Section</label>
-                <input type="text" name="section" class="form-control form-control-glass" value="A">
-              </div>
-              <div class="col-6">
-                <label class="form-label small fw-bold">Gender</label>
-                <select name="gender" class="form-select form-select-glass">
-                  <option value="Male">Male</option>
+              <div class="col-12">
+                <label class="form-label small fw-bold">Gender *</label>
+                <select name="gender" class="form-select form-select-glass" required>
+                  <option value="Male" selected>Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
                 </select>

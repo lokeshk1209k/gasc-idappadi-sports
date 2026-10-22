@@ -176,6 +176,16 @@ function renderPaymentTransactionsTable(list) {
         <td>${statusBadge}</td>
         <td>
           <div class="btn-group btn-group-sm">
+            ${p.payment_screenshot ? `
+              <button class="btn btn-outline-info btn-sm" onclick="showPaymentProofModal('${p.id}')" title="View Uploaded Payment Screenshot">
+                <i class="bi bi-image"></i>
+              </button>
+            ` : ''}
+            ${pStatus !== 'SUCCESS' ? `
+              <button class="btn btn-success btn-sm fw-bold px-2 text-white" onclick="quickVerifyAndApprovePayment('${p.id}')" title="Confirm Payment Received & Approve Player">
+                <i class="bi bi-check-lg"></i> Approve
+              </button>
+            ` : ''}
             <button class="btn btn-outline-light btn-sm" onclick="openPaymentReceiptModal('${p.id || p.provider_payment_id}')" title="View Printable Receipt">
               <i class="bi bi-receipt"></i>
             </button>

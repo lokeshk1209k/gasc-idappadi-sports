@@ -157,43 +157,34 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   transform: none !important;
 }
 
-/* Touch Compression & Haptic Press Feedback - Razor Sharp (NO scale, NO blur) */
+/* All click/press effects and touch animations permanently removed */
 .btn:active,
 .btn-sports-primary:active,
 .btn-sports-accent:active,
-.btn-glass:active {
-  filter: brightness(1.15);
-  transform: translateY(1px) !important;
-  transition: var(--touch-press) !important;
-}
-
+.btn-glass:active,
 .sidebar-nav-item:active,
 .stat-card:active,
 .matrix-badge-cell:active,
 .mob-nav-item:active,
 .mob-drawer-item:active,
 .player-select-item:active,
-.badge:active {
-  filter: brightness(1.1);
+.badge:active,
+button:active,
+a:active {
+  filter: none !important;
   transform: none !important;
+  transition: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
-/* Fluid Touch Ripple Wave */
+/* Fluid Touch Ripple Wave - Completely Disabled */
 .glass-touch-ripple {
-  position: absolute;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(0, 210, 211, 0.45) 0%, rgba(255, 255, 255, 0.3) 40%, transparent 70%);
-  transform: scale(0);
-  animation: glassRippleAnim 0.6s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-  pointer-events: none;
-  z-index: 99;
-}
-
-@keyframes glassRippleAnim {
-  to {
-    transform: scale(2.4);
-    opacity: 0;
-  }
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  animation: none !important;
+  pointer-events: none !important;
 }
 
 /* Dark Frosted Glass Card */
@@ -365,7 +356,7 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 
 .btn-sports-primary:hover {
   color: #fff;
-  transform: translateY(-2px);
+  transform: none !important;
   box-shadow: 0 10px 28px rgba(9, 132, 227, 0.58);
 }
 
@@ -382,7 +373,7 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
 
 .btn-sports-accent:hover {
   color: #fff;
-  transform: translateY(-2px);
+  transform: none !important;
   box-shadow: 0 10px 28px rgba(0, 206, 201, 0.55);
 }
 
@@ -400,7 +391,7 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .sports-title {
   background: rgba(255, 255, 255, 0.92);
   border-color: #00d2d3;
   color: #0f4c81;
-  transform: translateY(-1px);
+  transform: none !important;
 }
 
 /* ==========================================================================
@@ -1945,3 +1936,352 @@ select.input-dark {
   70% { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
+
+/* ==========================================================================
+   PARTICIPATION SCOPE SELECTION CARDS (100% HIGH CONTRAST - ZERO HIDDEN TEXT)
+   ========================================================================== */
+.scope-card {
+  background: rgba(5, 19, 38, 0.85) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 12px !important;
+  cursor: pointer;
+  transition: all 0.22s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.scope-card .scope-title {
+  color: #FFFFFF !important;
+  font-size: 0.82rem;
+}
+
+.scope-card-both {
+  border-color: rgba(16, 185, 129, 0.40) !important;
+}
+.scope-card-both .scope-badge {
+  color: #34D399 !important;
+}
+.scope-card-both .scope-subtext {
+  color: #A7F3D0 !important;
+  font-size: 0.7rem;
+}
+.scope-card-both .scope-subtext strong {
+  color: #FFFFFF !important;
+}
+
+.scope-card-internal {
+  border-color: rgba(56, 167, 255, 0.40) !important;
+}
+.scope-card-internal .scope-badge {
+  color: #38A7FF !important;
+}
+.scope-card-internal .scope-subtext {
+  color: #93C5FD !important;
+  font-size: 0.7rem;
+}
+.scope-card-internal .scope-subtext strong {
+  color: #FFFFFF !important;
+}
+
+.scope-card-external {
+  border-color: rgba(245, 158, 11, 0.40) !important;
+}
+.scope-card-external .scope-badge {
+  color: #FBBF24 !important;
+}
+.scope-card-external .scope-subtext {
+  color: #FDE68A !important;
+  font-size: 0.7rem;
+}
+.scope-card-external .scope-subtext strong {
+  color: #FFFFFF !important;
+}
+
+/* 🟢 WHEN SELECTED: CARD 1 (BOTH - GREEN THEME) */
+#part-both:checked + .scope-card-both {
+  background: rgba(6, 44, 30, 0.88) !important;
+  border: 2px solid #10B981 !important;
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.45), inset 0 0 16px rgba(16, 185, 129, 0.20) !important;
+}
+#part-both:checked + .scope-card-both .scope-badge {
+  color: #6EE7B7 !important;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.8) !important;
+}
+#part-both:checked + .scope-card-both .scope-title {
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+}
+#part-both:checked + .scope-card-both .scope-subtext {
+  color: #D1FAE5 !important;
+}
+#part-both:checked + .scope-card-both .scope-subtext strong {
+  color: #FFFFFF !important;
+  text-decoration: underline;
+}
+
+/* 🔵 WHEN SELECTED: CARD 2 (OUR COLLEGE ONLY - BLUE THEME) */
+#part-internal:checked + .scope-card-internal {
+  background: rgba(8, 38, 77, 0.88) !important;
+  border: 2px solid #38A7FF !important;
+  box-shadow: 0 0 24px rgba(56, 167, 255, 0.45), inset 0 0 16px rgba(56, 167, 255, 0.20) !important;
+}
+#part-internal:checked + .scope-card-internal .scope-badge {
+  color: #BAE6FD !important;
+  text-shadow: 0 0 10px rgba(56, 167, 255, 0.8) !important;
+}
+#part-internal:checked + .scope-card-internal .scope-title {
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+}
+#part-internal:checked + .scope-card-internal .scope-subtext {
+  color: #E0F2FE !important;
+}
+#part-internal:checked + .scope-card-internal .scope-subtext strong {
+  color: #FFFFFF !important;
+  text-decoration: underline;
+}
+
+/* 🟡 WHEN SELECTED: CARD 3 (OTHER COLLEGES ONLY - GOLD THEME) */
+#part-intercollege:checked + .scope-card-external {
+  background: rgba(56, 38, 8, 0.88) !important;
+  border: 2px solid #F59E0B !important;
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.45), inset 0 0 16px rgba(245, 158, 11, 0.20) !important;
+}
+#part-intercollege:checked + .scope-card-external .scope-badge {
+  color: #FDE68A !important;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.8) !important;
+}
+#part-intercollege:checked + .scope-card-external .scope-title {
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+}
+#part-intercollege:checked + .scope-card-external .scope-subtext {
+  color: #FEF3C7 !important;
+}
+#part-intercollege:checked + .scope-card-external .scope-subtext strong {
+  color: #FFFFFF !important;
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   FORM CONTROLS, SELECT DROPDOWNS & TEXT HIGHLIGHT CONTRAST
+   ========================================================================== */
+select, .form-select, .form-select-glass {
+  background-color: #051326 !important;
+  color: #FFFFFF !important;
+}
+
+select option, .form-select option, .form-select-glass option {
+  background-color: #06152B !important;
+  color: #FFFFFF !important;
+}
+
+select option:checked,
+select option:hover,
+select option:focus,
+.form-select option:checked,
+.form-select-glass option:checked {
+  background-color: #1677FF !important;
+  color: #FFFFFF !important;
+}
+
+/* Ensure no text in any form-check or label ever disappears */
+.btn-check:checked + label {
+  color: #FFFFFF !important;
+}
+.btn-check:checked + label .text-white,
+.btn-check:checked + label .text-light,
+.btn-check:checked + label .text-success,
+.btn-check:checked + label .text-info,
+.btn-check:checked + label .text-warning {
+  color: #FFFFFF !important;
+}
+
+/* ==========================================================================
+   UNIQUE & MODERN "CREATE TOURNAMENT" MODAL DESIGN SYSTEM
+   ========================================================================== */
+.create-tourn-modal-content {
+  background: linear-gradient(145deg, rgba(8, 18, 38, 0.97) 0%, rgba(4, 11, 24, 0.98) 100%) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.75), 0 0 50px rgba(245, 158, 11, 0.1) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #FFFFFF !important;
+  position: relative;
+  overflow: hidden !important;
+  max-height: 92vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.create-tourn-modal-content form {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.create-tourn-modal-content .modal-body {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: calc(92vh - 200px) !important;
+  overscroll-behavior: contain;
+}
+
+/* Custom scrollbar for create tournament modal */
+.create-tourn-modal-content .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+.create-tourn-modal-content .modal-body::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 8px;
+}
+.create-tourn-modal-content .modal-body::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.45);
+  border-radius: 8px;
+}
+.create-tourn-modal-content .modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.8);
+}
+
+.create-tourn-modal-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #F59E0B 0%, #10B981 50%, #38BDF8 100%);
+  z-index: 10;
+}
+
+.create-tourn-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
+  flex-shrink: 0;
+}
+
+/* Steps progress bar */
+.tourn-steps-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 8px 14px;
+  overflow-x: auto;
+}
+
+.tourn-steps-indicator .step-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94A3B8;
+  white-space: nowrap;
+}
+
+.tourn-steps-indicator .step-pill.active {
+  color: #F8FAFC;
+}
+
+.tourn-steps-indicator .step-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #FBBF24;
+  font-size: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.tourn-steps-indicator .step-pill-divider {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.65rem;
+}
+
+/* Form section card */
+.tourn-form-card {
+  background: rgba(13, 27, 54, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: 14px !important;
+  padding: 16px 18px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.2s ease;
+}
+
+.tourn-form-card:hover {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+.step-number-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(245, 158, 11, 0.1) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #FBBF24;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-family: monospace;
+}
+
+.text-2xs {
+  font-size: 0.65rem !important;
+}
+
+.btn-create-tourn {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+  color: #040A18 !important;
+  font-weight: 800 !important;
+  border: none !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.35) !important;
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease !important;
+}
+
+.btn-create-tourn:hover {
+  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%) !important;
+  color: #000000 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(245, 158, 11, 0.5) !important;
+}
+
+.btn-create-tourn:active {
+  transform: translateY(0);
+}
+
+/* Date picker indicator icons visibility in dark mode */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.9) sepia(100%) saturate(300%) hue-rotate(10deg);
+  cursor: pointer;
+  opacity: 0.85;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+

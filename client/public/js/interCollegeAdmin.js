@@ -16,13 +16,29 @@ document.addEventListener('DOMContentLoaded', () => {
   // Fetch local server network info for LAN Wi-Fi QR mode
   fetchServerNetworkInfo();
 
-  // Listen for view switches to inter-college
-  const interCollegeNav = document.querySelector('.admin-nav-item[data-view="inter-college"]');
-  if (interCollegeNav) {
-    interCollegeNav.addEventListener('click', () => {
+  // Listen for view switches to competitions / inter-college
+  const compNav = document.querySelector('.admin-nav-item[data-view="competitions"]');
+  if (compNav) {
+    compNav.addEventListener('click', () => {
       loadAdminInterCollegeData();
     });
   }
+
+  const paymentsNav = document.querySelector('.admin-nav-item[data-view="payments"]');
+  if (paymentsNav) {
+    paymentsNav.addEventListener('click', () => {
+      if (typeof loadAdminPayments === 'function') loadAdminPayments();
+    });
+  }
+
+  // Auto-sync polling every 12 seconds to continuously pull external registrations from cloud
+  setInterval(() => {
+    const compView = document.getElementById('view-competitions');
+    const payView = document.getElementById('view-payments');
+    if ((compView && !compView.classList.contains('d-none')) || (payView && !payView.classList.contains('d-none'))) {
+      loadAdminInterCollegeData(true);
+    }
+  }, 12000);
 });
 
 // ── QR Portal URL & Network Helpers ──
@@ -190,22 +206,22 @@ function switchExtTab(tabName) {
   else if (tabName === 'teams') renderExtTeamsCards();
   else if (tabName === 'players') renderExtPlayersTable();
   else if (tabName === 'approvals') renderExtApprovalsTable();
+  else if (tabName === 'payments') renderExtPaymentsView();
   else if (tabName === 'analytics') renderExtAnalytics();
   else if (tabName === 'reports') initExtReportsView();
-  else if (tabName === 'payment-settings') loadAdminPaymentSettings();
 }
 
 // ─────────────────────────────────────────────────────────────
 // 2. MAIN DATA LOADER & KPI SYNC
 // ─────────────────────────────────────────────────────────────
-async function loadAdminInterCollegeData() {
+async function loadAdminInterCollegeData(isSilent = false) {
   try {
     let comps = [];
     let regs = [];
 
-    // Try API endpoint for inter-college all-in-one data
+    // Try API endpoint for inter-college all-in-one data with cache-busting timestamp
     try {
-      const res = await apiRequest('/inter-college/admin/all');
+      const res = await apiRequest('/inter-college/admin/all?_t=' + Date.now());
       if (res && res.success) {
         comps = res.competitions || [];
         regs = res.registrations || [];
@@ -262,7 +278,7 @@ async function loadAdminInterCollegeData() {
           });
         });
       } else {
-        // Individual registration athlete
+        // Individual registration player
         playersList.push({
           player_name: r.player_name || r.contact_person || r.team_name,
           college_register_number: r.college_register_number || r.college_roll_number || '-',
@@ -270,7 +286,7 @@ async function loadAdminInterCollegeData() {
           department: r.department || '-',
           year: r.year || '-',
           gender: r.gender,
-          player_role: 'Single Athlete',
+          player_role: 'Single Player',
           registration_id: r.registration_id,
           sport_name: r.sport_name || (r.competition && r.competition.name),
           status: r.status
@@ -302,6 +318,21 @@ async function loadAdminInterCollegeData() {
 
     const kpiPending = document.getElementById('ext-kpi-pending-count');
     if (kpiPending) kpiPending.innerText = pendingCount;
+
+    // Calculate pending fee verifications
+    const pendingPaymentsCount = regs.filter(r => 
+      !isOurCollegeStudent(r.college_name) && 
+      (r.payment_status === 'PENDING_VERIFICATION' || (Number(r.fee_amount) > 0 && r.payment_status !== 'VERIFIED' && r.status !== 'APPROVED'))
+    ).length;
+
+    const kpiPayments = document.getElementById('ext-kpi-pay-count');
+    if (kpiPayments) kpiPayments.innerText = pendingPaymentsCount;
+
+    const navPaymentsBadge = document.getElementById('nav-payments-badge');
+    if (navPaymentsBadge) {
+      navPaymentsBadge.innerText = pendingPaymentsCount;
+      navPaymentsBadge.style.display = pendingPaymentsCount > 0 ? 'inline-block' : 'none';
+    }
 
     const tournCountBadge = document.getElementById('unified-tournaments-count');
     if (tournCountBadge && window.allTournamentsCache && Array.isArray(window.allTournamentsCache)) {
@@ -404,6 +435,100 @@ function getCategoryBadgeClass(cat) {
   if (c === 'Women') return 'bg-danger text-white';
   if (c === 'Mixed') return 'bg-success text-white';
   return 'bg-secondary text-white';
+}
+
+// ─────────────────────────────────────────────────────────────
+// College & Fee Payment Distinction Helpers
+// ─────────────────────────────────────────────────────────────
+function isOurCollegeStudent(collegeName) {
+  if (!collegeName) return false;
+  const c = String(collegeName).toLowerCase().trim();
+  return c.includes('idappadi') || 
+         c.includes('idapadi') || 
+         c === 'gasc' || 
+         c === 'gasc idappadi' ||
+         (c.includes('government arts') && (c.includes('idappadi') || c.includes('idapadi')));
+}
+
+function getRegistrationPaymentBadge(r) {
+  if (!r) return '';
+  const isOurCollege = isOurCollegeStudent(r.college_name);
+  const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
+
+  // Resolve matching competition for fallback fee lookup
+  let comp = null;
+  if (r.competition && typeof r.competition === 'object') {
+    comp = r.competition;
+  } else if (Array.isArray(extCompetitionsCache) && extCompetitionsCache.length > 0) {
+    comp = extCompetitionsCache.find(c => 
+      String(c.id) === String(r.competition_id || r.competitionId) ||
+      (c.name && r.competition_name && String(c.name).toLowerCase() === String(r.competition_name).toLowerCase()) ||
+      (c.sport_name && r.sport_name && String(c.sport_name).toLowerCase() === String(r.sport_name).toLowerCase())
+    );
+  }
+
+  // Determine payable / paid fee amount
+  let fee = 0;
+  if (r.fee_amount != null && Number(r.fee_amount) > 0) {
+    fee = Number(r.fee_amount);
+  } else if (r.feeAmount != null && Number(r.feeAmount) > 0) {
+    fee = Number(r.feeAmount);
+  } else if (comp) {
+    const rawFee = isTeam
+      ? (comp.other_college_team_fee || comp.other_college_fee || comp.team_fee || comp.entry_fee)
+      : (comp.other_college_individual_fee || comp.other_college_fee || comp.individual_fee || comp.entry_fee);
+    fee = Number(rawFee) || 0;
+  }
+
+  // Fallback default for other colleges if 0
+  if (!isOurCollege && fee === 0) {
+    fee = isTeam ? 500 : 100;
+  }
+
+  const payStatus = String(r.payment_status || '').toUpperCase();
+  const regStatus = String(r.status || '').toUpperCase();
+  let utr = r.transaction_ref || r.transactionRef || r.payment_id || '';
+  if (!utr && r.remarks && typeof r.remarks === 'string' && r.remarks.includes('"utr":')) {
+    try {
+      const parsedRem = JSON.parse(r.remarks);
+      utr = parsedRem.utr || parsedRem.transaction_ref || '';
+    } catch (e) {}
+  }
+
+  // 1. OUR COLLEGE STUDENTS (GASC IDAPPADI) -> FREE ENTRY
+  if (isOurCollege) {
+    if (fee > 0 && (payStatus === 'VERIFIED' || regStatus === 'APPROVED')) {
+      return `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 px-2 py-0.5"><i class="bi bi-mortarboard me-1"></i>Paid ₹${fee} (Our College)</span>`;
+    }
+    return `<span class="badge bg-info bg-opacity-20 text-info border border-info border-opacity-30 px-2 py-0.5" title="Free Entry for GASC Idappadi Students"><i class="bi bi-mortarboard me-1"></i>Free (Our College)</span>`;
+  }
+
+  // 2. OTHER / EXTERNAL COLLEGE STUDENTS -> ALWAYS SHOW EXACT AMOUNT (NEVER FREE)
+  // A. Verified / Approved Payment
+  if (payStatus === 'VERIFIED' || (regStatus === 'APPROVED' && payStatus !== 'REJECTED' && payStatus !== 'FAILED')) {
+    return `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 px-2 py-0.5" title="Payment Verified - UTR: ${utr || 'Direct Approval'}"><i class="bi bi-check-circle-fill me-1"></i>Paid ₹${fee}</span>`;
+  }
+
+  // B. Pending Verification with UTR or marked as PENDING_VERIFICATION
+  if (payStatus === 'PENDING_VERIFICATION' || utr) {
+    return `<button class="btn btn-warning btn-sm py-0.5 px-2 fw-bold shadow-sm d-inline-flex align-items-center gap-1" style="font-size:11px;" onclick="openVerifyPaymentModal('${r.id}')" title="Click to verify UTR ${utr}">
+      <i class="bi bi-patch-exclamation-fill text-dark"></i>
+      <span>Verify ₹${fee}</span>
+      ${utr ? `<span class="badge bg-dark text-warning p-0.5 ms-1" style="font-size:9px;">UTR</span>` : ''}
+    </button>`;
+  }
+
+  // C. Rejected / Failed Payment
+  if (payStatus === 'REJECTED' || payStatus === 'FAILED') {
+    return `<button class="btn btn-outline-danger btn-sm py-0.5 px-2 fw-bold" style="font-size:11px;" onclick="openVerifyPaymentModal('${r.id}')" title="Payment rejected or failed">
+      <i class="bi bi-x-circle me-1"></i>Failed (₹${fee})
+    </button>`;
+  }
+
+  // D. Pending payment
+  return `<button class="btn btn-outline-warning btn-sm py-0.5 px-2 fw-bold" style="font-size:11px;" onclick="openVerifyPaymentModal('${r.id}')" title="Payment pending: ₹${fee}">
+    <i class="bi bi-cash me-1"></i>₹${fee} (Pending)
+  </button>`;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -519,7 +644,7 @@ function renderExtCompetitionsCards() {
                     <div class="col-12">
                       <small class="text-muted d-block text-uppercase" style="font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;">Squad Format</small>
                       <span class="text-white fw-semibold" style="font-size: 0.85rem;">
-                        ${isTeam ? (c.required_players || 11) + ' Main + ' + (c.substitutes || 4) + ' Substitutes' : 'Single Athlete (Individual Entry)'}
+                        ${isTeam ? (c.required_players || 11) + ' Main + ' + (c.substitutes || 4) + ' Substitutes' : 'Single Player (Individual Entry)'}
                       </span>
                     </div>
                     <div class="col-12 mt-1">
@@ -623,7 +748,7 @@ function renderExtRegistrationsTable() {
     const sport = r.sport_name || (r.competition && r.competition.sportName) || 'Sports';
     const college = r.college_name || '-';
     const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
-    const participantName = isTeam ? (r.team_name || 'College Squad') : (r.player_name || r.contact_person || 'Athlete');
+    const participantName = isTeam ? (r.team_name || 'College Squad') : (r.player_name || r.contact_person || 'Player / Payer');
     const status = (r.status || 'PENDING').toUpperCase();
     const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
     const cat = normalizeCategoryLabel(r.category || r.gender || (r.competition && (r.competition.category || r.competition.gender)));
@@ -634,17 +759,7 @@ function renderExtRegistrationsTable() {
     else if (status === 'REJECTED') badgeClass = 'bg-danger text-white';
     else if (status === 'CORRECTION_REQUIRED') badgeClass = 'bg-info text-dark';
 
-    const payStatus = (r.payment_status || (r.fee_amount > 0 ? 'PENDING_VERIFICATION' : 'FREE')).toUpperCase();
-    let payHtml = '';
-    if (payStatus === 'VERIFIED') {
-      payHtml = `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25 px-2 py-0.5" title="UTR: ${r.transaction_ref || 'Verified'}"><i class="bi bi-check-circle-fill me-1"></i>Paid ₹${r.fee_amount || ''}</span>`;
-    } else if (payStatus === 'PENDING_VERIFICATION') {
-      payHtml = `<button class="btn btn-warning btn-sm py-0.5 px-2 fw-bold shadow-sm" style="font-size:11px;" onclick="openVerifyPaymentModal('${r.id}')" title="Click to verify UTR ${r.transaction_ref || ''}"><i class="bi bi-patch-exclamation me-1"></i>Verify ₹${r.fee_amount || ''}</button>`;
-    } else if (payStatus === 'REJECTED') {
-      payHtml = `<span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-25 px-2 py-0.5"><i class="bi bi-x-circle me-1"></i>Failed</span>`;
-    } else {
-      payHtml = `<span class="badge bg-secondary bg-opacity-10 text-muted px-2 py-0.5">Free</span>`;
-    }
+    const payHtml = getRegistrationPaymentBadge(r);
 
     html += `
       <tr>
@@ -799,7 +914,7 @@ function renderExtPlayersTable() {
         <td class="text-white">${p.college_name || '-'}</td>
         <td>${p.department || '-'} ${p.year ? '(' + p.year + ')' : ''}</td>
         <td><span class="badge" style="background: rgba(34, 211, 238, 0.16); color: #22D3EE; border: 1px solid rgba(34, 211, 238, 0.35);">${p.sport_name || 'Sports'}</span></td>
-        <td>${p.player_role || 'Athlete'}</td>
+        <td>${p.player_role || 'Player'}</td>
         <td class="font-monospace small text-muted">${p.registration_id || '-'}</td>
         <td>
           <span class="badge ${(p.status || '').toUpperCase() === 'APPROVED' ? 'bg-success' : 'bg-warning text-dark'}">
@@ -844,20 +959,10 @@ function renderExtApprovalsTable() {
     const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
     const compName = (r.competition && r.competition.name) || r.competition_name || 'Inter-College Championship';
     const sport = r.sport_name || (r.competition && r.competition.sportName) || 'Sports';
-    const participant = isTeam ? (r.team_name || 'College Squad') : (r.player_name || r.contact_person || 'Athlete');
+    const participant = isTeam ? (r.team_name || 'College Squad') : (r.player_name || r.contact_person || 'Player / Payer');
     const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
-    const payStatus = (r.payment_status || (r.fee_amount > 0 ? 'PENDING_VERIFICATION' : 'FREE')).toUpperCase();
-    let payHtml = '';
-    if (payStatus === 'VERIFIED') {
-      payHtml = `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25 px-2 py-0.5" title="UTR: ${r.transaction_ref || 'Verified'}"><i class="bi bi-check-circle-fill me-1"></i>Paid ₹${r.fee_amount || ''}</span>`;
-    } else if (payStatus === 'PENDING_VERIFICATION') {
-      payHtml = `<button class="btn btn-warning btn-sm py-0.5 px-2 fw-bold shadow-sm" style="font-size:11px;" onclick="openVerifyPaymentModal('${r.id}')" title="Click to verify UTR ${r.transaction_ref || ''}"><i class="bi bi-patch-exclamation me-1"></i>Verify ₹${r.fee_amount || ''}</button>`;
-    } else if (payStatus === 'REJECTED') {
-      payHtml = `<span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-25 px-2 py-0.5"><i class="bi bi-x-circle me-1"></i>Failed</span>`;
-    } else {
-      payHtml = `<span class="badge bg-secondary bg-opacity-10 text-muted px-2 py-0.5">Free</span>`;
-    }
+    const payHtml = getRegistrationPaymentBadge(r);
 
     html += `
       <tr>
@@ -972,7 +1077,7 @@ function renderExtAnalytics() {
         <div class="mb-3">
           <div class="d-flex justify-content-between small fw-bold mb-1">
             <span class="text-truncate" style="max-width: 70%;">${col}</span>
-            <span>${count} Teams / Athletes</span>
+            <span>${count} Teams / Players</span>
           </div>
           <div class="progress" style="height: 8px;">
             <div class="progress-bar bg-warning" role="progressbar" style="width: ${pct}%"></div>
@@ -1036,7 +1141,7 @@ function generateAdminExtReport() {
   } else {
     list.forEach((r, idx) => {
       const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
-      const participant = isTeam ? (r.team_name || 'Team') : (r.player_name || 'Athlete');
+      const participant = isTeam ? (r.team_name || 'Team') : (r.player_name || 'Player');
       const tourName = (r.tournament && r.tournament.name) || r.tournament_name || (r.competition && (r.competition.tournamentName || r.competition.tournament_name)) || 'GASC Tournament';
       const sport = r.sport_name || (r.competition && (r.competition.sportName || r.competition.sport_name)) || 'Sports';
       const compName = (r.competition && r.competition.name) || r.competition_name || 'Event';
@@ -1358,7 +1463,7 @@ function openInterCollegePosterModal(comp) {
   const contactPerson = comp.contact_person || comp.contactPerson || 'Dr. R. ANITHA (Physical Director)';
   const contactPhone = comp.contact_phone || comp.contactPhone || '+91 94432 18765';
   const contactEmail = comp.contact_email || comp.contactEmail || 'sportsgascidappadi@gmail.com';
-  const rules = comp.rules || comp.description || 'College ID card is compulsory for all participating athletes. Official entry forms must be verified before match commencement.';
+  const rules = comp.rules || comp.description || 'College ID card is compulsory for all participating players. Official entry forms must be verified before match commencement.';
 
   // Populate poster elements
   const titleEl = document.getElementById('poster-comp-title');
@@ -1645,10 +1750,10 @@ async function openExtRegDetails(regId) {
   if (compName) compName.innerText = (reg.competition && reg.competition.name) || reg.competition_name || 'Inter-College Championship';
 
   const typeGender = document.getElementById('detail-ext-type-gender');
-  if (typeGender) typeGender.innerText = `${isTeam ? 'Team Squad' : 'Individual Athlete'} (${reg.gender || 'Boys'})`;
+  if (typeGender) typeGender.innerText = `${isTeam ? 'Team Squad' : 'Individual Player'} (${reg.gender || 'Boys'})`;
 
   const teamName = document.getElementById('detail-ext-team-name');
-  if (teamName) teamName.innerText = isTeam ? (reg.team_name || 'College Squad') : (reg.player_name || reg.contact_person || 'Athlete');
+  if (teamName) teamName.innerText = isTeam ? (reg.team_name || 'College Squad') : (reg.player_name || reg.contact_person || 'Player / Payer');
 
   const emailEl = document.getElementById('detail-ext-email');
   if (emailEl) emailEl.innerText = reg.participant_email || '-';
@@ -1671,7 +1776,7 @@ async function openExtRegDetails(regId) {
 
   if (playersTbody) {
     if (players.length === 0) {
-      // Individual athlete fallback row
+      // Individual player fallback row
       playersTbody.innerHTML = `
         <tr>
           <td>1</td>
@@ -1680,7 +1785,7 @@ async function openExtRegDetails(regId) {
           <td>${reg.department || '-'}</td>
           <td>${reg.year || '-'}</td>
           <td>${reg.gender || 'Boys'}</td>
-          <td><span class="badge bg-primary">Single Athlete</span></td>
+          <td><span class="badge bg-primary">Single Player</span></td>
         </tr>
       `;
     } else {
@@ -1889,11 +1994,11 @@ function openCreateInterCollegeModal() {
     openCreateTournamentModal();
   }
 
-  // Pre-select Inter-College radio
-  const radio = document.getElementById('part-intercollege');
+  // Pre-select scope (Default: BOTH for maximum collegiate coverage)
+  const radio = document.getElementById('part-both') || document.getElementById('part-intercollege');
   if (radio) {
     radio.checked = true;
-    toggleInterCollegeFields(true);
+    toggleParticipationScope('BOTH');
   }
 
   const modalEl = document.getElementById('addCompetitionModal');
@@ -1910,22 +2015,80 @@ function openCreateInterCollegeModal() {
   }
 }
 
-function toggleInterCollegeFields(isInterCollege) {
+function toggleParticipationScope(scope) {
   const fields = document.getElementById('inter-college-config-fields');
   const badge = document.getElementById('part-type-badge');
+  const ourCard = document.getElementById('ctm-our-fee-card');
+  const otherCard = document.getElementById('ctm-other-fee-card');
+  const receiverCard = document.getElementById('ctm-payment-receiver-card');
+  const ourToggle = document.getElementById('ctm-our-fee-toggle');
+  const otherToggle = document.getElementById('ctm-other-fee-toggle');
 
-  if (fields) {
-    if (isInterCollege) {
-      fields.classList.remove('d-none');
-    } else {
-      fields.classList.add('d-none');
+  if (scope === 'BOTH') {
+    if (fields) fields.classList.remove('d-none');
+    if (badge) {
+      badge.innerHTML = '<i class="bi bi-people-fill me-1"></i>Open for Both (Our College & Other Colleges)';
+      badge.className = 'badge bg-success text-white px-2.5 py-1 shadow-sm';
     }
+    // Our College: Free (Toggle Off)
+    if (ourToggle) {
+      ourToggle.checked = false;
+      if (typeof toggleOurCollegeFee === 'function') toggleOurCollegeFee(false);
+    }
+    // Other College: Fee Enabled (Toggle On)
+    if (otherToggle) {
+      otherToggle.checked = true;
+      if (typeof toggleOtherCollegeFee === 'function') toggleOtherCollegeFee(true);
+    }
+    if (ourCard) ourCard.style.display = '';
+    if (otherCard) otherCard.style.display = '';
+    if (receiverCard) receiverCard.style.display = '';
+  } else if (scope === 'INTERNAL') {
+    if (fields) fields.classList.add('d-none');
+    if (badge) {
+      badge.innerHTML = '<i class="bi bi-building-check me-1"></i>Our College Students Only (Free / Intra-College)';
+      badge.className = 'badge bg-primary text-white px-2.5 py-1 shadow-sm';
+    }
+    // Our College: Free
+    if (ourToggle) {
+      ourToggle.checked = false;
+      if (typeof toggleOurCollegeFee === 'function') toggleOurCollegeFee(false);
+    }
+    // Other College: Disabled
+    if (otherToggle) {
+      otherToggle.checked = false;
+      if (typeof toggleOtherCollegeFee === 'function') toggleOtherCollegeFee(false);
+    }
+    if (ourCard) ourCard.style.display = '';
+    if (otherCard) otherCard.style.display = 'none';
+    if (receiverCard) receiverCard.style.display = 'none';
+  } else if (scope === 'INTER_COLLEGE') {
+    if (fields) fields.classList.remove('d-none');
+    if (badge) {
+      badge.innerHTML = '<i class="bi bi-qr-code-scan me-1"></i>Other Colleges Only (External / Inter-College)';
+      badge.className = 'badge bg-warning text-dark px-2.5 py-1 shadow-sm';
+    }
+    // Our College: Disabled for individual entry
+    if (ourToggle) {
+      ourToggle.checked = false;
+      if (typeof toggleOurCollegeFee === 'function') toggleOurCollegeFee(false);
+    }
+    // Other College: Fee Enabled
+    if (otherToggle) {
+      otherToggle.checked = true;
+      if (typeof toggleOtherCollegeFee === 'function') toggleOtherCollegeFee(true);
+    }
+    if (ourCard) ourCard.style.display = 'none';
+    if (otherCard) otherCard.style.display = '';
+    if (receiverCard) receiverCard.style.display = '';
   }
+}
 
-  if (badge) {
-    badge.innerText = isInterCollege ? 'Inter-College (External QR)' : 'Internal Tournament';
-    badge.className = isInterCollege ? 'badge bg-warning text-dark' : 'badge bg-warning bg-opacity-20 text-dark';
+function toggleInterCollegeFields(isInterCollege) {
+  if (typeof isInterCollege === 'string') {
+    return toggleParticipationScope(isInterCollege);
   }
+  return toggleParticipationScope(isInterCollege ? 'INTER_COLLEGE' : 'INTERNAL');
 }
 
 function onCompetitionModeChange(mode) {
@@ -1940,6 +2103,7 @@ function onCompetitionModeChange(mode) {
 window.loadAdminInterCollegeData = loadAdminInterCollegeData;
 window.switchExtTab = switchExtTab;
 window.openCreateInterCollegeModal = openCreateInterCollegeModal;
+window.toggleParticipationScope = toggleParticipationScope;
 window.toggleInterCollegeFields = toggleInterCollegeFields;
 window.onCompetitionModeChange = onCompetitionModeChange;
 window.openInterCollegeQrModal = openInterCollegeQrModal;
@@ -2296,8 +2460,13 @@ function openVerifyPaymentModal(regId) {
   document.getElementById('vp-comp-name').innerText = `Competition: ${compName} (${reg.gender || 'All'})`;
   document.getElementById('vp-participant').innerText = `Contact: ${reg.participant_email || ''} | ${reg.participant_phone || ''}`;
 
-  const fee = reg.fee_amount !== undefined ? reg.fee_amount : (reg.feeAmount !== undefined ? reg.feeAmount : 500);
-  document.getElementById('vp-fee-amount').innerText = `₹${fee}`;
+  const isOurCollege = isOurCollegeStudent(reg.college_name);
+  const isTeam = (reg.registration_type || reg.registrationType) === 'TEAM';
+  let fee = (reg.fee_amount != null && Number(reg.fee_amount) > 0) ? Number(reg.fee_amount) : (reg.feeAmount != null && Number(reg.feeAmount) > 0 ? Number(reg.feeAmount) : 0);
+  if (!isOurCollege && fee === 0) {
+    fee = isTeam ? 500 : 100;
+  }
+  document.getElementById('vp-fee-amount').innerText = (isOurCollege && fee === 0) ? 'Free (Our College)' : `₹${fee}`;
 
   const utr = reg.transaction_ref || reg.transactionRef || 'N/A';
   document.getElementById('vp-utr-number').innerText = utr;
@@ -2392,6 +2561,477 @@ async function rejectRegistrationPayment() {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// 14. DEDICATED FEE & PAYMENT MANAGEMENT SYSTEM
+// ─────────────────────────────────────────────────────────────
+
+let currentExtPaymentSubTab = 'pending';
+let activeProofRecord = null;
+
+function toggleExtPaymentTab(subTab) {
+  currentExtPaymentSubTab = subTab;
+  const btnPending = document.getElementById('btn-pay-tab-pending');
+  const btnHistory = document.getElementById('btn-pay-tab-history');
+  const panePending = document.getElementById('ext-pay-pane-pending');
+  const paneHistory = document.getElementById('ext-pay-pane-history');
+
+  if (subTab === 'pending') {
+    if (btnPending) btnPending.classList.add('active');
+    if (btnHistory) btnHistory.classList.remove('active');
+    if (panePending) panePending.classList.remove('d-none');
+    if (paneHistory) paneHistory.classList.add('d-none');
+  } else {
+    if (btnPending) btnPending.classList.remove('active');
+    if (btnHistory) btnHistory.classList.add('active');
+    if (panePending) panePending.classList.add('d-none');
+    if (paneHistory) paneHistory.classList.remove('d-none');
+  }
+}
+
+function renderExtPaymentsView() {
+  const regs = extRegistrationsCache || [];
+
+  // Categorize fee records
+  const feeRecords = regs.map(r => {
+    const isOur = isOurCollegeStudent(r.college_name);
+    const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
+    let fee = (r.fee_amount != null && Number(r.fee_amount) > 0) ? Number(r.fee_amount) : (r.feeAmount != null && Number(r.feeAmount) > 0 ? Number(r.feeAmount) : 0);
+    if (!isOur && fee === 0) {
+      fee = isTeam ? 500 : 100;
+    }
+    let utr = r.transaction_ref || r.transactionRef || r.payment_id || '';
+    let screenshot = r.payment_screenshot || r.paymentScreenshot || r.supporting_document || '';
+    if (r.remarks && typeof r.remarks === 'string') {
+      try {
+        const rem = JSON.parse(r.remarks);
+        if (!utr) utr = rem.utr || rem.transaction_ref || rem.submittedUtr || '';
+        if (!screenshot) screenshot = rem.payment_screenshot || '';
+      } catch (e) {}
+    }
+
+    const payStatus = (r.payment_status || (r.status === 'APPROVED' ? 'VERIFIED' : 'PENDING_VERIFICATION')).toUpperCase();
+    const isVerified = payStatus === 'VERIFIED' || r.status === 'APPROVED';
+    const isRejected = payStatus === 'REJECTED' || r.status === 'REJECTED';
+    const isPending = !isVerified && !isRejected;
+
+    return {
+      ...r,
+      resolvedFee: fee,
+      resolvedUtr: utr,
+      resolvedScreenshot: screenshot,
+      resolvedPayStatus: payStatus,
+      isVerified,
+      isRejected,
+      isPending
+    };
+  });
+
+  const pendingList = feeRecords.filter(r => r.isPending);
+  const historyList = feeRecords;
+
+  // Calculate collections
+  let totalCollected = 0;
+  let verifiedCount = 0;
+  feeRecords.forEach(r => {
+    if (r.isVerified) {
+      totalCollected += Number(r.resolvedFee || 0);
+      verifiedCount++;
+    }
+  });
+
+  // Update KPI Ribbon
+  const elTotalCollected = document.getElementById('ext-pay-total-collected');
+  if (elTotalCollected) elTotalCollected.innerText = '₹' + totalCollected.toLocaleString('en-IN');
+
+  const elVerifiedCount = document.getElementById('ext-pay-verified-count');
+  if (elVerifiedCount) elVerifiedCount.innerText = verifiedCount;
+
+  const elPendingCount = document.getElementById('ext-pay-pending-count');
+  if (elPendingCount) elPendingCount.innerText = pendingList.length;
+
+  const elApprovedPlayers = document.getElementById('ext-pay-approved-players-count');
+  if (elApprovedPlayers) elApprovedPlayers.innerText = verifiedCount;
+
+  const elTotalRecords = document.getElementById('ext-pay-total-records-count');
+  if (elTotalRecords) elTotalRecords.innerText = feeRecords.length;
+
+  const subBadgePending = document.getElementById('ext-pay-badge-sub-pending');
+  if (subBadgePending) subBadgePending.innerText = pendingList.length;
+
+  const subBadgeHistory = document.getElementById('ext-pay-badge-sub-history');
+  if (subBadgeHistory) subBadgeHistory.innerText = historyList.length;
+
+  // Render Pending Fee Table
+  const pendingTbody = document.getElementById('ext-pay-pending-tbody');
+  if (pendingTbody) {
+    if (pendingList.length === 0) {
+      pendingTbody.innerHTML = `
+        <tr>
+          <td colspan="9" class="text-center py-5 text-muted">
+            <i class="bi bi-patch-check-fill fs-1 text-success d-block mb-2"></i>
+            <h5 class="text-white">All Fees Reconciled & Up to Date!</h5>
+            <p class="small" style="color: #AFC4DF;">There are currently no student payments pending verification. All incoming fees are approved.</p>
+          </td>
+        </tr>
+      `;
+    } else {
+      let pHtml = '';
+      pendingList.forEach((r, idx) => {
+        const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
+        const participant = isTeam ? (r.team_name || 'College Squad') : (r.player_name || 'Player / Payer');
+        const compName = (r.competition && r.competition.name) || r.sport_name || 'Championship';
+        const dateStr = r.created_at ? new Date(r.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
+
+        pHtml += `
+          <tr>
+            <td class="text-muted small">${idx + 1}</td>
+            <td>
+              <div class="font-monospace fw-bold text-primary">${r.registration_id || r.id}</div>
+              <small class="badge bg-secondary bg-opacity-50 text-white-50">${isTeam ? 'Team' : 'Individual'}</small>
+            </td>
+            <td>
+              <div class="fw-bold text-white">${r.college_name || 'Other College'}</div>
+              <div class="small text-white-50"><i class="bi bi-person me-1"></i>${participant}</div>
+              <small class="text-muted">${r.participant_phone || r.participant_email || ''}</small>
+            </td>
+            <td>
+              <div class="fw-bold text-warning">${compName}</div>
+              <small style="color: #AFC4DF;">${r.gender || 'Boys'}</small>
+            </td>
+            <td>
+              <div class="fw-black fs-6 text-success">₹${r.resolvedFee}</div>
+              <span class="badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-30" style="font-size:10px;">Pending Verify</span>
+            </td>
+            <td>
+              <div class="d-flex align-items-center gap-1">
+                <code class="text-warning fw-bold bg-dark px-1.5 py-0.5 rounded border border-secondary border-opacity-25">${r.resolvedUtr || 'N/A'}</code>
+                ${r.resolvedUtr && r.resolvedUtr !== 'N/A' ? `
+                  <button class="btn btn-link btn-sm p-0 text-muted" onclick="navigator.clipboard.writeText('${r.resolvedUtr}'); notifyUser('UTR copied to clipboard!', 'info');" title="Copy UTR">
+                    <i class="bi bi-clipboard"></i>
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+            <td>
+              ${r.resolvedScreenshot ? `
+                <button class="btn btn-outline-info btn-sm py-1 px-2 fw-semibold d-inline-flex align-items-center gap-1 shadow-sm" onclick="showPaymentProofModal('${r.id}')">
+                  <i class="bi bi-image"></i> View Screenshot
+                </button>
+              ` : `
+                <span class="text-muted small italic">No screenshot</span>
+              `}
+            </td>
+            <td class="small text-muted">${dateStr}</td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <button class="btn btn-success fw-bold px-2.5 shadow-sm text-white" onclick="quickVerifyAndApprovePayment('${r.id}')" title="Amount Received: Approve Registration & Send Confirmation Email">
+                  <i class="bi bi-check-circle-fill me-1"></i> Approve
+                </button>
+                <button class="btn btn-outline-danger px-2" onclick="openRejectModal('${r.id}')" title="Reject Payment / Registration">
+                  <i class="bi bi-x-circle"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      pendingTbody.innerHTML = pHtml;
+    }
+  }
+
+  // Render History Table
+  renderExtPaymentHistoryTable(historyList);
+}
+
+function renderExtPaymentHistoryTable(list) {
+  const tbody = document.getElementById('ext-pay-history-tbody');
+  if (!tbody) return;
+
+  if (!list || list.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" class="text-center py-5 text-muted">
+          <i class="bi bi-inbox fs-3 d-block mb-2 text-secondary"></i>
+          <div>No transaction records found matching your filters.</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  let html = '';
+  list.forEach((r, idx) => {
+    const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
+    const participant = isTeam ? (r.team_name || 'College Squad') : (r.player_name || 'Player / Payer');
+    const compName = (r.competition && r.competition.name) || r.sport_name || 'Championship';
+    const dateStr = r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
+
+    const statusBadge = r.isVerified
+      ? `<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-30 px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>PAID / VERIFIED</span>`
+      : (r.isRejected
+        ? `<span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-30 px-2 py-1"><i class="bi bi-x-circle me-1"></i>REJECTED</span>`
+        : `<span class="badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-30 px-2 py-1"><i class="bi bi-hourglass-split me-1"></i>PENDING</span>`);
+
+    html += `
+      <tr>
+        <td class="text-muted small">${idx + 1}</td>
+        <td>
+          <div class="font-monospace fw-bold text-primary">${r.registration_id || r.id}</div>
+          <small class="text-muted">${dateStr}</small>
+        </td>
+        <td>
+          <div class="fw-bold text-white">${r.college_name || 'Other College'}</div>
+          <small class="text-white-50">${participant}</small>
+        </td>
+        <td>
+          <div class="fw-semibold text-warning">${compName}</div>
+          <small style="color: #AFC4DF;">${r.gender || 'Boys'}</small>
+        </td>
+        <td>
+          <div class="fw-bold text-white fs-6">₹${r.resolvedFee}</div>
+          <small class="text-muted text-uppercase" style="font-size:10px;">${r.payment_method || 'UPI / QR'}</small>
+        </td>
+        <td>
+          <code class="small text-white-50">${r.resolvedUtr || 'N/A'}</code>
+        </td>
+        <td>
+          ${r.resolvedScreenshot ? `
+            <button class="btn btn-outline-info btn-sm py-0 px-2" onclick="showPaymentProofModal('${r.id}')" title="View Uploaded Payment Screenshot">
+              <i class="bi bi-image me-1"></i>Proof
+            </button>
+          ` : `<span class="text-muted small">-</span>`}
+        </td>
+        <td>${statusBadge}</td>
+        <td class="text-center">
+          <button class="btn btn-outline-light btn-sm px-2.5 py-1" onclick="openPaymentReceiptModal('${r.registration_id || r.id}')" title="View Official Printable Receipt">
+            <i class="bi bi-receipt me-1"></i> Receipt
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function showPaymentProofModal(regId) {
+  const reg = extRegistrationsCache.find(r => String(r.id) === String(regId) || String(r.registration_id) === String(regId));
+  if (!reg) return;
+
+  activeProofRecord = reg;
+
+  const isTeam = (reg.registration_type || reg.registrationType) === 'TEAM';
+  const participant = isTeam ? (reg.team_name || 'College Squad') : (reg.player_name || 'Player / Payer');
+  const isOur = isOurCollegeStudent(reg.college_name);
+  let fee = (reg.fee_amount != null && Number(reg.fee_amount) > 0) ? Number(reg.fee_amount) : 0;
+  if (!isOur && fee === 0) fee = isTeam ? 500 : 100;
+
+  let utr = reg.transaction_ref || reg.payment_id || '';
+  let screenshot = reg.payment_screenshot || reg.supporting_document || '';
+  if (reg.remarks && typeof reg.remarks === 'string') {
+    try {
+      const rem = JSON.parse(reg.remarks);
+      if (!utr) utr = rem.utr || rem.transaction_ref || rem.submittedUtr || '';
+      if (!screenshot) screenshot = rem.payment_screenshot || '';
+    } catch (e) {}
+  }
+
+  document.getElementById('proof-lightbox-reg-id').value = reg.id;
+  document.getElementById('proof-reg-id').innerText = reg.registration_id || reg.id;
+  document.getElementById('proof-amount').innerText = `₹${fee}`;
+  document.getElementById('proof-player').innerText = participant;
+  document.getElementById('proof-college').innerText = reg.college_name || 'External College';
+  document.getElementById('proof-utr').innerText = utr || 'Not Provided';
+
+  const imgEl = document.getElementById('proof-lightbox-img');
+  const linkEl = document.getElementById('proof-lightbox-open-link');
+
+  if (screenshot) {
+    imgEl.src = screenshot;
+    imgEl.style.display = 'inline-block';
+    if (linkEl) {
+      linkEl.href = screenshot;
+      linkEl.style.display = 'inline-block';
+    }
+  } else {
+    imgEl.style.display = 'none';
+    if (linkEl) linkEl.style.display = 'none';
+  }
+
+  const modalEl = document.getElementById('modal-payment-proof-lightbox');
+  if (modalEl) {
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+}
+
+function copyProofUtr() {
+  const utr = document.getElementById('proof-utr')?.innerText;
+  if (utr && utr !== 'Not Provided') {
+    navigator.clipboard.writeText(utr.trim());
+    notifyUser(`UTR "${utr}" copied to clipboard!`, 'info', 'Copied');
+  }
+}
+
+async function approveProofModalPayment() {
+  if (!activeProofRecord) return;
+  const regId = activeProofRecord.id;
+  bootstrap.Modal.getInstance(document.getElementById('modal-payment-proof-lightbox'))?.hide();
+  await quickVerifyAndApprovePayment(regId);
+}
+
+async function rejectProofModalPayment() {
+  if (!activeProofRecord) return;
+  const regId = activeProofRecord.id;
+  bootstrap.Modal.getInstance(document.getElementById('modal-payment-proof-lightbox'))?.hide();
+  openRejectModal(regId);
+}
+
+async function quickVerifyAndApprovePayment(regId) {
+  const reg = extRegistrationsCache.find(r => String(r.id) === String(regId) || String(r.registration_id) === String(regId));
+  if (!reg) return;
+
+  const isTeam = (reg.registration_type || reg.registrationType) === 'TEAM';
+  const participant = isTeam ? (reg.team_name || 'College Squad') : (reg.player_name || 'Player / Payer');
+  const college = reg.college_name || 'College';
+  const fee = reg.fee_amount || (isTeam ? 500 : 100);
+
+  const confirmMsg = `Have you confirmed receipt of ₹${fee} from "${college}" (${participant}) in your GPay/Bank account?\n\nClick OK to APPROVE registration and send the confirmation email to: ${reg.participant_email || reg.college_email || 'student'}.`;
+  
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await fetch('/api/inter-college/admin/verify-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        registrationId: reg.id,
+        paymentStatus: 'VERIFIED',
+        remarks: 'Payment verified and confirmed by Sports Incharge.',
+        verifiedBy: (window.currentUser && (window.currentUser.name || window.currentUser.username)) || 'Sports Admin'
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      notifyUser(`✅ Payment of ₹${fee} verified! Registration approved and confirmation email sent.`, 'success', 'Approved');
+      loadAdminInterCollegeData();
+    } else {
+      notifyUser('Error confirming payment: ' + (data.message || 'Unknown error'), 'danger');
+    }
+  } catch (err) {
+    console.error('quickVerifyAndApprovePayment error:', err);
+    notifyUser('Network error confirming payment: ' + err.message, 'danger');
+  }
+}
+
+function filterExtPaymentHistory() {
+  const search = (document.getElementById('pay-hist-search')?.value || '').toLowerCase().trim();
+  const comp = document.getElementById('pay-hist-filter-comp')?.value || 'ALL';
+  const status = document.getElementById('pay-hist-filter-status')?.value || 'ALL';
+
+  const regs = extRegistrationsCache || [];
+  const filtered = regs.filter(r => {
+    const isOur = isOurCollegeStudent(r.college_name);
+    const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
+    let fee = (r.fee_amount != null && Number(r.fee_amount) > 0) ? Number(r.fee_amount) : 0;
+    if (!isOur && fee === 0) fee = isTeam ? 500 : 100;
+    let utr = r.transaction_ref || r.payment_id || '';
+    let screenshot = r.payment_screenshot || r.supporting_document || '';
+
+    const payStatus = (r.payment_status || (r.status === 'APPROVED' ? 'VERIFIED' : 'PENDING_VERIFICATION')).toUpperCase();
+    const isVerified = payStatus === 'VERIFIED' || r.status === 'APPROVED';
+    const isRejected = payStatus === 'REJECTED' || r.status === 'REJECTED';
+    const isPending = !isVerified && !isRejected;
+
+    r.resolvedFee = fee;
+    r.resolvedUtr = utr;
+    r.resolvedScreenshot = screenshot;
+    r.isVerified = isVerified;
+    r.isRejected = isRejected;
+    r.isPending = isPending;
+
+    if (comp !== 'ALL') {
+      const cId = r.competition_id || (r.competition && r.competition.id);
+      if (String(cId) !== String(comp) && r.sport_name !== comp) return false;
+    }
+
+    if (status === 'VERIFIED' && !isVerified) return false;
+    if (status === 'PENDING' && !isPending) return false;
+    if (status === 'REJECTED' && !isRejected) return false;
+
+    if (search) {
+      const match = (r.registration_id || '').toLowerCase().includes(search) ||
+                    (r.college_name || '').toLowerCase().includes(search) ||
+                    (r.player_name || '').toLowerCase().includes(search) ||
+                    (r.team_name || '').toLowerCase().includes(search) ||
+                    (utr || '').toLowerCase().includes(search);
+      if (!match) return false;
+    }
+
+    return true;
+  });
+
+  renderExtPaymentHistoryTable(filtered);
+}
+
+function resetExtPaymentFilters() {
+  const searchEl = document.getElementById('pay-hist-search');
+  if (searchEl) searchEl.value = '';
+  const compEl = document.getElementById('pay-hist-filter-comp');
+  if (compEl) compEl.value = 'ALL';
+  const statusEl = document.getElementById('pay-hist-filter-status');
+  if (statusEl) statusEl.value = 'ALL';
+  renderExtPaymentHistoryTable(extRegistrationsCache || []);
+}
+
+function exportExtPaymentsToCsv() {
+  const regs = extRegistrationsCache || [];
+  if (regs.length === 0) {
+    notifyUser('No payment records to export.', 'warning');
+    return;
+  }
+
+  const headers = ['Registration ID', 'College Name', 'Participant / Team', 'Sport / Competition', 'Category', 'Fee Amount (INR)', 'Payment Method', 'UTR / Payment ID', 'Payment Status', 'Registration Status', 'Submitted Date', 'Verified By'];
+  
+  const rows = regs.map(r => {
+    const isTeam = (r.registration_type || r.registrationType) === 'TEAM';
+    const participant = isTeam ? (r.team_name || 'College Squad') : (r.player_name || 'Player / Payer');
+    const compName = (r.competition && r.competition.name) || r.sport_name || 'Championship';
+    const isOur = isOurCollegeStudent(r.college_name);
+    let fee = (r.fee_amount != null && Number(r.fee_amount) > 0) ? Number(r.fee_amount) : 0;
+    if (!isOur && fee === 0) fee = isTeam ? 500 : 100;
+    const utr = r.transaction_ref || r.payment_id || '';
+    const dateStr = r.created_at ? new Date(r.created_at).toISOString().split('T')[0] : '';
+    const payStatus = r.payment_status || (r.status === 'APPROVED' ? 'VERIFIED' : 'PENDING');
+
+    return [
+      `"${r.registration_id || r.id}"`,
+      `"${(r.college_name || '').replace(/"/g, '""')}"`,
+      `"${participant.replace(/"/g, '""')}"`,
+      `"${compName.replace(/"/g, '""')}"`,
+      `"${r.gender || 'Boys'}"`,
+      fee,
+      `"${r.payment_method || 'UPI / QR'}"`,
+      `"${utr}"`,
+      `"${payStatus}"`,
+      `"${r.status || 'PENDING'}"`,
+      `"${dateStr}"`,
+      `"${r.payment_verified_by || 'Sports Admin'}"`
+    ].join(',');
+  });
+
+  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `GASC_Sports_Payment_Ledger_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  notifyUser('Payment history CSV exported successfully!', 'success', 'Export Complete');
+}
+
 // Expose to window
 window.loadAdminPaymentSettings = loadAdminPaymentSettings;
 window.updatePaymentPreview = updatePaymentPreview;
@@ -2405,3 +3045,14 @@ window.copyUtrToClipboard = copyUtrToClipboard;
 window.openVerifyPaymentModal = openVerifyPaymentModal;
 window.confirmRegistrationPayment = confirmRegistrationPayment;
 window.rejectRegistrationPayment = rejectRegistrationPayment;
+window.toggleExtPaymentTab = toggleExtPaymentTab;
+window.renderExtPaymentsView = renderExtPaymentsView;
+window.showPaymentProofModal = showPaymentProofModal;
+window.copyProofUtr = copyProofUtr;
+window.approveProofModalPayment = approveProofModalPayment;
+window.rejectProofModalPayment = rejectProofModalPayment;
+window.quickVerifyAndApprovePayment = quickVerifyAndApprovePayment;
+window.filterExtPaymentHistory = filterExtPaymentHistory;
+window.resetExtPaymentFilters = resetExtPaymentFilters;
+window.exportExtPaymentsToCsv = exportExtPaymentsToCsv;
+

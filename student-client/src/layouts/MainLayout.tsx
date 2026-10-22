@@ -161,7 +161,7 @@ const MainLayout = () => {
         try {
           const u = JSON.parse(stored);
           setUser({
-            name: u.name || 'Student Athlete',
+            name: u.name || 'Student Player',
             regNo: u.registerNumber || u.regNo || u.register_number || '',
             dept: u.department || u.dept || 'Computer Science',
             year: u.year || 'I Year',
@@ -212,7 +212,7 @@ const MainLayout = () => {
     );
   }
 
-  const displayName = user?.name || 'Student Athlete';
+  const displayName = user?.name || 'Student Player';
   const displayInitials = (displayName || 'ST')
     .split(' ')
     .filter(Boolean)

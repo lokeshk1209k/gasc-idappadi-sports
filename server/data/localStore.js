@@ -2,9 +2,73 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-// Central local DB file path
+// Central local DB file resolution (Portable + Any-Laptop Compatible)
 const LOCAL_FALLBACK_FILE = path.join(__dirname, 'local_db.json');
-const DB_FILE = LOCAL_FALLBACK_FILE;
+
+function resolveDbFile() {
+  const bundledFile = LOCAL_FALLBACK_FILE;
+
+  // 1. If running in development and writable
+  try {
+    if (!bundledFile.includes('app.asar')) {
+      fs.accessSync(bundledFile, fs.constants.W_OK);
+      return bundledFile;
+    }
+  } catch (e) {}
+
+  // 2. Portable executable directory (if running as portable EXE next to Sports Management.exe)
+  try {
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
+      const portableDataDir = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'sports_management_data');
+      if (!fs.existsSync(portableDataDir)) {
+        try { fs.mkdirSync(portableDataDir, { recursive: true }); } catch (e) {}
+      }
+      if (fs.existsSync(portableDataDir)) {
+        const portableDb = path.join(portableDataDir, 'local_db.json');
+        if (!fs.existsSync(portableDb) && fs.existsSync(bundledFile)) {
+          try { fs.copyFileSync(bundledFile, portableDb); } catch (e) {}
+        }
+        if (fs.existsSync(portableDb)) {
+          try {
+            fs.accessSync(portableDb, fs.constants.W_OK);
+            return portableDb;
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 3. UserData / AppData Directory (Always 100% writable on ANY Windows system)
+  try {
+    let userDataDir = '';
+    try {
+      const electron = require('electron');
+      const app = electron.app || (electron.remote && electron.remote.app);
+      if (app && typeof app.getPath === 'function') {
+        userDataDir = app.getPath('userData');
+      }
+    } catch (e) {}
+
+    if (!userDataDir) {
+      const baseApp = process.env.APPDATA || (process.platform === 'darwin' ? path.join(process.env.HOME || '', 'Library/Application Support') : '/var/local');
+      userDataDir = path.join(baseApp, 'com.gasc.idappadi.sports.admin');
+    }
+
+    if (!fs.existsSync(userDataDir)) {
+      try { fs.mkdirSync(userDataDir, { recursive: true }); } catch (e) {}
+    }
+
+    const appDataDb = path.join(userDataDir, 'local_db.json');
+    if (!fs.existsSync(appDataDb) && fs.existsSync(bundledFile)) {
+      try { fs.copyFileSync(bundledFile, appDataDb); } catch (e) {}
+    }
+    return appDataDb;
+  } catch (e) {}
+
+  return bundledFile;
+}
+
+const DB_FILE = resolveDbFile();
 
 
 function getInitialData() {
@@ -534,47 +598,63 @@ class LocalStore {
 
   init() {
     try {
-      if (fs.existsSync(DB_FILE)) {
-        this.lastLoadedMtime = fs.statSync(DB_FILE).mtimeMs;
-        const raw = fs.readFileSync(DB_FILE, 'utf8');
-        this.db = JSON.parse(raw);
-        if (!this.db.tournaments || !Array.isArray(this.db.tournaments)) {
-          this.db.tournaments = [];
+      const candidateFiles = [DB_FILE, LOCAL_FALLBACK_FILE];
+      let loaded = false;
+
+      for (const targetFile of candidateFiles) {
+        if (fs.existsSync(targetFile)) {
+          try {
+            this.lastLoadedMtime = fs.statSync(targetFile).mtimeMs;
+            const raw = fs.readFileSync(targetFile, 'utf8');
+            this.db = JSON.parse(raw);
+            loaded = true;
+            console.log(`📦 Local Store loaded from ${path.basename(targetFile)} successfully.`);
+            break;
+          } catch (e) {}
         }
-        // Auto-seed existing tournaments from competitions if empty
-        if (this.db.tournaments.length === 0 && Array.isArray(this.db.competitions)) {
-          const map = new Map();
-          for (const c of this.db.competitions) {
-            const tName = (c.tournament_name || c.tournamentName || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'SPARK 2026 Annual Sports Fest').trim();
-            if (!map.has(tName)) {
-              map.set(tName, {
-                id: `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
-                name: tName,
-                tournament_name: tName,
-                description: c.description || `Official ${tName} Tournament conducted by GASC Idappadi.`,
-                venue: c.venue || 'GASC Idappadi Sports Ground',
-                date: c.date || new Date().toISOString(),
-                registration_end: c.registration_end || c.date || new Date().toISOString(),
-                type: c.type || 'Inter-Department',
-                status: c.status || 'Registration Open',
-                banner_image: c.banner_image || '/images/sports/tournament.png',
-                created_at: c.created_at || new Date().toISOString()
-              });
-            }
-          }
-          this.db.tournaments = Array.from(map.values());
-          this.save();
-        }
-        console.log('📦 Local Store loaded from local_db.json successfully.');
-      } else {
+      }
+
+      if (!loaded || !this.db) {
         this.db = getInitialData();
-        this.save();
         console.log('🌱 Local Store initialized with standard GASC Idappadi dataset.');
+      }
+
+      if (!this.db.tournaments || !Array.isArray(this.db.tournaments)) {
+        this.db.tournaments = [];
+      }
+
+      // Auto-seed existing tournaments from competitions if empty
+      if (this.db.tournaments.length === 0 && Array.isArray(this.db.competitions)) {
+        const map = new Map();
+        for (const c of this.db.competitions) {
+          const tName = (c.tournament_name || c.tournamentName || (c.name && c.name.includes('-') ? c.name.split('-')[0].trim() : c.name) || 'SPARK 2026 Annual Sports Fest').trim();
+          if (!map.has(tName)) {
+            map.set(tName, {
+              id: `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+              name: tName,
+              tournament_name: tName,
+              description: c.description || `Official ${tName} Tournament conducted by GASC Idappadi.`,
+              venue: c.venue || 'GASC Idappadi Sports Ground',
+              date: c.date || new Date().toISOString(),
+              registration_end: c.registration_end || c.date || new Date().toISOString(),
+              type: c.type || 'Inter-Department',
+              status: c.status || 'Registration Open',
+              banner_image: c.banner_image || '/images/sports/tournament.png',
+              created_at: c.created_at || new Date().toISOString()
+            });
+          }
+        }
+        this.db.tournaments = Array.from(map.values());
+      }
+
+      // Save initial copy to writable DB_FILE if it doesn't exist yet
+      if (!fs.existsSync(DB_FILE) && !DB_FILE.includes('app.asar')) {
+        this.save();
       }
     } catch (e) {
       console.error('Error loading local db, resetting to initial dataset:', e.message);
       this.db = getInitialData();
-      this.save();
+      if (!DB_FILE.includes('app.asar')) this.save();
     }
   }
 
@@ -599,18 +679,25 @@ class LocalStore {
 
   save() {
     try {
+      if (DB_FILE.includes('app.asar')) {
+        return; // Avoid writing into read-only asar package
+      }
       const payload = JSON.stringify(this.db, null, 2);
+      const dir = path.dirname(DB_FILE);
+      if (!fs.existsSync(dir)) {
+        try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {}
+      }
       fs.writeFileSync(DB_FILE, payload, 'utf8');
       try {
         this.lastLoadedMtime = fs.statSync(DB_FILE).mtimeMs;
       } catch (err) {}
 
-      // On desktop environments, mirror to portable app if available
-      if (!process.env.VERCEL && process.platform === 'win32') {
-        const portableDir = 'D:' + '/GASC-Sports-Admin-Portable/GASC Sports Admin-win32-x64/resources/app/server/data';
+      // Mirror to portable directory if available
+      if (process.env.PORTABLE_EXECUTABLE_DIR) {
         try {
-          if (fs.existsSync(portableDir)) {
-            fs.writeFileSync(path.join(portableDir, 'local_db.json'), payload, 'utf8');
+          const mirrorPath = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'sports_management_data', 'local_db.json');
+          if (mirrorPath !== DB_FILE && fs.existsSync(path.dirname(mirrorPath))) {
+            fs.writeFileSync(mirrorPath, payload, 'utf8');
           }
         } catch (mErr) {}
       }

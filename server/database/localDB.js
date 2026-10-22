@@ -36,7 +36,20 @@ function getDbPath() {
     }
   } catch (e) {}
 
-  // 3. UserData / AppData fallback
+  // 3. Check portable directory (if run from portable EXE)
+  try {
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
+      const portableDataDir = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'sports_management_data');
+      if (!fs.existsSync(portableDataDir)) {
+        try { fs.mkdirSync(portableDataDir, { recursive: true }); } catch (e) {}
+      }
+      if (fs.existsSync(portableDataDir)) {
+        return path.join(portableDataDir, "gasc_sports_local.db");
+      }
+    }
+  } catch (e) {}
+
+  // 4. UserData / AppData fallback (100% reliable on ANY Windows system)
   try {
     const electron = require("electron");
     const app = electron.app || (electron.remote && electron.remote.app);
@@ -602,5 +615,6 @@ module.exports = {
   getSetting, setSetting,
   upsertRecord, getAll, getById, deleteById,
   queryAll, queryOne, run,
+  query: queryAll,
   get dbPath() { return DB_PATH; }
 };

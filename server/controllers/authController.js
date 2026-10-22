@@ -1176,7 +1176,7 @@ exports.getSessionToken = async (req, res) => {
     const regNo = (
       (req.body && req.body.registerNumber) ||
       req.query.registerNumber ||
-      'C24UG183CSC013'
+      '23UGCS101'
     ).trim().toUpperCase();
 
     let { data: userRaw } = await supabase

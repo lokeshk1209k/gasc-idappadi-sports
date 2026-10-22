@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://gasc-idappadi-sports.vercel.app/sitemap.xml

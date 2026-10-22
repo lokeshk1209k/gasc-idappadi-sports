@@ -40,7 +40,11 @@ interface SportCompetition {
   startTime?: string;
   endTime?: string;
   registrationStart?: string;
+  registration_start?: string;
   registrationEnd: string;
+  registration_end?: string;
+  registrationDeadline?: string;
+  registration_deadline?: string;
   venue: string;
   maxParticipants?: number;
   currentRegistrations?: number;
@@ -51,6 +55,10 @@ interface SportCompetition {
   ourCollegeFee?: number;
   otherCollegeFeeEnabled?: boolean;
   otherCollegeFee?: number;
+  upiId?: string;
+  gpayNumber?: string;
+  receiverName?: string;
+  participationType?: string;
 }
 
 interface Tournament {
@@ -61,9 +69,11 @@ interface Tournament {
   endDate: string;
   registrationStart?: string;
   registrationEnd?: string;
+  registration_end?: string;
   venue: string;
   bannerImage: string;
   status: string;
+  participationType?: string;
   sports: SportCompetition[];
 }
 
@@ -107,6 +117,44 @@ export const getDynamicRegistrationStatus = (item: {
       message: 'Tournament Completed'
     };
   }
+  if (/^draft$/i.test(currentStatus)) {
+    return {
+      status: 'Draft',
+      label: 'Draft',
+      badgeClass: 'badge-gray',
+      badgeColor: '#94a3b8',
+      isOpen: false,
+      isUpcoming: true,
+      isClosed: false,
+      message: 'Draft (Not Published)'
+    };
+  }
+  if (/^closed$|^registration closed$/i.test(currentStatus)) {
+    return {
+      status: 'Registration Closed',
+      label: 'Closed',
+      badgeClass: 'badge-red',
+      badgeColor: '#ef4444',
+      isOpen: false,
+      isUpcoming: false,
+      isClosed: true,
+      message: 'Registration Closed'
+    };
+  }
+
+  // If Admin explicitly set status as "Registration Open" or "Open", ALWAYS RESPECT IT
+  if (/^open$|^registration open$/i.test(currentStatus)) {
+    return {
+      status: 'Registration Open',
+      label: 'Registration Open',
+      badgeClass: 'badge-green',
+      badgeColor: '#22c55e',
+      isOpen: true,
+      isUpcoming: false,
+      isClosed: false,
+      message: 'Registration is Open'
+    };
+  }
 
   const now = new Date();
   const startRaw = item?.registrationStart || (item as any)?.registration_start || (item as any)?.registrationStartDate;
@@ -127,7 +175,7 @@ export const getDynamicRegistrationStatus = (item: {
     }
   }
 
-  const endRaw = item?.registrationEnd || (item as any)?.registration_end || (item as any)?.registrationDeadline || (item as any)?.registration_deadline || item?.endDate;
+  const endRaw = (item as any)?.registration_end || item?.registrationEnd || (item as any)?.registrationDeadline || (item as any)?.registration_deadline;
   if (endRaw) {
     let endDate = new Date(endRaw);
     if (/^\d{4}-\d{2}-\d{2}$/.test(String(endRaw).trim())) {
@@ -149,36 +197,36 @@ export const getDynamicRegistrationStatus = (item: {
   }
 
   return {
-    status: 'Registration Open',
-    label: 'Registration Open',
-    badgeClass: 'badge-green',
-    badgeColor: '#22c55e',
-    isOpen: true,
-    isUpcoming: false,
+    status: currentStatus === 'Upcoming' ? 'Upcoming' : 'Registration Open',
+    label: currentStatus === 'Upcoming' ? 'Upcoming' : 'Registration Open',
+    badgeClass: currentStatus === 'Upcoming' ? 'badge-yellow' : 'badge-green',
+    badgeColor: currentStatus === 'Upcoming' ? '#f59e0b' : '#22c55e',
+    isOpen: currentStatus !== 'Upcoming',
+    isUpcoming: currentStatus === 'Upcoming',
     isClosed: false,
-    message: 'Registration is Open'
+    message: currentStatus === 'Upcoming' ? 'Upcoming Tournament' : 'Registration is Open'
   };
 };
 
 const DEFAULT_SPORTS: SportCompetition[] = [
-  { id: 'spark_cricket', name: 'Cricket — Men', sportName: 'Cricket', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-12', registrationEnd: '2026-10-08', venue: 'College Main Ground', maxParticipants: 60, currentRegistrations: 14, status: 'Registration Open', description: 'Inter-department T20 Cricket championship.' },
-  { id: 'spark_football', name: 'Football — Men', sportName: 'Football', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-13', registrationEnd: '2026-10-09', venue: 'Football Field', maxParticipants: 48, currentRegistrations: 22, status: 'Registration Open', description: '11-a-side football tournament.' },
-  { id: 'spark_volleyball', name: 'Volleyball — Men', sportName: 'Volleyball', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-14', registrationEnd: '2026-10-10', venue: 'Volleyball Court', maxParticipants: 36, currentRegistrations: 18, status: 'Registration Open', description: 'Annual volleyball championship.' },
-  { id: 'spark_basketball', name: 'Basketball — Men', sportName: 'Basketball', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-14', registrationEnd: '2026-10-10', venue: 'Basketball Court', maxParticipants: 40, currentRegistrations: 12, status: 'Registration Open', description: 'Full court 5v5 tournament.' },
-  { id: 'spark_badminton', name: 'Badminton — Mixed Doubles', sportName: 'Badminton', type: 'Individual Event', category: 'Mixed', gender: 'Mixed', date: '2026-10-11', registrationEnd: '2026-10-07', venue: 'Indoor Stadium Court 1', maxParticipants: 32, currentRegistrations: 16, status: 'Registration Open', description: 'Badminton mixed doubles competition.' },
-  { id: 'spark_kabaddi', name: 'Kabaddi — Men', sportName: 'Kabaddi', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-15', registrationEnd: '2026-10-11', venue: 'Kabaddi Mud Mat', maxParticipants: 40, currentRegistrations: 28, status: 'Registration Open', description: 'Inter-department Kabaddi tournament.' },
-  { id: 'spark_athletics', name: '100m Track Sprint — Men', sportName: 'Athletics', type: 'Individual Event', category: 'Men', gender: 'Men', date: '2026-10-10', registrationEnd: '2026-10-06', venue: '400m Track Field', maxParticipants: 24, currentRegistrations: 8, status: 'Registration Open', description: '100m track sprint event.' },
-  { id: 'spark_handball', name: 'Handball — Men', sportName: 'Handball', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-10-15', registrationEnd: '2026-10-11', venue: 'Outdoor Handball Court', maxParticipants: 30, currentRegistrations: 10, status: 'Registration Open', description: 'Handball team event.' },
-  { id: 'spark_throwball', name: 'Throwball — Women', sportName: 'Throwball', type: 'Team Event', category: 'Women', gender: 'Women', date: '2026-10-12', registrationEnd: '2026-10-08', venue: 'Throwball Court', maxParticipants: 36, currentRegistrations: 15, status: 'Registration Open', description: 'Inter-department women throwball tournament.' },
-  { id: 'spark_tennis', name: 'Lawn Tennis — Women', sportName: 'Tennis', type: 'Individual Event', category: 'Women', gender: 'Women', date: '2026-10-13', registrationEnd: '2026-10-09', venue: 'Lawn Tennis Court', maxParticipants: 16, currentRegistrations: 6, status: 'Registration Open', description: 'Lawn tennis singles competition.' },
+  { id: 'spark_cricket', name: 'Cricket — Men', sportName: 'Cricket', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-11-20', registrationEnd: '2026-11-28', venue: 'College Main Ground', maxParticipants: 60, currentRegistrations: 14, status: 'Registration Open', description: 'Inter-department T20 Cricket championship.' },
+  { id: 'spark_football', name: 'Football — Men', sportName: 'Football', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-11-20', registrationEnd: '2026-11-28', venue: 'Football Field', maxParticipants: 48, currentRegistrations: 22, status: 'Registration Open', description: '11-a-side football tournament.' },
+  { id: 'spark_volleyball', name: 'Volleyball — Men', sportName: 'Volleyball', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-11-20', registrationEnd: '2026-11-28', venue: 'Volleyball Court', maxParticipants: 36, currentRegistrations: 18, status: 'Registration Open', description: 'Annual volleyball championship.' },
+  { id: 'spark_basketball', name: 'Basketball — Men', sportName: 'Basketball', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-11-20', registrationEnd: '2026-11-28', venue: 'Basketball Court', maxParticipants: 40, currentRegistrations: 12, status: 'Registration Open', description: 'Full court 5v5 tournament.' },
+  { id: 'spark_badminton', name: 'Badminton — Mixed Doubles', sportName: 'Badminton', type: 'Individual Event', category: 'Mixed', gender: 'Mixed', date: '2026-11-20', registrationEnd: '2026-11-28', venue: 'Indoor Stadium Court 1', maxParticipants: 32, currentRegistrations: 16, status: 'Registration Open', description: 'Badminton mixed doubles competition.' },
+  { id: 'spark_kabaddi', name: 'Kabaddi — Men', sportName: 'Kabaddi', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-11-20', registrationEnd: '2026-11-28', venue: 'Kabaddi Mud Mat', maxParticipants: 40, currentRegistrations: 28, status: 'Registration Open', description: 'Inter-department Kabaddi tournament.' },
+  { id: 'spark_athletics', name: '100m Track Sprint — Men', sportName: 'Athletics', type: 'Individual Event', category: 'Men', gender: 'Men', date: '2026-11-20', registrationEnd: '2026-11-28', venue: '400m Track Field', maxParticipants: 24, currentRegistrations: 8, status: 'Registration Open', description: '100m track sprint event.' },
+  { id: 'spark_handball', name: 'Handball — Men', sportName: 'Handball', type: 'Team Event', category: 'Men', gender: 'Men', date: '2026-11-20', registrationEnd: '2026-11-28', venue: 'Outdoor Handball Court', maxParticipants: 30, currentRegistrations: 10, status: 'Registration Open', description: 'Handball team event.' },
+  { id: 'spark_throwball', name: 'Throwball — Women', sportName: 'Throwball', type: 'Team Event', category: 'Women', gender: 'Women', date: '2026-11-20', registrationEnd: '2026-11-28', venue: 'Throwball Court', maxParticipants: 36, currentRegistrations: 15, status: 'Registration Open', description: 'Inter-department women throwball tournament.' },
+  { id: 'spark_tennis', name: 'Lawn Tennis — Women', sportName: 'Tennis', type: 'Individual Event', category: 'Women', gender: 'Women', date: '2026-11-20', registrationEnd: '2026-11-28', venue: 'Lawn Tennis Court', maxParticipants: 16, currentRegistrations: 6, status: 'Registration Open', description: 'Lawn tennis singles competition.' },
 ];
 
 const DEFAULT_TOURNAMENT: Tournament = {
   id: 'tour_spark_2026',
   tournamentName: 'SPARK 2026',
   description: 'Annual College Sports Fest featuring 10 major sports competitions.',
-  startDate: '2026-10-10',
-  endDate: '2026-10-15',
+  startDate: '2026-11-20',
+  endDate: '2026-11-30',
   venue: 'GASC Idappadi Sports Complex',
   bannerImage: '/images/sports/tournament.png',
   status: 'Registration Open',
@@ -189,8 +237,8 @@ const FLASH_TOURNAMENT: Tournament = {
   id: 'tour_flash',
   tournamentName: 'FLASH',
   description: 'Annual College Kabaddi Championship and Zonal State Selection Trials.',
-  startDate: '2026-10-14',
-  endDate: '2026-10-18',
+  startDate: '2026-11-15',
+  endDate: '2026-11-25',
   venue: 'GASC Idappadi Sports Ground',
   bannerImage: '/images/sports/kabaddi.png',
   status: 'Registration Open',
@@ -200,10 +248,11 @@ const FLASH_TOURNAMENT: Tournament = {
       name: 'Kabaddi',
       sportName: 'Kabaddi',
       type: 'Team Event',
-      date: 'Oct 14, 2026',
+      date: 'Nov 15, 2026',
       startTime: '09:00 AM',
       endTime: '05:00 PM',
-      registrationEnd: 'Oct 10, 2026',
+      registrationEnd: 'Nov 22, 2026',
+      registration_end: '2026-11-22T23:59:59.000Z',
       venue: 'GASC Idappadi Sports Ground',
       maxParticipants: 40,
       currentRegistrations: 12,
@@ -223,42 +272,75 @@ const getStoredTournaments = (): Tournament[] => {
   try {
     const custom = JSON.parse(localStorage.getItem('gasc_custom_tournaments') || '[]');
     if (Array.isArray(custom) && custom.length > 0) {
-      const extraList: Tournament[] = custom.map((c: any, idx: number) => ({
-        id: c.id || `custom_tour_${idx}`,
-        tournamentName: c.tournamentName || c.name || 'Annual Sports Meet',
-        description: c.description || 'Collegiate Sports Tournament',
-        startDate: c.date ? String(c.date).split('T')[0] : '2026-10-15',
-        endDate: c.registrationEnd ? String(c.registrationEnd).split('T')[0] : '2026-10-20',
-        venue: c.venue || 'GASC Idappadi Sports Ground',
-        bannerImage: c.bannerImage || '/images/sports/tournament.png',
-        status: c.status || 'Registration Open',
-        sports: [
-          {
-            id: String(c.id || `custom_sp_${idx}`),
-            name: c.name || c.sportName || 'Championship Event',
-            sportName: c.sportName || c.name || 'General',
-            type: c.type || 'Team Event',
-            date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 15, 2026',
-            startTime: c.startTime || '09:00 AM',
-            endTime: c.endTime || '05:00 PM',
-            registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
-            venue: c.venue || 'GASC Idappadi Sports Ground',
-            maxParticipants: c.maxParticipants || 50,
-            currentRegistrations: 0,
-            status: c.status || 'Registration Open',
-            description: c.description || 'Tournament competition'
-          }
-        ]
-      }));
+      const extraList: Tournament[] = custom.map((c: any, idx: number) => {
+        const rawDate = c.date || c.startDate || c.start_date || new Date().toISOString();
+        const rawEnd = c.registrationEnd || c.registration_end || c.registrationDeadline || c.registration_deadline || c.endDate || c.end_date || rawDate;
+        const rawStart = c.registrationStart || c.registration_start || c.startDate || c.start_date || rawDate;
+        const sName = c.sportName || c.sport_name || c.name || 'General';
+        const tName = c.tournamentName || c.tournament_name || c.name || 'Annual Sports Meet';
+        return {
+          id: c.id || `custom_tour_${idx}`,
+          tournamentName: tName,
+          description: c.description || 'Collegiate Sports Tournament',
+          startDate: rawDate ? String(rawDate).split('T')[0] : '2026-10-19',
+          endDate: rawEnd ? String(rawEnd).split('T')[0] : '2026-10-26',
+          venue: c.venue || 'GASC Idappadi Sports Ground',
+          bannerImage: c.bannerImage || c.banner_image || '/images/sports/tournament.png',
+          status: c.status || 'Registration Open',
+          participationType: c.participationType || c.participation_type || 'BOTH',
+          sports: [
+            {
+              id: String(c.id || `custom_sp_${idx}`),
+              name: c.name || `${sName} — Men`,
+              sportName: sName,
+              type: c.type || 'Team Event',
+              category: c.category || c.gender || 'Men',
+              gender: c.gender || c.category || 'Men',
+              date: rawDate ? new Date(rawDate).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Event Date TBD',
+              startTime: c.startTime || c.start_time || '09:00 AM',
+              endTime: c.endTime || c.end_time || '05:00 PM',
+              registrationStart: rawStart ? new Date(rawStart).toISOString() : undefined,
+              registrationEnd: rawEnd ? new Date(rawEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Open',
+              registration_end: rawEnd ? new Date(rawEnd).toISOString() : undefined,
+              venue: c.venue || 'GASC Idappadi Sports Ground',
+              maxParticipants: c.maxParticipants || c.max_participants || 50,
+              currentRegistrations: 0,
+              status: c.status || 'Registration Open',
+              description: c.description || 'Tournament competition',
+              ourCollegeFeeEnabled: c.ourCollegeFeeEnabled !== undefined ? Boolean(c.ourCollegeFeeEnabled) : (c.our_college_fee_enabled !== undefined ? Boolean(c.our_college_fee_enabled) : false),
+              ourCollegeFee: c.ourCollegeFee !== undefined ? Number(c.ourCollegeFee) : (c.our_college_fee !== undefined ? Number(c.our_college_fee) : 0),
+              otherCollegeFeeEnabled: c.otherCollegeFeeEnabled !== undefined ? Boolean(c.otherCollegeFeeEnabled) : (c.other_college_fee_enabled !== undefined ? Boolean(c.other_college_fee_enabled) : false),
+              otherCollegeFee: c.otherCollegeFee !== undefined ? Number(c.otherCollegeFee) : (c.other_college_fee !== undefined ? Number(c.other_college_fee) : 0)
+            }
+          ]
+        };
+      });
       return [...extraList, FLASH_TOURNAMENT, DEFAULT_TOURNAMENT];
     }
   } catch {}
   return [FLASH_TOURNAMENT, DEFAULT_TOURNAMENT];
 };
 
+const getInitialTournaments = (): Tournament[] => {
+  try {
+    const cached = sessionStorage.getItem('gasc_tournaments_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return getStoredTournaments();
+};
+
 const CompetitionsPage = () => {
-  const [tournaments, setTournaments] = useState<Tournament[]>(getStoredTournaments);
-  const [loading, setLoading] = useState(true);
+  const [tournaments, setTournaments] = useState<Tournament[]>(getInitialTournaments);
+  const [loading, setLoading] = useState<boolean>(() => {
+    try {
+      const cached = sessionStorage.getItem('gasc_tournaments_cache');
+      if (cached && JSON.parse(cached).length > 0) return false;
+    } catch {}
+    return true;
+  });
   
   // Navigation & View States
   type TabType = 'All' | 'Upcoming' | 'Open' | 'Closed' | 'Mine';
@@ -272,17 +354,26 @@ const CompetitionsPage = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [successRegistration, setSuccessRegistration] = useState<RegistrationItem | null>(null);
   const [registering, setRegistering] = useState(false);
+  const [utrNumber, setUtrNumber] = useState('');
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [copiedPayField, setCopiedPayField] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedPayField(field);
+    setTimeout(() => setCopiedPayField(null), 2000);
+  };
 
   // Authenticated Student Profile
   const [studentUser, setStudentUser] = useState<any>({
-    id: 'usr_lokesh_csc013',
-    name: 'Lokesh Krishnan',
-    registerNumber: 'C24UG183CSC013',
+    id: 'usr_student_01',
+    name: 'Arun Kumar S',
+    registerNumber: '23UGCS101',
     department: 'Computer Science',
-    year: 'III Year',
+    year: 'II Year',
     gender: 'Male',
     mobile: '+91 98421 54321',
-    email: 'c24ug183csc013@gascidappadi.edu.in'
+    email: 'arun.cs@gascidappadi.edu.in'
   });
 
   // Assigned Teams
@@ -295,17 +386,17 @@ const CompetitionsPage = () => {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Switch student profile for Viva / Demo
-  const switchStudentProfile = (studentKey: 'lokesh' | 'ajay') => {
-    if (studentKey === 'lokesh') {
+  const switchStudentProfile = (studentKey: 'arun' | 'ajay') => {
+    if (studentKey === 'arun') {
       const u = {
-        id: 'usr_lokesh_csc013',
-        name: 'Lokesh Krishnan',
-        registerNumber: 'C24UG183CSC013',
+        id: 'usr_student_01',
+        name: 'Arun Kumar S',
+        registerNumber: '23UGCS101',
         department: 'Computer Science',
-        year: 'III Year',
+        year: 'II Year',
         gender: 'Male',
         mobile: '+91 98421 54321',
-        email: 'c24ug183csc013@gascidappadi.edu.in'
+        email: 'arun.cs@gascidappadi.edu.in'
       };
       setStudentUser(u);
       localStorage.setItem('gasc_user', JSON.stringify(u));
@@ -336,26 +427,26 @@ const CompetitionsPage = () => {
         const u = JSON.parse(stored);
         if (u && (u.registerNumber || u.register_number)) {
           setStudentUser({
-            id: u.id || u._id || 'usr_lokesh_csc013',
-            name: u.name || 'Lokesh Krishnan',
-            registerNumber: u.registerNumber || u.register_number || 'C24UG183CSC013',
+            id: u.id || u._id || 'usr_student_01',
+            name: u.name || 'Arun Kumar S',
+            registerNumber: u.registerNumber || u.register_number || '23UGCS101',
             department: u.department || 'Computer Science',
-            year: u.year || 'III Year',
+            year: u.year || 'II Year',
             gender: u.gender || 'Male',
             mobile: u.mobile || '+91 98421 54321',
-            email: u.email || 'c24ug183csc013@gascidappadi.edu.in'
+            email: u.email || 'arun.cs@gascidappadi.edu.in'
           });
         }
       } else {
         const defaultU = {
-          id: 'usr_lokesh_csc013',
-          name: 'Lokesh Krishnan',
-          registerNumber: 'C24UG183CSC013',
+          id: 'usr_student_01',
+          name: 'Arun Kumar S',
+          registerNumber: '23UGCS101',
           department: 'Computer Science',
-          year: 'III Year',
+          year: 'II Year',
           gender: 'Male',
           mobile: '+91 98421 54321',
-          email: 'c24ug183csc013@gascidappadi.edu.in'
+          email: 'arun.cs@gascidappadi.edu.in'
         };
         localStorage.setItem('gasc_user', JSON.stringify(defaultU));
       }
@@ -364,7 +455,7 @@ const CompetitionsPage = () => {
         fetch('/api/auth/session-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ registerNumber: 'C24UG183CSC013' })
+          body: JSON.stringify({ registerNumber: '23UGCS101' })
         })
           .then(r => r.json())
           .then(d => {
@@ -380,7 +471,7 @@ const CompetitionsPage = () => {
     } catch { /* use default fallback */ }
   }, []);
 
-  // ── 2. Fetch Tournaments and Group Sports ──────────────────────────────────
+  // ── 2. Fetch Tournaments and Group Sports (Ultra-Fast & Accurate) ─────────
   const fetchTournaments = async () => {
     try {
       let res = await fetch('/api/competitions');
@@ -391,56 +482,134 @@ const CompetitionsPage = () => {
       const rawList = data.competitions || data.data || (Array.isArray(data) ? data : []);
 
       if (data.success && Array.isArray(rawList) && rawList.length > 0) {
-        // Group competitions by tournament_name
         const groupMap: Record<string, Tournament> = {};
 
         rawList.forEach((c: any) => {
-          const tName = c.tournamentName || c.tournament_name || (c.name || '').split('-')[0].trim() || 'SPARK 2026';
+          // 1. Resolve Tournament Name accurately
+          let tName = (c.tournamentName || c.tournament_name || '').trim();
+          if (!tName || tName.toLowerCase() === 'general' || tName.toLowerCase() === 'sports') {
+            tName = 'GASC Annual Sports Meet 2026';
+          }
+
           const tId = c.tournamentId || c.tournament_id || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-          const sName = c.sportName || c.sport_name || (c.sportId?.name) || c.name || 'General';
+
+          // 2. Resolve Sport Name (strip gender/category suffix)
+          let sName = (c.sportName || c.sport_name || (c.sportId?.name) || '').trim();
+          if (!sName || sName.toLowerCase() === tName.toLowerCase()) {
+            sName = (c.name || '').replace(/\s*[-—–]\s*(men|women|boys|girls|mixed).*$/i, '').trim() || 'Sports Discipline';
+          }
+
+          const regStartRaw = c.registrationStart || c.registration_start || c.registrationStartDate || c.startDate || c.start_date;
+          const regEndRaw = c.registrationEnd || c.registration_end || c.registrationDeadline || c.registration_deadline;
+          const eventDateRaw = c.date || c.startDate || c.start_date;
+          const endDateRaw = c.endDate || c.end_date || regEndRaw || eventDateRaw;
+
+          const startFormatted = eventDateRaw ? new Date(eventDateRaw).toISOString().split('T')[0] : (regStartRaw ? new Date(regStartRaw).toISOString().split('T')[0] : '2026-10-19');
+          const endFormatted = endDateRaw ? new Date(endDateRaw).toISOString().split('T')[0] : (regEndRaw ? new Date(regEndRaw).toISOString().split('T')[0] : startFormatted);
 
           if (!groupMap[tName]) {
             groupMap[tName] = {
               id: tId,
               tournamentName: tName,
-              description: c.description || 'Annual College Sports Tournament with multiple sports competitions.',
-              startDate: c.date ? new Date(c.date).toISOString().split('T')[0] : '2026-10-10',
-              endDate: c.registrationEnd ? new Date(c.registrationEnd).toISOString().split('T')[0] : '2026-10-15',
+              description: c.description || `Official collegiate championship and trials conducted by GASC Idappadi.`,
+              startDate: startFormatted,
+              endDate: endFormatted,
+              registrationStart: regStartRaw ? new Date(regStartRaw).toISOString() : undefined,
+              registration_start: regStartRaw ? new Date(regStartRaw).toISOString() : undefined,
+              registrationEnd: regEndRaw ? new Date(regEndRaw).toISOString() : undefined,
+              registration_end: regEndRaw ? new Date(regEndRaw).toISOString() : undefined,
+              registrationDeadline: regEndRaw ? new Date(regEndRaw).toISOString() : undefined,
               venue: c.venue || 'GASC Idappadi Sports Complex',
-              bannerImage: c.bannerImage || '/images/sports/tournament.png',
+              bannerImage: c.bannerImage || c.banner_image || '/images/sports/tournament.png',
               status: c.status || 'Registration Open',
+              participationType: c.participationType || c.participation_type || 'BOTH',
               sports: []
             };
+          } else {
+            if (endDateRaw) {
+              const currentEnd = new Date(groupMap[tName].endDate).getTime();
+              const thisEnd = new Date(endDateRaw).getTime();
+              if (thisEnd > currentEnd) {
+                groupMap[tName].endDate = new Date(endDateRaw).toISOString().split('T')[0];
+              }
+            }
+            if (regEndRaw) {
+              const currentRegEnd = groupMap[tName].registrationEnd ? new Date(groupMap[tName].registrationEnd!).getTime() : 0;
+              const thisRegEnd = new Date(regEndRaw).getTime();
+              if (thisRegEnd > currentRegEnd) {
+                groupMap[tName].registrationEnd = new Date(regEndRaw).toISOString();
+                groupMap[tName].registration_end = new Date(regEndRaw).toISOString();
+                groupMap[tName].registrationDeadline = new Date(regEndRaw).toISOString();
+              }
+            }
           }
 
           const cat = c.category || c.gender || 'Men';
           const normCat = /^boys?|^men$/i.test(cat) ? 'Men' : (/^girls?|^women$/i.test(cat) ? 'Women' : (/^mixed|^all$/i.test(cat) ? 'Mixed' : cat));
 
+          // Clean display name: e.g. "Badminton — Men" (avoid redundant "Badminton — Men — Men")
+          let compDisplayName = (c.name || '').trim();
+          if (!compDisplayName || compDisplayName.toLowerCase() === sName.toLowerCase()) {
+            compDisplayName = `${sName} — ${normCat}`;
+          }
+
+          const sportEventDate = eventDateRaw ? new Date(eventDateRaw).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Nov 30, 2026';
+
+          let displayDeadline = 'Open';
+          if (regEndRaw) {
+            const endDateObj = new Date(regEndRaw);
+            if (!isNaN(endDateObj.getTime())) {
+              if (new Date() > endDateObj && (c.status === 'Registration Open' || c.status === 'Open')) {
+                displayDeadline = 'Open (Active)';
+              } else {
+                displayDeadline = endDateObj.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
+              }
+            }
+          } else {
+            displayDeadline = 'Open (Active)';
+          }
+
           groupMap[tName].sports.push({
             id: String(c.id || c._id),
-            name: c.name || `${sName} — ${normCat}`,
+            name: compDisplayName,
             sportName: sName,
             type: c.type && c.type.includes('Team') ? 'Team Event' : 'Individual Event',
             category: normCat,
             gender: normCat,
-            date: c.date ? new Date(c.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 12, 2026',
-            startTime: c.startTime || '09:00 AM',
-            endTime: c.endTime || '05:00 PM',
-            registrationEnd: c.registrationEnd ? new Date(c.registrationEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Oct 08, 2026',
+            date: sportEventDate,
+            startTime: c.startTime || c.start_time || '09:00 AM',
+            endTime: c.endTime || c.end_time || '05:00 PM',
+            registrationEnd: displayDeadline,
+            registration_end: regEndRaw ? new Date(regEndRaw).toISOString() : undefined,
+            registrationStart: regStartRaw ? new Date(regStartRaw).toISOString() : undefined,
+            registration_start: regStartRaw ? new Date(regStartRaw).toISOString() : undefined,
+            registrationDeadline: regEndRaw ? new Date(regEndRaw).toISOString() : undefined,
+            endDate: endFormatted,
             venue: c.venue || groupMap[tName].venue,
-            maxParticipants: c.maxParticipants || 50,
-            currentRegistrations: c.currentRegistrations || 0,
+            maxParticipants: c.maxParticipants || c.max_participants || 50,
+            currentRegistrations: c.currentRegistrations || c.current_registrations || 0,
             status: c.status || 'Registration Open',
+            participationType: c.participationType || c.participation_type || 'BOTH',
             description: c.description || `${sName} competition inside ${tName}.`,
             ourCollegeFeeEnabled: c.ourCollegeFeeEnabled !== undefined ? Boolean(c.ourCollegeFeeEnabled) : (c.our_college_fee_enabled !== undefined ? Boolean(c.our_college_fee_enabled) : false),
             ourCollegeFee: c.ourCollegeFee !== undefined ? Number(c.ourCollegeFee) : (c.our_college_fee !== undefined ? Number(c.our_college_fee) : 0),
             otherCollegeFeeEnabled: c.otherCollegeFeeEnabled !== undefined ? Boolean(c.otherCollegeFeeEnabled) : (c.other_college_fee_enabled !== undefined ? Boolean(c.other_college_fee_enabled) : false),
-            otherCollegeFee: c.otherCollegeFee !== undefined ? Number(c.otherCollegeFee) : (c.other_college_fee !== undefined ? Number(c.other_college_fee) : 0)
+            otherCollegeFee: c.otherCollegeFee !== undefined ? Number(c.otherCollegeFee) : (c.other_college_fee !== undefined ? Number(c.other_college_fee) : 0),
+            upiId: c.upiId || c.upi_id || '9443218765@sbi',
+            gpayNumber: c.gpayNumber || c.gpay_number || '+91 94432 18765',
+            receiverName: c.receiverName || c.receiver_name || 'Physical Education Dept, GASC Idappadi'
           });
         });
 
         const list = Object.values(groupMap);
         setTournaments(list);
+        sessionStorage.setItem('gasc_tournaments_cache', JSON.stringify(list));
+
+        // Keep active tournament state synced if opened
+        setActiveTournament(prev => {
+          if (!prev) return null;
+          return list.find(t => t.id === prev.id || t.tournamentName === prev.tournamentName) || prev;
+        });
       }
     } catch { /* keep defaults */ }
     setLoading(false);
@@ -519,17 +688,29 @@ const CompetitionsPage = () => {
     } catch { /* keep existing */ }
   };
 
-  // ── 4. Live Polling ────────────────────────────────────────────────────────
+  // ── 4. High-Performance Polling (Polite 25s + Visibility Check) ───────────
   useEffect(() => {
     fetchTournaments();
     fetchMyRegistrations();
+
     pollRef.current = setInterval(() => {
-      fetchTournaments();
-      fetchMyRegistrations();
-    }, 4000);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchTournaments();
+        fetchMyRegistrations();
+      }
+    }, 25000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchTournaments();
+        fetchMyRegistrations();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [studentUser.registerNumber, studentUser.id]);
 
@@ -569,103 +750,21 @@ const CompetitionsPage = () => {
 
     // Check if Our College Fee applies
     const fee = (selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0) ? Number(selectedSport.ourCollegeFee) : 0;
-    let paymentId: string | null = null;
-    let orderId: string | null = null;
-    let signature: string | null = null;
+    let transactionRef: string | null = null;
 
     if (fee > 0) {
-      try {
-        // 1. Create order
-        let orderRes = await fetch('/api/payments/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            competitionId: compId,
-            studentCategory: 'OUR_COLLEGE',
-            studentName: studentUser.name || 'Lokesh Krishnan',
-            collegeName: 'Government Arts and Science College, Idappadi',
-            email: studentUser.email || 'c24ug183csc013@gascidappadi.edu.in',
-            phone: studentUser.mobile || '+91 98421 54321'
-          })
-        });
-        let orderData = await orderRes.json().catch(() => null);
-        if (!orderData || !orderData.success) {
-          orderRes = await fetch('/api/open-registration/create-order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              competitionId: compId,
-              studentCategory: 'OUR_COLLEGE',
-              studentName: studentUser.name || 'Lokesh Krishnan',
-              collegeName: 'Government Arts and Science College, Idappadi',
-              email: studentUser.email || 'c24ug183csc013@gascidappadi.edu.in',
-              phone: studentUser.mobile || '+91 98421 54321'
-            })
-          });
-          orderData = await orderRes.json().catch(() => null);
-        }
-
-        if (!orderData || !orderData.success) {
-          showToast(orderData?.message || 'Could not initialize payment order.', 'error');
-          setRegistering(false);
-          return;
-        }
-
-        orderId = orderData.orderId;
-
-        // Load Razorpay Script dynamically if needed
-        const isLoaded = await (async () => {
-          if ((window as any).Razorpay) return true;
-          return new Promise<boolean>((resolve) => {
-            const script = document.createElement('script');
-            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-            script.onload = () => resolve(true);
-            script.onerror = () => resolve(false);
-            document.body.appendChild(script);
-          });
-        })();
-
-        if (isLoaded && (window as any).Razorpay && orderData.keyId && !orderData.keyId.includes('simulator')) {
-          const paymentResult: any = await new Promise((resolve, reject) => {
-            const rzp = new (window as any).Razorpay({
-              key: orderData.keyId,
-              amount: orderData.amount,
-              currency: 'INR',
-              name: 'GASC Idappadi Sports',
-              description: `Registration Fee: ${selectedSport.name}`,
-              order_id: orderData.orderId,
-              prefill: {
-                name: studentUser.name,
-                email: studentUser.email,
-                contact: studentUser.mobile
-              },
-              theme: { color: '#0284c7' },
-              handler: (res: any) => resolve(res),
-              modal: { ondismiss: () => reject(new Error('Payment cancelled.')) }
-            });
-            rzp.open();
-          }).catch(err => {
-            showToast(err.message || 'Payment cancelled.', 'error');
-            return null;
-          });
-
-          if (!paymentResult) {
-            setRegistering(false);
-            return;
-          }
-          paymentId = paymentResult.razorpay_payment_id;
-          orderId = paymentResult.razorpay_order_id || orderId;
-          signature = paymentResult.razorpay_signature;
-        } else {
-          // Simulation fallback for sandbox development testing
-          paymentId = `pay_sim_${Date.now().toString(36)}`;
-          signature = `sig_sim_${Date.now().toString(36)}`;
-        }
-      } catch (payErr: any) {
-        showToast(payErr.message || 'Payment processing error.', 'error');
+      const cleanUtr = utrNumber.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!cleanUtr || cleanUtr.length < 6) {
+        showToast('Please enter your 12-digit Google Pay / PhonePe Transaction Reference (UTR) number.', 'error');
         setRegistering(false);
         return;
       }
+      if (!paymentConfirmed) {
+        showToast('Please check the confirmation box to verify you have transferred ₹' + fee + ' via GPay/PhonePe.', 'error');
+        setRegistering(false);
+        return;
+      }
+      transactionRef = cleanUtr;
     }
 
     try {
@@ -677,7 +776,7 @@ const CompetitionsPage = () => {
           const sRes = await fetch('/api/auth/session-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ registerNumber: studentUser.registerNumber || 'C24UG183CSC013' })
+            body: JSON.stringify({ registerNumber: studentUser.registerNumber || '23UGCS101' })
           });
           const sData = await sRes.json();
           if (sData.success && sData.token) {
@@ -693,22 +792,23 @@ const CompetitionsPage = () => {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          'x-register-number': studentUser.registerNumber || 'C24UG183CSC013',
-          'x-student-id': studentUser.id || 'usr_lokesh_csc013'
+          'x-register-number': studentUser.registerNumber || '23UGCS101',
+          'x-student-id': studentUser.id || 'usr_student_01'
         },
         body: JSON.stringify({
-          remarks: fee > 0 ? `Paid ₹${fee} via Online Gateway (${paymentId})` : 'Confirmed via Student 1-Click Registration',
-          registerNumber: studentUser.registerNumber || 'C24UG183CSC013',
-          studentId: studentUser.id || 'usr_lokesh_csc013',
-          studentName: studentUser.name || 'Lokesh Krishnan',
+          remarks: fee > 0 ? `Paid ₹${fee} via GPay/UPI (UTR: ${transactionRef})` : 'Confirmed via Student 1-Click Registration',
+          registerNumber: studentUser.registerNumber || '23UGCS101',
+          studentId: studentUser.id || 'usr_student_01',
+          studentName: studentUser.name || 'Arun Kumar S',
           department: studentUser.department || 'Computer Science',
-          year: studentUser.year || 'III Year',
+          year: studentUser.year || 'II Year',
           gender: studentUser.gender || 'Male',
           mobile: studentUser.mobile || '+91 98421 54321',
-          email: studentUser.email || `${(studentUser.registerNumber || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`,
-          paymentId,
-          orderId,
-          signature,
+          email: studentUser.email || `${(studentUser.registerNumber || '23ugcs101').toLowerCase()}@gascidappadi.edu.in`,
+          paymentId: transactionRef || null,
+          transactionRef: transactionRef || null,
+          utrNumber: transactionRef || null,
+          feeAmount: fee,
           studentCategory: 'OUR_COLLEGE'
         })
       });
@@ -799,14 +899,14 @@ const CompetitionsPage = () => {
                 <span style={{ color: '#6E86A5', fontWeight: 600 }}>Demo Profile:</span>
                 <button
                   type="button"
-                  onClick={() => switchStudentProfile('lokesh')}
+                  onClick={() => switchStudentProfile('arun')}
                   style={{
-                    background: studentUser.registerNumber === '23CS001' ? '#0284c7' : 'transparent',
+                    background: studentUser.registerNumber === '23UGCS101' ? '#0284c7' : 'transparent',
                     color: '#FFF', border: 'none', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontWeight: 700, fontSize: 11,
-                    boxShadow: studentUser.registerNumber === '23CS001' ? '0 2px 8px rgba(2,132,199,0.5)' : 'none'
+                    boxShadow: studentUser.registerNumber === '23UGCS101' ? '0 2px 8px rgba(2,132,199,0.5)' : 'none'
                   }}
                 >
-                  Lokesh (23CS001 • Team Selected)
+                  Arun (23UGCS101 • Team Selected)
                 </button>
                 <button
                   type="button"
@@ -1352,10 +1452,23 @@ const CompetitionsPage = () => {
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(11,27,58,0.95) 0%, transparent 60%)' }} />
 
                   {/* Badges */}
-                  <div style={{ position: 'absolute', top: 12, left: 12 }}>
+                  <div style={{ position: 'absolute', top: 12, left: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <span className="badge badge-blue">
                       🏆 Parent Tournament
                     </span>
+                    {t.participationType === 'BOTH' ? (
+                      <span className="badge" style={{ background: 'rgba(34,197,94,0.25)', color: '#4ade80', border: '1px solid #22c55e', fontSize: 11, fontWeight: 700 }}>
+                        ✓ Open for All (Enga College + Other)
+                      </span>
+                    ) : t.participationType === 'INTERNAL' ? (
+                      <span className="badge" style={{ background: 'rgba(56,167,255,0.25)', color: '#93c5fd', border: '1px solid #38A7FF', fontSize: 11, fontWeight: 700 }}>
+                        🏛️ Our College Only (Free)
+                      </span>
+                    ) : (
+                      <span className="badge" style={{ background: 'rgba(245,158,11,0.25)', color: '#fbbf24', border: '1px solid #f59e0b', fontSize: 11, fontWeight: 700 }}>
+                        🌐 Other Colleges (Inter-College)
+                      </span>
+                    )}
                   </div>
                   <div style={{ position: 'absolute', top: 12, right: 12 }}>
                     {(() => {
@@ -1417,17 +1530,70 @@ const CompetitionsPage = () => {
 
       {/* ── MODAL 1: 1-CLICK CONFIRMATION MODAL ─────────────────────────────── */}
       {showConfirmModal && selectedSport && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(4,13,29,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div className="glass-card animate-scale-up" style={{ width: '100%', maxWidth: 520, borderRadius: 24, padding: 26, border: '1px solid rgba(55,140,255,0.3)', background: 'linear-gradient(135deg, rgba(11,27,58,0.95) 0%, rgba(6,18,37,0.98) 100%)', boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 14 }}>
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowConfirmModal(false); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(4,13,29,0.88)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px 12px',
+            overflowY: 'auto'
+          }}
+        >
+          <div
+            className="glass-card animate-scale-up"
+            style={{
+              width: '100%',
+              maxWidth: 540,
+              maxHeight: 'min(92vh, 840px)',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 24,
+              border: '1px solid rgba(55,140,255,0.3)',
+              background: 'linear-gradient(135deg, rgba(11,27,58,0.98) 0%, rgba(6,18,37,0.99) 100%)',
+              boxShadow: '0 24px 70px rgba(0,0,0,0.7)',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '20px 24px 16px',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(11,27,58,0.75)'
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Trophy style={{ width: 22, height: 22, color: '#FF8A50' }} />
                 <h3 style={{ fontSize: 18, fontWeight: 800, color: '#FFF', margin: 0 }}>Confirm Registration</h3>
               </div>
-              <button onClick={() => setShowConfirmModal(false)} style={{ background: 'none', border: 'none', color: '#6E86A5', cursor: 'pointer' }}>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                style={{ background: 'none', border: 'none', color: '#6E86A5', cursor: 'pointer', padding: 4 }}
+              >
                 <X style={{ width: 20, height: 20 }} />
               </button>
             </div>
+
+            {/* Scrollable Modal Body */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '20px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16
+              }}
+            >
 
             {/* Selected Sport Summary */}
             <div style={{ background: 'rgba(56,167,255,0.08)', borderRadius: 16, padding: 16, border: '1px solid rgba(56,167,255,0.2)', marginBottom: 18 }}>
@@ -1475,7 +1641,7 @@ const CompetitionsPage = () => {
             </div>
 
             {/* Registration Fee & Student Category Summary */}
-            <div style={{ background: 'rgba(15,23,42,0.85)', borderRadius: 16, padding: 16, border: '1px solid rgba(56,167,255,0.25)', marginBottom: 20 }}>
+            <div style={{ background: 'rgba(15,23,42,0.85)', borderRadius: 16, padding: 16, border: '1px solid rgba(56,167,255,0.25)', marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
                 <span style={{ color: '#6E86A5' }}>Student Category:</span>
                 <strong style={{ color: '#38A7FF' }}>Our College (GASC Idappadi)</strong>
@@ -1483,20 +1649,133 @@ const CompetitionsPage = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
                 <span style={{ color: '#6E86A5' }}>Registration Fee:</span>
                 <strong style={{ color: selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? '#f59e0b' : '#4ade80' }}>
-                  {selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? `₹${selectedSport.ourCollegeFee} INR` : 'Free (₹0)'}
+                  {selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? `₹${selectedSport.ourCollegeFee} INR (Mandatory Payment)` : 'Free (₹0)'}
                 </strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 14 }}>
                 <span style={{ color: '#FFF', fontWeight: 700 }}>Total Payable Amount:</span>
-                <strong style={{ color: selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? '#4ade80' : '#38A7FF', fontSize: 16 }}>
+                <strong style={{ color: selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? '#f59e0b' : '#4ade80', fontSize: 16 }}>
                   {selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 ? `₹${selectedSport.ourCollegeFee} INR` : '₹0 INR'}
                 </strong>
               </div>
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setShowConfirmModal(false)} className="btn btn-outline" style={{ flex: 1 }}>
+            {/* MANDATORY PAYMENT SECTION IF FEE > 0 */}
+            {selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0 && (() => {
+              const activeUpi = (selectedSport.upiId || '9443218765@sbi').trim();
+              const activeGpay = (selectedSport.gpayNumber || '+91 94432 18765').trim();
+              const activeReceiver = (selectedSport.receiverName || 'Physical Education Dept, GASC Idappadi').trim();
+              const feeVal = Number(selectedSport.ourCollegeFee || 0);
+              const upiUri = `upi://pay?pa=${activeUpi}&pn=${encodeURIComponent(activeReceiver)}&am=${feeVal}&cu=INR&tn=${encodeURIComponent('GASC Sports ' + selectedSport.name)}`;
+              const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(upiUri)}`;
+
+              return (
+                <div style={{ background: 'linear-gradient(135deg, rgba(6,78,59,0.3) 0%, rgba(15,23,42,0.95) 100%)', borderRadius: 18, border: '1px solid rgba(16,185,129,0.4)', padding: 18, marginBottom: 18 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 18 }}>💳</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#34d399' }}>Official Sports Account Payment</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8' }}>Pay using Google Pay, PhonePe, Paytm or Any UPI App</div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: '#10b981', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '3px 8px', borderRadius: 8 }}>
+                      ₹{feeVal} INR
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', marginBottom: 14 }}>
+                    {/* QR Code */}
+                    <div style={{ textAlign: 'center', background: '#FFF', padding: 8, borderRadius: 12, display: 'inline-block' }}>
+                      <img src={qrCodeUrl} alt="UPI QR" style={{ width: 120, height: 120, display: 'block' }} />
+                      <div style={{ fontSize: 9, fontWeight: 800, color: '#0f172a', marginTop: 4 }}>Scan & Pay ₹{feeVal}</div>
+                    </div>
+
+                    {/* Payee Info & Copy Buttons */}
+                    <div style={{ flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase' }}>Authorized Payee</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#FFF' }}>{activeReceiver}</div>
+                      </div>
+
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(16,185,129,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: 10, color: '#34d399', textTransform: 'uppercase' }}>📱 Google Pay / PhonePe</div>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: 'monospace' }}>{activeGpay}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(activeGpay, 'gpay')}
+                          style={{ background: copiedPayField === 'gpay' ? '#10b981' : 'rgba(16,185,129,0.2)', border: '1px solid #10b981', color: '#FFF', borderRadius: 6, padding: '4px 8px', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          {copiedPayField === 'gpay' ? '✓ Copied' : 'Copy'}
+                        </button>
+                      </div>
+
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase' }}>UPI ID / VPA</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#38A7FF', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden' }}>{activeUpi}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(activeUpi, 'upi')}
+                          style={{ background: copiedPayField === 'upi' ? '#38A7FF' : 'rgba(56,167,255,0.2)', border: '1px solid #38A7FF', color: '#FFF', borderRadius: 6, padding: '4px 8px', fontSize: 11, cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          {copiedPayField === 'upi' ? '✓ Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Transaction Reference (UTR) Input */}
+                  <div style={{ background: 'rgba(0,0,0,0.4)', padding: 12, borderRadius: 12, border: '1px solid rgba(245,158,11,0.35)', marginBottom: 10 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 800, color: '#fbbf24', marginBottom: 6, textTransform: 'uppercase' }}>
+                      Step 2: Enter GPay / PhonePe Transaction (UTR) Number *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 429182748192 (12-digit UTR)"
+                      value={utrNumber}
+                      onChange={e => setUtrNumber(e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
+                      style={{ width: '100%', background: '#0b1329', border: '1px solid rgba(245,158,11,0.5)', borderRadius: 8, padding: '9px 12px', color: '#FFF', fontSize: 13, fontWeight: 700, fontFamily: 'monospace' }}
+                    />
+                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>
+                      * Check your Google Pay / PhonePe transaction receipt for "UPI Transaction ID" or "UTR".
+                    </div>
+                  </div>
+
+                  {/* Confirmation Checkbox */}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#e2e8f0', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={paymentConfirmed}
+                      onChange={e => setPaymentConfirmed(e.target.checked)}
+                      style={{ width: 16, height: 16, accentColor: '#10b981', cursor: 'pointer' }}
+                    />
+                    <span>I confirm that I have transferred ₹{feeVal} to GASC Idappadi Sports via Google Pay / UPI.</span>
+                  </label>
+                </div>
+              );
+            })()}
+
+            </div>
+
+            {/* Modal Actions - Sticky Bottom Footer */}
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                padding: '16px 24px',
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(6,18,37,0.85)'
+              }}
+            >
+              <button
+                onClick={() => { setShowConfirmModal(false); setUtrNumber(''); setPaymentConfirmed(false); }}
+                className="btn btn-outline"
+                style={{ flex: 1 }}
+              >
                 Cancel
               </button>
               <button
@@ -1506,11 +1785,11 @@ const CompetitionsPage = () => {
                 style={{ flex: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (selectedSport && !getDynamicRegistrationStatus(selectedSport).isOpen) ? 0.6 : 1 }}
               >
                 {registering
-                  ? 'Processing...'
+                  ? 'Verifying & Registering...'
                   : (selectedSport && !getDynamicRegistrationStatus(selectedSport).isOpen
                       ? getDynamicRegistrationStatus(selectedSport).label
                       : (selectedSport.ourCollegeFeeEnabled && (selectedSport.ourCollegeFee || 0) > 0
-                          ? `Pay ₹${selectedSport.ourCollegeFee} & Register`
+                          ? `Verify Payment (₹${selectedSport.ourCollegeFee}) & Register`
                           : 'Confirm Free Registration'))}
               </button>
             </div>

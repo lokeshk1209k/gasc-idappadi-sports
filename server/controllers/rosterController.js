@@ -149,8 +149,12 @@ exports.uploadExcelRoster = async (req, res) => {
         }
       } catch (e) {}
 
-      const cleanReg = student.register_number.toUpperCase();
-      const existingIdx = localRoster.findIndex(r => (r.register_number || '').toUpperCase() === cleanReg);
+      const cleanReg = student.register_number.toUpperCase().trim();
+      const normReg = cleanReg.replace(/[^A-Z0-9]/gi, '');
+      const existingIdx = localRoster.findIndex(r => {
+        const rReg = (r.register_number || r.registerNumber || '').toUpperCase().trim();
+        return rReg === cleanReg || (normReg && rReg.replace(/[^A-Z0-9]/gi, '') === normReg);
+      });
 
       const record = {
         id: existingIdx >= 0 ? localRoster[existingIdx].id : `ros_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -242,131 +246,61 @@ exports.uploadExcelRoster = async (req, res) => {
   }
 };
 
-// @desc    Get all students in official roster
+// @desc    Get all students in official roster (Ultra-Fast In-Memory Cache)
 // @route   GET /api/roster
 // @access  Private (Admin only)
 exports.getRosterStudents = async (req, res) => {
   try {
     const { search, department, year, status } = req.query;
 
-    let students = null;
-    let totalCount = 0;
-    let registeredCount = 0;
+    let allRoster = storeInstance.getTable('college_student_roster') || [];
 
-    // 1. Try Supabase
-    try {
-      let query = supabase.from('college_student_roster').select('*');
+    // Get set of all registered student register numbers from memory
+    const userRegNos = new Set();
+    const allUsers = storeInstance.getTable('users') || [];
+    allUsers.forEach(u => {
+      const rn = u.register_number || u.registerNumber;
+      if (rn) userRegNos.add(rn.trim().toUpperCase());
+    });
 
-      if (search) {
-        query = query.or(`register_number.ilike.%${search.trim()}%,name.ilike.%${search.trim()}%`);
-      }
+    const enriched = allRoster.map(s => {
+      const regNo = (s.register_number || s.registerNumber || '').trim().toUpperCase();
+      const isReg = !!(s.is_registered || s.isRegistered || userRegNos.has(regNo));
+      return {
+        ...s,
+        registerNumber: regNo,
+        register_number: regNo,
+        is_registered: isReg,
+        isRegistered: isReg
+      };
+    });
 
-      if (department && department !== 'All') {
-        if (department === 'Maths' || department === 'Mathematics') {
-          query = query.in('department', ['Maths', 'Mathematics']);
-        } else if (department === 'B.Com' || department === 'Commerce' || department === 'B COM') {
-          query = query.in('department', ['B.Com', 'Commerce', 'B COM']);
-        } else if (department === 'BBA' || department === 'Business Administration') {
-          query = query.in('department', ['BBA', 'Business Administration']);
-        } else if (department === 'BMA' || department === 'MBA') {
-          query = query.in('department', ['BMA', 'MBA']);
-        } else if (department === 'M.Com' || department === 'MCOM') {
-          query = query.in('department', ['M.Com', 'MCOM']);
-        } else if (department === 'MA Tamil' || department === 'M.A. Tamil') {
-          query = query.in('department', ['MA Tamil', 'M.A. Tamil']);
-        } else if (department === 'MA English' || department === 'M.A. English') {
-          query = query.in('department', ['MA English', 'M.A. English']);
-        } else if (department === 'MA Maths' || department === 'M.Sc. Mathematics') {
-          query = query.in('department', ['MA Maths', 'M.Sc. Mathematics']);
-        } else {
-          query = query.eq('department', department);
-        }
-      }
+    const totalCount = enriched.length;
+    const registeredCount = enriched.filter(s => s.is_registered).length;
 
-      if (year && year !== 'All') {
-        query = query.eq('year', year);
-      }
-
-      if (status === 'registered') {
-        query = query.eq('is_registered', true);
-      } else if (status === 'unregistered') {
-        query = query.eq('is_registered', false);
-      }
-
-      query = query.order('register_number', { ascending: true });
-
-      const { data: studentsRaw, error } = await query;
-      if (!error && studentsRaw && studentsRaw.length > 0) {
-        students = studentsRaw.map(toCamelCase);
-        const { count: tc } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true });
-        const { count: rc } = await supabase.from('college_student_roster').select('*', { count: 'exact', head: true }).eq('is_registered', true);
-        totalCount = tc || students.length;
-        registeredCount = rc || 0;
-      }
-    } catch (e) {
-      // Supabase table not created yet, fall through to localStore
+    let filtered = [...enriched];
+    if (search) {
+      const sLower = search.trim().toLowerCase();
+      filtered = filtered.filter(s =>
+        (s.register_number || '').toLowerCase().includes(sLower) ||
+        (s.name || '').toLowerCase().includes(sLower)
+      );
+    }
+    if (department && department !== 'All') {
+      const dLower = department.trim().toLowerCase();
+      filtered = filtered.filter(s => (s.department || '').toLowerCase().includes(dLower));
+    }
+    if (year && year !== 'All') {
+      filtered = filtered.filter(s => (s.year || '').toLowerCase() === year.toLowerCase());
+    }
+    if (status === 'registered') {
+      filtered = filtered.filter(s => s.is_registered);
+    } else if (status === 'unregistered') {
+      filtered = filtered.filter(s => !s.is_registered);
     }
 
-    // 2. Fallback to localStore
-    if (!students) {
-      let allRoster = storeInstance.getTable('college_student_roster') || [];
-
-      // Update is_registered status by checking registered users
-      let userRegNos = new Set();
-      try {
-        const { data: supUsers } = await supabase.from('users').select('register_number');
-        if (supUsers && supUsers.length > 0) {
-          supUsers.forEach(u => {
-            if (u.register_number) userRegNos.add(u.register_number.trim().toUpperCase());
-          });
-        }
-      } catch(e) {}
-
-      if (userRegNos.size === 0) {
-        const allUsers = storeInstance.getTable('users') || [];
-        allUsers.forEach(u => {
-          const rn = u.register_number || u.registerNumber;
-          if (rn) userRegNos.add(rn.trim().toUpperCase());
-        });
-      }
-
-      allRoster = allRoster.map(s => {
-        const regNo = (s.register_number || s.registerNumber || '').trim().toUpperCase();
-        const isReg = s.is_registered || s.isRegistered || userRegNos.has(regNo);
-        return {
-          ...s,
-          is_registered: isReg,
-          isRegistered: isReg
-        };
-      });
-
-      totalCount = allRoster.length;
-      registeredCount = allRoster.filter(s => s.is_registered || s.isRegistered).length;
-
-      let filtered = [...allRoster];
-      if (search) {
-        const sLower = search.trim().toLowerCase();
-        filtered = filtered.filter(s =>
-          (s.register_number || s.registerNumber || '').toLowerCase().includes(sLower) ||
-          (s.name || '').toLowerCase().includes(sLower)
-        );
-      }
-      if (department && department !== 'All') {
-        const dLower = department.trim().toLowerCase();
-        filtered = filtered.filter(s => (s.department || '').toLowerCase().includes(dLower));
-      }
-      if (year && year !== 'All') {
-        filtered = filtered.filter(s => (s.year || '').toLowerCase() === year.toLowerCase());
-      }
-      if (status === 'registered') {
-        filtered = filtered.filter(s => s.is_registered || s.isRegistered);
-      } else if (status === 'unregistered') {
-        filtered = filtered.filter(s => !s.is_registered && !s.isRegistered);
-      }
-
-      filtered.sort((a, b) => (a.register_number || a.registerNumber || '').localeCompare(b.register_number || b.registerNumber || ''));
-      students = filtered.map(toCamelCase);
-    }
+    filtered.sort((a, b) => (a.register_number || '').localeCompare(b.register_number || ''));
+    const students = filtered.map(toCamelCase);
 
     res.json({
       success: true,
@@ -380,7 +314,7 @@ exports.getRosterStudents = async (req, res) => {
   }
 };
 
-// @desc    Add single student to roster manually
+// @desc    Add single student to roster manually (Ultra-Fast Instant Response)
 // @route   POST /api/roster/manual
 // @access  Private (Admin only)
 exports.addSingleStudent = async (req, res) => {
@@ -391,24 +325,44 @@ exports.addSingleStudent = async (req, res) => {
     }
 
     const cleanRegNo = registerNumber.trim().toUpperCase();
+    const normRegNo = cleanRegNo.replace(/[^A-Z0-9]/gi, '');
+    const cleanName = name.trim().toLowerCase().replace(/\s+/g, ' ');
+    const cleanDept = (department || '').trim().toLowerCase();
+    const cleanYear = (year || '').trim().toLowerCase();
     const studentStatus = (status && status.toUpperCase() === 'INACTIVE') ? 'Inactive' : 'Active';
     let localRoster = storeInstance.getTable('college_student_roster') || [];
 
-    if (localRoster.some(r => (r.register_number || '').toUpperCase() === cleanRegNo)) {
-      return res.status(400).json({ success: false, message: `Student with Register No "${cleanRegNo}" is already in the roster.` });
+    // 1. Strict duplicate check by Register Number (exact or normalized alphanumeric)
+    const existingByReg = localRoster.find(r => {
+      const reg = (r.register_number || r.registerNumber || '').trim().toUpperCase();
+      const norm = reg.replace(/[^A-Z0-9]/gi, '');
+      return reg === cleanRegNo || (norm && norm === normRegNo);
+    });
+
+    if (existingByReg) {
+      return res.status(409).json({
+        success: false,
+        message: `Student with Register No "${cleanRegNo}" is already in the roster (${existingByReg.name}). Duplicates are strictly not allowed.`
+      });
     }
 
-    let userExists = null;
-    try {
-      const { data: u } = await supabase
-        .from('users')
-        .select('id, role, password')
-        .ilike('register_number', cleanRegNo)
-        .maybeSingle();
-      if (u && u.role === 'student' && u.password) {
-        userExists = u;
-      }
-    } catch (e) {}
+    // 2. Strict duplicate check by Name + Department + Year
+    const existingByNameDept = localRoster.find(r => {
+      const sName = (r.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const sDept = (r.department || '').trim().toLowerCase();
+      const sYear = (r.year || '').trim().toLowerCase();
+      return sName === cleanName && sDept === cleanDept && sYear === cleanYear;
+    });
+
+    if (existingByNameDept) {
+      return res.status(409).json({
+        success: false,
+        message: `Student "${name.trim()}" in ${department} (${year}) is already in the roster (Reg No: ${existingByNameDept.register_number || existingByNameDept.registerNumber}). Duplicates are strictly not allowed.`
+      });
+    }
+
+    const allUsers = storeInstance.getTable('users') || [];
+    const userExists = allUsers.find(u => (u.register_number || '').toUpperCase() === cleanRegNo && u.role === 'student' && u.password);
 
     const newRecord = {
       id: `ros_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -430,49 +384,7 @@ exports.addSingleStudent = async (req, res) => {
     storeInstance.save();
     syncRosterJsonFiles(localRoster);
 
-    // Instant real-time sync to Supabase so Student Portal detects it the very next second!
-    try {
-      const rosterUser = {
-        id: `roster_${cleanRegNo}`,
-        name: newRecord.name,
-        register_number: cleanRegNo,
-        email: `${cleanRegNo.toLowerCase()}@roster.internal`,
-        role: 'roster',
-        department: newRecord.department,
-        year: newRecord.year,
-        section: newRecord.section,
-        gender: newRecord.gender,
-        status: studentStatus === 'Inactive' ? 'Inactive' : 'Pending Registration',
-        created_at: new Date().toISOString()
-      };
-      await supabase.from('users').upsert(rosterUser);
-
-      // Real-time sync to notifications table (100% accessible to student-client via anon key)
-      const notifRecord = {
-        id: `roster_${cleanRegNo}`,
-        title: cleanRegNo,
-        category: 'roster',
-        type: 'roster_student',
-        target_type: newRecord.department || 'Computer Science',
-        target_audience: newRecord.year || 'I Year',
-        priority: newRecord.gender || 'Male',
-        sender: newRecord.is_registered ? 'registered' : 'unregistered',
-        message: JSON.stringify({
-          registerNumber: cleanRegNo,
-          name: newRecord.name,
-          department: newRecord.department,
-          year: newRecord.year,
-          section: newRecord.section,
-          gender: newRecord.gender,
-          status: studentStatus,
-          isRegistered: !!newRecord.is_registered
-        })
-      };
-      await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
-    } catch (e) {
-      console.warn('Real-time Supabase roster user sync error:', e.message);
-    }
-
+    // Instant response to client without waiting for cloud roundtrip
     const totalCount = localRoster.length;
     const registeredCount = localRoster.filter(r => r.is_registered).length;
 
@@ -486,12 +398,54 @@ exports.addSingleStudent = async (req, res) => {
         pendingCount: totalCount - registeredCount
       }
     });
+
+    // Background asynchronous sync to Supabase (non-blocking)
+    setImmediate(async () => {
+      try {
+        const rosterUser = {
+          id: `roster_${cleanRegNo}`,
+          name: newRecord.name,
+          register_number: cleanRegNo,
+          email: `${cleanRegNo.toLowerCase()}@roster.internal`,
+          role: 'roster',
+          department: newRecord.department,
+          year: newRecord.year,
+          section: newRecord.section,
+          gender: newRecord.gender,
+          status: studentStatus === 'Inactive' ? 'Inactive' : 'Pending Registration',
+          created_at: new Date().toISOString()
+        };
+        await supabase.from('users').upsert(rosterUser);
+
+        const notifRecord = {
+          id: `roster_${cleanRegNo}`,
+          title: cleanRegNo,
+          category: 'roster',
+          type: 'roster_student',
+          target_type: newRecord.department || 'Computer Science',
+          target_audience: newRecord.year || 'I Year',
+          priority: newRecord.gender || 'Male',
+          sender: newRecord.is_registered ? 'registered' : 'unregistered',
+          message: JSON.stringify({
+            registerNumber: cleanRegNo,
+            name: newRecord.name,
+            department: newRecord.department,
+            year: newRecord.year,
+            section: newRecord.section,
+            gender: newRecord.gender,
+            status: studentStatus,
+            isRegistered: !!newRecord.is_registered
+          })
+        };
+        await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
+      } catch (e) {}
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Delete student from roster
+// @desc    Delete student from roster (Ultra-Fast Instant Response)
 // @route   DELETE /api/roster/:id
 // @access  Private (Admin only)
 exports.deleteStudent = async (req, res) => {
@@ -507,16 +461,13 @@ exports.deleteStudent = async (req, res) => {
 
     storeInstance.db['college_student_roster'] = localRoster.filter(r => r.id !== id && r.register_number !== id);
     storeInstance.save();
-
-    try {
-      await supabase.from('users').delete().eq('register_number', target.register_number).eq('role', 'roster');
-      await supabase.from('notifications').delete().eq('id', `roster_${target.register_number}`);
-    } catch (e) {}
+    syncRosterJsonFiles(storeInstance.db['college_student_roster']);
 
     const updatedRoster = storeInstance.db['college_student_roster'];
     const totalCount = updatedRoster.length;
     const registeredCount = updatedRoster.filter(r => r.is_registered).length;
 
+    // Instant response to client
     res.json({
       success: true,
       message: `Removed ${target.name} (${target.register_number}) from college roster.`,
@@ -526,12 +477,20 @@ exports.deleteStudent = async (req, res) => {
         pendingCount: totalCount - registeredCount
       }
     });
+
+    // Background asynchronous sync to Supabase (non-blocking)
+    setImmediate(async () => {
+      try {
+        await supabase.from('users').delete().eq('register_number', target.register_number);
+        await supabase.from('notifications').delete().eq('id', `roster_${target.register_number}`);
+      } catch (e) {}
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Update student in roster
+// @desc    Update student in roster (Ultra-Fast Instant Response)
 // @route   PUT /api/roster/:id
 // @access  Private (Admin only)
 exports.updateStudent = async (req, res) => {
@@ -547,7 +506,21 @@ exports.updateStudent = async (req, res) => {
     }
 
     if (name) localRoster[idx].name = name.trim();
-    if (registerNumber) localRoster[idx].register_number = registerNumber.trim().toUpperCase();
+    if (registerNumber) {
+      const cleanReg = registerNumber.trim().toUpperCase();
+      const normReg = cleanReg.replace(/[^A-Z0-9]/gi, '');
+      const duplicate = localRoster.find((r, i) => i !== idx && (
+        (r.register_number || '').trim().toUpperCase() === cleanReg ||
+        (r.register_number || '').replace(/[^A-Z0-9]/gi, '').toUpperCase() === normReg
+      ));
+      if (duplicate) {
+        return res.status(409).json({
+          success: false,
+          message: `Another student with Register No "${cleanReg}" already exists in roster (${duplicate.name}). Duplicate register numbers are not allowed.`
+        });
+      }
+      localRoster[idx].register_number = cleanReg;
+    }
     if (department) localRoster[idx].department = department;
     if (year) localRoster[idx].year = year;
     if (section !== undefined) localRoster[idx].section = section.trim().toUpperCase() || 'A';
@@ -556,52 +529,58 @@ exports.updateStudent = async (req, res) => {
     localRoster[idx].updated_at = new Date().toISOString();
 
     storeInstance.save();
+    syncRosterJsonFiles(localRoster);
 
-    try {
-      const reg = localRoster[idx].register_number;
-      const curStatus = localRoster[idx].status || 'Active';
-      await supabase.from('users').update({
-        status: curStatus === 'Inactive' ? 'Inactive' : 'Active',
-        name: localRoster[idx].name,
-        department: localRoster[idx].department,
-        year: localRoster[idx].year,
-        gender: localRoster[idx].gender
-      }).eq('register_number', reg);
+    const reg = localRoster[idx].register_number;
+    const curStatus = localRoster[idx].status || 'Active';
 
-      const notifRecord = {
-        id: `roster_${reg}`,
-        title: reg,
-        category: 'roster',
-        type: 'roster_student',
-        target_type: localRoster[idx].department || 'Computer Science',
-        target_audience: localRoster[idx].year || 'I Year',
-        priority: localRoster[idx].gender || 'Male',
-        sender: localRoster[idx].is_registered ? 'registered' : 'unregistered',
-        message: JSON.stringify({
-          registerNumber: reg,
-          name: localRoster[idx].name,
-          department: localRoster[idx].department,
-          year: localRoster[idx].year,
-          section: localRoster[idx].section,
-          gender: localRoster[idx].gender,
-          status: curStatus,
-          isRegistered: !!localRoster[idx].is_registered
-        })
-      };
-      await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
-    } catch (e) {}
-
+    // Instant response to client
     res.json({
       success: true,
       message: `Student "${localRoster[idx].name}" (${localRoster[idx].register_number}) updated successfully!`,
       student: toCamelCase(localRoster[idx])
+    });
+
+    // Background asynchronous sync to Supabase (non-blocking)
+    setImmediate(async () => {
+      try {
+        await supabase.from('users').update({
+          status: curStatus === 'Inactive' ? 'Inactive' : 'Active',
+          name: localRoster[idx].name,
+          department: localRoster[idx].department,
+          year: localRoster[idx].year,
+          gender: localRoster[idx].gender
+        }).eq('register_number', reg);
+
+        const notifRecord = {
+          id: `roster_${reg}`,
+          title: reg,
+          category: 'roster',
+          type: 'roster_student',
+          target_type: localRoster[idx].department || 'Computer Science',
+          target_audience: localRoster[idx].year || 'I Year',
+          priority: localRoster[idx].gender || 'Male',
+          sender: localRoster[idx].is_registered ? 'registered' : 'unregistered',
+          message: JSON.stringify({
+            registerNumber: reg,
+            name: localRoster[idx].name,
+            department: localRoster[idx].department,
+            year: localRoster[idx].year,
+            section: localRoster[idx].section,
+            gender: localRoster[idx].gender,
+            status: curStatus,
+            isRegistered: !!localRoster[idx].is_registered
+          })
+        };
+        await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
+      } catch (e) {}
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// @desc    Toggle student Active/Inactive status
+// @desc    Toggle student Active/Inactive status (Ultra-Fast Instant Response)
 // @route   PUT /api/roster/:id/status or PATCH /api/roster/:id/status
 // @access  Private (Admin only)
 exports.toggleStudentStatus = async (req, res) => {
@@ -623,44 +602,43 @@ exports.toggleStudentStatus = async (req, res) => {
     localRoster[idx].status = newStatus;
     localRoster[idx].updated_at = new Date().toISOString();
     storeInstance.save();
+    syncRosterJsonFiles(localRoster);
 
     const reg = localRoster[idx].register_number;
 
-    // Real-time Supabase sync
-    try {
-      await supabase.from('users').update({
-        status: newStatus
-      }).eq('register_number', reg);
-
-      const notifRecord = {
-        id: `roster_${reg}`,
-        title: reg,
-        category: 'roster',
-        type: 'roster_student',
-        target_type: localRoster[idx].department || 'Computer Science',
-        target_audience: localRoster[idx].year || 'I Year',
-        priority: localRoster[idx].gender || 'Male',
-        sender: localRoster[idx].is_registered ? 'registered' : 'unregistered',
-        message: JSON.stringify({
-          registerNumber: reg,
-          name: localRoster[idx].name,
-          department: localRoster[idx].department,
-          year: localRoster[idx].year,
-          section: localRoster[idx].section,
-          gender: localRoster[idx].gender,
-          status: newStatus,
-          isRegistered: !!localRoster[idx].is_registered
-        })
-      };
-      await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
-    } catch (e) {
-      console.warn('Status toggle Supabase sync error:', e);
-    }
-
+    // Instant response to client
     res.json({
       success: true,
       message: `Student "${localRoster[idx].name}" (${reg}) status changed to ${newStatus.toUpperCase()}`,
       student: toCamelCase(localRoster[idx])
+    });
+
+    // Background asynchronous sync to Supabase (non-blocking)
+    setImmediate(async () => {
+      try {
+        await supabase.from('users').update({ status: newStatus }).eq('register_number', reg);
+        const notifRecord = {
+          id: `roster_${reg}`,
+          title: reg,
+          category: 'roster',
+          type: 'roster_student',
+          target_type: localRoster[idx].department || 'Computer Science',
+          target_audience: localRoster[idx].year || 'I Year',
+          priority: localRoster[idx].gender || 'Male',
+          sender: localRoster[idx].is_registered ? 'registered' : 'unregistered',
+          message: JSON.stringify({
+            registerNumber: reg,
+            name: localRoster[idx].name,
+            department: localRoster[idx].department,
+            year: localRoster[idx].year,
+            section: localRoster[idx].section,
+            gender: localRoster[idx].gender,
+            status: newStatus,
+            isRegistered: !!localRoster[idx].is_registered
+          })
+        };
+        await supabase.from('notifications').upsert(notifRecord, { onConflict: 'id' });
+      } catch (e) {}
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

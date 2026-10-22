@@ -1,6 +1,6 @@
 {
   "name": "gasc-idappadi-sports-management",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Smart Sports Management System for Government Arts and Science College, Idappadi",
   "main": "electron/main.js",
   "scripts": {
@@ -49,16 +49,17 @@
   },
   "build": {
     "appId": "com.gasc.idappadi.sports.admin",
-    "productName": "GASC Sports Admin",
+    "productName": "Sports Management",
     "copyright": "Copyright © 2026 Government Arts and Science College, Idappadi",
     "directories": {
       "output": "dist/admin-installer",
       "buildResources": "build-resources"
     },
+    "compression": "store",
     "extraMetadata": {
       "main": "electron/main.js"
     },
-    "asar": false,
+    "asar": true,
     "files": [
       "electron/**/*",
       "client/public/**/*",
@@ -85,6 +86,12 @@
     "win": {
       "target": [
         {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
           "target": "nsis",
           "arch": [
             "x64"
@@ -95,15 +102,15 @@
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "GASC Sports Admin",
-      "installerIcon": "build-resources/icon.ico",
-      "uninstallerIcon": "build-resources/icon.ico",
-      "installerHeaderIcon": "build-resources/icon.ico",
-      "deleteAppDataOnUninstall": false,
-      "artifactName": "GASC-Sports-Admin-Setup-1.4.0.exe"
+      "shortcutName": "Sports Management",
+      "artifactName": "Sports Management Setup.exe"
+    },
+    "portable": {
+      "artifactName": "Sports Management.exe"
     }
   },
   "engines": {

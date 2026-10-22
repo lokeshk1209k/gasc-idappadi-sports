@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Portal v1.4 — GASC Idappadi Sports Management</title>
+  <title>Admin Portal v1.5 — GASC Idappadi Sports Management</title>
   <base href="/">
   <!-- Offline-First Local Vendor CSS with CDN Fallback -->
   <link href="vendor/bootstrap.min.css" rel="stylesheet" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css';">
@@ -12,8 +12,29 @@
   <link rel="icon" type="image/png" href="images/college-logo.png">
   <!-- Chart.js -->
   <script src="vendor/chart.umd.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';"></script>
-  <!-- Glassmorphism Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=20261017_glass_v14">
+  <!-- Glassmorphism Stylesheet (Cache Busted) -->
+  <link rel="stylesheet" href="css/style.css?v=20261019_no_touch_v2">
+  <style>
+    /* Direct hardware kill-switch for any button/card click effects */
+    *:active {
+      transform: none !important;
+      filter: none !important;
+      animation: none !important;
+    }
+    .btn:active, .btn-sports-primary:active, .btn-sports-accent:active, .btn-glass:active,
+    .sidebar-nav-item:active, .stat-card:active, .badge:active, button:active, a:active {
+      transform: none !important;
+      filter: none !important;
+      box-shadow: none !important;
+      transition: none !important;
+    }
+    .glass-touch-ripple {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+  </style>
   <script src="js/config.js"></script>
   <script>
     // Strict Role-Based Portal Guard: Sports Incharge / Admin Only
@@ -49,7 +70,7 @@
         <img src="images/college-logo.png" alt="GASC Idappadi Official Seal" class="college-logo-sidebar" onerror="this.onerror=null;this.src='images/college-logo.png'">
         <div>
           <div class="fw-bold text-white lh-1">GASC IDAPPADI</div>
-          <small class="text-white-50" style="font-size: 0.7rem;">Sports Incharge <span class="badge ms-1" style="background: linear-gradient(135deg, #05c46b, #00cec9); font-size: 0.65rem; box-shadow: 0 2px 6px rgba(0,206,201,0.4);">v1.4 Ultra Glass</span></small>
+          <small class="text-white-50" style="font-size: 0.7rem;">Sports Incharge <span class="badge ms-1" style="background: linear-gradient(135deg, #05c46b, #00cec9); font-size: 0.65rem; box-shadow: 0 2px 6px rgba(0,206,201,0.4);">v1.5 Ultra Glass</span></small>
         </div>
       </div>
 
@@ -73,10 +94,7 @@
           <i class="bi bi-trophy-fill text-warning"></i> <span>Competitions & Inter-College</span>
           <span class="badge bg-warning text-dark ms-auto" id="nav-ext-pending-badge" style="display:none;font-size:0.65rem;">0</span>
         </a>
-        <a class="sidebar-nav-item admin-nav-item" data-view="payments" id="nav-item-payments">
-          <i class="bi bi-credit-card-2-front-fill text-success"></i> <span>Payment Management</span>
-          <span class="badge bg-success ms-auto" id="nav-payment-mode-badge" style="font-size:0.65rem;">TEST MODE</span>
-        </a>
+
         <a class="sidebar-nav-item admin-nav-item d-none" data-view="inter-college">
           <i class="bi bi-qr-code-scan text-warning"></i> <span>Inter-College</span>
         </a>
@@ -285,7 +303,7 @@
           <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
             <div>
               <h4 class="fw-bold text-dark mb-0">Student Player Directory</h4>
-              <small class="text-secondary">Search, filter, view profiles, and manage athlete status</small>
+              <small class="text-secondary">Search, filter, view profiles, and manage player status</small>
             </div>
           </div>
 
@@ -347,7 +365,7 @@
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Student Athlete</th>
+                  <th>Student Player</th>
                   <th>Department & Year</th>
                   <th>Sport</th>
                   <th>Position</th>
@@ -464,11 +482,11 @@
               <div class="col-md-4">
                 <div class="input-group input-group-sm">
                   <span class="input-group-text bg-white bg-opacity-50 border-end-0"><i class="bi bi-search"></i></span>
-                  <input type="text" id="roster-search-input" class="form-control form-control-glass border-start-0" placeholder="Search by Reg No, Student Name..." oninput="loadAdminRoster()">
+                  <input type="text" id="roster-search-input" class="form-control form-control-glass border-start-0" placeholder="Search by Reg No, Student Name..." oninput="debouncedLoadAdminRoster()">
                 </div>
               </div>
               <div class="col-md-3">
-                <select id="roster-filter-dept" class="form-select form-select-glass form-select-sm" onchange="loadAdminRoster()">
+                <select id="roster-filter-dept" class="form-select form-select-glass form-select-sm" onchange="loadAdminRoster(false)">
                   <option value="All">All Departments</option>
                   <optgroup label="UG Courses">
                     <option value="Tamil">Tamil</option>
@@ -557,7 +575,7 @@
                   <th>Category</th>
                   <th>Court Type</th>
                   <th>Squad Size</th>
-                  <th>Athletes</th>
+                  <th>Players</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
@@ -580,7 +598,7 @@
                 <span class="badge badge-glass-success">Live Stock Sync Active</span>
               </div>
               <h3 class="fw-bold text-dark mb-0">Sports Equipment Issue & Return</h3>
-              <small class="text-secondary">Issue gear to verified college athletes, track active issues, manage returns, and audit inventory</small>
+              <small class="text-secondary">Issue gear to verified college players, track active issues, manage returns, and audit inventory</small>
             </div>
             <div class="d-flex gap-2">
               <button class="btn btn-sports-accent shadow-sm" onclick="switchEqTab('issue')">
@@ -636,7 +654,7 @@
                 <div>
                   <div class="stat-value text-info" id="eq-stat-issued">0</div>
                   <div class="stat-label">Currently Issued</div>
-                  <small class="text-muted">With student athletes</small>
+                  <small class="text-muted">With student players</small>
                 </div>
               </div>
             </div>
@@ -686,7 +704,7 @@
               <div class="col-lg-5">
                 <div class="glass-card p-4 h-100 border border-primary border-opacity-20">
                   <h5 class="fw-bold text-dark mb-1">
-                    <i class="bi bi-person-badge-fill text-primary me-2"></i>1. Student Athlete Search
+                    <i class="bi bi-person-badge-fill text-primary me-2"></i>1. Student Player Search
                   </h5>
                   <small class="text-secondary d-block mb-3">Enter register number to automatically fetch student credentials</small>
 
@@ -739,7 +757,7 @@
                   <!-- Initial prompt placeholder -->
                   <div id="eq-student-prompt" class="text-center py-5 text-muted">
                     <i class="bi bi-person-lines-fill display-5 d-block mb-2 text-primary opacity-50"></i>
-                    <h6 class="fw-bold text-dark mb-1">Verify Athlete Register Number</h6>
+                    <h6 class="fw-bold text-dark mb-1">Verify Player Register Number</h6>
                     <small>Enter a register number (e.g. <code>21CS001</code>) and click Search to pull student records.</small>
                   </div>
                 </div>
@@ -872,7 +890,7 @@
                 <thead>
                   <tr>
                     <th style="width: 45px;">#</th>
-                    <th>Student Athlete</th>
+                    <th>Student Player</th>
                     <th>Equipment Item</th>
                     <th>Qty</th>
                     <th>Issued Date & Time</th>
@@ -923,7 +941,7 @@
                 <thead>
                   <tr>
                     <th>Issue ID</th>
-                    <th>Student Athlete</th>
+                    <th>Student Player</th>
                     <th>Equipment Borrowed</th>
                     <th>Qty</th>
                     <th>Issue Date & Time</th>
@@ -1057,13 +1075,9 @@
               </button>
             </li>
             <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('analytics')">
-                <i class="bi bi-graph-up-arrow me-1.5 text-info"></i> Analytics
-              </button>
-            </li>
-            <li class="nav-item">
-              <button class="nav-link" onclick="switchExtTab('payment-settings')">
-                <i class="bi bi-wallet2 me-1.5 text-warning"></i> GPay & UPI Settings
+              <button class="nav-link" onclick="switchExtTab('payments')">
+                <i class="bi bi-credit-card-2-front-fill me-1.5 text-success"></i> Fee & Payment Management
+                <span class="badge rounded-pill ms-1.5 bg-success text-white" id="ext-kpi-pay-count">0</span>
               </button>
             </li>
           </ul>
@@ -1174,7 +1188,7 @@
                     <th>Registration ID</th>
                     <th>Competition & Sport</th>
                     <th>College Name</th>
-                    <th>Team / Athlete</th>
+                    <th>Team / Player</th>
                     <th>Category</th>
                     <th>Contact</th>
                     <th>Date</th>
@@ -1374,230 +1388,183 @@
           </div>
 
           <!-- ══════════════════════════════════════════════════
-               SUB-VIEW 8: DYNAMIC GPAY, UPI & QR CODE SETTINGS
+               SUB-VIEW 7: FEE & PAYMENT VERIFICATION & HISTORY
                ══════════════════════════════════════════════════ -->
-          <div id="ext-tab-pane-payment-settings" class="ext-tab-pane d-none">
-            <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+          <div id="ext-tab-pane-payments" class="ext-tab-pane d-none">
+            <!-- Header Banner -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
               <div>
-                <h4 class="fw-black text-dark mb-1">
-                  <i class="bi bi-wallet2 text-success me-2"></i>Dynamic GPay, UPI ID & QR Code Management
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <span class="badge px-2.5 py-1 fw-bold bg-success bg-opacity-20 text-success border border-success border-opacity-30">
+                    <i class="bi bi-shield-check me-1"></i> VERIFIED STUDENT FEES & UPI COLLECTIONS
+                  </span>
+                  <span class="badge bg-warning text-dark px-2.5 py-1 fw-bold" id="pay-live-status-pill">
+                    <i class="bi bi-qr-code-scan me-1"></i> UPI QR & GPAY ENABLED
+                  </span>
+                </div>
+                <h4 class="fw-bold text-white mb-1">
+                  Fee & Payment Management System
                 </h4>
-                <p class="text-muted small mb-0">
-                  Update payment credentials anytime. Changes reflect instantly on the Student Portal without recompiling or redeploying code.
-                </p>
+                <small style="color: #AFC4DF;">
+                  Check incoming student UPI payments, verify amounts, approve registrations with instant email confirmation, and audit payment history.
+                </small>
               </div>
-              <div class="d-flex align-items-center gap-2 flex-wrap">
-                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" onclick="openPaymentHistoryModal()">
-                  <i class="bi bi-clock-history me-1 text-primary"></i> Settings History
+              <div class="d-flex gap-2 align-items-center flex-wrap">
+                <button class="btn btn-outline-secondary btn-sm px-3 text-white" onclick="loadAdminInterCollegeData(false)">
+                  <i class="bi bi-arrow-clockwise me-1"></i> Refresh Payments
                 </button>
-                <button type="button" class="btn btn-primary btn-sm fw-bold shadow-sm px-3" onclick="saveAdminPaymentSettings()">
-                  <i class="bi bi-cloud-arrow-up-fill me-1"></i> Save & Publish Changes
+                <button class="btn btn-outline-success btn-sm px-3 text-success" onclick="exportExtPaymentsToCsv()">
+                  <i class="bi bi-file-earmark-spreadsheet me-1"></i> Export Excel/CSV
+                </button>
+                <button class="btn btn-sports-primary btn-sm px-3 shadow-sm text-nowrap" onclick="openPaymentSettingsModal()">
+                  <i class="bi bi-sliders me-1"></i> Receiving Account (QR/GPay)
                 </button>
               </div>
             </div>
 
-            <!-- Configuration Grid -->
-            <div class="row g-4">
-              <!-- Left Form Column -->
-              <div class="col-lg-7">
-                <div class="glass-card p-4 border border-light border-opacity-40 shadow-sm rounded-4 h-100">
-                  <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom border-secondary border-opacity-10">
-                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                      <i class="bi bi-sliders text-warning"></i> Payment Receiver Configuration
-                    </h5>
-                    <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
-                      <input class="form-check-input" type="checkbox" id="pay-is-active-toggle" checked style="width:2.5em; height:1.3em; cursor:pointer;" onchange="updatePaymentPreview()">
-                      <label class="form-check-label small fw-bold" for="pay-is-active-toggle" id="pay-status-label">Enabled</label>
+            <!-- KPI Ribbon -->
+            <div class="row g-3 mb-4">
+              <div class="col-xl-3 col-sm-6">
+                <div class="glass-card stat-card border-success border-opacity-30">
+                  <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-currency-rupee"></i></div>
+                  <div>
+                    <div class="stat-value text-success" id="ext-pay-total-collected">₹0</div>
+                    <div class="stat-label">Total Verified Collections</div>
+                    <small class="text-white-50"><span id="ext-pay-verified-count">0</span> Approved Registrations</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-3 col-sm-6">
+                <div class="glass-card stat-card border-warning border-opacity-30">
+                  <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-hourglass-split"></i></div>
+                  <div>
+                    <div class="stat-value text-warning" id="ext-pay-pending-count">0</div>
+                    <div class="stat-label">Pending Verification</div>
+                    <small class="text-white-50">Awaiting Amount Confirmation</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-3 col-sm-6">
+                <div class="glass-card stat-card border-primary border-opacity-30">
+                  <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-person-check-fill"></i></div>
+                  <div>
+                    <div class="stat-value text-primary" id="ext-pay-approved-players-count">0</div>
+                    <div class="stat-label">Confirmed Players / Squads</div>
+                    <small class="text-white-50">Eligible for Fixtures</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-3 col-sm-6">
+                <div class="glass-card stat-card border-info border-opacity-30">
+                  <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-receipt-cutoff"></i></div>
+                  <div>
+                    <div class="stat-value text-info" id="ext-pay-total-records-count">0</div>
+                    <div class="stat-label">Total Fee Records</div>
+                    <small class="text-white-50">Complete Ledger Entries</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Toggle Buttons between Pending Queue and History -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <ul class="nav nav-pills glass-pills gap-2" id="ext-payment-subnav">
+                <li class="nav-item">
+                  <button class="nav-link active fw-bold" id="btn-pay-tab-pending" onclick="toggleExtPaymentTab('pending')">
+                    <i class="bi bi-patch-exclamation-fill text-warning me-1.5"></i>
+                    Pending Fee Approvals
+                    <span class="badge bg-warning text-dark ms-1.5" id="ext-pay-badge-sub-pending">0</span>
+                  </button>
+                </li>
+                <li class="nav-item">
+                  <button class="nav-link fw-bold" id="btn-pay-tab-history" onclick="toggleExtPaymentTab('history')">
+                    <i class="bi bi-clock-history text-info me-1.5"></i>
+                    Payment History & Ledger
+                    <span class="badge bg-secondary ms-1.5" id="ext-pay-badge-sub-history">0</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <!-- PANE 1: PENDING FEE APPROVALS -->
+            <div id="ext-pay-pane-pending">
+              <div class="table-responsive table-glass-container">
+                <table class="table table-glass align-middle">
+                  <thead>
+                    <tr>
+                      <th style="width:40px;">#</th>
+                      <th>Registration Ref</th>
+                      <th>Player / Payer & College</th>
+                      <th>Competition & Sport</th>
+                      <th>Fee Amount</th>
+                      <th>UTR / Transaction Reference</th>
+                      <th>Payment Proof Screenshot</th>
+                      <th>Date Submitted</th>
+                      <th style="width:160px;" class="text-center">Verification Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ext-pay-pending-tbody">
+                    <!-- Populated dynamically via renderExtPaymentsView() -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PANE 2: PAYMENT HISTORY & LEDGER -->
+            <div id="ext-pay-pane-history" class="d-none">
+              <!-- Filter Toolbar -->
+              <div class="glass-card p-3 mb-3 border border-secondary border-opacity-25 shadow-sm">
+                <div class="row g-2 align-items-center">
+                  <div class="col-md-3">
+                    <div class="input-group input-group-sm">
+                      <span class="input-group-text bg-transparent text-secondary border-secondary border-opacity-25"><i class="bi bi-search"></i></span>
+                      <input type="text" id="pay-hist-search" class="form-control form-control-glass" placeholder="Search Reg ID, Student, UTR, College..." onkeyup="filterExtPaymentHistory()">
                     </div>
                   </div>
-
-                  <form id="admin-payment-form" onsubmit="event.preventDefault(); saveAdminPaymentSettings();">
-                    <div class="row g-3">
-                      <!-- Receiver Name -->
-                      <div class="col-12">
-                        <label class="form-label small fw-bold text-secondary">
-                          Payment Receiver Name / Organization <span class="text-danger">*</span>
-                        </label>
-                        <input type="text" id="pay-receiver-name" class="form-control form-control-glass" placeholder="e.g. Dr. R. ANITHA (Physical Director) / GASC Sports Account" required oninput="updatePaymentPreview()">
-                        <div class="form-text small text-muted">Official collegiate title shown on the student checkout screen.</div>
-                      </div>
-
-                      <!-- GPay Mobile Number -->
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">
-                          GPay Registered Mobile Number <span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                          <span class="input-group-text bg-light text-muted fw-bold">+91</span>
-                          <input type="tel" id="pay-gpay-number" class="form-control form-control-glass" placeholder="9443218765" maxlength="10" required oninput="updatePaymentPreview()">
-                        </div>
-                        <div class="form-text small text-muted">10-digit Indian phone number linked with Google Pay.</div>
-                      </div>
-
-                      <!-- UPI ID / VPA -->
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">
-                          UPI ID / VPA <span class="text-danger">*</span>
-                        </label>
-                        <div class="input-group">
-                          <span class="input-group-text bg-light text-muted"><i class="bi bi-at"></i></span>
-                          <input type="text" id="pay-upi-id" class="form-control form-control-glass" placeholder="e.g. sportsgasc@sbi" required oninput="updatePaymentPreview()">
-                        </div>
-                        <div class="form-text small text-muted">Must be a valid VPA (username@bank). Do not enter just a phone number.</div>
-                      </div>
-
-                      <!-- Payment Mode & Instructions -->
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">Payment Method</label>
-                        <select id="pay-mode-select" class="form-select form-select-glass" onchange="updatePaymentPreview()">
-                          <option value="MANUAL_UPI">Manual GPay / UPI QR (UTR Verification)</option>
-                          <option value="GATEWAY">Integrated Payment Gateway</option>
-                          <option value="BOTH">Both (UPI QR + Gateway)</option>
-                        </select>
-                      </div>
-
-                      <!-- Entry Fees Defaults -->
-                      <div class="col-md-3">
-                        <label class="form-label small fw-bold text-secondary">Team Entry Fee (₹)</label>
-                        <input type="number" id="pay-team-fee" class="form-control form-control-glass" min="0" step="10" value="500" oninput="updatePaymentPreview()">
-                      </div>
-                      <div class="col-md-3">
-                        <label class="form-label small fw-bold text-secondary">Individual Fee (₹)</label>
-                        <input type="number" id="pay-ind-fee" class="form-control form-control-glass" min="0" step="10" value="100" oninput="updatePaymentPreview()">
-                      </div>
-
-                      <!-- Optional Validity Window -->
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">Valid From (Optional)</label>
-                        <input type="datetime-local" id="pay-valid-from" class="form-control form-control-glass">
-                      </div>
-                      <div class="col-md-6">
-                        <label class="form-label small fw-bold text-secondary">Valid Until (Optional)</label>
-                        <input type="datetime-local" id="pay-valid-until" class="form-control form-control-glass">
-                      </div>
-
-                      <!-- Payment QR Code Image Upload -->
-                      <div class="col-12">
-                        <label class="form-label small fw-bold text-secondary">Custom Merchant / GPay QR Code Image</label>
-                        <div class="input-group">
-                          <input type="file" id="pay-qr-file-input" class="form-control form-control-glass" accept="image/png,image/jpeg,image/webp" onchange="handleQrImageUpload(event)">
-                          <button class="btn btn-outline-danger btn-sm" type="button" onclick="clearCustomQrImage()">
-                            <i class="bi bi-trash me-1"></i> Use Auto-Generated QR
-                          </button>
-                        </div>
-                        <input type="hidden" id="pay-qr-code-url">
-                        <div class="form-text small text-muted">Upload your official bank / merchant standee QR photo or leave blank to automatically generate dynamic UPI QR.</div>
-                      </div>
-
-                      <!-- Payment Instructions -->
-                      <div class="col-12">
-                        <label class="form-label small fw-bold text-secondary">Payment Instructions For Students</label>
-                        <textarea id="pay-instructions" class="form-control form-control-glass" rows="3" placeholder="Step-by-step instructions displayed on the student checkout screen..." oninput="updatePaymentPreview()"></textarea>
-                      </div>
-                    </div>
-
-                    <!-- Action Bar -->
-                    <div class="d-flex align-items-center justify-content-between pt-4 mt-2 border-top border-secondary border-opacity-10 flex-wrap gap-2">
-                      <div class="text-muted small">
-                        <span id="pay-last-updated-text"><i class="bi bi-clock me-1"></i>Loading config status...</span>
-                      </div>
-                      <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="resetPaymentForm()">
-                          <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm fw-bold px-4 shadow" onclick="saveAdminPaymentSettings()">
-                          <i class="bi bi-check2-circle me-1"></i> Save & Publish
-                        </button>
-                      </div>
-                    </div>
-                  </form>
+                  <div class="col-md-3">
+                    <select id="pay-hist-filter-comp" class="form-select form-select-glass form-select-sm" onchange="filterExtPaymentHistory()">
+                      <option value="ALL">All Competitions</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <select id="pay-hist-filter-status" class="form-select form-select-glass form-select-sm" onchange="filterExtPaymentHistory()">
+                      <option value="ALL">All Statuses</option>
+                      <option value="VERIFIED">Verified / Paid Only</option>
+                      <option value="PENDING">Pending Only</option>
+                      <option value="REJECTED">Rejected Only</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3 text-end">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="resetExtPaymentFilters()">
+                      <i class="bi bi-x-lg me-1"></i> Reset Filters
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <!-- Right Preview Column: Live Student View -->
-              <div class="col-lg-5">
-                <div class="glass-card p-4 border border-light border-opacity-40 shadow-sm rounded-4 h-100 d-flex flex-column">
-                  <div class="d-flex align-items-center justify-content-between pb-3 mb-3 border-bottom border-secondary border-opacity-10">
-                    <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                      <i class="bi bi-phone text-primary"></i> Live Student View Preview
-                    </h5>
-                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" id="preview-version-badge">Version 1</span>
-                  </div>
-
-                  <!-- Simulated Student Card -->
-                  <div class="p-4 rounded-4 text-white shadow-lg flex-grow-1 d-flex flex-column justify-content-between" style="background: linear-gradient(145deg, #0b192c 0%, #1e3e62 100%); border: 1px solid rgba(255,255,255,0.12);">
-                    <div>
-                      <div class="d-flex align-items-center justify-content-between mb-3">
-                        <div class="d-flex align-items-center gap-2">
-                          <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold" style="width:34px; height:34px; font-size:16px;">
-                            ₹
-                          </div>
-                          <div>
-                            <div class="small text-warning text-uppercase fw-bold letter-spacing-1" style="font-size:10px;">Inter-College Sports Fee</div>
-                            <div class="fw-bold text-white small" id="preview-receiver-name">Dr. R. ANITHA (Physical Director)</div>
-                          </div>
-                        </div>
-                        <span class="badge bg-emerald-500 text-white px-2.5 py-1 fw-bold rounded-pill" id="preview-active-pill" style="font-size:11px; background:#10b981;">ACTIVE</span>
-                      </div>
-
-                      <!-- QR Display Box -->
-                      <div class="text-center my-3 p-3 rounded-3" style="background: rgba(255,255,255,0.06); border: 1px dashed rgba(255,255,255,0.2);">
-                        <div class="position-relative d-inline-block">
-                          <img id="preview-qr-img" src="" alt="Payment QR Code" class="img-fluid rounded-3 bg-white p-2 shadow" style="max-height:190px; max-width:190px; object-fit:contain;">
-                          <div id="preview-qr-placeholder" class="bg-dark rounded-3 d-flex flex-column align-items-center justify-content-center p-3 text-muted d-none" style="height:190px; width:190px;">
-                            <i class="bi bi-qr-code fs-1 text-warning mb-2"></i>
-                            <div class="small">QR Preview</div>
-                          </div>
-                        </div>
-                        <div class="text-slate-300 small mt-2 fw-semibold" style="font-size:11px;">
-                          Scan using GPay, PhonePe, Paytm, or BHIM UPI
-                        </div>
-                      </div>
-
-                      <!-- Credentials Copy Cards -->
-                      <div class="row g-2 mb-3">
-                        <div class="col-12">
-                          <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                            <div>
-                              <div class="text-white-50" style="font-size:10px; text-transform:uppercase;">GPay Mobile Number</div>
-                              <div class="fw-bold text-white font-monospace" id="preview-gpay-number">+91 9443218765</div>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-outline-light py-1 px-2.5 rounded-pill" style="font-size:11px;" onclick="copyPreviewText('gpay')">
-                              <i class="bi bi-clipboard me-1"></i> Copy
-                            </button>
-                          </div>
-                        </div>
-                        <div class="col-12">
-                          <div class="p-2.5 rounded-3 d-flex align-items-center justify-content-between" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                            <div>
-                              <div class="text-white-50" style="font-size:10px; text-transform:uppercase;">UPI ID / VPA</div>
-                              <div class="fw-bold text-warning font-monospace" id="preview-upi-id">sportsgasc@sbi</div>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-outline-warning py-1 px-2.5 rounded-pill" style="font-size:11px;" onclick="copyPreviewText('upi')">
-                              <i class="bi bi-clipboard me-1"></i> Copy
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <!-- Instructions Preview -->
-                      <div class="p-2.5 rounded-3 mb-2" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); font-size:11px;">
-                        <strong class="text-warning d-block mb-1"><i class="bi bi-info-circle me-1"></i> Instructions:</strong>
-                        <div id="preview-instructions" class="text-white-50" style="white-space:pre-line;">
-                          1. Open your UPI app and pay the entry fee.
-                          2. Copy the 12-digit UTR reference number.
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="pt-2 text-center text-white-50 small border-top border-white border-opacity-10" style="font-size:10px;">
-                      Live preview updates instantly as you edit the settings.
-                    </div>
-                  </div>
-                </div>
+              <div class="table-responsive table-glass-container">
+                <table class="table table-glass align-middle">
+                  <thead>
+                    <tr>
+                      <th style="width:40px;">#</th>
+                      <th>Registration Ref</th>
+                      <th>Player / Payer & College</th>
+                      <th>Competition & Sport</th>
+                      <th>Amount Paid</th>
+                      <th>UTR Reference</th>
+                      <th>Payment Proof</th>
+                      <th>Verified Status</th>
+                      <th style="width:120px;" class="text-center">Receipt & Details</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ext-pay-history-tbody">
+                    <!-- Populated dynamically via renderExtPaymentsView() -->
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
+
         </section>
 
         <!-- BACKWARD COMPATIBILITY STUB FOR INTER-COLLEGE VIEW -->
@@ -1769,7 +1736,7 @@
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Student Athlete</th>
+                  <th>Student Player</th>
                   <th>Tournament & Sport</th>
                   <th>Competition / Event</th>
                   <th>Category</th>
@@ -2019,7 +1986,7 @@
                 <tr>
                   <th>#</th>
                   <th>Achievement Title</th>
-                  <th>Athlete Name</th>
+                  <th>Player Name</th>
                   <th>Medal</th>
                   <th>Position</th>
                   <th>Date</th>
@@ -2305,7 +2272,7 @@
                     <i class="bi bi-gender-male"></i>
                   </div>
                 </div>
-                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Male Student Athletes</small>
+                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Male Student Players</small>
               </div>
             </div>
 
@@ -2321,7 +2288,7 @@
                     <i class="bi bi-gender-female"></i>
                   </div>
                 </div>
-                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Female Student Athletes</small>
+                <small class="text-muted d-block mt-2" style="font-size: 0.72rem;">Female Student Players</small>
               </div>
             </div>
 
@@ -3102,193 +3069,285 @@
 
   <!-- Modal: Create Tournament -->
   <div class="modal fade" id="addCompetitionModal" data-bs-focus="false">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content glass-card p-3 shadow-lg">
-        <div class="modal-header border-0 pb-2">
-          <h5 class="modal-title fw-bold text-dark">
-            <i class="bi bi-trophy-fill text-warning me-2"></i>Create Tournament
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+      <form onsubmit="submitCreateCompetition(event)" class="modal-content create-tourn-modal-content">
+        <!-- HEADER -->
+        <div class="modal-header border-0 pb-2 px-4 pt-3 flex-shrink-0">
+          <div class="d-flex align-items-center gap-3">
+            <div class="create-tourn-icon-box">
+              <i class="bi bi-trophy-fill text-warning"></i>
+            </div>
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <h5 class="modal-title fw-bold text-white mb-0" style="letter-spacing: -0.2px;">Create Sports Tournament</h5>
+                <span class="badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-30 text-2xs">CHAMPIONSHIP WIZARD</span>
+              </div>
+              <p class="text-muted text-xs mb-0 mt-0.5">5-step structured configuration: Identity, Automated Schedule, Audience Scope, First Sport & Fees</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
-        <form onsubmit="submitCreateCompetition(event)">
-          <div class="modal-body">
-            <div class="row g-3">
-              <!-- Tournament Details -->
-              <div class="col-12">
-                <label class="form-label small fw-bold"><i class="bi bi-award-fill text-warning me-1"></i> Tournament Name *</label>
-                <input type="text" name="tournamentName" id="ctm-name" class="form-control form-control-glass" required placeholder="e.g. Annual Sports Meet 2026" value="SPARK 2026 Annual Sports Fest">
-              </div>
 
-              <div class="col-12">
-                <label class="form-label small fw-bold mb-1">Description</label>
-                <textarea name="description" id="ctm-description" class="form-control form-control-glass" rows="2" placeholder="Inter Department Annual Sports Meet conducted by GASC Idappadi."></textarea>
-              </div>
+        <!-- PROGRESS STEP TRACKER -->
+        <div class="px-4 pb-2 flex-shrink-0">
+          <div class="tourn-steps-indicator">
+            <div class="step-pill active"><span class="step-dot">1</span> Identity & Venue</div>
+            <div class="step-pill-divider"><i class="bi bi-chevron-right"></i></div>
+            <div class="step-pill active"><span class="step-dot">2</span> Schedule & Dates</div>
+            <div class="step-pill-divider"><i class="bi bi-chevron-right"></i></div>
+            <div class="step-pill active"><span class="step-dot">3</span> Audience & Fees</div>
+            <div class="step-pill-divider"><i class="bi bi-chevron-right"></i></div>
+            <div class="step-pill active"><span class="step-dot">4</span> Sport & Rules</div>
+            <div class="step-pill-divider"><i class="bi bi-chevron-right"></i></div>
+            <div class="step-pill active"><span class="step-dot">5</span> Banner Image</div>
+          </div>
+        </div>
 
-              <div class="col-6">
-                <label class="form-label small fw-bold">Tournament Start Date *</label>
-                <input type="date" name="date" id="ctm-start-date" class="form-control form-control-glass" required>
-              </div>
-
-              <div class="col-6">
-                <label class="form-label small fw-bold">Tournament End Date *</label>
-                <input type="date" name="endDate" id="ctm-end-date" class="form-control form-control-glass" required>
-              </div>
-
-              <!-- Dedicated Registration Schedule Card with Automatic Open & Close Conditions -->
-              <div class="col-12 p-3 rounded-3 border border-warning border-opacity-30" style="background: rgba(245, 158, 11, 0.08);">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                  <span class="text-xs fw-bold text-uppercase" style="color: #fbbf24;">
-                    <i class="bi bi-clock-history me-1"></i> Registration Window (Automatic Open & Close)
-                  </span>
-                  <span class="badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-40 font-monospace" id="ctm-reg-condition-badge" style="font-size:0.68rem;">
-                    <i class="bi bi-lightning-charge-fill me-1"></i>Automatic Mode
-                  </span>
+        <div class="modal-body px-4 py-2" style="overflow-y: auto !important; max-height: calc(88vh - 190px); overscroll-behavior: contain;">
+            <!-- ========================================== -->
+            <!-- STEP 01: TOURNAMENT IDENTITY & VENUE       -->
+            <!-- ========================================== -->
+            <div class="tourn-form-card mb-3">
+              <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-white border-opacity-10">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="step-number-badge">01</span>
+                  <div>
+                    <h6 class="text-xs fw-bold text-uppercase text-white mb-0 tracking-wider">Tournament Identity & Venue</h6>
+                    <span class="text-muted text-2xs">Basic details, name, classification level, status & venue location</span>
+                  </div>
                 </div>
-                <div class="row g-2">
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
-                      <i class="bi bi-calendar-check text-success me-1"></i> Registration Open Date & Time *
-                    </label>
-                    <input type="datetime-local" name="registrationStart" id="ctm-reg-start" class="form-control form-control-glass form-control-sm" required onchange="updateRegSchedulePreview()">
-                    <div class="form-text text-light opacity-75" style="font-size:0.68rem;">Registration activates automatically at this moment.</div>
+                <span class="badge bg-secondary bg-opacity-30 text-light text-2xs border border-white border-opacity-15">Step 1 of 5</span>
+              </div>
+
+              <div class="row g-3">
+                <div class="col-md-8">
+                  <label class="form-label small fw-bold text-white mb-1">
+                    <i class="bi bi-award-fill text-warning me-1"></i> Tournament Name *
+                  </label>
+                  <input type="text" name="tournamentName" id="ctm-name" class="form-control form-control-glass fw-semibold text-white" required placeholder="e.g. SPARK 2026 Annual Sports Fest" value="SPARK 2026 Annual Sports Fest">
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label small fw-bold text-white mb-1">
+                    <i class="bi bi-diagram-3-fill text-info me-1"></i> Level / Classification *
+                  </label>
+                  <select name="type" id="ctm-type-select" class="form-select form-select-glass">
+                    <option value="Inter-Department" selected>Inter-Department (Intra-College)</option>
+                    <option value="Inter-College">Inter-College (State / District)</option>
+                    <option value="University">University Level</option>
+                    <option value="District">District Championship</option>
+                    <option value="State">State Championship</option>
+                    <option value="Other">Other Championship</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-white mb-1">
+                    <i class="bi bi-geo-alt-fill text-danger me-1"></i> Tournament Venue *
+                  </label>
+                  <input type="text" name="venue" id="ctm-venue" class="form-control form-control-glass text-white" required value="GASC Main Sports Ground, Idappadi">
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-white mb-1">
+                    <i class="bi bi-activity text-success me-1"></i> Initial Publication Status
+                  </label>
+                  <select name="status" class="form-select form-select-glass">
+                    <option value="Registration Open" selected>Registration Open (Immediately Active)</option>
+                    <option value="Draft">Draft (Hidden from Students)</option>
+                    <option value="Published">Published (Announced)</option>
+                    <option value="Upcoming">Upcoming (Scheduled)</option>
+                    <option value="Ongoing">Ongoing (Matches in Progress)</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label small fw-bold text-white mb-1">
+                    <i class="bi bi-card-text text-secondary me-1"></i> Tournament Description & Highlights
+                  </label>
+                  <textarea name="description" id="ctm-description" class="form-control form-control-glass text-white" rows="2" placeholder="Inter Department Annual Sports Meet conducted by Govt Arts and Science College, Idappadi."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- STEP 02: SCHEDULE & AUTOMATED REGISTRATION -->
+            <!-- ========================================== -->
+            <div class="tourn-form-card mb-3">
+              <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-white border-opacity-10">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="step-number-badge">02</span>
+                  <div>
+                    <h6 class="text-xs fw-bold text-uppercase text-white mb-0 tracking-wider">Tournament Timeline & Automatic Registration Window</h6>
+                    <span class="text-muted text-2xs">Match dates on ground vs automated student registration deadline</span>
                   </div>
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
-                      <i class="bi bi-calendar-x text-danger me-1"></i> Registration Close Date & Time (Deadline) *
-                    </label>
-                    <input type="datetime-local" name="registrationEnd" id="ctm-reg-end" class="form-control form-control-glass form-control-sm" required onchange="updateRegSchedulePreview()">
-                    <div class="form-text text-light opacity-75" style="font-size:0.68rem;">Registration terminates automatically after this deadline.</div>
+                </div>
+                <span class="badge bg-secondary bg-opacity-30 text-light text-2xs border border-white border-opacity-15">Step 2 of 5</span>
+              </div>
+
+              <div class="row g-3">
+                <!-- Match Dates -->
+                <div class="col-lg-5">
+                  <div class="p-3 rounded-3 h-100 border border-primary border-opacity-30" style="background: rgba(30, 58, 138, 0.15);">
+                    <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom border-primary border-opacity-20">
+                      <i class="bi bi-calendar-event text-primary fs-6"></i>
+                      <span class="text-xs fw-bold text-uppercase text-info tracking-wider">Tournament Event Dates (Matches)</span>
+                    </div>
+                    <div class="row g-2">
+                      <div class="col-6">
+                        <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
+                          <i class="bi bi-play-circle text-success me-1"></i> Start Date *
+                        </label>
+                        <input type="date" name="date" id="ctm-start-date" class="form-control form-control-glass form-control-sm text-white" required>
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
+                          <i class="bi bi-stop-circle text-danger me-1"></i> End Date *
+                        </label>
+                        <input type="date" name="endDate" id="ctm-end-date" class="form-control form-control-glass form-control-sm text-white" required>
+                      </div>
+                    </div>
+                    <div class="form-text text-light opacity-75 mt-2" style="font-size:0.68rem;">
+                      <i class="bi bi-info-circle text-info me-1"></i>Physical games & matches are conducted on ground during these dates.
+                    </div>
                   </div>
-                  <div class="col-12 mt-2">
-                    <div class="p-2 rounded bg-dark bg-opacity-60 border border-white border-opacity-15 text-xs text-light d-flex align-items-center gap-2" id="ctm-reg-status-preview">
-                      <i class="bi bi-info-circle text-info"></i>
-                      <span id="ctm-reg-status-text">Status will automatically compute based on current date & time.</span>
+                </div>
+
+                <!-- Registration Window -->
+                <div class="col-lg-7">
+                  <div class="p-3 rounded-3 h-100 border border-warning border-opacity-35" style="background: rgba(245, 158, 11, 0.08);">
+                    <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom border-warning border-opacity-20">
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-clock-history text-warning fs-6"></i>
+                        <span class="text-xs fw-bold text-uppercase text-warning tracking-wider">Registration Window (Auto Open & Close)</span>
+                      </div>
+                      <span class="badge bg-warning bg-opacity-20 text-warning border border-warning border-opacity-40 font-monospace" id="ctm-reg-condition-badge" style="font-size:0.68rem;">
+                        <i class="bi bi-lightning-charge-fill me-1"></i>Automatic Mode
+                      </span>
+                    </div>
+                    <div class="row g-2">
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
+                          <i class="bi bi-calendar-check text-success me-1"></i> Open Date & Time *
+                        </label>
+                        <input type="datetime-local" name="registrationStart" id="ctm-reg-start" class="form-control form-control-glass form-control-sm text-white" required onchange="updateRegSchedulePreview()">
+                        <div class="form-text text-light opacity-75" style="font-size:0.66rem;">Form unlocks automatically at this time.</div>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">
+                          <i class="bi bi-calendar-x text-danger me-1"></i> Close Date & Time (Deadline) *
+                        </label>
+                        <input type="datetime-local" name="registrationEnd" id="ctm-reg-end" class="form-control form-control-glass form-control-sm text-white" required onchange="updateRegSchedulePreview()">
+                        <div class="form-text text-light opacity-75" style="font-size:0.66rem;">Form locks automatically after this deadline.</div>
+                      </div>
+                      <div class="col-12 mt-1">
+                        <div class="p-2 rounded bg-dark bg-opacity-70 border border-white border-opacity-15 text-xs text-light d-flex align-items-center gap-2" id="ctm-reg-status-preview">
+                          <i class="bi bi-info-circle text-info"></i>
+                          <span id="ctm-reg-status-text">Status will automatically compute based on current date & time.</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div class="col-12">
-                <label class="form-label small fw-bold">Venue *</label>
-                <input type="text" name="venue" id="ctm-venue" class="form-control form-control-glass" required value="College Ground">
+            <!-- ========================================== -->
+            <!-- STEP 03: TARGET AUDIENCE & FEES            -->
+            <!-- ========================================== -->
+            <div class="tourn-form-card mb-3">
+              <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-white border-opacity-10">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="step-number-badge">03</span>
+                  <div>
+                    <h6 class="text-xs fw-bold text-uppercase text-white mb-0 tracking-wider">Target Audience & Registration Fees</h6>
+                    <span class="text-muted text-2xs">Select participation eligibility and independent fees for internal vs external participants</span>
+                  </div>
+                </div>
+                <span class="badge bg-success text-white px-2.5 py-1" id="part-type-badge">
+                  <i class="bi bi-people-fill me-1"></i>Open for Both (Our College & Other Colleges)
+                </span>
               </div>
 
-              <!-- Participation Type: INTERNAL vs INTER_COLLEGE -->
-              <div class="col-12">
-                <label class="form-label small fw-bold d-flex align-items-center justify-content-between mb-1">
-                  <span><i class="bi bi-diagram-3-fill text-warning me-1"></i> Participation Type *</span>
-                  <span class="badge bg-warning bg-opacity-20 text-dark" id="part-type-badge">Internal Tournament</span>
+              <!-- Participation Cards -->
+              <div class="mb-3">
+                <label class="form-label small fw-bold text-white mb-2">
+                  <i class="bi bi-bullseye text-warning me-1"></i> Select Who Can Register *
                 </label>
-                <div class="btn-group w-100" role="group">
-                  <input type="radio" class="btn-check" name="participationType" id="part-internal" value="INTERNAL" checked onchange="toggleInterCollegeFields(false)">
-                  <label class="btn btn-outline-primary fw-bold text-xs py-2" for="part-internal">
-                    <i class="bi bi-building me-1"></i> Internal College (GASC Students)
-                  </label>
-
-                  <input type="radio" class="btn-check" name="participationType" id="part-intercollege" value="INTER_COLLEGE" onchange="toggleInterCollegeFields(true)">
-                  <label class="btn btn-outline-warning fw-bold text-xs py-2" for="part-intercollege">
-                    <i class="bi bi-qr-code-scan me-1"></i> Inter-College (External Colleges via QR)
-                  </label>
-                </div>
-              </div>
-
-              <!-- Inter-College Specific Fields Container -->
-              <div id="inter-college-config-fields" class="col-12 p-3 rounded-3 border border-warning border-opacity-40 bg-warning bg-opacity-10 d-none">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                  <span class="text-xs fw-bold text-dark text-uppercase">
-                    <i class="bi bi-qr-code me-1 text-warning"></i> Inter-College External QR Configuration
-                  </span>
-                  <span class="badge bg-warning text-dark font-monospace" style="font-size:0.65rem;">
-                    <i class="bi bi-check-circle-fill me-1"></i>Auto QR Code Generation
-                  </span>
-                </div>
-                <div class="row g-2">
+                <div class="row g-2" role="radiogroup">
+                  <!-- Option 1: BOTH -->
                   <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Competition Mode *</label>
-                    <select name="competitionMode" id="ctm-comp-mode" class="form-select form-select-glass form-select-sm" onchange="onCompetitionModeChange(this.value)">
-                      <option value="INDIVIDUAL">Individual (Single Athlete)</option>
-                      <option value="TEAM" selected>Team (Squad Roster)</option>
-                    </select>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Category / Gender *</label>
-                    <select name="gender" id="ctm-gender-select" class="form-select form-select-glass form-select-sm">
-                      <option value="Men" selected>Men</option>
-                      <option value="Women">Women</option>
-                      <option value="Mixed">Mixed</option>
-                    </select>
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Registration Start Date</label>
-                    <input type="date" name="registrationStart" id="ctm-reg-start" class="form-control form-control-glass form-control-sm">
+                    <input type="radio" class="btn-check" name="participationType" id="part-both" value="BOTH" checked onchange="toggleParticipationScope('BOTH')">
+                    <label class="scope-card scope-card-both text-start w-100 p-3 h-100 d-flex flex-column justify-content-between shadow-sm" for="part-both">
+                      <div>
+                        <div class="fw-bold text-xs text-uppercase mb-1 d-flex align-items-center gap-1.5 scope-badge">
+                          <i class="bi bi-people-fill"></i> Both (Enga + Other)
+                        </div>
+                        <div class="scope-title fw-bold">Our College + Other Colleges</div>
+                      </div>
+                      <div class="mt-2.5 scope-subtext">
+                        <div><i class="bi bi-building-check me-1"></i>Enga Students: <strong>Free (₹0)</strong></div>
+                        <div><i class="bi bi-qr-code-scan me-1"></i>Other Colleges: <strong>Fee via QR / UPI</strong></div>
+                      </div>
+                    </label>
                   </div>
 
-                  <!-- Squad Rules (Required & Substitutes) -->
-                  <div class="col-md-3 team-rule-field">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Required Players *</label>
-                    <input type="number" name="requiredPlayers" id="ctm-req-players" class="form-control form-control-glass form-control-sm" value="11" min="1">
-                  </div>
-                  <div class="col-md-3 team-rule-field">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Substitutes</label>
-                    <input type="number" name="substitutes" id="ctm-substitutes" class="form-control form-control-glass form-control-sm" value="4" min="0">
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Max Colleges</label>
-                    <input type="number" name="maxColleges" class="form-control form-control-glass form-control-sm" value="50" min="1">
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Max Teams / Slots</label>
-                    <input type="number" name="maxTeams" class="form-control form-control-glass form-control-sm" value="30" min="1">
+                  <!-- Option 2: OUR COLLEGE ONLY -->
+                  <div class="col-md-4">
+                    <input type="radio" class="btn-check" name="participationType" id="part-internal" value="INTERNAL" onchange="toggleParticipationScope('INTERNAL')">
+                    <label class="scope-card scope-card-internal text-start w-100 p-3 h-100 d-flex flex-column justify-content-between shadow-sm" for="part-internal">
+                      <div>
+                        <div class="fw-bold text-xs text-uppercase mb-1 d-flex align-items-center gap-1.5 scope-badge">
+                          <i class="bi bi-building-check"></i> Our College Only
+                        </div>
+                        <div class="scope-title fw-bold">GASC Idappadi Students</div>
+                      </div>
+                      <div class="mt-2.5 scope-subtext">
+                        <div><i class="bi bi-shield-lock-fill me-1"></i>Intra-College Championship</div>
+                        <div><i class="bi bi-check-circle-fill me-1"></i><strong>100% Free</strong> in Student Portal</div>
+                      </div>
+                    </label>
                   </div>
 
-                  <!-- Contact Details for QR Poster -->
+                  <!-- Option 3: OTHER COLLEGES ONLY -->
                   <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Contact Person</label>
-                    <input type="text" name="contactPerson" class="form-control form-control-glass form-control-sm" value="Dr. R. ANITHA (Physical Director)">
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Contact Phone</label>
-                    <input type="tel" name="contactPhone" class="form-control form-control-glass form-control-sm" value="+91 94432 18765">
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Contact Email</label>
-                    <input type="email" name="contactEmail" class="form-control form-control-glass form-control-sm" value="sportsgascidappadi@gmail.com">
-                  </div>
-
-                  <div class="col-12">
-                    <label class="form-label small fw-bold text-dark" style="font-size:0.75rem;">Rules & Instructions for External Colleges</label>
-                    <textarea name="rules" class="form-control form-control-glass form-control-sm" rows="2" placeholder="Eligibility, reporting time, ID proof requirements, uniform rules..."></textarea>
+                    <input type="radio" class="btn-check" name="participationType" id="part-intercollege" value="INTER_COLLEGE" onchange="toggleParticipationScope('INTER_COLLEGE')">
+                    <label class="scope-card scope-card-external text-start w-100 p-3 h-100 d-flex flex-column justify-content-between shadow-sm" for="part-intercollege">
+                      <div>
+                        <div class="fw-bold text-xs text-uppercase mb-1 d-flex align-items-center gap-1.5 scope-badge">
+                          <i class="bi bi-trophy-fill"></i> Other Colleges Only
+                        </div>
+                        <div class="scope-title fw-bold">External Inter-College</div>
+                      </div>
+                      <div class="mt-2.5 scope-subtext">
+                        <div><i class="bi bi-qr-code me-1"></i>External Invitational Meet</div>
+                        <div><i class="bi bi-cash-stack me-1"></i><strong>Fee with QR & UPI</strong></div>
+                      </div>
+                    </label>
                   </div>
                 </div>
               </div>
 
-              <!-- Tournament Registration Fees & Payment Receiver Details -->
-              <div class="col-12 p-3 rounded-3 border border-primary border-opacity-30 shadow-sm" style="background: rgba(30, 41, 59, 0.45);">
-                <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom border-secondary border-opacity-25">
+              <!-- FEES & RECEIVING UPI CONFIGURATION -->
+              <div class="p-3 rounded-3 border border-secondary border-opacity-30" style="background: rgba(15, 23, 42, 0.6);">
+                <div class="d-flex align-items-center justify-content-between mb-2.5 pb-2 border-bottom border-white border-opacity-10">
                   <div class="d-flex align-items-center gap-2">
-                    <div class="p-1.5 rounded-2 bg-primary bg-opacity-20 text-primary">
-                      <i class="bi bi-cash-coin fs-6"></i>
-                    </div>
-                    <div>
-                      <h6 class="text-xs fw-bold text-uppercase text-white mb-0 tracking-wide">
-                        Registration Fees & Payment Configuration
-                      </h6>
-                      <span class="text-muted" style="font-size:0.68rem;">Configure independent fees for Our College vs Other College + UPI / GPay Details</span>
-                    </div>
+                    <i class="bi bi-credit-card-2-front-fill text-warning fs-6"></i>
+                    <span class="text-xs fw-bold text-uppercase text-white tracking-wider">Independent Registration Fees & UPI Configuration</span>
                   </div>
-                  <span class="badge bg-primary bg-opacity-20 text-info border border-info border-opacity-30" style="font-size:0.68rem;">
+                  <span class="badge bg-primary bg-opacity-20 text-info border border-info border-opacity-30 text-2xs">
                     <i class="bi bi-shield-check me-1"></i>Official Fee System
                   </span>
                 </div>
 
-                <!-- Independent Fee Cards: A. Our College vs B. Other College -->
-                <div class="row g-2">
-                  <!-- CARD A: OUR COLLEGE STUDENTS (GASC IDAPPADI) -->
-                  <div class="col-md-6">
-                    <div class="p-2.5 rounded-3 border border-success border-opacity-30 h-100" style="background: rgba(16, 185, 129, 0.06);">
+                <div class="row g-2.5">
+                  <!-- CARD A: OUR COLLEGE STUDENTS -->
+                  <div class="col-md-6" id="ctm-our-fee-card">
+                    <div class="p-2.5 rounded-3 border border-success border-opacity-30 h-100" style="background: rgba(16, 185, 129, 0.07);">
                       <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="text-xs fw-bold text-success text-uppercase">
-                          <i class="bi bi-building-check me-1"></i> Our College Students (GASC)
+                          <i class="bi bi-building-check me-1"></i> Our College (GASC Students)
                         </span>
                         <div class="form-check form-switch m-0">
                           <input class="form-check-input" type="checkbox" role="switch" id="ctm-our-fee-toggle" name="ourCollegeFeeEnabled" onchange="toggleOurCollegeFee(this.checked)">
@@ -3305,22 +3364,22 @@
                           <input type="number" name="ourCollegeFee" id="ctm-our-fee-input" class="form-control form-control-glass fw-bold text-success" value="50" min="0" step="5" placeholder="50">
                           <span class="input-group-text small bg-dark text-muted border-secondary">INR</span>
                         </div>
-                        <div class="text-muted" style="font-size:0.65rem;">GASC students will pay this fee via Gateway before registration.</div>
+                        <div class="text-muted" style="font-size:0.65rem;">GASC students will pay this fee before registering.</div>
                       </div>
 
-                      <div id="ctm-our-fee-free-msg" class="p-2 rounded bg-dark bg-opacity-40 border border-success border-opacity-20 text-center">
+                      <div id="ctm-our-fee-free-msg" class="p-2 rounded bg-dark bg-opacity-50 border border-success border-opacity-20 text-center">
                         <span class="text-xs text-success fw-bold"><i class="bi bi-gift-fill me-1"></i>Free Registration for Our College</span>
                         <div class="text-muted" style="font-size:0.65rem;">No fee required for internal college students.</div>
                       </div>
                     </div>
                   </div>
 
-                  <!-- CARD B: OTHER COLLEGE STUDENTS (EXTERNAL VIA QR) -->
-                  <div class="col-md-6">
-                    <div class="p-2.5 rounded-3 border border-warning border-opacity-30 h-100" style="background: rgba(245, 158, 11, 0.06);">
+                  <!-- CARD B: OTHER COLLEGE STUDENTS -->
+                  <div class="col-md-6" id="ctm-other-fee-card">
+                    <div class="p-2.5 rounded-3 border border-warning border-opacity-30 h-100" style="background: rgba(245, 158, 11, 0.07);">
                       <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="text-xs fw-bold text-warning text-uppercase">
-                          <i class="bi bi-qr-code-scan me-1"></i> Other College Students
+                          <i class="bi bi-qr-code-scan me-1"></i> Other College Students (QR)
                         </span>
                         <div class="form-check form-switch m-0">
                           <input class="form-check-input" type="checkbox" role="switch" id="ctm-other-fee-toggle" name="otherCollegeFeeEnabled" checked onchange="toggleOtherCollegeFee(this.checked)">
@@ -3340,22 +3399,22 @@
                         <div class="text-muted" style="font-size:0.65rem;">External college participants must pay this fee to confirm entry.</div>
                       </div>
 
-                      <div id="ctm-other-fee-free-msg" class="p-2 rounded bg-dark bg-opacity-40 border border-warning border-opacity-20 text-center" style="display: none;">
+                      <div id="ctm-other-fee-free-msg" class="p-2 rounded bg-dark bg-opacity-50 border border-warning border-opacity-20 text-center" style="display: none;">
                         <span class="text-xs text-warning fw-bold"><i class="bi bi-gift-fill me-1"></i>Free Entry for Other College</span>
                         <div class="text-muted" style="font-size:0.65rem;">External colleges can register free without payment.</div>
                       </div>
                     </div>
                   </div>
 
-                  <!-- PAYMENT RECEIVER DETAILS (GPAY NUMBER & UPI ID) -->
-                  <div class="col-12 mt-2">
-                    <div class="p-2.5 rounded-3 border border-info border-opacity-30" style="background: rgba(6, 182, 212, 0.05);">
+                  <!-- PAYMENT RECEIVER DETAILS (GPAY & UPI ID) -->
+                  <div class="col-12 mt-1" id="ctm-payment-receiver-card">
+                    <div class="p-2.5 rounded-3 border border-info border-opacity-30" style="background: rgba(6, 182, 212, 0.06);">
                       <div class="d-flex align-items-center justify-content-between mb-2">
                         <span class="text-xs fw-bold text-info text-uppercase">
-                          <i class="bi bi-phone-fill me-1"></i> Receiving Account Details (GPay & UPI ID for this Tournament)
+                          <i class="bi bi-phone-fill me-1"></i> Receiving Account Details (GPay & UPI ID for QR Code)
                         </span>
-                        <span class="badge bg-dark text-info border border-info border-opacity-30" style="font-size:0.65rem;">
-                          Configured Directly Here
+                        <span class="badge bg-dark text-info border border-info border-opacity-30 text-2xs">
+                          Linked to QR Code
                         </span>
                       </div>
                       <div class="row g-2">
@@ -3363,135 +3422,215 @@
                           <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
                             <i class="bi bi-qr-code text-info me-1"></i> Receiver UPI ID *
                           </label>
-                          <input type="text" name="upiId" id="ctm-upi-id" class="form-control form-control-glass form-control-sm" placeholder="e.g. 9443218765@sbi" value="9443218765@sbi">
+                          <input type="text" name="upiId" id="ctm-upi-id" class="form-control form-control-glass form-control-sm text-white" placeholder="e.g. 9443218765@sbi" value="9443218765@sbi">
                         </div>
                         <div class="col-md-4">
                           <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
-                            <i class="bi bi-google-play text-info me-1"></i> Google Pay / Mobile No *
+                            <i class="bi bi-google text-info me-1"></i> Google Pay / Mobile No *
                           </label>
-                          <input type="tel" name="gpayNumber" id="ctm-gpay-number" class="form-control form-control-glass form-control-sm" placeholder="e.g. +91 94432 18765" value="+91 94432 18765">
+                          <input type="tel" name="gpayNumber" id="ctm-gpay-number" class="form-control form-control-glass form-control-sm text-white" placeholder="e.g. +91 94432 18765" value="+91 94432 18765">
                         </div>
                         <div class="col-md-4">
                           <label class="form-label small fw-bold text-light mb-1" style="font-size:0.72rem;">
                             <i class="bi bi-person-check-fill text-info me-1"></i> Authorized Receiver Name *
                           </label>
-                          <input type="text" name="receiverName" id="ctm-receiver-name" class="form-control form-control-glass form-control-sm" placeholder="Physical Education Dept" value="Physical Education Dept, GASC Idappadi">
+                          <input type="text" name="receiverName" id="ctm-receiver-name" class="form-control form-control-glass form-control-sm text-white" placeholder="Physical Education Dept" value="Physical Education Dept, GASC Idappadi">
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div class="col-6">
-                <label class="form-label small fw-bold">Tournament Level / Type</label>
-                <select name="type" id="ctm-type-select" class="form-select form-select-glass form-select-sm">
-                  <option value="Inter-Department" selected>Inter-Department</option>
-                  <option value="Inter-College">Inter-College</option>
-                  <option value="University">University</option>
-                  <option value="District">District</option>
-                  <option value="State">State</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div class="col-6">
-                <label class="form-label small fw-bold">Status</label>
-                <select name="status" class="form-select form-select-glass form-select-sm">
-                  <option value="Registration Open" selected>Registration Open</option>
-                  <option value="Draft">Draft</option>
-                  <option value="Published">Published</option>
-                  <option value="Upcoming">Upcoming</option>
-                  <option value="Ongoing">Ongoing</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
-
-              <!-- Banner Image / Upload Image Field -->
-              <div class="col-12">
-                <label class="form-label small fw-bold text-dark">
-                  <i class="bi bi-image-fill text-warning me-1"></i> Tournament Banner Image
-                </label>
-                <div class="p-3 border border-secondary border-opacity-25 rounded-3 bg-dark bg-opacity-10">
-                  <div class="row align-items-center g-3">
-                    <div class="col-md-7">
-                      <input type="file" id="tournament-cover-file-input" name="bannerImage" class="form-control form-control-glass form-control-sm mb-2" accept="image/*" onchange="previewTournamentCoverImage(this, 'create-tournament-preview')">
-                      <input type="hidden" id="tournament-cover-url" name="coverImageUrl" value="/images/sports/tournament.png">
-                      <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary btn-sm px-3 fw-bold" onclick="document.getElementById('tournament-cover-file-input').click()">
-                          <i class="bi bi-upload me-1"></i>Add / Upload Image
-                        </button>
-                        <button type="button" class="btn btn-outline-danger btn-sm px-3" onclick="removeTournamentCoverImage('create-tournament-preview','tournament-cover-file-input','tournament-cover-url')">
-                          <i class="bi bi-trash me-1"></i>Use Default Image
-                        </button>
-                      </div>
-                      <div class="text-muted small mt-1" style="font-size:0.75rem;">
-                        <i class="bi bi-info-circle me-1"></i>Default image: <code>/images/sports/tournament.png</code>
-                      </div>
-                    </div>
-                    <div class="col-md-5">
-                      <div class="rounded-3 overflow-hidden border border-secondary border-opacity-40 bg-black shadow-sm" style="aspect-ratio:16/9; max-height:100px; position:relative;">
-                        <img id="create-tournament-preview" src="/images/sports/tournament.png" alt="Preview" style="width:100%;height:100%;object-fit:cover;">
-                      </div>
-                    </div>
+            <!-- ========================================== -->
+            <!-- STEP 04: SPORT DISCIPLINE & SQUAD RULES    -->
+            <!-- ========================================== -->
+            <div class="tourn-form-card mb-3">
+              <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-white border-opacity-10">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="step-number-badge">04</span>
+                  <div>
+                    <h6 class="text-xs fw-bold text-uppercase text-white mb-0 tracking-wider">Sport Discipline & Squad Configuration</h6>
+                    <span class="text-muted text-2xs">Primary sport event, participant slots & inter-college team roster rules</span>
                   </div>
                 </div>
+                <span class="badge bg-secondary bg-opacity-30 text-light text-2xs border border-white border-opacity-15">Step 4 of 5</span>
               </div>
 
-              <!-- Sport Discipline Selection -->
-              <div class="col-12 pt-2 border-top border-secondary border-opacity-25">
+              <!-- Primary Sport Discipline -->
+              <div class="p-3 rounded-3 border border-primary border-opacity-25 mb-3" style="background: rgba(30, 41, 59, 0.4);">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                  <h6 class="fw-bold text-dark mb-0 small"><i class="bi bi-flag-fill text-primary me-1"></i> First Sport Discipline *</h6>
-                  <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size:0.7rem;">Required</span>
+                  <span class="text-xs fw-bold text-uppercase text-info">
+                    <i class="bi bi-flag-fill text-primary me-1"></i> Primary Sport Event *
+                  </span>
+                  <span class="badge bg-primary bg-opacity-15 text-primary text-2xs">First Competition Created with Tournament</span>
                 </div>
-                <div class="row g-2">
-                  <div class="col-6">
-                    <label class="form-label small fw-bold" style="font-size:0.75rem;">Select Sport *</label>
+                <div class="row g-2.5">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-white" style="font-size:0.75rem;">Select Sport *</label>
                     <select name="sportId" id="create-tournament-sport-id" class="form-select form-select-glass form-select-sm populate-sports-select" required onchange="onTournamentSportSelectChange(this)">
                       <option value="">-- Select Sport --</option>
                     </select>
                   </div>
-                  <div class="col-6">
-                    <label class="form-label small fw-bold" style="font-size:0.75rem;">Competition Title *</label>
-                    <input type="text" name="name" id="create-tournament-comp-name" class="form-control form-control-glass form-control-sm" required placeholder="e.g. Cricket — Men">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-white" style="font-size:0.75rem;">Competition Title *</label>
+                    <input type="text" name="name" id="create-tournament-comp-name" class="form-control form-control-glass form-control-sm text-white" required placeholder="e.g. Cricket — Men">
                   </div>
-                  <div class="col-3">
-                    <label class="form-label small fw-bold" style="font-size:0.75rem;"><i class="bi bi-gender-ambiguous text-primary me-1"></i> Category *</label>
+                  <div class="col-md-3">
+                    <label class="form-label small fw-bold text-white" style="font-size:0.75rem;">
+                      <i class="bi bi-gender-ambiguous text-primary me-1"></i> Category / Gender *
+                    </label>
                     <select name="firstSportGender" id="create-tournament-gender" class="form-select form-select-glass form-select-sm" onchange="onTournamentCategoryChange(this.value)">
                       <option value="Men" selected>Men</option>
                       <option value="Women">Women</option>
                       <option value="Mixed">Mixed</option>
                     </select>
                   </div>
-                  <div class="col-3">
-                    <label class="form-label small fw-bold" style="font-size:0.75rem;">Event Type</label>
+                  <div class="col-md-3">
+                    <label class="form-label small fw-bold text-white" style="font-size:0.75rem;">Event Type</label>
                     <select name="sportType" class="form-select form-select-glass form-select-sm">
                       <option value="Individual">Individual</option>
                       <option value="Team" selected>Team</option>
                     </select>
                   </div>
-                  <div class="col-3">
-                    <label class="form-label small fw-bold" style="font-size:0.75rem;">Start Time</label>
-                    <input type="text" name="startTime" class="form-control form-control-glass form-control-sm" value="09:00 AM">
+                  <div class="col-md-3">
+                    <label class="form-label small fw-bold text-white" style="font-size:0.75rem;">Match Start Time</label>
+                    <input type="text" name="startTime" class="form-control form-control-glass form-control-sm text-white" value="09:00 AM">
                   </div>
-                  <div class="col-3">
-                    <label class="form-label small fw-bold" style="font-size:0.75rem;">Max Slots</label>
-                    <input type="number" name="maxParticipants" class="form-control form-control-glass form-control-sm" value="50">
+                  <div class="col-md-3">
+                    <label class="form-label small fw-bold text-white" style="font-size:0.75rem;">Max Total Slots</label>
+                    <input type="number" name="maxParticipants" class="form-control form-control-glass form-control-sm text-white" value="50">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Inter-College Specific Fields Container (Dynamically Shown when scope is BOTH or INTER_COLLEGE) -->
+              <div id="inter-college-config-fields" class="p-3 rounded-3 border border-warning border-opacity-40" style="background: rgba(245, 158, 11, 0.08);">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="text-xs fw-bold text-warning text-uppercase">
+                    <i class="bi bi-qr-code me-1 text-warning"></i> Inter-College External QR & Squad Configuration
+                  </span>
+                  <span class="badge bg-warning text-dark font-monospace" style="font-size:0.65rem;">
+                    <i class="bi bi-check-circle-fill me-1"></i>Auto QR Code Generation
+                  </span>
+                </div>
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Competition Mode *</label>
+                    <select name="competitionMode" id="ctm-comp-mode" class="form-select form-select-glass form-select-sm" onchange="onCompetitionModeChange(this.value)">
+                      <option value="INDIVIDUAL">Individual (Single Player)</option>
+                      <option value="TEAM" selected>Team (Squad Roster)</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Squad Category / Gender *</label>
+                    <select name="gender" id="ctm-gender-select" class="form-select form-select-glass form-select-sm">
+                      <option value="Men" selected>Men</option>
+                      <option value="Women">Women</option>
+                      <option value="Mixed">Mixed</option>
+                    </select>
+                  </div>
+
+                  <!-- Squad Rules (Required & Substitutes) -->
+                  <div class="col-md-3 team-rule-field">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Required Players *</label>
+                    <input type="number" name="requiredPlayers" id="ctm-req-players" class="form-control form-control-glass form-control-sm text-white" value="11" min="1">
+                  </div>
+                  <div class="col-md-3 team-rule-field">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Substitutes</label>
+                    <input type="number" name="substitutes" id="ctm-substitutes" class="form-control form-control-glass form-control-sm text-white" value="4" min="0">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Max External Colleges</label>
+                    <input type="number" name="maxColleges" class="form-control form-control-glass form-control-sm text-white" value="50" min="1">
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Max Teams / Slots</label>
+                    <input type="number" name="maxTeams" class="form-control form-control-glass form-control-sm text-white" value="30" min="1">
+                  </div>
+
+                  <!-- Contact Details for QR Poster -->
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Contact Person</label>
+                    <input type="text" name="contactPerson" class="form-control form-control-glass form-control-sm text-white" value="Dr. R. ANITHA (Physical Director)">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Contact Phone</label>
+                    <input type="tel" name="contactPhone" class="form-control form-control-glass form-control-sm text-white" value="+91 94432 18765">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Contact Email</label>
+                    <input type="email" name="contactEmail" class="form-control form-control-glass form-control-sm text-white" value="sportsgascidappadi@gmail.com">
+                  </div>
+
+                  <div class="col-12">
+                    <label class="form-label small fw-bold text-light" style="font-size:0.75rem;">Rules & Instructions for External Colleges</label>
+                    <textarea name="rules" class="form-control form-control-glass form-control-sm text-white" rows="2" placeholder="Eligibility, reporting time, college ID card proof mandatory, uniform & kit rules..."></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- STEP 05: BANNER IMAGE & BRANDING           -->
+            <!-- ========================================== -->
+            <div class="tourn-form-card mb-2">
+              <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom border-white border-opacity-10">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="step-number-badge">05</span>
+                  <div>
+                    <h6 class="text-xs fw-bold text-uppercase text-white mb-0 tracking-wider">Tournament Banner Image & Branding</h6>
+                    <span class="text-muted text-2xs">Custom graphic cover for student portal, invitations & printed posters</span>
+                  </div>
+                </div>
+                <span class="badge bg-secondary bg-opacity-30 text-light text-2xs border border-white border-opacity-15">Step 5 of 5</span>
+              </div>
+
+              <div class="p-3 border border-secondary border-opacity-25 rounded-3 bg-dark bg-opacity-40">
+                <div class="row align-items-center g-3">
+                  <div class="col-md-7">
+                    <input type="file" id="tournament-cover-file-input" name="bannerImage" class="form-control form-control-glass form-control-sm mb-2" accept="image/*" onchange="previewTournamentCoverImage(this, 'create-tournament-preview')">
+                    <input type="hidden" id="tournament-cover-url" name="coverImageUrl" value="/images/sports/tournament.png">
+                    <div class="d-flex gap-2">
+                      <button type="button" class="btn btn-primary btn-sm px-3 fw-bold" onclick="document.getElementById('tournament-cover-file-input').click()">
+                        <i class="bi bi-upload me-1"></i>Upload Banner Image
+                      </button>
+                      <button type="button" class="btn btn-outline-danger btn-sm px-3" onclick="removeTournamentCoverImage('create-tournament-preview','tournament-cover-file-input','tournament-cover-url')">
+                        <i class="bi bi-trash me-1"></i>Use Default
+                      </button>
+                    </div>
+                    <div class="text-muted small mt-2" style="font-size:0.72rem;">
+                      <i class="bi bi-info-circle me-1"></i>Recommended aspect ratio: 16:9 (e.g. 1920x1080 or 1280x720) • PNG, JPG, WEBP.
+                    </div>
+                  </div>
+                  <div class="col-md-5">
+                    <div class="rounded-3 overflow-hidden border border-secondary border-opacity-40 bg-black shadow-sm" style="aspect-ratio:16/9; max-height:110px; position:relative;">
+                      <img id="create-tournament-preview" src="/images/sports/tournament.png" alt="Preview" style="width:100%;height:100%;object-fit:cover;">
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="modal-footer border-top border-secondary border-opacity-25">
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-warning fw-bold px-4">
-              <i class="bi bi-check-circle me-1"></i>Create Tournament
-            </button>
+
+          <!-- FOOTER -->
+          <div class="modal-footer border-top border-white border-opacity-10 px-4 py-3 d-flex align-items-center justify-content-between flex-shrink-0">
+            <div class="text-muted text-xs d-none d-md-block">
+              <i class="bi bi-shield-lock text-success me-1"></i>All details are synchronized across student portal and live database.
+            </div>
+            <div class="d-flex gap-2 ms-auto">
+              <button type="button" class="btn btn-outline-light px-3 py-2 text-xs fw-semibold" data-bs-dismiss="modal">
+                <i class="bi bi-x-circle me-1"></i>Cancel
+              </button>
+              <button type="submit" class="btn btn-create-tourn fw-bold px-4 py-2 text-xs">
+                <i class="bi bi-trophy-fill me-1.5"></i>Create & Publish Tournament
+              </button>
+            </div>
           </div>
         </form>
       </div>
     </div>
-  </div>
   <!-- Modal: Edit Tournament Cover Image -->
   <div class="modal fade" id="editTournamentModal" data-bs-focus="false">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -3806,7 +3945,7 @@
           <div class="modal-body">
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label small fw-bold">Student Athlete *</label>
+                <label class="form-label small fw-bold">Student Player *</label>
                 <select name="studentIdentifier" class="form-select form-select-glass populate-students-select" required></select>
               </div>
               <div class="col-md-6">
@@ -3893,7 +4032,7 @@
             </div>
             <div class="mb-3">
               <label class="form-label small fw-bold">Message Content *</label>
-              <textarea id="notify-message" class="form-control form-control-glass" rows="4" required placeholder="Write message for student athletes..."></textarea>
+              <textarea id="notify-message" class="form-control form-control-glass" rows="4" required placeholder="Write message for student players..."></textarea>
             </div>
           </div>
           <div class="modal-footer border-0">
@@ -3952,7 +4091,7 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content glass-card p-2">
         <div class="modal-header border-0">
-          <h5 class="modal-title fw-bold text-dark">Student Athlete Dossier</h5>
+          <h5 class="modal-title fw-bold text-dark">Student Player Dossier</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
@@ -4038,19 +4177,15 @@
               </div>
             </div>
             <div class="row g-2 mb-3">
-              <div class="col-4">
-                <label class="form-label small fw-bold">Section</label>
-                <input type="text" name="section" class="form-control form-control-glass" value="A">
-              </div>
-              <div class="col-4">
-                <label class="form-label small fw-bold">Gender</label>
-                <select name="gender" class="form-select form-select-glass">
-                  <option value="Male">Male</option>
+              <div class="col-6">
+                <label class="form-label small fw-bold">Gender *</label>
+                <select name="gender" class="form-select form-select-glass" required>
+                  <option value="Male" selected>Male</option>
                   <option value="Female">Female</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
-              <div class="col-4">
+              <div class="col-6">
                 <label class="form-label small fw-bold">Status *</label>
                 <select name="status" class="form-select form-select-glass">
                   <option value="Active" selected>Active</option>
@@ -4783,6 +4918,59 @@
     </div>
   </div>
 
+  <!-- ================= MODAL: PAYMENT PROOF SCREENSHOT LIGHTBOX ================= -->
+  <div class="modal fade" id="modal-payment-proof-lightbox" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content glass-card border border-warning border-opacity-25 shadow-lg">
+        <div class="modal-header border-bottom border-white border-opacity-10 py-3">
+          <div class="d-flex align-items-center gap-2">
+            <div class="stat-icon bg-warning bg-opacity-20 text-warning" style="width:36px;height:36px;font-size:18px;">
+              <i class="bi bi-qr-code-scan"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-white mb-0" id="proof-lightbox-title">Student UPI Payment Screenshot Proof</h5>
+              <small class="text-white-50" id="proof-lightbox-subtitle">Verify receipt before approving player</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <input type="hidden" id="proof-lightbox-reg-id">
+          <div class="p-3 mb-3 rounded-3 text-start border border-secondary border-opacity-25" style="background: rgba(15, 23, 42, 0.65);">
+            <div class="row g-2 small">
+              <div class="col-sm-6"><strong>Registration ID:</strong> <span class="font-monospace text-primary fw-bold" id="proof-reg-id">-</span></div>
+              <div class="col-sm-6"><strong>Fee Amount:</strong> <span class="badge bg-success text-white fw-bold fs-6" id="proof-amount">₹0</span></div>
+              <div class="col-sm-6"><strong>Student / Team:</strong> <span class="text-white fw-semibold" id="proof-player">-</span></div>
+              <div class="col-sm-6"><strong>College:</strong> <span class="text-white-50" id="proof-college">-</span></div>
+              <div class="col-sm-12"><strong>Submitted UTR:</strong> <span class="font-monospace text-warning fw-bold fs-6" id="proof-utr">-</span>
+                <button class="btn btn-outline-warning btn-sm py-0 px-2 ms-2" onclick="copyProofUtr()"><i class="bi bi-copy me-1"></i>Copy UTR</button>
+              </div>
+            </div>
+          </div>
+          <div class="p-2 border border-secondary border-opacity-25 rounded-3 bg-black bg-opacity-50 text-center">
+            <img id="proof-lightbox-img" src="" alt="Payment Screenshot" class="img-fluid rounded" style="max-height: 55vh; object-fit: contain;">
+          </div>
+          <div class="mt-2 text-center">
+            <a id="proof-lightbox-open-link" href="#" target="_blank" class="btn btn-link btn-sm text-info text-decoration-none">
+              <i class="bi bi-box-arrow-up-right me-1"></i> Open full-size image in new browser tab
+            </a>
+          </div>
+        </div>
+        <div class="modal-footer border-top border-white border-opacity-10 py-3 d-flex justify-content-between">
+          <button type="button" class="btn btn-outline-danger rounded-pill px-3" onclick="rejectProofModalPayment()">
+            <i class="bi bi-x-circle me-1"></i> Reject Payment
+          </button>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-success fw-bold rounded-pill px-4 shadow-sm" onclick="approveProofModalPayment()">
+              <i class="bi bi-check2-circle me-1.5"></i> Amount Received & Approve Player
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= MODAL: CM TROPHY ANNOUNCEMENT (CREATE / EDIT) ================= -->
   <div class="modal fade" id="cmTrophyModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -5243,7 +5431,6 @@
   <script src="js/interCollegeAdmin.js?v=20261008_v1"></script>
   <script src="js/paymentAdmin.js?v=20261017_v1"></script>
   <script src="js/offlineStatus.js?v=20260928_offline_v1"></script>
-  <script src="js/touchEffects.js"></script>
 </body>
 
 </html>

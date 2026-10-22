@@ -36,7 +36,7 @@ const verifyToken = async (req, res, next) => {
     const studentIdentifier = req.headers['x-student-id'] || 
                               req.headers['x-register-number'] || 
                               (req.body && (req.body.studentId || req.body.registerNumber)) ||
-                              'C24UG183CSC013';
+                              '23UGCS101';
 
     try {
       const { data: userRaw } = await supabase
@@ -54,13 +54,13 @@ const verifyToken = async (req, res, next) => {
       // Check if student exists in roster or create active student
       const localStore = require('../data/localStore');
       const roster = localStore.storeInstance.getTable('college_student_roster') || [];
-      const ros = roster.find(r => r.register_number.toLowerCase() === String(studentIdentifier).toLowerCase() || r.id === studentIdentifier) || roster.find(r => r.register_number === 'C24UG183CSC013') || roster[0];
+      const ros = roster.find(r => r.register_number.toLowerCase() === String(studentIdentifier).toLowerCase() || r.id === studentIdentifier) || roster.find(r => r.register_number === '23UGCS101') || roster[0];
 
       const newStudent = {
         id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        name: ros ? ros.name : (req.body?.studentName || req.body?.name || 'Lokesh Krishnan'),
-        register_number: (ros ? ros.register_number : (studentIdentifier || 'C24UG183CSC013')).toUpperCase(),
-        email: `${(ros ? ros.register_number : studentIdentifier || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`,
+        name: ros ? ros.name : (req.body?.studentName || req.body?.name || 'Arun Kumar S'),
+        register_number: (ros ? ros.register_number : (studentIdentifier || '23UGCS101')).toUpperCase(),
+        email: `${(ros ? ros.register_number : studentIdentifier || '23ugcs101').toLowerCase()}@gascidappadi.edu.in`,
         password: require('bcryptjs').hashSync('student123', 10),
         role: 'student',
         department: ros ? ros.department : (req.body?.department || 'Computer Science'),
@@ -133,17 +133,17 @@ const verifyToken = async (req, res, next) => {
                               req.headers['x-register-number'] || 
                               (req.body && (req.body.studentId || req.body.registerNumber)) ||
                               decoded.registerNumber ||
-                              'C24UG183CSC013';
+                              '23UGCS101';
 
 
     const roster = localStore.storeInstance.getTable('college_student_roster') || [];
-    const ros = roster.find(r => r.register_number.toLowerCase() === String(studentIdentifier).toLowerCase()) || roster.find(r => r.register_number === 'C24UG183CSC013') || roster[0];
+    const ros = roster.find(r => r.register_number.toLowerCase() === String(studentIdentifier).toLowerCase()) || roster.find(r => r.register_number === '23UGCS101') || roster[0];
 
     const newStudent = {
       id: decoded.id || `usr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      name: ros ? ros.name : (req.body?.studentName || 'Lokesh Krishnan'),
-      register_number: (ros ? ros.register_number : (studentIdentifier || 'C24UG183CSC013')).toUpperCase(),
-      email: `${(ros ? ros.register_number : studentIdentifier || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`,
+      name: ros ? ros.name : (req.body?.studentName || 'Arun Kumar S'),
+      register_number: (ros ? ros.register_number : (studentIdentifier || '23UGCS101')).toUpperCase(),
+      email: `${(ros ? ros.register_number : studentIdentifier || '23ugcs101').toLowerCase()}@gascidappadi.edu.in`,
       password: require('bcryptjs').hashSync('student123', 10),
       role: 'student',
       department: ros ? ros.department : (req.body?.department || 'Computer Science'),
@@ -170,16 +170,16 @@ const verifyToken = async (req, res, next) => {
       const studentIdentifier = req.headers['x-student-id'] || 
                                 req.headers['x-register-number'] || 
                                 (req.body && (req.body.studentId || req.body.registerNumber)) ||
-                                'C24UG183CSC013';
+                                '23UGCS101';
       const localStore = require('../data/localStore');
       const roster = localStore.storeInstance.getTable('college_student_roster') || [];
-      const ros = roster.find(r => r.register_number.toLowerCase() === String(studentIdentifier).toLowerCase()) || roster.find(r => r.register_number === 'C24UG183CSC013') || roster[0];
+      const ros = roster.find(r => r.register_number.toLowerCase() === String(studentIdentifier).toLowerCase()) || roster.find(r => r.register_number === '23UGCS101') || roster[0];
 
       const newStudent = {
         id: `usr_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        name: ros ? ros.name : 'Lokesh Krishnan',
-        register_number: (ros ? ros.register_number : (studentIdentifier || 'C24UG183CSC013')).toUpperCase(),
-        email: `${(ros ? ros.register_number : studentIdentifier || 'c24ug183csc013').toLowerCase()}@gascidappadi.edu.in`,
+        name: ros ? ros.name : 'Arun Kumar S',
+        register_number: (ros ? ros.register_number : (studentIdentifier || '23UGCS101')).toUpperCase(),
+        email: `${(ros ? ros.register_number : studentIdentifier || '23ugcs101').toLowerCase()}@gascidappadi.edu.in`,
         password: require('bcryptjs').hashSync('student123', 10),
         role: 'student',
         department: 'Computer Science',

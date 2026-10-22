@@ -47,7 +47,7 @@ const SettingsPage = () => {
 
   // User Profile Data
   const [userData, setUserData] = useState({
-    name: 'Student Athlete',
+    name: 'Student Player',
     regNo: '',
     email: '',
     phone: '',
@@ -85,7 +85,7 @@ const SettingsPage = () => {
       if (stored) {
         const u = JSON.parse(stored);
         setUserData({
-          name: u.name || 'Student Athlete',
+          name: u.name || 'Student Player',
           regNo: u.registerNumber || u.regNo || u.register_number || '',
           email: u.email || '',
           phone: u.phone || u.mobile || '',
@@ -210,7 +210,7 @@ const SettingsPage = () => {
                 Account Settings
               </h3>
               <p style={{ fontSize: 13, color: '#6E86A5', margin: 0 }}>
-                Update your student athlete information.
+                Update your student player information.
               </p>
             </div>
 
@@ -377,7 +377,7 @@ const SettingsPage = () => {
                 Appearance & Visual Theme
               </h3>
               <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
-                Customize colors, contrast, and theme mode for your student athlete portal.
+                Customize colors, contrast, and theme mode for your student player portal.
               </p>
             </div>
 
@@ -572,7 +572,7 @@ const SettingsPage = () => {
                   Outline Button
                 </button>
                 <span className="badge" style={{ background: 'var(--accent-subtle)', color: 'var(--accent-secondary)', border: '1px solid var(--accent-border)', padding: '5px 12px', fontSize: 12 }}>
-                  ★ Athlete Certified
+                  ★ Player Certified
                 </span>
               </div>
             </div>

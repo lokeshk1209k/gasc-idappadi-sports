@@ -936,7 +936,7 @@ button:active, .btn-primary:active, .btn-orange:active, .btn-outline:active, .fi
   animation: shimmerGlow 4s linear infinite;
 }
 
-/* ── Athlete Command Deck HUD Classes ── */
+/* ── Player Command Deck HUD Classes ── */
 @keyframes radarSpin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }

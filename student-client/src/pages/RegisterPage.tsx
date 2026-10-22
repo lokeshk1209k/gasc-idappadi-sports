@@ -283,7 +283,7 @@ const RegisterPage: React.FC = () => {
                 setVerifiedStudent({
                   id: `roster_${cleanReg}`,
                   register_number: p.registerNumber || cleanReg,
-                  name: p.name || 'Student Athlete',
+                  name: p.name || 'Student Player',
                   department: p.department || n.target_type || 'Computer Science',
                   year: p.year || n.target_audience || 'I Year',
                   section: p.section || 'A',
@@ -704,7 +704,7 @@ const RegisterPage: React.FC = () => {
         <div className="absolute inset-0 z-0 overflow-hidden">
           <img
             src="/images/login-hero.jpg"
-            alt="GASC Sports Athletes"
+            alt="GASC Sports Players"
             className="w-full h-full object-cover object-center scale-105 transition-transform duration-1000 ease-out hover:scale-100 filter brightness-90 contrast-105"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#020817]/90 via-[#020817]/65 to-[#020817]/95" />
@@ -781,7 +781,7 @@ const RegisterPage: React.FC = () => {
               { num: '01', title: 'Roster Verification', desc: 'Automatic validation with College Admission records' },
               { num: '02', title: 'Profile Setup', desc: 'Create your unique student credentials and password' },
               { num: '03', title: 'Email OTP Verification', desc: 'Secure high-speed OTP email validation' },
-              { num: '04', title: 'Athlete Dashboard Access', desc: 'Instant access to tournaments & equipment vault' }
+              { num: '04', title: 'Player Dashboard Access', desc: 'Instant access to tournaments & equipment vault' }
             ].map((st, i) => {
               const active = currentStep === (i + 1);
               const done = currentStep > (i + 1);
@@ -817,7 +817,7 @@ const RegisterPage: React.FC = () => {
           {/* Quick Stats Capsules */}
           <div className="grid grid-cols-3 gap-3 mt-7 pt-6 border-t border-white/10">
             {[
-              { val: '1000+', label: 'Athletes Enrolled', icon: Flame, color: '#FF6A21' },
+              { val: '1000+', label: 'Players Enrolled', icon: Flame, color: '#FF6A21' },
               { val: '12+', label: 'Sports Disciplines', icon: Trophy, color: '#38A7FF' },
               { val: '100%', label: 'Verified Records', icon: ShieldCheck, color: '#10B981' }
             ].map((stat, idx) => {
@@ -1390,14 +1390,14 @@ const RegisterPage: React.FC = () => {
                     Registration Complete! 🎉
                   </h2>
                   <p className="text-xs text-slate-300">
-                    Your official athlete account has been registered in the GASC Sports Portal.
+                    Your official player account has been registered in the GASC Sports Portal.
                   </p>
                 </div>
 
-                {/* Athlete Pass Card */}
+                {/* Player Pass Card */}
                 <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 text-left text-xs space-y-2">
                   <div className="flex justify-between items-center pb-2 border-b border-white/10">
-                    <span className="text-slate-400">Athlete Name</span>
+                    <span className="text-slate-400">Player Name</span>
                     <strong className="text-white font-bold">{registeredSummary.name}</strong>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-white/10">

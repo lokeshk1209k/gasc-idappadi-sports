@@ -93,7 +93,7 @@ async function initAdminCharts() {
         data: {
           labels: sportsChart.labels || [],
           datasets: [{
-            label: 'Registered Athletes',
+            label: 'Registered Players',
             data: sportsChart.data || [],
             backgroundColor: 'rgba(15, 76, 129, 0.8)',
             borderRadius: 6

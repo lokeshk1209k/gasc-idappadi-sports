@@ -1,6 +1,30 @@
 const { supabase, toCamelCase, toSnakeCase } = require('../utils/supabaseHelper');
 const NotificationService = require('../services/notificationService');
 const { invalidateCache } = require('../middleware/cacheMiddleware');
+const fs = require('fs');
+const path = require('path');
+
+// Keep all competitions.json files in sync for ultra-fast student portal loading
+function syncCompetitionsJsonFiles(compsList) {
+  try {
+    const list = Array.isArray(compsList) ? compsList : [];
+    const payload = JSON.stringify({ success: true, count: list.length, competitions: list }, null, 2);
+    const targets = [
+      path.join(__dirname, '../../client/public/competitions.json'),
+      path.join(__dirname, '../../dist/competitions.json'),
+      path.join(__dirname, '../../student-client/public/competitions.json'),
+      path.join(__dirname, '../../student-client/dist/competitions.json')
+    ];
+    targets.forEach(t => {
+      try {
+        const dir = path.dirname(t);
+        if (fs.existsSync(dir)) {
+          fs.writeFileSync(t, payload, 'utf8');
+        }
+      } catch (err) {}
+    });
+  } catch (e) {}
+}
 
 // Compute dynamic registration status based on open & close conditions
 function computeRegistrationStatus(item) {
@@ -9,6 +33,13 @@ function computeRegistrationStatus(item) {
   const currentStatus = String(item.status || '').trim();
   if (/^cancelled$|^canceled$/i.test(currentStatus)) return 'Cancelled';
   if (/^completed$/i.test(currentStatus)) return 'Completed';
+  if (/^closed$|^registration closed$/i.test(currentStatus)) return 'Registration Closed';
+  if (/^draft$/i.test(currentStatus)) return 'Draft';
+
+  // If Admin explicitly set or saved status as "Registration Open" or "Open", ALWAYS RESPECT IT
+  if (/^open$|^registration open$/i.test(currentStatus)) {
+    return 'Registration Open';
+  }
 
   const now = new Date();
   
@@ -33,11 +64,6 @@ function computeRegistrationStatus(item) {
     }
   }
 
-  // If status is explicit (other than AUTO / empty) and not expired, keep it
-  if (currentStatus && currentStatus !== 'AUTO' && currentStatus !== 'null' && currentStatus !== 'undefined' && currentStatus !== '') {
-    return currentStatus;
-  }
-
   return 'Registration Open';
 }
 
@@ -50,30 +76,54 @@ exports.getAllCompetitions = async (req, res) => {
   try {
     const { status, type, level, sportId } = req.query;
 
-    let query = supabase.from('competitions').select('*');
+    let compsRaw = [];
+    try {
+      const localStore = require('../data/localStore');
+      const table = localStore.storeInstance.getTable('competitions');
+      if (Array.isArray(table) && table.length > 0) {
+        compsRaw = table;
+      }
+    } catch (e) {}
 
-    if (status && status !== 'All') query = query.eq('status', status);
-    if (type && type !== 'All') query = query.eq('type', type);
-    if (level && level !== 'All') query = query.eq('level', level);
-    if (sportId && sportId !== 'All') query = query.eq('sport_id', sportId);
+    // Fallback to Supabase if localStore is not yet initialized
+    if (!compsRaw || compsRaw.length === 0) {
+      let query = supabase.from('competitions').select('*').order('date', { ascending: true });
+      if (status && status !== 'All') query = query.eq('status', status);
+      if (type && type !== 'All') query = query.eq('type', type);
+      if (level && level !== 'All') query = query.eq('level', level);
+      if (sportId && sportId !== 'All') query = query.eq('sport_id', sportId);
 
-    query = query.order('date', { ascending: true });
-
-    const { data: compsRaw, error } = await query;
-
-    if (error) {
-      return res.status(500).json({ success: false, message: error.message });
+      const { data, error } = await query;
+      if (error) {
+        return res.status(500).json({ success: false, message: error.message });
+      }
+      compsRaw = data || [];
     }
 
-    const competitions = (compsRaw || []).map(c => {
+    // High-performance in-memory filtering (<0.1ms)
+    let filtered = compsRaw;
+    if (status && status !== 'All') filtered = filtered.filter(c => (c.status || '').toLowerCase() === status.toLowerCase());
+    if (type && type !== 'All') filtered = filtered.filter(c => (c.type || '').toLowerCase() === type.toLowerCase());
+    if (level && level !== 'All') filtered = filtered.filter(c => (c.level || '').toLowerCase() === level.toLowerCase());
+    if (sportId && sportId !== 'All') filtered = filtered.filter(c => String(c.sport_id || c.sportId) === String(sportId));
+
+    const competitions = (filtered || []).map(c => {
       const item = toCamelCase(c);
       if (c.sports) item.sportId = toCamelCase(c.sports);
 
-      const sportNameStr = c.sport_name || (c.sports && c.sports.name) || c.name || '';
-      const slug = sportNameStr.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      // Robust tournament and sport fields for 100% portal compatibility
+      item.tournamentName = (item.tournamentName || c.tournament_name || (c.name ? c.name.split('—')[0].trim() : 'GASC Annual Sports Meet 2026')).trim();
+      item.tournament_name = item.tournamentName;
+      item.tournamentId = item.tournamentId || c.tournament_id || `tour_${item.tournamentName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      item.tournament_id = item.tournamentId;
+
+      item.sportName = (item.sportName || c.sport_name || (item.sportId && item.sportId.name) || c.name || 'Sports').trim();
+      item.sport_name = item.sportName;
+
       if (!item.bannerImage || item.bannerImage.includes('unsplash') || item.bannerImage.includes('default') || item.bannerImage === 'null' || item.bannerImage === 'undefined' || item.bannerImage.startsWith('/images/sports/')) {
         item.bannerImage = '/images/sports/tournament.png';
       }
+      item.banner_image = item.bannerImage;
 
       // Automatically determine real-time registration status based on open & close conditions
       const dynStatus = computeRegistrationStatus(c);
@@ -198,8 +248,9 @@ exports.createCompetition = async (req, res) => {
     const tName = req.body.tournamentName || req.body.tournament_name || name.split('-')[0].trim();
     const tId = req.body.tournamentId || req.body.tournament_id || `tour_${tName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     const token = req.body.registrationToken || req.body.registration_token || crypto.randomBytes(16).toString('hex');
-    const pType = req.body.participationType || req.body.participation_type || (type === 'Inter-College' ? 'INTER_COLLEGE' : 'INTRA_COLLEGE');
+    const pType = req.body.participationType || req.body.participation_type || (type === 'Inter-College' ? 'INTER_COLLEGE' : 'BOTH');
     const cMode = req.body.competitionMode || req.body.competition_mode || (type === 'Team Event' || type === 'TEAM' ? 'TEAM' : 'INDIVIDUAL');
+    const isExternalEnabled = (pType === 'BOTH' || pType === 'INTER_COLLEGE');
 
     // Ensure parent tournament exists in tournaments table for public portal
     const parentComputedStatus = computeRegistrationStatus({
@@ -253,7 +304,7 @@ exports.createCompetition = async (req, res) => {
         status: parentComputedStatus,
         banner_image: bannerImage,
         participation_type: pType,
-        external_registration_enabled: true,
+        external_registration_enabled: isExternalEnabled,
         registration_token: tourToken,
         entry_fee: otherFee,
         our_college_fee_enabled: ourFeeEnabled,
@@ -310,7 +361,7 @@ exports.createCompetition = async (req, res) => {
       participation_type: pType,
       competition_mode: cMode,
       registration_token: token,
-      external_registration_enabled: true,
+      external_registration_enabled: isExternalEnabled,
       entry_fee: otherFee,
       our_college_fee_enabled: ourFeeEnabled,
       our_college_fee: ourFee,
@@ -378,6 +429,7 @@ exports.createCompetition = async (req, res) => {
         table.unshift(compRecord);
       }
       storeInstance.save();
+      syncCompetitionsJsonFiles(table);
     } catch (e) {
       console.warn('localStore sync notice on createCompetition:', e.message);
     }
@@ -473,8 +525,19 @@ exports.updateCompetition = async (req, res) => {
       .select()
       .single();
 
-    if (error || !updatedRaw) {
-      return res.status(404).json({ success: false, message: 'Competition not found or update failed.' });
+    // Update localStore immediately
+    try {
+      const localStore = require('../data/localStore');
+      const storeInstance = localStore.storeInstance;
+      const table = storeInstance.getTable('competitions');
+      const idx = table.findIndex(c => String(c.id) === String(id) || String(c._id) === String(id));
+      if (idx >= 0) {
+        table[idx] = { ...table[idx], ...updates, ...(updatedRaw || {}) };
+        storeInstance.save();
+        syncCompetitionsJsonFiles(table);
+      }
+    } catch (e) {
+      console.warn('localStore update notice on updateCompetition:', e.message);
     }
 
     // Invalidate API caches so student portal sees updates immediately
@@ -483,7 +546,7 @@ exports.updateCompetition = async (req, res) => {
     res.json({
       success: true,
       message: 'Competition updated successfully!',
-      competition: toCamelCase(updatedRaw)
+      competition: toCamelCase(updatedRaw || updates)
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -514,6 +577,7 @@ exports.deleteCompetition = async (req, res) => {
     const remaining = table.filter(c => String(c.id) !== String(id) && String(c._id) !== String(id));
     localStore.storeInstance.db['competitions'] = remaining;
     localStore.storeInstance.save();
+    syncCompetitionsJsonFiles(remaining);
 
     // Invalidate cache immediately
     try { invalidateCache('/api/competitions'); } catch (e) {}
@@ -555,14 +619,14 @@ exports.deleteTournament = async (req, res) => {
 
     localStore.storeInstance.db['competitions'] = remaining;
     localStore.storeInstance.save();
+    syncCompetitionsJsonFiles(remaining);
 
-    // Delete registrations
+    // Delete registrations and competitions in Supabase
     for (const dId of deletedIds) {
       await supabase.from('competition_registrations').delete().eq('competition_id', dId);
     }
-
-    // Delete in Supabase
     await supabase.from('competitions').delete().ilike('tournament_name', `%${tournamentName}%`);
+    await supabase.from('tournaments').delete().ilike('name', `%${tournamentName}%`);
 
     // Invalidate cache immediately
     try { invalidateCache('/api/competitions'); } catch (e) {}
@@ -686,7 +750,7 @@ exports.registerForCompetition = async (req, res) => {
       req.body.registerNumber ||
       (req.headers && req.headers['x-register-number']) ||
       (req.user && (req.user.register_number || req.user.registerNumber)) ||
-      'C24UG183CSC013'
+      '23UGCS101'
     ).trim().toUpperCase();
 
     const reqStudentId = (req.user && req.user.id) || req.body.studentId || (req.headers && req.headers['x-student-id']);

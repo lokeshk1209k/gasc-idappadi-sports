@@ -43,8 +43,8 @@ console.log('[prepare-dist] 2. Merging client/public assets to root dist and stu
   copyRecursiveSync(path.join(srcDir, 'uploads'), path.join(targetDir, 'uploads'));
   copyRecursiveSync(path.join(srcDir, 'images'), path.join(targetDir, 'images'));
 
-  const htmlFiles = fs.readdirSync(srcDir).filter(f => f.endsWith('.html') && f !== 'index.html');
-  htmlFiles.forEach(file => {
+  const staticRootFiles = fs.readdirSync(srcDir).filter(f => (f.endsWith('.html') || f.endsWith('.xml') || f.endsWith('.txt')) && f !== 'index.html');
+  staticRootFiles.forEach(file => {
     fs.copyFileSync(path.join(srcDir, file), path.join(targetDir, file));
   });
 

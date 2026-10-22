@@ -138,11 +138,12 @@ exports.createGalleryItem = async (req, res) => {
       // Mirror file to other local target upload directories so offline desktop can view it
       try {
         const mirrorDirs = [
-          'D:/GASC-Sports-Admin-Portable/GASC Sports Admin-win32-x64/resources/app/client/public/uploads',
-          'C:/Users/ELCOT/Desktop/GASC Sports Admin Portable/resources/app/client/public/uploads',
           path.resolve(__dirname, '../../dist/uploads'),
           path.resolve(__dirname, '../../public/uploads')
         ];
+        if (process.env.PORTABLE_EXECUTABLE_DIR) {
+          mirrorDirs.push(path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'sports_management_data', 'uploads'));
+        }
         mirrorDirs.forEach(md => {
           if (fs.existsSync(path.dirname(md))) {
             if (!fs.existsSync(md)) fs.mkdirSync(md, { recursive: true });

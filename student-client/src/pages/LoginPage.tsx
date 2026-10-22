@@ -541,7 +541,7 @@ const LoginPage: React.FC = () => {
         <div className="absolute inset-0 z-0 overflow-hidden">
           <img
             src="/images/login-hero.jpg"
-            alt="GASC Sports Athletes"
+            alt="GASC Sports Players"
             className="w-full h-full object-cover object-center scale-105 transition-transform duration-1000 ease-out hover:scale-100 filter brightness-90 contrast-105"
           />
           {/* Multi-layered cinematic glass scrims */}
@@ -599,7 +599,7 @@ const LoginPage: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/25 mb-6 backdrop-blur-sm">
             <Sparkles className="w-3.5 h-3.5 text-blue-400" />
             <span className="text-xs font-semibold text-blue-300 uppercase tracking-widest">
-              Empowering Student Athletes
+              Empowering Student Players
             </span>
           </div>
 
@@ -722,7 +722,7 @@ const LoginPage: React.FC = () => {
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-1.5">
                 <h2 className="text-2xl sm:text-[26px] font-black text-white font-['Plus_Jakarta_Sans'] tracking-tight">
-                  Welcome Athlete! ⚡
+                  Welcome Player! ⚡
                 </h2>
               </div>
               <p className="text-xs sm:text-[13px] text-slate-300/80 leading-relaxed">

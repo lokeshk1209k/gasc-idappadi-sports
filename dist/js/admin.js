@@ -212,7 +212,9 @@ function switchAdminView(viewId) {
     if (window.loadAdminInterCollegeData) window.loadAdminInterCollegeData();
   }
   else if (viewId === 'payments') {
-    if (window.loadAdminPayments) window.loadAdminPayments();
+    switchAdminView('competitions');
+    if (typeof switchExtTab === 'function') switchExtTab('payments');
+    return;
   }
   else if (viewId === 'inter-college') {
     switchAdminView('competitions');
@@ -2223,6 +2225,13 @@ function openCreateTournamentModal() {
     window.updateRegSchedulePreview();
   }
 
+  // Initialize Audience & Participation Scope to BOTH (Default)
+  const bothRadio = document.getElementById('part-both');
+  if (bothRadio) bothRadio.checked = true;
+  if (typeof toggleParticipationScope === 'function') {
+    toggleParticipationScope('BOTH');
+  }
+
   // Auto-select first sport if not chosen
   const sportSel = document.getElementById('create-tournament-sport-id');
   if (sportSel && sportSel.options.length > 1 && (!sportSel.value || sportSel.selectedIndex === 0)) {
@@ -2546,9 +2555,9 @@ async function submitCreateCompetition(event) {
     } catch (mErr) {}
     loadAdminCompetitions();
 
-    // If INTER_COLLEGE, open the QR Code modal specifically for the tournament created
-    const partType = formData.get('participationType');
-    if (partType === 'INTER_COLLEGE' && window.showParentTournamentQrModal) {
+    // If INTER_COLLEGE or BOTH, open the QR Code modal specifically for the tournament created
+    const partType = formData.get('participationType') || 'BOTH';
+    if ((partType === 'INTER_COLLEGE' || partType === 'BOTH') && window.showParentTournamentQrModal) {
       setTimeout(() => {
         window.showParentTournamentQrModal(tName);
       }, 400);
@@ -2846,7 +2855,7 @@ async function loadAdminApplications() {
 
     table.innerHTML = regs.map((r, idx) => {
       const regId = r.id || r._id;
-      const studentName = (r.studentId && r.studentId.name) ? r.studentId.name : (r.studentName || 'Student Athlete');
+      const studentName = (r.studentId && r.studentId.name) ? r.studentId.name : (r.studentName || 'Student Player');
       const regNo = (r.studentId && r.studentId.registerNumber) ? r.studentId.registerNumber : (r.registerNumber || '');
       const dept = (r.studentId && r.studentId.department) ? r.studentId.department : (r.department || '');
       const tName = r.tournamentName || (r.competitionId && r.competitionId.tournamentName) || 'Inter-Department Fest';
@@ -4579,7 +4588,7 @@ function openStudentsModal(type, p1, p2) {
     subtitle = `All students registered from ${p1} across sports competitions`;
   } else if (type === 'sport') {
     filtered = filtered.filter(s => s.sportName.toLowerCase() === p1.toLowerCase());
-    title = `${p1} — Registered Athletes`;
+    title = `${p1} — Registered Players`;
     subtitle = `All students registered for ${p1} competition`;
   } else if (type === 'matrix') {
     filtered = filtered.filter(s => s.department === p1 && s.sportName.toLowerCase() === p2.toLowerCase());
@@ -4723,7 +4732,7 @@ async function generateMasterReport(type) {
         </tr>
       `).join('');
     } else if (type === 'achievements') {
-      tableHeaders = '<th>#</th><th>Medal</th><th>Achievement Title</th><th>Student Athlete</th><th>Department</th><th>Sport</th><th>Year</th>';
+      tableHeaders = '<th>#</th><th>Medal</th><th>Achievement Title</th><th>Student Player</th><th>Department</th><th>Sport</th><th>Year</th>';
       tableRows = data.map((d, i) => `
         <tr>
           <td>${i + 1}</td><td><strong>${d.medal}</strong></td><td>${d.title}</td><td>${d.studentName}</td>
@@ -5665,8 +5674,17 @@ async function saveAdminSettings(event) {
 
 // 13. College Roster & Excel Import
 let allRosterCache = [];
+let rosterDebounceTimer = null;
 
-async function loadAdminRoster() {
+function debouncedLoadAdminRoster(delay = 120) {
+  clearTimeout(rosterDebounceTimer);
+  rosterDebounceTimer = setTimeout(() => {
+    loadAdminRoster(false);
+  }, delay);
+}
+window.debouncedLoadAdminRoster = debouncedLoadAdminRoster;
+
+async function loadAdminRoster(showSpinner = true) {
   const tbody = document.getElementById('admin-roster-table') || document.getElementById('roster-table-body');
   if (!tbody) return;
 
@@ -5684,13 +5702,15 @@ async function loadAdminRoster() {
   url += params.join('&');
 
   try {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading college roster...</td></tr>';
+    if (showSpinner && (!allRosterCache || allRosterCache.length === 0)) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Loading college roster...</td></tr>';
+    }
     const res = await apiRequest(url);
     allRosterCache = res.students || [];
 
     // Update stats
     const totalEl = document.getElementById('roster-stat-total');
-    if (totalEl) totalEl.innerText = res.totalCount || 0;
+    if (totalEl) totalEl.innerText = res.totalCount || allRosterCache.length;
 
     const regEl = document.getElementById('roster-stat-registered');
     if (regEl) regEl.innerText = res.registeredCount || 0;
@@ -5731,7 +5751,7 @@ function renderRosterTable(students) {
       : '<span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-2 py-1 fw-bold"><i class="bi bi-check-circle-fill text-success me-1"></i> ACTIVE</span>';
 
     const portalBadge = s.isRegistered 
-      ? '<span class="badge bg-success bg-opacity-25 text-dark border border-success border-opacity-60 px-2 py-1 fw-bold" style="color: #000000 !important;"><i class="bi bi-check-circle-fill text-success me-1"></i> Registered Athlete</span>'
+      ? '<span class="badge bg-success bg-opacity-25 text-dark border border-success border-opacity-60 px-2 py-1 fw-bold" style="color: #000000 !important;"><i class="bi bi-check-circle-fill text-success me-1"></i> Registered Player</span>'
       : '<span class="badge bg-warning bg-opacity-25 text-dark border border-warning border-opacity-60 px-2 py-1 fw-bold" style="color: #000000 !important;"><i class="bi bi-clock-history text-warning me-1"></i> Not Registered Yet</span>';
 
     const genderIcon = s.gender === 'Female' 
@@ -5758,7 +5778,6 @@ function renderRosterTable(students) {
         </td>
         <td>
           <div class="fw-semibold text-dark">${s.year}</div>
-          <small class="text-muted">Section: ${s.section || 'A'}</small>
         </td>
         <td>${genderIcon}</td>
         <td>${rosterStatusBadge}</td>
@@ -5782,11 +5801,21 @@ async function toggleRosterStudentStatus(id, newStatus) {
   const studentName = student ? student.name : 'this student';
   const studentRegNo = student ? student.registerNumber : '';
 
+  // Optimistic UI update: instantly update status without waiting for network!
+  if (student) {
+    student.status = newStatus;
+    renderRosterTable(allRosterCache);
+  }
+
   try {
     const res = await apiRequest(`/roster/${id}/status`, 'PATCH', { status: newStatus });
     showToast(res.message || `Student ${studentName} (${studentRegNo}) status updated to ${newStatus}.`, 'success', 'Status Changed');
-    await loadAdminRoster();
   } catch (err) {
+    // Revert optimistic update on failure
+    if (student) {
+      student.status = (newStatus === 'Active' ? 'Inactive' : 'Active');
+      renderRosterTable(allRosterCache);
+    }
     showToast(err.message || 'Failed to change student status.', 'error', 'Error');
   }
 }
@@ -5828,17 +5857,67 @@ async function handleRosterExcelUpload(event) {
 async function submitManualStudentAdd(event) {
   event.preventDefault();
   const form = event.target;
+  const submitBtn = form.querySelector('button[type="submit"]');
   const formData = new FormData(form);
 
+  const rawReg = (formData.get('registerNumber') || '').trim();
+  const rawName = (formData.get('name') || '').trim();
+  const dept = (formData.get('department') || 'Computer Science').trim();
+  const year = (formData.get('year') || 'I Year').trim();
+
+  if (!rawReg || !rawName) {
+    showToast('Register Number and Student Name are required.', 'warning', 'Validation');
+    return;
+  }
+
+  // Client-side Instant Duplicate Prevention Check (<1ms)
+  const cleanReg = rawReg.toUpperCase();
+  const normReg = cleanReg.replace(/[^A-Z0-9]/gi, '');
+  const cleanName = rawName.toLowerCase().replace(/\s+/g, ' ');
+  const cleanDept = dept.toLowerCase();
+  const cleanYear = year.toLowerCase();
+
+  if (Array.isArray(allRosterCache) && allRosterCache.length > 0) {
+    // 1. Check duplicate Register Number
+    const dupByReg = allRosterCache.find(s => {
+      const sReg = (s.registerNumber || s.register_number || '').trim().toUpperCase();
+      const sNorm = sReg.replace(/[^A-Z0-9]/gi, '');
+      return sReg === cleanReg || (normReg && sNorm === normReg);
+    });
+
+    if (dupByReg) {
+      showToast(`Student with Register No "${cleanReg}" already exists in the roster (${dupByReg.name}). Duplicates are not allowed!`, 'warning', 'Duplicate Entry Blocked');
+      return;
+    }
+
+    // 2. Check duplicate Name + Department + Year
+    const dupByNameDept = allRosterCache.find(s => {
+      const sName = (s.name || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const sDept = (s.department || '').trim().toLowerCase();
+      const sYear = (s.year || '').trim().toLowerCase();
+      return sName === cleanName && sDept === cleanDept && sYear === cleanYear;
+    });
+
+    if (dupByNameDept) {
+      showToast(`Student "${rawName}" in ${dept} (${year}) is already in the roster (Reg No: ${dupByNameDept.registerNumber || dupByNameDept.register_number}). Duplicates are not allowed!`, 'warning', 'Duplicate Entry Blocked');
+      return;
+    }
+  }
+
   const payload = {
-    registerNumber: formData.get('registerNumber'),
-    name: formData.get('name'),
-    department: formData.get('department'),
-    year: formData.get('year'),
-    section: formData.get('section'),
-    gender: formData.get('gender'),
+    registerNumber: cleanReg,
+    name: rawName,
+    department: dept,
+    year: year,
+    section: formData.get('section') || 'A',
+    gender: formData.get('gender') || 'Male',
     status: formData.get('status') || 'Active'
   };
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Adding...';
+  }
 
   try {
     const res = await apiRequest('/roster/manual', 'POST', payload);
@@ -5854,6 +5933,11 @@ async function submitManualStudentAdd(event) {
     await loadAdminRoster();
   } catch (err) {
     showToast(err.message, 'error', 'Failed to Add Student');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-plus-circle me-1"></i> Add Student to Roster';
+    }
   }
 }
 
@@ -5866,12 +5950,18 @@ async function deleteRosterStudent(id, name, regNo) {
     return;
   }
 
+  // Optimistic UI update: remove from local cache and re-render immediately (<1ms)
+  allRosterCache = allRosterCache.filter(s => s.id !== id && s._id !== id);
+  renderRosterTable(allRosterCache);
+  const totalEl = document.getElementById('roster-stat-total');
+  if (totalEl) totalEl.innerText = allRosterCache.length;
+
   try {
     const res = await apiRequest(`/roster/${id}`, 'DELETE');
     showToast(res.message || 'Student removed from roster.', 'info', 'Removed from Roster');
-    await loadAdminRoster();
   } catch (err) {
     showToast(err.message, 'error', 'Delete Failed');
+    await loadAdminRoster();
   }
 }
 

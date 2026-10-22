@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 const ProfilePage = () => {
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState({
-    name: 'Student Athlete',
+    name: 'Student Player',
     regNo: '',
     dept: 'Department of Physical Education',
     year: 'I Year',
@@ -27,7 +27,7 @@ const ProfilePage = () => {
       if (stored) {
         const u = JSON.parse(stored);
         const updated = {
-          name: u.name || 'Student Athlete',
+          name: u.name || 'Student Player',
           regNo: u.registerNumber || u.regNo || u.register_number || '',
           dept: u.department || u.dept || 'Computer Science',
           year: u.year || 'I Year',
@@ -128,7 +128,7 @@ const ProfilePage = () => {
         <h1 className="section-title" style={{ fontSize: 28 }}>
           MY <span style={{ color: '#38A7FF' }}>PROFILE</span>
         </h1>
-        <p className="section-subtitle">Official Student Athlete Identity — GASC Idappadi Sports Portal</p>
+        <p className="section-subtitle">Official Student Player Identity — GASC Idappadi Sports Portal</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
@@ -185,7 +185,7 @@ const ProfilePage = () => {
           {/* Sports summary */}
           <div className="gasc-card" style={{ padding: 20 }}>
             <h3 style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: 14, color: '#FFFFFF', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Star style={{ width: 16, height: 16, color: '#FFD700' }} /> Athlete Achievements
+              <Star style={{ width: 16, height: 16, color: '#FFD700' }} /> Player Achievements
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {ACHIEVEMENTS.map(({ icon, label, value }) => (

@@ -746,16 +746,20 @@ async function handleRegister(req, res) {
       body.feeAmount !== undefined ? body.feeAmount :
       (comp.other_college_fee !== undefined ? comp.other_college_fee : (comp.entry_fee || comp.entryFee || 0))
     );
-    const submittedUtr = (body.transactionRef || body.utrNumber || '').trim().toUpperCase();
+    let submittedUtr = (body.transactionRef || body.utrNumber || '').trim().toUpperCase();
+    const isDirectGpay = body.paymentMethod === 'GOOGLE_PAY_DIRECT' || body.isDirectGpay === true;
+    if (!submittedUtr && isDirectGpay) {
+      submittedUtr = `GPAY-${Date.now().toString().slice(-8)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
     const submittedScreenshot = body.paymentScreenshot || null;
     const submittedConfigVersion = Number(body.paymentConfigVersion || 1);
-    const submittedMethod = body.paymentMethod || (reqFee > 0 ? 'UPI' : 'FREE');
+    const submittedMethod = body.paymentMethod || (isDirectGpay ? 'GOOGLE_PAY_DIRECT' : (reqFee > 0 ? 'UPI' : 'FREE'));
 
     if (reqFee > 0) {
       if (!submittedUtr) {
         return res.status(400).json({
           success: false,
-          message: `Registration fee of ₹${reqFee} is required. Please transfer the amount via GPay / UPI and enter the 12-digit UTR reference number.`
+          message: `Registration fee of ₹${reqFee} is required. Please transfer the amount via GPay / UPI and complete registration.`
         });
       }
 
@@ -800,9 +804,8 @@ async function handleRegister(req, res) {
     regPayload.fee_amount = reqFee;
     regPayload.payment_method = submittedMethod;
     regPayload.payment_status = initialPaymentStatus;
-    regPayload.transaction_ref = submittedUtr || null;
-    regPayload.payment_screenshot = submittedScreenshot;
-    regPayload.payment_config_version = submittedConfigVersion;
+    regPayload.payment_id = submittedUtr || null;
+    regPayload.supporting_document = submittedScreenshot || null;
     regPayload.remarks = JSON.stringify(remarksPayload);
 
     try {
@@ -825,20 +828,51 @@ async function handleRegister(req, res) {
       await supabase.from('competition_registrations').insert(compReg);
     } catch (e) {}
 
-    try {
-      await supabase.from('external_registrations').insert(regPayload);
-    } catch (e) {
-      // Fallback: try inserting without extended payment columns if table not yet migrated
-      try {
-        const fallbackPayload = { ...regPayload };
-        delete fallbackPayload.fee_amount;
-        delete fallbackPayload.payment_method;
-        delete fallbackPayload.payment_status;
-        delete fallbackPayload.transaction_ref;
-        delete fallbackPayload.payment_screenshot;
-        delete fallbackPayload.payment_config_version;
-        await supabase.from('external_registrations').insert(fallbackPayload);
-      } catch (fErr) {}
+    // Prepare safe cloud payload (strip columns not in Cloud Supabase schema cache)
+    const cloudPayload = { ...regPayload };
+    delete cloudPayload.payment_screenshot;
+    delete cloudPayload.transaction_ref;
+    delete cloudPayload.payment_config_version;
+
+    const { error: insErr } = await supabase.from('external_registrations').insert(cloudPayload);
+    if (insErr) {
+      console.warn('Initial cloud insert warning, attempting fallback:', insErr.message);
+      const minimalPayload = {
+        id: regPayload.id,
+        registration_id: regPayload.registration_id,
+        tournament_id: regPayload.tournament_id,
+        competition_id: regPayload.competition_id,
+        college_name: regPayload.college_name,
+        college_address: regPayload.college_address,
+        district: regPayload.district,
+        state: regPayload.state,
+        college_phone: regPayload.college_phone,
+        college_email: regPayload.college_email,
+        registration_type: regPayload.registration_type,
+        sport_id: regPayload.sport_id,
+        sport_name: regPayload.sport_name,
+        gender: regPayload.gender,
+        team_name: regPayload.team_name,
+        coach_name: regPayload.coach_name,
+        coach_phone: regPayload.coach_phone,
+        manager_name: regPayload.manager_name,
+        manager_phone: regPayload.manager_phone,
+        player_name: regPayload.player_name,
+        player_register_number: regPayload.player_register_number,
+        department: regPayload.department,
+        year: regPayload.year,
+        participant_email: regPayload.participant_email,
+        participant_phone: regPayload.participant_phone,
+        supporting_document: submittedScreenshot || null,
+        otp_verified: true,
+        status: 'PENDING',
+        fee_amount: reqFee,
+        payment_method: submittedMethod,
+        payment_status: initialPaymentStatus,
+        payment_id: submittedUtr || null,
+        remarks: JSON.stringify(remarksPayload)
+      };
+      await supabase.from('external_registrations').insert(minimalPayload);
     }
 
     if (mode === 'TEAM' && Array.isArray(players)) {

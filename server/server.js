@@ -36,7 +36,7 @@ try {
 } catch (e) {
   // Compression is optional for offline/portable environments
 }
-const { apiCache } = require('./middleware/cacheMiddleware');
+const { apiCache, autoInvalidateMiddleware } = require('./middleware/cacheMiddleware');
 
 const app = express();
 
@@ -102,29 +102,31 @@ app.use('/admin/vendor', express.static(path.join(clientPublic, 'vendor')));
 app.use('/vendor', express.static(path.join(clientPublic, 'vendor')));
 app.use('/admin/css', express.static(path.join(clientPublic, 'css')));
 app.use('/admin/js', express.static(path.join(clientPublic, 'js')));
-app.use('/css', express.static(path.join(clientPublic, 'css')));
+app.use(autoInvalidateMiddleware);
+
 // 1. Live Dynamic API Routes (High Priority - Always Handled By Controllers)
 app.use('/api/auth', authRoutes);
-app.use('/api/players', playerRoutes);
-app.use('/api/sports', sportRoutes);
-app.use('/api/equipment', equipmentRoutes);
-app.use('/api/competitions', competitionRoutes);
-app.use('/api/teams', teamRoutes);
-app.use('/api/achievements', achievementRoutes);
+app.use('/api/players', apiCache(10), playerRoutes);
+app.use('/api/sports', apiCache(30), sportRoutes);
+app.use('/api/equipment', apiCache(10), equipmentRoutes);
+app.use('/api/competitions', apiCache(15), competitionRoutes);
+app.use('/api/tournaments', apiCache(15), competitionRoutes);
+app.use('/api/teams', apiCache(10), teamRoutes);
+app.use('/api/achievements', apiCache(20), achievementRoutes);
 app.use('/api/notifications', apiCache(10), notificationRoutes);
 app.use('/api/gallery', apiCache(30), galleryRoutes);
-app.use('/api/analytics', analyticsRoutes);
+app.use('/api/analytics', apiCache(10), analyticsRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/settings', settingsRoutes);
-app.use('/api/roster', rosterRoutes);
-app.use('/api/practice', practiceRoutes);
-app.use('/api/attendance', attendanceRoutes);
+app.use('/api/roster', apiCache(5), rosterRoutes);
+app.use('/api/practice', apiCache(10), practiceRoutes);
+app.use('/api/attendance', apiCache(10), attendanceRoutes);
 app.use('/api/supabase', supabaseRoutes);
-app.use('/api/external-competitions', externalCompetitionRoutes);
+app.use('/api/external-competitions', apiCache(15), externalCompetitionRoutes);
 app.use('/api/sports-news', apiCache(60), sportsNewsRoutes);
-app.use('/api/inter-college', interCollegeRoutes);
+app.use('/api/inter-college', apiCache(10), interCollegeRoutes);
 app.use('/api/open-registration', interCollegeRoutes);
-app.use('/api/cm-trophy', cmTrophyRoutes);
+app.use('/api/cm-trophy', apiCache(20), cmTrophyRoutes);
 app.use('/api/payments', paymentRoutes);
 
 // 2. Static Assets & File Hosting
