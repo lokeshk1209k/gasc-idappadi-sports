@@ -1458,7 +1458,7 @@ const CompetitionsPage = () => {
                     </span>
                     {t.participationType === 'BOTH' ? (
                       <span className="badge" style={{ background: 'rgba(34,197,94,0.25)', color: '#4ade80', border: '1px solid #22c55e', fontSize: 11, fontWeight: 700 }}>
-                        ✓ Open for All (Enga College + Other)
+                        ✓ Open for All (Our College + Other Colleges)
                       </span>
                     ) : t.participationType === 'INTERNAL' ? (
                       <span className="badge" style={{ background: 'rgba(56,167,255,0.25)', color: '#93c5fd', border: '1px solid #38A7FF', fontSize: 11, fontWeight: 700 }}>
